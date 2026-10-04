@@ -1,0 +1,202 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
+import { provideRouter } from '@angular/router';
+import { globalSettings } from '../testing/fixtures';
+import { GlobalSettingsPage } from './global-settings';
+
+describe('GlobalSettingsPage', () => {
+  let fixture: ComponentFixture<GlobalSettingsPage>;
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [GlobalSettingsPage],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    });
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(GlobalSettingsPage);
+  });
+
+  afterEach(() => http.verify());
+
+  const settingsPage = () => fixture.componentInstance;
+  const form = () => settingsPage()['form'];
+  const page = () => fixture.nativeElement as HTMLElement;
+
+  async function load() {
+    await fixture.whenStable();
+    http.expectOne({ method: 'GET', url: '/api/settings' }).flush(globalSettings());
+    await fixture.whenStable();
+  }
+
+  async function submit() {
+    page().querySelector<HTMLButtonElement>('button[type=submit]')!.click();
+    await fixture.whenStable();
+  }
+
+  it('explains that the settings apply to every pipeline and lists its sections', async () => {
+    await load();
+
+    expect(page().querySelector('h1')?.textContent).toBe('DevSecOps Global Settings');
+    expect(page().querySelector('.lead')?.textContent).toContain(
+      'apply to every DevSecOps pipeline of every product, and a service cannot override them',
+    );
+    expect([...page().querySelectorAll('.toc-item')].map((item) => item.textContent?.trim())).toEqual([
+      'hubPlatform and tools',
+      'dnsDeployment defaults',
+      'policySeverity limits',
+      'timerScans and coverage',
+      'verifiedRelease gate',
+      'tuneService defaults',
+      'auto_fix_highGoldenFix defaults',
+    ]);
+    expect(page().querySelector('.meta')?.textContent).toContain('Version 4');
+    expect(form().controls.platform.controls.jenkinsUrl.value).toBe('https://jenkins.bbh.com');
+    expect(settingsPage().hasUnsavedChanges()).toBe(false);
+  });
+
+  it('shows why the settings cannot be read and loads them again on request', async () => {
+    await fixture.whenStable();
+    http
+      .expectOne('/api/settings')
+      .flush({ detail: 'Database unavailable' }, { status: 503, statusText: 'Unavailable' });
+    await fixture.whenStable();
+
+    expect(page().querySelector('.banner')?.textContent).toContain('Database unavailable');
+    expect(page().querySelector('form')).toBeNull();
+
+    page().querySelector<HTMLButtonElement>('.banner + button')!.click();
+    await load();
+    expect(page().querySelector('form')).not.toBeNull();
+  });
+
+  it('saves the changes with the version they were made at', async () => {
+    await load();
+    form().controls.scans.controls.coverageMinLine.setValue(70);
+    form().markAsDirty();
+    expect(settingsPage().hasUnsavedChanges()).toBe(true);
+
+    await submit();
+
+    const request = http.expectOne({ method: 'PUT', url: '/api/settings' });
+    expect(request.request.body.version).toBe(4);
+    expect(request.request.body.scans.coverageMinLine).toBe(70);
+    request.flush(
+      globalSettings({
+        version: 5,
+        scans: { ...globalSettings().scans, coverageMinLine: 70 },
+      }),
+    );
+    await fixture.whenStable();
+
+    expect(settingsPage().hasUnsavedChanges()).toBe(false);
+    expect(page().querySelector('.meta')?.textContent).toContain('Version 5');
+  });
+
+  it('sends nothing while values are invalid and marks their section', async () => {
+    await load();
+    form().controls.deployment.controls.rdHost.setValue('');
+
+    await submit();
+
+    http.expectNone({ method: 'PUT', url: '/api/settings' });
+    expect(page().querySelector('.save-error')?.textContent).toContain(
+      'Some fields need your attention.',
+    );
+    expect(page().querySelector('.toc-item.problem')?.textContent).toContain(
+      'Deployment defaults',
+    );
+  });
+
+  it('explains a concurrent change and reloads the current settings', async () => {
+    await load();
+    form().controls.scans.controls.coverageMinLine.setValue(70);
+    form().markAsDirty();
+    await submit();
+
+    http
+      .expectOne({ method: 'PUT', url: '/api/settings' })
+      .flush(
+        { detail: 'The record was changed by someone else.' },
+        { status: 409, statusText: 'Conflict' },
+      );
+    await fixture.whenStable();
+
+    const banner = page().querySelector('.banner.conflict');
+    expect(banner?.textContent).toContain('Someone else saved the settings after you opened this page.');
+    expect(page().querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(true);
+
+    banner!.querySelector<HTMLButtonElement>('button')!.click();
+    await fixture.whenStable();
+    http.expectOne({ method: 'GET', url: '/api/settings' }).flush(globalSettings({ version: 6 }));
+    await fixture.whenStable();
+
+    expect(page().querySelector('.banner.conflict')).toBeNull();
+    expect(form().controls.scans.controls.coverageMinLine.value).toBe(60);
+    expect(page().querySelector('.meta')?.textContent).toContain('Version 6');
+  });
+
+  it('marks the values the API refused and lists the problems without a field', async () => {
+    await load();
+    form().markAsDirty();
+    await submit();
+
+    http.expectOne({ method: 'PUT', url: '/api/settings' }).flush(
+      {
+        detail: 'The request has invalid values',
+        errors: [
+          { field: 'limits[DAST].maxHigh', message: 'must be at most 100000' },
+          { field: 'unknownField', message: 'is not supported' },
+        ],
+      },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    await fixture.whenStable();
+
+    expect(form().controls.limits.controls.DAST.controls.maxHigh.errors).toEqual({
+      server: 'must be at most 100000',
+    });
+    expect(page().querySelector('.problems')?.textContent).toContain(
+      'unknownField: is not supported',
+    );
+    expect(page().querySelector('.toc-item.problem')?.textContent).toContain('Severity limits');
+    expect(page().querySelector('.save-error')?.textContent).toContain(
+      'The portal did not accept some values.',
+    );
+  });
+
+  it('discards the changes made on the page', async () => {
+    await load();
+    form().controls.platform.controls.jenkinsLibrary.setValue('Other');
+    form().markAsDirty();
+    await fixture.whenStable();
+
+    page()
+      .querySelectorAll<HTMLButtonElement>('.save-bar button')[0]
+      .click();
+    await fixture.whenStable();
+
+    expect(form().controls.platform.controls.jenkinsLibrary.value).toBe('DevSecOpsJenkinsLibrary');
+    expect(settingsPage().hasUnsavedChanges()).toBe(false);
+  });
+
+  it('previews the generated global configuration', async () => {
+    await load();
+    const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
+
+    page().querySelector<HTMLButtonElement>('.page-header .actions button')!.click();
+    await fixture.whenStable();
+    const request = http.expectOne((r) => r.url === '/api/settings/config');
+    expect(request.request.params.get('format')).toBe('yaml');
+    request.flush('platform:\n  jenkinsLibrary: DevSecOpsJenkinsLibrary\n');
+    await fixture.whenStable();
+
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(open.mock.calls[0][1]?.data).toMatchObject({
+      title: 'Generated global configuration',
+      code: 'platform:\n  jenkinsLibrary: DevSecOpsJenkinsLibrary\n',
+    });
+  });
+});

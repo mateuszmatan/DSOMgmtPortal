@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { product, service, servicePipelines } from '../testing/fixtures';
+import { globalSettings, product, service, servicePipelines } from '../testing/fixtures';
 import { ProductEditor } from './product-editor';
 
 describe('ProductEditor', () => {
@@ -26,6 +26,12 @@ describe('ProductEditor', () => {
   const editor = () => fixture.componentInstance;
   const page = () => fixture.nativeElement as HTMLElement;
 
+  async function start() {
+    await fixture.whenStable();
+    http.expectOne('/api/settings').flush(globalSettings());
+    await fixture.whenStable();
+  }
+
   async function submit() {
     page().querySelector<HTMLButtonElement>('button[type=submit]')!.click();
     await fixture.whenStable();
@@ -41,13 +47,14 @@ describe('ProductEditor', () => {
       ['form'].controls.services.at(0)
       .patchValue({
         name: 'gui',
-        build: { javaPath: '/usr/lib/jvm/java-17-openjdk' },
+        build: { javaPath: '/usr/lib/jvm/java-17-openjdk', command: { tasks: 'clean package' } },
+        deployment: { appName: 'gui', artifactName: 'gui.jar' },
         appScan: { applicationId: '109f44ac-cc06-4ca0-884e-d944904f7019' },
       });
   }
 
   it('starts a new product with one open service', async () => {
-    await fixture.whenStable();
+    await start();
 
     expect(page().querySelector('h1')?.textContent).toBe('Add product');
     expect(page().querySelectorAll('mat-expansion-panel').length).toBe(1);
@@ -55,8 +62,28 @@ describe('ProductEditor', () => {
     expect(editor().hasUnsavedChanges()).toBe(false);
   });
 
-  it('sends nothing while fields are invalid and says so', async () => {
+  it('starts the new service from the service defaults of the global settings', async () => {
+    await start();
+    const value = editor()['form'].controls.services.at(0).getRawValue();
+
+    expect(value.build.tool).toBe('MAVEN');
+    expect(value.build.sourceDir).toBe('app');
+    expect(value.deployment.target).toBe('OPENSHIFT');
+  });
+
+  it('works with the library defaults when the global settings cannot be read', async () => {
     await fixture.whenStable();
+    http.expectOne('/api/settings').flush(null, { status: 500, statusText: 'Server Error' });
+    await fixture.whenStable();
+    const value = editor()['form'].controls.services.at(0).getRawValue();
+
+    expect(page().querySelectorAll('mat-expansion-panel').length).toBe(1);
+    expect(value.build.tool).toBe('GRADLE');
+    expect(value.deployment.target).toBe('VM');
+  });
+
+  it('sends nothing while fields are invalid and says so', async () => {
+    await start();
     await submit();
 
     http.expectNone('/api/products');
@@ -67,7 +94,7 @@ describe('ProductEditor', () => {
   });
 
   it('adds the product and opens it', async () => {
-    await fixture.whenStable();
+    await start();
     fillValidProduct();
     await submit();
 
@@ -85,14 +112,15 @@ describe('ProductEditor', () => {
   });
 
   it('marks the fields the API refused and lists the problems without a field', async () => {
-    await fixture.whenStable();
+    await start();
     editor()['addService']();
     fillValidProduct();
     editor()
       ['form'].controls.services.at(1)
       .patchValue({
         name: 'api',
-        build: { tool: 'FLUTTER' },
+        build: { javaPath: '/usr/lib/jvm/java-21-openjdk', command: { tasks: 'clean package' } },
+        deployment: { appName: 'api', artifactName: 'api.jar' },
         appScan: { applicationId: '209f44ac-cc06-4ca0-884e-d944904f7019' },
       });
     await submit();
@@ -116,10 +144,13 @@ describe('ProductEditor', () => {
     });
     expect(editor()['expanded']()).toBe(1);
     expect(page().querySelector('.problems')?.textContent).toContain('appScanAccount: is unknown');
+    expect(page().querySelector('.mat-expanded .rail-item.active')?.textContent).toContain(
+      'SonarQube',
+    );
   });
 
   it('shows a conflict the API reports', async () => {
-    await fixture.whenStable();
+    await start();
     fillValidProduct();
     await submit();
 
@@ -143,6 +174,7 @@ describe('ProductEditor', () => {
       .expectOne('/api/products/1')
       .flush(product({ services: [service(), service({ id: 11, name: 'api' })] }));
     http.expectOne('/api/products/1/pipelines').flush([servicePipelines()]);
+    http.expectOne('/api/settings').flush(globalSettings());
     await fixture.whenStable();
 
     expect(page().querySelector('h1')?.textContent).toBe('Edit CertScanner');
@@ -163,7 +195,7 @@ describe('ProductEditor', () => {
   });
 
   it('removes a service that was never saved without asking', async () => {
-    await fixture.whenStable();
+    await start();
     editor()['addService']();
     editor()['remove'](1);
     await fixture.whenStable();
@@ -173,7 +205,7 @@ describe('ProductEditor', () => {
   });
 
   it('duplicates a service right after it', async () => {
-    await fixture.whenStable();
+    await start();
     editor()['form'].controls.services.at(0).patchValue({ name: 'gui' });
     editor()['duplicate'](0);
     await fixture.whenStable();

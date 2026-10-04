@@ -215,20 +215,18 @@ export function toSettingsRequest(form: SettingsForm, version: number | null): G
   };
 }
 
-/** The section of the page a field problem the API reported belongs to, for example platform. */
-export function sectionOfProblem(field: string): SettingsSectionId | null {
-  const section = /^(\w+)/.exec(field)?.[1];
-  return section && section in createSectionKeys() ? (section as SettingsSectionId) : null;
-}
+/** The sections of the settings page, in the order they appear. */
+export const SETTINGS_SECTIONS: { id: SettingsSectionId; label: string; icon: string }[] = [
+  { id: 'platform', label: 'Platform and tools', icon: 'hub' },
+  { id: 'deployment', label: 'Deployment defaults', icon: 'dns' },
+  { id: 'limits', label: 'Severity limits', icon: 'policy' },
+  { id: 'scans', label: 'Scans and coverage', icon: 'timer' },
+  { id: 'releaseGate', label: 'Release gate', icon: 'verified' },
+  { id: 'serviceDefaults', label: 'Service defaults', icon: 'tune' },
+  { id: 'goldenFix', label: 'GoldenFix defaults', icon: 'auto_fix_high' },
+];
 
-function createSectionKeys(): Record<SettingsSectionId, true> {
-  return {
-    platform: true,
-    deployment: true,
-    limits: true,
-    scans: true,
-    releaseGate: true,
-    serviceDefaults: true,
-    goldenFix: true,
-  };
+/** The first section holding an invalid value, or null when the form is valid. */
+export function firstInvalidSection(form: SettingsForm): SettingsSectionId | null {
+  return SETTINGS_SECTIONS.find((section) => form.controls[section.id].invalid)?.id ?? null;
 }

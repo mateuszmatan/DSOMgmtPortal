@@ -1,0 +1,255 @@
+@let p = pipeline();
+<article class="pipeline" [class.inactive]="!p.enabled">
+  <header class="head">
+    <div class="title">
+      <h4>{{ typeLabel() }} pipeline</h4>
+      <dso-status-chip [status]="p.status" />
+    </div>
+    <div class="actions">
+      @if (p.jenkinsJobUrl) {
+        <a mat-button [href]="p.jenkinsJobUrl" target="_blank" rel="noopener"
+          ><mat-icon>open_in_new</mat-icon>Jenkins job</a
+        >
+      } @else {
+        <span class="not-recorded">No Jenkins job</span>
+      }
+      <button
+        mat-stroked-button
+        type="button"
+        [cdkCopyToClipboard]="text()"
+        (cdkCopyToClipboardCopied)="copied($event)"
+      >
+        <mat-icon>content_copy</mat-icon>Copy for ServiceNow
+      </button>
+    </div>
+  </header>
+
+  @if (p.run; as run) {
+    <div class="stages" aria-label="Stages">
+      @for (stage of run.stages; track $index) {
+        <span class="stage" [class]="stage.status.toLowerCase()" [matTooltip]="stageTip(stage)">{{
+          stage.name
+        }}</span>
+      } @empty {
+        <span class="not-recorded">No stages recorded</span>
+      }
+    </div>
+
+    <div class="grid">
+      <section>
+        <h5>Jenkins build</h5>
+        @let b = run.build;
+        <dl>
+          <dt>Build</dt>
+          <dd>
+            @if (b.number === null) {
+              <span class="not-recorded">Not recorded</span>
+            } @else if (b.url) {
+              <a class="build-link" [href]="b.url" target="_blank" rel="noopener">#{{ b.number }}</a>
+            } @else {
+              #{{ b.number }}
+            }
+            <dso-status-chip [status]="b.result" />
+          </dd>
+          <dt>Finished</dt>
+          <dd>
+            @if (utc(b.finishedAt); as finished) {
+              {{ finished }}
+            } @else {
+              <span class="not-recorded">Not recorded</span>
+            }
+          </dd>
+          <dt>Branch</dt>
+          <dd>
+            @if (b.branch) {
+              <span class="mono">{{ b.branch }}</span>
+            } @else {
+              <span class="not-recorded">Not recorded</span>
+            }
+          </dd>
+          <dt>Commit</dt>
+          <dd>
+            @if (b.commit) {
+              <span class="mono" [title]="b.commit">{{ b.commit.slice(0, 12) }}</span>
+            } @else {
+              <span class="not-recorded">Not recorded</span>
+            }
+          </dd>
+          <dt>Duration</dt>
+          <dd>
+            @if (b.durationSeconds !== null) {
+              {{ b.durationSeconds | duration }}
+            } @else {
+              <span class="not-recorded">Not recorded</span>
+            }
+          </dd>
+        </dl>
+        <div class="links">
+          @for (
+            link of [
+              { label: 'Build', url: b.url, icon: 'build' },
+              { label: 'Pipeline report', url: b.reportUrl, icon: 'summarize' },
+              { label: 'Unit test report', url: b.testReportUrl, icon: 'checklist' },
+              { label: 'Artifacts', url: b.artifactsUrl, icon: 'inventory_2' },
+            ];
+            track link.label
+          ) {
+            @if (link.url) {
+              <a [href]="link.url" target="_blank" rel="noopener"
+                ><mat-icon>{{ link.icon }}</mat-icon>{{ link.label }}</a
+              >
+            } @else {
+              <span class="not-recorded"
+                ><mat-icon>{{ link.icon }}</mat-icon>{{ link.label }}: not recorded</span
+              >
+            }
+          }
+        </div>
+      </section>
+
+      <section>
+        <h5>Unit test coverage</h5>
+        @if (run.coverage; as c) {
+          <div class="coverage">
+            <span class="value">{{ percent(c.linePercent) ?? '–' }}</span>
+            <dso-check-chip [status]="c.status" />
+          </div>
+          <div class="meter" aria-hidden="true">
+            <span class="fill" [class]="c.status.toLowerCase()" [style.width.%]="c.linePercent ?? 0"></span>
+            @if (c.requiredPercent !== null) {
+              <span class="required" [style.left.%]="c.requiredPercent"></span>
+            }
+          </div>
+          <p class="detail">
+            Required
+            @if (percent(c.requiredPercent); as required) {
+              {{ required }}
+            } @else {
+              <span class="not-recorded">not recorded</span>
+            }
+            @if (c.coveredLines !== null && c.totalLines !== null) {
+              · {{ c.coveredLines }} of {{ c.totalLines }} lines
+            }
+          </p>
+        } @else {
+          <p class="not-recorded">Not recorded</p>
+        }
+
+        <h5>Release gate</h5>
+        @if (run.releaseGate; as g) {
+          <p class="gate" [class.allowed]="g.allowed">
+            <mat-icon>{{ g.allowed ? 'verified' : 'gpp_bad' }}</mat-icon>
+            <span>
+              <strong>{{ g.allowed ? 'Release allowed' : 'Release blocked' }}</strong>
+              @if (!g.allowed && g.violations !== null) {
+                · {{ g.violations }} {{ g.violations === 1 ? 'violation' : 'violations' }}
+              }
+              @if (g.reason) {
+                <span class="detail">{{ g.reason }}</span>
+              }
+            </span>
+          </p>
+        } @else {
+          <p class="not-recorded">Not recorded</p>
+        }
+      </section>
+    </div>
+
+    <h5>Tests</h5>
+    <div class="table-wrap">
+      <table class="facts">
+        <thead>
+          <tr>
+            <th>Suite</th>
+            <th>Status</th>
+            <th>Jobs</th>
+            <th>Passed</th>
+            <th>Failed</th>
+            <th>Not configured</th>
+            <th>Duration</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of suites(); track row.stage) {
+            <tr>
+              <td>{{ stageLabels[row.stage] }}</td>
+              @if (row.suite; as s) {
+                <td><dso-check-chip [status]="s.status" /></td>
+                <td>{{ s.jobs ?? '–' }}</td>
+                <td>{{ s.passed ?? '–' }}</td>
+                <td [class.bad]="!!s.failed">{{ s.failed ?? '–' }}</td>
+                <td>{{ s.notConfigured ?? '–' }}</td>
+                <td>{{ s.durationMs === null ? '–' : (s.durationMs / 1000 | duration) }}</td>
+              } @else {
+                <td colspan="6"><span class="not-recorded">Not recorded</span></td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <h5>Security and quality scans</h5>
+    <div class="table-wrap">
+      <table class="facts">
+        <thead>
+          <tr>
+            <th>Scanner</th>
+            <th>Status</th>
+            <th>Critical</th>
+            <th>High</th>
+            <th>Medium</th>
+            <th>Low</th>
+            <th>Report</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of scans(); track row.scanner) {
+            <tr>
+              <td>{{ row.label }}</td>
+              @if (row.scan; as s) {
+                <td><dso-check-chip [status]="s.status" /></td>
+                @if (hasFindings(s)) {
+                  @for (
+                    count of [
+                      [s.critical, s.maxCritical],
+                      [s.high, s.maxHigh],
+                      [s.medium, s.maxMedium],
+                    ];
+                    track $index
+                  ) {
+                    <td [class.bad]="over(count[0], count[1])">
+                      {{ count[0] ?? '–' }}
+                      @if (count[1] !== null) {
+                        <span class="limit">/ {{ count[1] }}</span>
+                      }
+                    </td>
+                  }
+                  <td>{{ s.low ?? '–' }}</td>
+                } @else {
+                  <td colspan="4" class="muted">
+                    {{ row.scanner === 'SONARQUBE' ? 'Quality gate only' : 'No findings recorded' }}
+                  </td>
+                }
+                <td>
+                  @if (s.link) {
+                    <a [href]="s.link" target="_blank" rel="noopener"
+                      >Open<mat-icon>open_in_new</mat-icon></a
+                    >
+                  } @else {
+                    <span class="not-recorded">Not recorded</span>
+                  }
+                </td>
+              } @else {
+                <td colspan="6"><span class="not-recorded">Not recorded</span></td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="limits-note">Counts read as findings / limit of the BBH policy.</p>
+  } @else {
+    <p class="not-recorded no-run">No run of this pipeline was recorded yet.</p>
+  }
+</article>

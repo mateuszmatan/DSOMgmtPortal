@@ -13,11 +13,6 @@ code {
   background: var(--dso-neutral-bg);
 }
 
-.problems {
-  margin: 0;
-  padding-left: 16px;
-}
-
 .section-header {
   display: flex;
   align-items: flex-end;
@@ -125,42 +120,6 @@ mat-panel-description {
 mat-action-row {
   align-items: center;
   gap: 4px;
-}
-
-.spacer {
-  flex: 1;
-}
-
-.danger {
-  color: var(--dso-danger);
-}
-
-.save-bar {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 24px -40px -56px;
-  padding: 14px 40px;
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(6px);
-  border-top: 1px solid var(--dso-border);
-
-  mat-spinner {
-    display: inline-block;
-    margin-right: 8px;
-    vertical-align: middle;
-  }
-}
-
-.save-error {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--dso-danger);
-  font-weight: 500;
 }
 
 @media (max-width: 1100px) {

@@ -10,6 +10,7 @@ import { MonitoringApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { PIPELINE_TYPES, PipelineHealth, PipelineType, RunResult } from '../core/models';
 import { DurationPipe, RelativeTimePipe } from '../shared/formatting';
+import { jenkinsBuildUrl } from '../shared/jenkins';
 import { StatusChip } from '../shared/status-chip';
 import { MetricsBanner } from './metrics-banner';
 import { StatusBar } from './status-bar';
@@ -63,9 +64,11 @@ export class ProductMonitoringPage {
     'lastRun',
     'duration',
     'stages',
+    'jenkins',
     'open',
   ];
   protected readonly errorMessage = errorMessage;
+  protected readonly buildUrl = jenkinsBuildUrl;
 
   protected typeLabel(type: PipelineType): string {
     return PIPELINE_TYPES.find((option) => option.value === type)?.label ?? type;

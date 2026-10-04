@@ -21,6 +21,7 @@ import { errorMessage } from '../core/errors';
 import { DoraSummary, PIPELINE_TYPES, PipelineMonitoring, PipelineType } from '../core/models';
 import { DoraLevelBadge } from '../shared/dora-level';
 import { DurationPipe, RelativeTimePipe, formatDuration } from '../shared/formatting';
+import { jenkinsBuildUrl } from '../shared/jenkins';
 import { StatusChip } from '../shared/status-chip';
 import { ActivityChart } from './activity-chart';
 import { MetricsBanner } from './metrics-banner';
@@ -69,6 +70,7 @@ export class PipelineMonitoringPage {
   private readonly sanitizer = inject(DomSanitizer);
 
   protected readonly ranges = RANGES;
+  protected readonly buildUrl = jenkinsBuildUrl;
   protected readonly selectedRange = computed(() => {
     const range = this.range();
     return range && RANGES.includes(range) ? range : '30d';

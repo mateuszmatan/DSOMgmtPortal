@@ -1,0 +1,632 @@
+<div class="page settings">
+  <header class="page-header">
+    <div>
+      <h1>DevSecOps Global Settings</h1>
+      <p class="lead">
+        These settings apply to every DevSecOps pipeline of every product, and a service cannot
+        override them. Only the defaults (deployment, service and GoldenFix defaults) are starting
+        values that a service may replace with its own.
+      </p>
+      @if (settings(); as s) {
+        <p class="meta">
+          Version {{ s.version }} · saved {{ s.updatedAt | relative }}
+        </p>
+      }
+    </div>
+    <div class="actions">
+      <button
+        mat-stroked-button
+        type="button"
+        (click)="showConfig()"
+        [disabled]="!settings() || loadingConfig()"
+      >
+        <mat-icon>code</mat-icon>Generated configuration
+      </button>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  @if (loadError(); as error) {
+    <div class="banner" role="alert">
+      <mat-icon>error_outline</mat-icon><span>{{ error }}</span>
+    </div>
+    <button mat-stroked-button type="button" (click)="reload()">
+      <mat-icon>refresh</mat-icon>Try again
+    </button>
+  } @else if (settings()) {
+    @let p = form.controls.platform.controls;
+    @let d = form.controls.deployment.controls;
+    @let sc = form.controls.scans.controls;
+    @let rg = form.controls.releaseGate.controls;
+    @let sd = form.controls.serviceDefaults.controls;
+    @let gf = form.controls.goldenFix;
+
+    @if (conflict()) {
+      <div class="banner conflict" role="alert">
+        <mat-icon>sync_problem</mat-icon>
+        <div class="banner-text">
+          <strong>Someone else saved the settings after you opened this page.</strong>
+          Your changes were not saved, so nothing was overwritten. Reload to get the current
+          values, then make your changes again.
+        </div>
+        <button mat-flat-button type="button" (click)="reload()">
+          <mat-icon>refresh</mat-icon>Reload
+        </button>
+      </div>
+    }
+
+    <div class="layout">
+      <aside class="toc">
+        <nav aria-label="Sections">
+          @for (section of sections(); track section.id) {
+            <button
+              type="button"
+              class="toc-item"
+              [class.problem]="section.problem"
+              (click)="scrollTo(section.id)"
+            >
+              <mat-icon>{{ section.icon }}</mat-icon>
+              <span>{{ section.label }}</span>
+              @if (section.problem) {
+                <mat-icon class="problem-icon" aria-label="Has problems">error</mat-icon>
+              }
+            </button>
+          }
+        </nav>
+      </aside>
+
+      <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+        @if (unmatchedProblems().length) {
+          <div class="banner" role="alert">
+            <mat-icon>error_outline</mat-icon>
+            <ul class="problems">
+              @for (problem of unmatchedProblems(); track problem.field + problem.message) {
+                <li>
+                  <span class="mono">{{ problem.field }}</span
+                  >: {{ problem.message }}
+                </li>
+              }
+            </ul>
+          </div>
+        }
+
+        <section class="card section" id="settings-platform" formGroupName="platform">
+          <header class="section-head">
+            <h2><mat-icon>hub</mat-icon>Platform and tools</h2>
+            <p>
+              The BBH tool servers every pipeline talks to, sent as <code>platform</code> and as the
+              tool settings of every service. Credentials are Jenkins credential IDs, never secrets.
+            </p>
+          </header>
+
+          <div class="form-block">
+            <header>
+              <h3><mat-icon>build_circle</mat-icon>Jenkins</h3>
+              <p>Where the pipelines run and the shared library their Jenkinsfiles load.</p>
+            </header>
+            <div class="form-fields">
+              <mat-form-field class="span-7">
+                <mat-label>Jenkins URL</mat-label>
+                <input
+                  matInput
+                  formControlName="jenkinsUrl"
+                  class="mono"
+                  placeholder="https://jenkins.bbh.com/"
+                />
+                <mat-hint
+                  ><code>platform.jenkinsUrl</code> · links the Jenkins job of each pipeline</mat-hint
+                >
+                <mat-error>{{ errorText(p.jenkinsUrl) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-5">
+                <mat-label>Shared library</mat-label>
+                <input matInput formControlName="jenkinsLibrary" class="mono" />
+                <mat-hint
+                  ><code>platform.jenkinsLibrary</code> · the <code>&#64;Library</code> name</mat-hint
+                >
+                <mat-error>{{ errorText(p.jenkinsLibrary) }}</mat-error>
+              </mat-form-field>
+            </div>
+          </div>
+
+          <div class="form-block">
+            <header>
+              <h3><mat-icon>security</mat-icon>HCL AppScan</h3>
+              <p>
+                The AppScan on Cloud service, the static analysis clients and the proxy its calls go
+                through.
+              </p>
+            </header>
+            <div class="form-fields">
+              <mat-form-field class="span-12">
+                <mat-label>AppScan on Cloud URL</mat-label>
+                <input
+                  matInput
+                  formControlName="asocUrl"
+                  class="mono"
+                  placeholder="https://cloud.appscan.com"
+                />
+                <mat-hint><code>asoc.url</code> · <code>APPSCAN_SERVER_URL</code></mat-hint>
+                <mat-error>{{ errorText(p.asocUrl) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-6">
+                <mat-label>Static analysis client for Linux</mat-label>
+                <input matInput formControlName="appScanClientLinuxUrl" class="mono" />
+                <mat-hint><code>SA_LINUX_URL</code></mat-hint>
+                <mat-error>{{ errorText(p.appScanClientLinuxUrl) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-6">
+                <mat-label>Static analysis client for Windows</mat-label>
+                <input matInput formControlName="appScanClientWindowsUrl" class="mono" />
+                <mat-hint><code>SA_WIN_URL</code></mat-hint>
+                <mat-error>{{ errorText(p.appScanClientWindowsUrl) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-5">
+                <mat-label>Proxy host</mat-label>
+                <input matInput formControlName="proxyHost" class="mono" />
+                <mat-hint><code>PROXY_HOST</code> · set together with the port</mat-hint>
+                <mat-error>{{ errorText(p.proxyHost, 'Use letters, digits, dots and hyphens') }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-3">
+                <mat-label>Proxy port</mat-label>
+                <input matInput type="number" min="1" max="65535" formControlName="proxyPort" />
+                <mat-hint><code>PROXY_PORT</code></mat-hint>
+                <mat-error>{{ errorText(p.proxyPort) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-4">
+                <mat-label>Proxy user</mat-label>
+                <input matInput formControlName="proxyUser" class="mono" />
+                <mat-hint><code>PROXY_USER</code></mat-hint>
+                <mat-error>{{ errorText(p.proxyUser) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-6">
+                <mat-label>OIS host</mat-label>
+                <input matInput formControlName="oisHost" class="mono" />
+                <mat-hint><code>platform.oisHost</code></mat-hint>
+                <mat-error>{{ errorText(p.oisHost, 'Use letters, digits, dots and hyphens') }}</mat-error>
+              </mat-form-field>
+            </div>
+          </div>
+
+          <div class="form-block">
+            <header>
+              <h3><mat-icon>analytics</mat-icon>SonarQube and Nexus IQ</h3>
+              <p>The quality and dependency policy servers every service reports to.</p>
+            </header>
+            <div class="form-fields">
+              <mat-form-field class="span-7">
+                <mat-label>SonarQube server URL</mat-label>
+                <input matInput formControlName="sonarServerUrl" class="mono" />
+                <mat-hint><code>tools.sonar.serverUrl</code></mat-hint>
+                <mat-error>{{ errorText(p.sonarServerUrl) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-5">
+                <mat-label>SonarQube installation</mat-label>
+                <input matInput formControlName="sonarInstallationName" class="mono" />
+                <mat-hint><code>tools.sonar.installationName</code></mat-hint>
+                <mat-error>{{ errorText(p.sonarInstallationName) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-7">
+                <mat-label>Nexus IQ server URL</mat-label>
+                <input matInput formControlName="nexusIqServerUrl" class="mono" />
+                <mat-hint><code>tools.nexusIq.serverUrl</code></mat-hint>
+                <mat-error>{{ errorText(p.nexusIqServerUrl) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-5">
+                <mat-label>Nexus IQ credentials ID</mat-label>
+                <input matInput formControlName="nexusIqCredentialsId" class="mono" />
+                <mat-hint><code>tools.nexusIq.credentialsId</code></mat-hint>
+                <mat-error>{{ errorText(p.nexusIqCredentialsId) }}</mat-error>
+              </mat-form-field>
+            </div>
+          </div>
+
+          <div class="form-block">
+            <header>
+              <h3><mat-icon>inventory</mat-icon>Repository, metrics and agents</h3>
+              <p>
+                The Nexus snapshot repository, the InfluxDB the pipelines write their metrics to and
+                the agent iOS builds run on.
+              </p>
+            </header>
+            <div class="form-fields">
+              <mat-form-field class="span-7">
+                <mat-label>Nexus snapshot repository URL</mat-label>
+                <input matInput formControlName="nexusSnapshotRepositoryUrl" class="mono" />
+                <mat-hint><code>platform.nexusSnapshotRepositoryUrl</code></mat-hint>
+                <mat-error>{{ errorText(p.nexusSnapshotRepositoryUrl) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-5">
+                <mat-label>Nexus snapshot repository ID</mat-label>
+                <input matInput formControlName="nexusSnapshotRepositoryId" class="mono" />
+                <mat-hint><code>platform.nexusSnapshotRepositoryId</code></mat-hint>
+                <mat-error>{{ errorText(p.nexusSnapshotRepositoryId) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-7">
+                <mat-label>InfluxDB write URL</mat-label>
+                <input matInput formControlName="influxWriteUrl" class="mono" />
+                <mat-hint><code>influx.url</code></mat-hint>
+                <mat-error>{{ errorText(p.influxWriteUrl) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-5">
+                <mat-label>InfluxDB credentials ID</mat-label>
+                <input matInput formControlName="influxCredentialsId" class="mono" />
+                <mat-hint><code>influx.credentialsId</code></mat-hint>
+                <mat-error>{{ errorText(p.influxCredentialsId) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-6">
+                <mat-label>iOS build agent</mat-label>
+                <input matInput formControlName="iosBuildAgent" class="mono" />
+                <mat-hint><code>platform.iosBuildAgent</code> · Jenkins agent label</mat-hint>
+                <mat-error>{{ errorText(p.iosBuildAgent) }}</mat-error>
+              </mat-form-field>
+            </div>
+          </div>
+        </section>
+
+        <section class="card section" id="settings-deployment" formGroupName="deployment">
+          <header class="section-head">
+            <h2><mat-icon>dns</mat-icon>Deployment defaults</h2>
+            <p>
+              What a service deployed to virtual machines uses unless it sets its own value under
+              <code>deploy.vm</code>.
+            </p>
+          </header>
+          <div class="form-block">
+            <header>
+              <h3><mat-icon>rocket_launch</mat-icon>UrbanCode Deploy</h3>
+              <p>The site and process UrbanCode deployments run with.</p>
+            </header>
+            <div class="form-fields">
+              <mat-form-field class="span-6">
+                <mat-label>Site name</mat-label>
+                <input matInput formControlName="urbanCodeSiteName" class="mono" />
+                <mat-hint><code>deploy.vm.dod.siteName</code></mat-hint>
+                <mat-error>{{ errorText(d.urbanCodeSiteName) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-6">
+                <mat-label>Deploy process</mat-label>
+                <input matInput formControlName="urbanCodeDeployProcess" class="mono" />
+                <mat-hint><code>deploy.vm.dod.deployProcess</code></mat-hint>
+                <mat-error>{{ errorText(d.urbanCodeDeployProcess) }}</mat-error>
+              </mat-form-field>
+            </div>
+          </div>
+          <div class="form-block">
+            <header>
+              <h3><mat-icon>terminal</mat-icon>SSH deployment</h3>
+              <p>The test region hosts and how the deployment script is run on them.</p>
+            </header>
+            <div class="form-fields">
+              <mat-form-field class="span-6">
+                <mat-label>RD host</mat-label>
+                <input matInput formControlName="rdHost" class="mono" />
+                <mat-hint><code>deploy.vm.rd.host</code> · the lower test region</mat-hint>
+                <mat-error>{{ errorText(d.rdHost, 'Use letters, digits, dots and hyphens') }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-6">
+                <mat-label>QC host</mat-label>
+                <input matInput formControlName="qcHost" class="mono" />
+                <mat-hint><code>deploy.vm.qc.host</code> · the higher test region</mat-hint>
+                <mat-error>{{ errorText(d.qcHost, 'Use letters, digits, dots and hyphens') }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-4">
+                <mat-label>SSH user</mat-label>
+                <input matInput formControlName="sshUser" class="mono" />
+                <mat-hint><code>deploy.vm.&lt;region&gt;.user</code></mat-hint>
+                <mat-error>{{ errorText(d.sshUser) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-8">
+                <mat-label>Deploy script</mat-label>
+                <input matInput formControlName="deployScript" class="mono" />
+                <mat-hint><code>deploy.vm.&lt;region&gt;.deployScript</code></mat-hint>
+                <mat-error>{{ errorText(d.deployScript) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-12">
+                <mat-label>Version file</mat-label>
+                <input matInput formControlName="versionFile" class="mono" />
+                <mat-hint><code>deploy.vm.&lt;region&gt;.versionFile</code></mat-hint>
+                <mat-error>{{ errorText(d.versionFile) }}</mat-error>
+              </mat-form-field>
+            </div>
+          </div>
+        </section>
+
+        <section class="card section" id="settings-limits" formGroupName="limits">
+          <header class="section-head">
+            <h2><mat-icon>policy</mat-icon>Severity limits</h2>
+            <p>
+              The most findings of each severity a scan may report before it fails the pipeline.
+              Zero allows none.
+            </p>
+          </header>
+          <div class="limits">
+            <div class="limits-head">
+              <span>Scanner</span>
+              <span>Critical</span>
+              <span>High</span>
+              <span>Medium</span>
+            </div>
+            @for (scanner of scanners; track scanner) {
+              @let l = form.controls.limits.controls[scanner].controls;
+              <div class="limits-row" [formGroupName]="scanner">
+                <div class="scanner">
+                  <strong>{{ scannerInfo[scanner].label }}</strong>
+                  <span class="muted">{{ scannerInfo[scanner].tool }}</span>
+                  <code>{{ scannerInfo[scanner].path }}.maxCritical | maxHigh | maxMedium</code>
+                </div>
+                <mat-form-field>
+                  <mat-label>Max critical</mat-label>
+                  <input matInput type="number" min="0" formControlName="maxCritical" />
+                  <mat-error>{{ errorText(l.maxCritical) }}</mat-error>
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>Max high</mat-label>
+                  <input matInput type="number" min="0" formControlName="maxHigh" />
+                  <mat-error>{{ errorText(l.maxHigh) }}</mat-error>
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>Max medium</mat-label>
+                  <input matInput type="number" min="0" formControlName="maxMedium" />
+                  <mat-error>{{ errorText(l.maxMedium) }}</mat-error>
+                </mat-form-field>
+              </div>
+            }
+          </div>
+        </section>
+
+        <section class="card section" id="settings-scans" formGroupName="scans">
+          <header class="section-head">
+            <h2><mat-icon>timer</mat-icon>Scans and coverage</h2>
+            <p>The required unit test coverage and how long the pipelines wait for each scan.</p>
+          </header>
+          <div class="form-block">
+            <header>
+              <h3><mat-icon>percent</mat-icon>Coverage</h3>
+              <p>The line coverage the unit tests must reach.</p>
+            </header>
+            <div class="form-fields">
+              <mat-form-field class="span-4">
+                <mat-label>Minimum line coverage (%)</mat-label>
+                <input matInput type="number" min="0" max="100" formControlName="coverageMinLine" />
+                <mat-hint><code>coverage.minLine</code></mat-hint>
+                <mat-error>{{ errorText(sc.coverageMinLine) }}</mat-error>
+              </mat-form-field>
+            </div>
+          </div>
+          <div class="form-block">
+            <header>
+              <h3><mat-icon>code</mat-icon>SAST</h3>
+              <p>Preparing the sources and waiting for the AppScan static scan.</p>
+            </header>
+            <div class="form-fields">
+              <mat-form-field class="span-4">
+                <mat-label>Prepare timeout (minutes)</mat-label>
+                <input matInput type="number" min="1" formControlName="sastPrepareTimeoutMinutes" />
+                <mat-hint><code>sast.prepareTimeoutMin</code></mat-hint>
+                <mat-error>{{ errorText(sc.sastPrepareTimeoutMinutes) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-4">
+                <mat-label>Poll timeout (minutes)</mat-label>
+                <input matInput type="number" min="1" formControlName="sastPollTimeoutMinutes" />
+                <mat-hint><code>sast.pollTimeoutMin</code></mat-hint>
+                <mat-error>{{ errorText(sc.sastPollTimeoutMinutes) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-4">
+                <mat-label>Poll interval (seconds)</mat-label>
+                <input matInput type="number" min="1" formControlName="sastPollIntervalSeconds" />
+                <mat-hint><code>sast.pollIntervalSec</code></mat-hint>
+                <mat-error>{{ errorText(sc.sastPollIntervalSeconds) }}</mat-error>
+              </mat-form-field>
+            </div>
+          </div>
+          <div class="form-block">
+            <header>
+              <h3><mat-icon>account_tree</mat-icon>SCA</h3>
+              <p>The AppScan open source analysis of the dependencies.</p>
+            </header>
+            <div class="form-fields">
+              <mat-slide-toggle class="span-4" formControlName="scaEnabled"
+                >Run the SCA scan (<code>sca.enabled</code>)</mat-slide-toggle
+              >
+              <mat-form-field class="span-4">
+                <mat-label>Poll timeout (minutes)</mat-label>
+                <input matInput type="number" min="1" formControlName="scaPollTimeoutMinutes" />
+                <mat-hint><code>sca.pollTimeoutMin</code></mat-hint>
+                <mat-error>{{ errorText(sc.scaPollTimeoutMinutes) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-4">
+                <mat-label>Poll interval (seconds)</mat-label>
+                <input matInput type="number" min="1" formControlName="scaPollIntervalSeconds" />
+                <mat-hint><code>sca.pollIntervalSec</code></mat-hint>
+                <mat-error>{{ errorText(sc.scaPollIntervalSeconds) }}</mat-error>
+              </mat-form-field>
+            </div>
+          </div>
+          <div class="form-block">
+            <header>
+              <h3><mat-icon>travel_explore</mat-icon>DAST</h3>
+              <p>The AppScan dynamic scan of the deployed service and its report.</p>
+            </header>
+            <div class="form-fields">
+              <mat-form-field class="span-3">
+                <mat-label>Poll timeout (minutes)</mat-label>
+                <input matInput type="number" min="1" formControlName="dastPollTimeoutMinutes" />
+                <mat-hint><code>dast.pollTimeoutMin</code></mat-hint>
+                <mat-error>{{ errorText(sc.dastPollTimeoutMinutes) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-3">
+                <mat-label>Poll interval (seconds)</mat-label>
+                <input matInput type="number" min="1" formControlName="dastPollIntervalSeconds" />
+                <mat-hint><code>dast.pollIntervalSec</code></mat-hint>
+                <mat-error>{{ errorText(sc.dastPollIntervalSeconds) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-3">
+                <mat-label>Report timeout (minutes)</mat-label>
+                <input matInput type="number" min="1" formControlName="dastReportTimeoutMinutes" />
+                <mat-hint><code>dast.reportTimeoutMin</code></mat-hint>
+                <mat-error>{{ errorText(sc.dastReportTimeoutMinutes) }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="span-3">
+                <mat-label>Report interval (seconds)</mat-label>
+                <input matInput type="number" min="1" formControlName="dastReportIntervalSeconds" />
+                <mat-hint><code>dast.reportIntervalSec</code></mat-hint>
+                <mat-error>{{ errorText(sc.dastReportIntervalSeconds) }}</mat-error>
+              </mat-form-field>
+            </div>
+          </div>
+          <div class="form-block">
+            <header>
+              <h3><mat-icon>fact_check</mat-icon>SonarQube quality gate</h3>
+              <p>Whether the pipelines wait for the SonarQube quality gate and for how long.</p>
+            </header>
+            <div class="form-fields">
+              <mat-slide-toggle class="span-6" formControlName="sonarWaitForQualityGate"
+                >Wait for the quality gate
+                (<code>tools.sonar.qualityGate.waitForQualityGate</code>)</mat-slide-toggle
+              >
+              <mat-form-field class="span-6">
+                <mat-label>Timeout (minutes)</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  min="1"
+                  formControlName="sonarQualityGateTimeoutMinutes"
+                />
+                <mat-hint><code>tools.sonar.qualityGate.timeoutMinutes</code></mat-hint>
+                <mat-error>{{ errorText(sc.sonarQualityGateTimeoutMinutes) }}</mat-error>
+              </mat-form-field>
+            </div>
+          </div>
+        </section>
+
+        <section class="card section" id="settings-releaseGate" formGroupName="releaseGate">
+          <header class="section-head">
+            <h2><mat-icon>verified</mat-icon>Release gate</h2>
+            <p>
+              What a run must prove before the pipeline may release: the scans whose limits must hold
+              and, optionally, the required coverage.
+            </p>
+          </header>
+          <div class="form-fields gate">
+            <div class="span-12">
+              <span class="field-label">Scanners the gate checks</span>
+              <mat-button-toggle-group
+                formControlName="scanners"
+                multiple
+                aria-label="Scanners the release gate checks"
+              >
+                @for (scanner of scanners; track scanner) {
+                  <mat-button-toggle [value]="scanner">{{
+                    scannerInfo[scanner].label
+                  }}</mat-button-toggle>
+                }
+              </mat-button-toggle-group>
+              <span class="field-hint"
+                ><code>releaseGate.scanners</code> · written as
+                @for (scanner of scanners; track scanner; let last = $last) {
+                  <code>{{ scannerInfo[scanner].gateKey }}</code
+                  >{{ last ? '' : ', ' }}
+                }
+                · none selected checks no scan</span
+              >
+              @if (rg.scanners.invalid) {
+                <span class="field-error">{{ errorText(rg.scanners) }}</span>
+              }
+            </div>
+            <mat-slide-toggle class="span-6" formControlName="requireCoverage"
+              >Require the minimum coverage (<code>releaseGate.requireCoverage</code>)</mat-slide-toggle
+            >
+            <mat-form-field class="span-6">
+              <mat-label>State file</mat-label>
+              <input matInput formControlName="stateFile" class="mono" />
+              <mat-hint><code>releaseGate.stateFile</code> · archived with each build</mat-hint>
+              <mat-error>{{
+                errorText(rg.stateFile, 'Use a file name such as release-gate.json')
+              }}</mat-error>
+            </mat-form-field>
+          </div>
+        </section>
+
+        <section class="card section" id="settings-serviceDefaults" formGroupName="serviceDefaults">
+          <header class="section-head">
+            <h2><mat-icon>tune</mat-icon>Service defaults</h2>
+            <p>
+              A new service starts with these values, and a service that leaves one of them out gets
+              it from here. Each service may set its own.
+            </p>
+          </header>
+          <div class="form-fields">
+            <mat-form-field class="span-3">
+              <mat-label>Build tool</mat-label>
+              <mat-select formControlName="buildTool">
+                @for (tool of buildTools; track tool.value) {
+                  <mat-option [value]="tool.value">{{ tool.label }}</mat-option>
+                }
+              </mat-select>
+              <mat-hint><code>buildTool</code></mat-hint>
+            </mat-form-field>
+            <mat-form-field class="span-3">
+              <mat-label>Deployment target</mat-label>
+              <mat-select formControlName="deployTarget">
+                @for (target of deployTargets; track target.value) {
+                  <mat-option [value]="target.value">{{ target.label }}</mat-option>
+                }
+              </mat-select>
+              <mat-hint><code>deployTarget</code></mat-hint>
+            </mat-form-field>
+            <mat-form-field class="span-3">
+              <mat-label>Source folder</mat-label>
+              <input matInput formControlName="sourceDir" class="mono" placeholder="." />
+              <mat-hint><code>sourceDir</code></mat-hint>
+              <mat-error>{{ errorText(sd.sourceDir) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="span-3">
+              <mat-label>Parallel test jobs</mat-label>
+              <input matInput type="number" min="1" max="100" formControlName="testsMaxParallel" />
+              <mat-hint><code>tests.maxParallel</code></mat-hint>
+              <mat-error>{{ errorText(sd.testsMaxParallel) }}</mat-error>
+            </mat-form-field>
+          </div>
+        </section>
+
+        <section class="card section" id="settings-goldenFix">
+          <header class="section-head">
+            <h2><mat-icon>auto_fix_high</mat-icon>GoldenFix defaults</h2>
+            <p>
+              How GoldenFix raises dependency upgrade pull requests. A service follows this policy
+              unless it overrides values in its own GoldenFix section.
+            </p>
+          </header>
+          <div class="form-fields">
+            <mat-slide-toggle class="span-12" [formControl]="gf.controls.enabled"
+              >GoldenFix runs by default (<code>goldenFix.enabled</code>)</mat-slide-toggle
+            >
+            <dso-golden-fix-fields [group]="gf" [complete]="true" />
+          </div>
+        </section>
+
+        <div class="save-bar">
+          @if (saveError(); as error) {
+            <span class="save-error" role="alert"><mat-icon>error_outline</mat-icon>{{ error }}</span>
+          } @else if (form.dirty) {
+            <span class="muted">Unsaved changes</span>
+          }
+          <span class="spacer"></span>
+          <button mat-button type="button" (click)="discard()" [disabled]="!form.dirty || saving()">
+            Discard changes
+          </button>
+          <button mat-flat-button type="submit" [disabled]="saving() || conflict()">
+            @if (saving()) {
+              <mat-spinner diameter="18" />
+            }
+            Save settings
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+</div>

@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
-/** The portal shell: a navy header with the portal name and its tabs, the current page and a navy footer. */
 @Component({
   selector: 'dso-root',
   imports: [RouterOutlet, RouterLink, RouterLinkActive, MatIconModule],
@@ -12,7 +11,25 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 })
 export class App {
   protected readonly navigation = [
-    { path: '/products', label: 'DevSecOps Product Management', hint: 'Products, services, pipelines, keys' },
-    { path: '/monitoring', label: 'DevSecOps Pipeline Monitoring', hint: 'Status and DORA metrics' },
+    {
+      path: '/products',
+      label: 'DevSecOps Product Management',
+      hint: 'Products, services, pipelines and keys',
+    },
+    {
+      path: '/monitoring',
+      label: 'DevSecOps Pipeline Monitoring',
+      hint: 'Pipeline status and DORA metrics',
+    },
+    {
+      path: '/evidence',
+      label: 'DevSecOps Change Evidence',
+      hint: 'Builds, tests and scans for ServiceNow changes',
+    },
+    {
+      path: '/settings',
+      label: 'DevSecOps Global Settings',
+      hint: 'Tools, policy and defaults of every pipeline',
+    },
   ];
 }

@@ -349,7 +349,7 @@ export function runEvidence(overrides: Partial<RunEvidence> = {}): RunEvidence {
       durationSeconds: 1325,
       job: 'DevSecOps/CERT/gui-full',
       url: build,
-      reportUrl: `${build}DevSecOps_20Report/`,
+      reportUrl: `${build}Pipeline_20Report/`,
       testReportUrl: `${build}testReport/`,
       artifactsUrl: `${build}artifact/`,
     },

@@ -43,5 +43,16 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./monitoring/pipeline-monitoring').then((m) => m.PipelineMonitoringPage),
   },
+  {
+    path: 'evidence',
+    title: 'DevSecOps Change Evidence',
+    loadComponent: () => import('./evidence/change-evidence').then((m) => m.ChangeEvidencePage),
+  },
+  {
+    path: 'settings',
+    title: 'DevSecOps Global Settings',
+    canDeactivate: [unsavedChangesGuard],
+    loadComponent: () => import('./settings/global-settings').then((m) => m.GlobalSettingsPage),
+  },
   { path: '**', redirectTo: 'products' },
 ];
