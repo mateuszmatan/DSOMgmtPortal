@@ -18,7 +18,7 @@ class PortalPerformanceSpec extends PortalSpecification {
     static final int PRODUCTS = 25
     static final int SERVICES = 16
     static final double FACTOR = (System.getProperty('performance.factor') ?: '1') as double
-    static final File REPORT = new File('target/performance-report.md')
+    static final File REPORT = new File(System.getProperty('performance.report', 'build/reports/performance/performance-report.md'))
 
     @Shared
     List<Map> products = [].asSynchronized()

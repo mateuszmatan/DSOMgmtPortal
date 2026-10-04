@@ -13,7 +13,7 @@ import static com.bbh.itss.dso.portal.support.ApiJson.product
 
 class ConfigContractRegressionSpec extends PortalSpecification {
 
-    static final String EXPECTED_DIR = 'src/test/resources/regression'
+    static final String EXPECTED_DIR = System.getProperty('regression.expectedDir', 'src/regressionTest/resources/regression')
 
     static final Map PAYMENTS = product(code: 'CONTRACT', name: 'Contract Payments Hub', description: 'Payment orchestration',
             ownerTeam: 'Payments Engineering', contactEmail: 'payments-eng@bbh.com',
