@@ -12,7 +12,6 @@ import { errorMessage } from '../core/errors';
 import { Pipeline } from '../core/models';
 import { errorText } from '../shared/form-errors';
 
-/** Invalidates the active key of a pipeline, which stops every job that uses it; the result is the pipeline. */
 @Component({
   selector: 'dso-revoke-key-dialog',
   imports: [

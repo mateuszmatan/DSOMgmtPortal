@@ -14,7 +14,6 @@ import { errorMessage } from '../core/errors';
 import { ProductSummary } from '../core/models';
 import { RelativeTimePipe } from '../shared/formatting';
 
-/** "DevSecOps Product Management": every onboarded product with its service and pipeline counts. */
 @Component({
   selector: 'dso-product-list',
   imports: [

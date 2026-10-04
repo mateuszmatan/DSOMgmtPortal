@@ -11,7 +11,6 @@ const dayFormat = new Intl.DateTimeFormat('en', {
   timeZone: 'UTC',
 });
 
-/** Runs per day as stacked bars, successful below failed, with a square marker on days that deployed. */
 @Component({
   selector: 'dso-activity-chart',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -219,7 +218,6 @@ function label(date: string): string {
   return dayFormat.format(new Date(`${date}T00:00:00Z`));
 }
 
-/** The smallest even number at or above the value, so the middle grid line falls on a whole number. */
 function niceMax(value: number): number {
   return value <= 2 ? 2 : Math.ceil(value / 2) * 2;
 }

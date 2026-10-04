@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MonitoringStatus } from '../core/models';
 
-/** Explains why statuses or metrics are missing: InfluxDB not configured, unreachable, or a failed query. */
 @Component({
   selector: 'dso-metrics-banner',
   imports: [MatIconModule],

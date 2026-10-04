@@ -17,7 +17,6 @@ import { StatusChip } from '../shared/status-chip';
 import { MetricsBanner } from './metrics-banner';
 import { STATUS_ORDER, StatusBar } from './status-bar';
 
-/** "DevSecOps Pipeline Monitoring": every product with the worst status of its pipelines. */
 @Component({
   selector: 'dso-monitoring-overview',
   imports: [
@@ -68,7 +67,6 @@ export class MonitoringOverview {
       );
   });
 
-  /** Pipelines per status across all products. */
   protected readonly totals = computed(() => {
     const totals: Partial<Record<RunResult, number>> = {};
     if (this.overview.hasValue()) {

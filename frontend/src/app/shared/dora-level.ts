@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { DoraLevel } from '../core/models';
 
-/** DORA performance cluster as a small badge. */
 @Component({
   selector: 'dso-dora-level',
   changeDetection: ChangeDetectionStrategy.OnPush,

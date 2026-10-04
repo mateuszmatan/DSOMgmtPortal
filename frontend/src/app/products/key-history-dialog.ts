@@ -11,7 +11,6 @@ import { errorMessage } from '../core/errors';
 import { Pipeline } from '../core/models';
 import { MaskKeyPipe, RelativeTimePipe } from '../shared/formatting';
 
-/** Every key a pipeline has had, newest first, with when and why each was invalidated. */
 @Component({
   selector: 'dso-key-history-dialog',
   imports: [

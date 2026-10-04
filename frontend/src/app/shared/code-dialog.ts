@@ -12,7 +12,6 @@ export interface CodeDialogData {
   fileName?: string;
 }
 
-/** Read-only code viewer with copy and download, used for the generated config.yaml. */
 @Component({
   selector: 'dso-code-dialog',
   imports: [MatDialogModule, MatButtonModule, MatIconModule, ClipboardModule],

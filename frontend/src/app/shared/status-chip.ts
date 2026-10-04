@@ -12,7 +12,6 @@ const LOOK: Record<RunResult, { label: string; icon: string; tone: string }> = {
   DISABLED: { label: 'Key invalidated', icon: 'key_off', tone: 'danger-outline' },
 };
 
-/** Coloured pill showing the outcome of a pipeline. */
 @Component({
   selector: 'dso-status-chip',
   imports: [MatIconModule],

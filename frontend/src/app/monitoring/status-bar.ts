@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RunResult } from '../core/models';
 
-/** Order of the segments, worst first, and how each status is named. */
 export const STATUS_ORDER: { status: RunResult; label: string }[] = [
   { status: 'FAILURE', label: 'Failed' },
   { status: 'UNSTABLE', label: 'Unstable' },
@@ -13,7 +12,6 @@ export const STATUS_ORDER: { status: RunResult; label: string }[] = [
   { status: 'DISABLED', label: 'Key invalidated' },
 ];
 
-/** A horizontal bar split by how many pipelines are in each status. */
 @Component({
   selector: 'dso-status-bar',
   imports: [MatTooltipModule],

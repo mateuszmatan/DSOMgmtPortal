@@ -27,7 +27,6 @@ export const appConfig: ApplicationConfig = {
         subscriptSizing: 'dynamic',
       } satisfies MatFormFieldDefaultOptions,
     },
-    // The self-hosted icon font is the outlined variant of Material Icons.
     provideAppInitializer(() => {
       inject(MatIconRegistry).setDefaultFontSetClass('material-icons-outlined');
     }),
