@@ -79,6 +79,16 @@ class PipelineServiceSpec extends Specification {
         e.message == 'Pipeline 100 does not exist'
     }
 
+    def "a pipeline is loaded with its service to render its config"() {
+        given:
+        def pipeline = pipeline(gui, id: 100)
+        pipelines.findWithServiceById(100L) >> Optional.of(pipeline)
+
+        expect:
+        pipelineService.pipeline(100L).is(pipeline)
+        pipeline.activeKey().get().lastUsedAt == null
+    }
+
     def "a pipeline is created with its first key"() {
         given:
         services.findById(10L) >> Optional.of(gui)

@@ -21,6 +21,7 @@
         <java.version>21</java.version>
         <spock.version>2.4-groovy-5.0</spock.version>
         <gmavenplus.version>5.1.0</gmavenplus.version>
+        <exec-plugin.version>3.6.4</exec-plugin.version>
         <jacoco.version>0.8.15</jacoco.version>
         <!-- Minimum share of lines the unit specs must cover; the build fails below it. -->
         <coverage.minimum>0.90</coverage.minimum>
@@ -271,4 +272,83 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+            Builds the Angular frontend and packages it into the jar, so `java -jar` serves the portal UI.
+            Needs Node.js and npm on the PATH: mvn -Pfrontend package
+            -Dfrontend.skipInstall=true reuses the existing node_modules instead of running npm ci.
+        -->
+        <profile>
+            <id>frontend</id>
+            <properties>
+                <frontend.dir>${project.basedir}/../frontend</frontend.dir>
+                <frontend.npm>npm</frontend.npm>
+                <frontend.skipInstall>false</frontend.skipInstall>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>${exec-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>npm-ci</id>
+                                <phase>generate-resources</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>${frontend.skipInstall}</skip>
+                                    <executable>${frontend.npm}</executable>
+                                    <workingDirectory>${frontend.dir}</workingDirectory>
+                                    <arguments>
+                                        <argument>ci</argument>
+                                        <argument>--no-audit</argument>
+                                        <argument>--no-fund</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>npm-build</id>
+                                <phase>generate-resources</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>${frontend.npm}</executable>
+                                    <workingDirectory>${frontend.dir}</workingDirectory>
+                                    <arguments>
+                                        <argument>run</argument>
+                                        <argument>build</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>copy-frontend</id>
+                                <phase>process-resources</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
+                                    <resources>
+                                        <resource>
+                                            <directory>${frontend.dir}/dist/frontend/browser</directory>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

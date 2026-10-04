@@ -23,7 +23,8 @@ import java.util.Map;
  * <p>
  * {@code GET /api/dso/config/{key}} is the endpoint the DevSecOps library will call with the pipeline's
  * unique key: 200 with the configuration while the key is active, 403 once it has been invalidated and
- * 404 for a key that was never issued.
+ * 404 for a key that was never issued. The portal itself shows the same configuration by pipeline id, which
+ * leaves the key's last use untouched.
  */
 @RestController
 public class DsoConfigController {
@@ -46,6 +47,13 @@ public class DsoConfigController {
                                             @RequestParam(defaultValue = "yaml") String format) {
         Pipeline pipeline = pipelines.resolveKey(key);
         return render(builder.pipelineConfig(pipeline), format);
+    }
+
+    @GetMapping("/api/pipelines/{id}/config")
+    @Transactional(readOnly = true)
+    public ResponseEntity<?> pipelineConfigPreview(@PathVariable Long id,
+                                                   @RequestParam(defaultValue = "yaml") String format) {
+        return render(builder.pipelineConfig(pipelines.pipeline(id)), format);
     }
 
     @GetMapping("/api/products/{id}/config")

@@ -51,6 +51,12 @@ public class PipelineService {
         return PipelineResponse.withKeys(find(id));
     }
 
+    /** The pipeline with its service, to render its configuration without counting that as a use of its key. */
+    @Transactional(readOnly = true)
+    public Pipeline pipeline(Long id) {
+        return find(id);
+    }
+
     public PipelineResponse create(Long serviceId, PipelineRequest request) {
         ServiceDefinition service = services.findById(serviceId)
                 .orElseThrow(() -> NotFoundException.of("Service", serviceId));

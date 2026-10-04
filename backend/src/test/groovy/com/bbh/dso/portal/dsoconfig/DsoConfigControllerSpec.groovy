@@ -80,6 +80,26 @@ class DsoConfigControllerSpec extends Specification {
         response.status == 404
     }
 
+    def "the portal shows a pipeline's config by id without using its key"() {
+        when:
+        def response = mvc.perform(get('/api/pipelines/100/config')).andReturn().response
+
+        then:
+        1 * pipelines.pipeline(100L) >> pipeline(gui)
+        0 * pipelines.resolveKey(_)
+        response.status == 200
+        (new Yaml().load(response.contentAsString) as Map).pipeline.projectNames == 'gui'
+    }
+
+    def "the config of an unknown pipeline is 404"() {
+        when:
+        def response = mvc.perform(get('/api/pipelines/100/config').param('format', 'json')).andReturn().response
+
+        then:
+        1 * pipelines.pipeline(100L) >> { throw NotFoundException.of('Pipeline', 100L) }
+        response.status == 404
+    }
+
     def "a product's config holds all of its services"() {
         given:
         service(certScanner, name: 'backend-api', id: 11)

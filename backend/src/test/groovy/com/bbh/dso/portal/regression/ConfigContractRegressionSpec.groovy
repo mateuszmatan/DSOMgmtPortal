@@ -63,6 +63,25 @@ class ConfigContractRegressionSpec extends PortalSpecification {
         matchesExpected('product-config.yaml', productConfig.body)
     }
 
+    def "the portal shows a pipeline the same config its key gets, without marking the key as used"() {
+        given:
+        def mobile = createProduct(PAYMENTS + [code: uniqueCode('PREVIEW'), name: 'Preview Payments Hub',
+                                               services: [PAYMENTS.services[1]]])
+        def full = createPipeline(mobile.services[0].id as long, pipeline(type: 'FULL'))
+
+        when:
+        def preview = api.get("/api/pipelines/$full.id/config")
+
+        then:
+        preview.status == 200
+        preview.header('Content-Type').startsWith('application/yaml')
+        api.get("/api/pipelines/$full.id").json.activeKey.lastUsedAt == null
+
+        and:
+        preview.body == api.get("/api/dso/config/$full.activeKey.value").body
+        api.get("/api/pipelines/$full.id").json.activeKey.lastUsedAt != null
+    }
+
     private static boolean matchesExpected(String name, String actual) {
         def file = new File(EXPECTED_DIR, name)
         if (Boolean.getBoolean('regression.updateExpected')) {
