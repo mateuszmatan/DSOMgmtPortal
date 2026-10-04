@@ -38,14 +38,15 @@ class ProductSpec extends Specification {
         product.appScanAccount == newAccount
     }
 
-    def "services are kept in the order they were added and found by id"() {
+    def "services are listed by display order and name and found by id"() {
         given:
         def product = product()
-        def gui = service(product, name: 'gui', id: 10)
-        def api = service(product, name: 'backend-api', id: 11)
+        def gui = product.addService('gui', null, 2, settings())
+        def api = withId(product.addService('backend-api', null, 1, settings()), 11L)
+        def batch = product.addService('batch', null, 1, settings())
 
         expect:
-        product.services == [gui, api]
+        product.services == [api, batch, gui]
         product.service(11L).get() == api
         product.service(99L).isEmpty()
     }

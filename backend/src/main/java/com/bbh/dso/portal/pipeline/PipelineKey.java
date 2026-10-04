@@ -1,5 +1,6 @@
 package com.bbh.dso.portal.pipeline;
 
+import com.bbh.dso.portal.common.Timestamps;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -57,18 +58,18 @@ public class PipelineKey {
         this.pipeline = pipeline;
         this.value = UUID.randomUUID().toString();
         this.status = KeyStatus.ACTIVE;
-        this.issuedAt = Instant.now();
+        this.issuedAt = Timestamps.now();
     }
 
     void revoke(String reason) {
         status = KeyStatus.REVOKED;
-        revokedAt = Instant.now();
+        revokedAt = Timestamps.now();
         revokeReason = reason == null ? null : reason.trim();
     }
 
     /** Records that a pipeline fetched its configuration with this key. */
     public void markUsed() {
-        lastUsedAt = Instant.now();
+        lastUsedAt = Timestamps.now();
     }
 
     public boolean isActive() {

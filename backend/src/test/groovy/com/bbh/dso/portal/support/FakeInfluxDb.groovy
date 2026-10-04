@@ -25,11 +25,17 @@ class FakeInfluxDb implements AutoCloseable {
     static final List<String> DORA_COLUMNS = ['_time', 'project', 'env', 'variant', 'change_failure', 'deployment',
                                               'duration_s', 'lead_time_s']
 
+    private static FakeInfluxDb sharedInstance
+
     final List<Request> requests = new CopyOnWriteArrayList<>()
 
     private final List<Run> runs = new CopyOnWriteArrayList<>()
     private final HttpServer server
-    private final ExecutorService executor = Executors.newFixedThreadPool(16)
+    private final ExecutorService executor = Executors.newFixedThreadPool(16, { Runnable task ->
+        Thread thread = new Thread(task, 'fake-influxdb')
+        thread.daemon = true
+        thread
+    })
     private volatile String fixedAnswer
     private volatile int status = 200
 
@@ -42,6 +48,15 @@ class FakeInfluxDb implements AutoCloseable {
 
     static FakeInfluxDb start() {
         new FakeInfluxDb()
+    }
+
+    /** One instance for the whole test run, so every cached Spring context can point at the same URL. */
+    static synchronized FakeInfluxDb shared() {
+        if (sharedInstance == null) {
+            sharedInstance = start()
+            Runtime.runtime.addShutdownHook(new Thread({ sharedInstance.close() }))
+        }
+        sharedInstance
     }
 
     String getUrl() {

@@ -26,7 +26,7 @@ public record ProductRequest(
         @Email @Size(max = 320) String contactEmail,
         @NotNull @Valid AppScanAccount appScan,
         Long version,
-        @NotNull @Valid List<@NotNull @Valid ServiceRequest> services) {
+        @NotNull List<@NotNull @Valid ServiceRequest> services) {
 
     ProductDetails details() {
         return new ProductDetails(code, name, description, ownerTeam, contactEmail);

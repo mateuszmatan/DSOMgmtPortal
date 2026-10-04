@@ -227,8 +227,9 @@ class ProductCatalogServiceSpec extends Specification {
         then:
         1 * products.saveAndFlush(product) >> product
         product.name == 'CertScanner 2'
-        product.services == [gui, api, product.services[2]]
-        product.services.collectEntries { [it.name, it.displayOrder] } == [web: 2, api: 0, worker: 1]
+        product.services*.name == ['api', 'worker', 'web']
+        product.services*.displayOrder == [0, 1, 2]
+        gui.name == 'web'
         api.description == 'REST API'
         batch.product == null
     }

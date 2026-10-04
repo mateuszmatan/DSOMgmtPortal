@@ -14,7 +14,7 @@ import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,6 +25,9 @@ import java.util.Optional;
 @Entity
 @Table(name = "DSO_PRODUCT")
 public class Product extends AuditedEntity {
+
+    private static final Comparator<ServiceDefinition> DISPLAY_ORDER =
+            Comparator.comparingInt(ServiceDefinition::getDisplayOrder).thenComparing(ServiceDefinition::getName);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -117,7 +120,8 @@ public class Product extends AuditedEntity {
         return appScanAccount;
     }
 
+    /** The services in display order, also right after a change and before they are loaded again. */
     public List<ServiceDefinition> getServices() {
-        return Collections.unmodifiableList(services);
+        return services.stream().sorted(DISPLAY_ORDER).toList();
     }
 }

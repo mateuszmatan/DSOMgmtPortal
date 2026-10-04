@@ -161,7 +161,8 @@
                 </configuration>
             </plugin>
 
-            <!-- Regression, smoke and performance specs run against the started application in the verify phase. -->
+            <!-- Regression, smoke and performance specs run against the started application in the verify phase.
+                 Each suite can be skipped with -Dskip.regression, -Dskip.smoke or -Dskip.performance. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
@@ -174,9 +175,10 @@
                         <id>regression</id>
                         <goals>
                             <goal>integration-test</goal>
+                            <goal>verify</goal>
                         </goals>
                         <configuration>
-                            <skip>${skip.regression}</skip>
+                            <skipITs>${skip.regression}</skipITs>
                             <includes>
                                 <include>**/regression/**/*Spec</include>
                             </includes>
@@ -188,9 +190,10 @@
                         <id>smoke</id>
                         <goals>
                             <goal>integration-test</goal>
+                            <goal>verify</goal>
                         </goals>
                         <configuration>
-                            <skip>${skip.smoke}</skip>
+                            <skipITs>${skip.smoke}</skipITs>
                             <includes>
                                 <include>**/smoke/**/*Spec</include>
                             </includes>
@@ -202,27 +205,15 @@
                         <id>performance</id>
                         <goals>
                             <goal>integration-test</goal>
+                            <goal>verify</goal>
                         </goals>
                         <configuration>
-                            <skip>${skip.performance}</skip>
+                            <skipITs>${skip.performance}</skipITs>
                             <includes>
                                 <include>**/performance/**/*Spec</include>
                             </includes>
                             <reportsDirectory>${project.build.directory}/failsafe-reports/performance</reportsDirectory>
                             <summaryFile>${project.build.directory}/failsafe-reports/performance/failsafe-summary.xml</summaryFile>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>verify-suites</id>
-                        <goals>
-                            <goal>verify</goal>
-                        </goals>
-                        <configuration>
-                            <summaryFiles>
-                                <summaryFile>${project.build.directory}/failsafe-reports/regression/failsafe-summary.xml</summaryFile>
-                                <summaryFile>${project.build.directory}/failsafe-reports/smoke/failsafe-summary.xml</summaryFile>
-                                <summaryFile>${project.build.directory}/failsafe-reports/performance/failsafe-summary.xml</summaryFile>
-                            </summaryFiles>
                         </configuration>
                     </execution>
                 </executions>
