@@ -1,0 +1,117 @@
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ReactiveFormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { GlobalSettings, TestStage } from '../core/models';
+import { errorText } from '../shared/form-errors';
+import {
+  ServiceForm,
+  TestJobForm,
+  createTestJobForm,
+  isJobUrl,
+  isRemoteJob,
+} from './product-form-model';
+
+type StageParallel = 'smokeMaxParallel' | 'regressionMaxParallel' | 'performanceMaxParallel';
+
+const STAGES: { value: TestStage; label: string; noun: string; parallel: StageParallel }[] = [
+  { value: 'SMOKE', label: 'Smoke tests', noun: 'smoke', parallel: 'smokeMaxParallel' },
+  {
+    value: 'REGRESSION',
+    label: 'Regression tests',
+    noun: 'regression',
+    parallel: 'regressionMaxParallel',
+  },
+  {
+    value: 'PERFORMANCE',
+    label: 'Performance tests',
+    noun: 'performance',
+    parallel: 'performanceMaxParallel',
+  },
+];
+
+/**
+ * The Jenkins jobs the smoke, regression and performance stages trigger and wait for, grouped by stage
+ * ({@code tests.<stage>.jobs}), and how many of them run at the same time.
+ */
+@Component({
+  selector: 'dso-test-jobs-fields',
+  imports: [
+    ReactiveFormsModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatSelectModule,
+    MatTooltipModule,
+  ],
+  changeDetection: ChangeDetectionStrategy.Eager,
+  templateUrl: './test-jobs-fields.html',
+  styles: `
+    :host {
+      display: block;
+    }
+    code {
+      font-size: 11.5px;
+    }
+    .parallel {
+      width: 180px;
+    }
+  `,
+})
+export class TestJobsFields {
+  readonly form = input.required<ServiceForm>();
+  readonly defaults = input<GlobalSettings | null>(null);
+
+  protected readonly stages = STAGES;
+  protected readonly errorText = errorText;
+  protected readonly isRemoteJob = isRemoteJob;
+  protected readonly isJobUrl = isJobUrl;
+
+  protected jobsOf(stage: TestStage): TestJobForm[] {
+    return this.form().controls.testJobs.controls.filter((job) => job.controls.stage.value === stage);
+  }
+
+  protected add(stage: TestStage): void {
+    this.form().controls.testJobs.push(createTestJobForm({ stage }));
+    this.form().markAsDirty();
+  }
+
+  protected remove(job: TestJobForm): void {
+    const jobs = this.form().controls.testJobs;
+    jobs.removeAt(jobs.controls.indexOf(job));
+    this.form().markAsDirty();
+  }
+
+  /** Moves a job before or after the neighbouring job of its stage; jobs start in the order they are listed. */
+  protected move(job: TestJobForm, offset: -1 | 1): void {
+    const jobs = this.form().controls.testJobs;
+    const sameStage = this.jobsOf(job.controls.stage.value);
+    const neighbour = sameStage[sameStage.indexOf(job) + offset];
+    if (!neighbour) {
+      return;
+    }
+    const from = jobs.controls.indexOf(job);
+    const to = jobs.controls.indexOf(neighbour);
+    jobs.removeAt(from, { emitEvent: false });
+    jobs.insert(to, job);
+    this.form().markAsDirty();
+  }
+
+  protected isFirst(job: TestJobForm): boolean {
+    return this.jobsOf(job.controls.stage.value)[0] === job;
+  }
+
+  protected isLast(job: TestJobForm): boolean {
+    return this.jobsOf(job.controls.stage.value).at(-1) === job;
+  }
+
+  protected parallelDefault(): string {
+    const value = this.defaults()?.serviceDefaults.testsMaxParallel;
+    return value === undefined ? 'global default' : `global default ${value}`;
+  }
+}

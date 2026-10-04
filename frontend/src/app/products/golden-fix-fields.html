@@ -1,0 +1,142 @@
+@let c = group().controls;
+@let g = inherited();
+<mat-form-field class="span-5">
+  <mat-label>Ecosystems</mat-label>
+  <mat-select [formControl]="c.ecosystems" multiple>
+    @for (ecosystem of ecosystems; track ecosystem) {
+      <mat-option [value]="ecosystem">{{ ecosystem }}</mat-option>
+    }
+  </mat-select>
+  <mat-hint><code>goldenFix.ecosystems</code>{{ global(g?.ecosystems) }}</mat-hint>
+  <mat-error>{{ errorText(c.ecosystems) }}</mat-error>
+</mat-form-field>
+<mat-form-field class="span-3">
+  <mat-label>Minimum threat level</mat-label>
+  <input matInput type="number" min="1" max="10" [formControl]="c.minThreatLevel" />
+  <mat-hint><code>minThreatLevel</code>{{ global(g?.minThreatLevel) }}</mat-hint>
+  <mat-error>{{ errorText(c.minThreatLevel) }}</mat-error>
+</mat-form-field>
+@if (complete()) {
+  <mat-slide-toggle class="span-4" [formControl]="c.onlyDirectDependencies"
+    >Direct dependencies only (<code>onlyDirectDependencies</code>)</mat-slide-toggle
+  >
+} @else {
+  <mat-form-field class="span-4">
+    <mat-label>Dependencies</mat-label>
+    <mat-select [formControl]="c.onlyDirectDependencies">
+      <mat-option [value]="null">Global value</mat-option>
+      <mat-option [value]="true">Direct dependencies only</mat-option>
+      <mat-option [value]="false">Direct and transitive</mat-option>
+    </mat-select>
+    <mat-hint><code>onlyDirectDependencies</code>{{ global(g?.onlyDirectDependencies) }}</mat-hint>
+  </mat-form-field>
+}
+<mat-form-field class="span-6">
+  <mat-label>Golden version types</mat-label>
+  <textarea
+    matInput
+    [formControl]="c.goldenVersionTypes"
+    rows="2"
+    class="mono"
+    spellcheck="false"
+    placeholder="recommended-non-breaking"
+  ></textarea>
+  <mat-hint
+    ><code>goldenVersionTypes</code> · Nexus IQ remediation types, one per line, in order of
+    preference{{ global(g?.goldenVersionTypes) }}</mat-hint
+  >
+  <mat-error>{{ errorText(c.goldenVersionTypes) }}</mat-error>
+</mat-form-field>
+<mat-form-field class="span-6">
+  <mat-label>Excluded folders</mat-label>
+  <textarea
+    matInput
+    [formControl]="c.excludeDirs"
+    rows="2"
+    class="mono"
+    spellcheck="false"
+  ></textarea>
+  <mat-hint><code>excludeDirs</code> · one per line{{ global(g?.excludeDirs) }}</mat-hint>
+  <mat-error>{{ errorText(c.excludeDirs) }}</mat-error>
+</mat-form-field>
+
+<h5 class="sub-heading span-12">Verification build</h5>
+@if (complete()) {
+  <mat-slide-toggle class="span-4" [formControl]="c.verifyEnabled"
+    >Build the fix before opening the pull request (<code>verify.enabled</code>)</mat-slide-toggle
+  >
+} @else {
+  <mat-form-field class="span-4">
+    <mat-label>Verification</mat-label>
+    <mat-select [formControl]="c.verifyEnabled">
+      <mat-option [value]="null">Global value</mat-option>
+      <mat-option [value]="true">Build the fix first</mat-option>
+      <mat-option [value]="false">Do not build it</mat-option>
+    </mat-select>
+    <mat-hint><code>verify.enabled</code>{{ global(g?.verifyEnabled) }}</mat-hint>
+  </mat-form-field>
+}
+<mat-form-field class="span-4">
+  <mat-label>Attempts</mat-label>
+  <input matInput type="number" min="1" max="10" [formControl]="c.verifyMaxAttempts" />
+  <mat-hint><code>verify.maxAttempts</code>{{ global(g?.verifyMaxAttempts) }}</mat-hint>
+  <mat-error>{{ errorText(c.verifyMaxAttempts) }}</mat-error>
+</mat-form-field>
+<mat-form-field class="span-4">
+  <mat-label>Timeout (minutes)</mat-label>
+  <input matInput type="number" min="1" max="240" [formControl]="c.verifyTimeoutMinutes" />
+  <mat-hint><code>verify.timeoutMinutes</code>{{ global(g?.verifyTimeoutMinutes) }}</mat-hint>
+  <mat-error>{{ errorText(c.verifyTimeoutMinutes) }}</mat-error>
+</mat-form-field>
+<mat-form-field class="span-6">
+  <mat-label>Maven command</mat-label>
+  <input matInput [formControl]="c.verifyMavenCommand" class="mono" placeholder="Library default" />
+  <mat-hint><code>verify.commands.maven</code></mat-hint>
+  <mat-error>{{ errorText(c.verifyMavenCommand) }}</mat-error>
+</mat-form-field>
+<mat-form-field class="span-6">
+  <mat-label>Gradle command</mat-label>
+  <input matInput [formControl]="c.verifyGradleCommand" class="mono" placeholder="Library default" />
+  <mat-hint><code>verify.commands.gradle</code></mat-hint>
+  <mat-error>{{ errorText(c.verifyGradleCommand) }}</mat-error>
+</mat-form-field>
+<mat-form-field class="span-4">
+  <mat-label>npm command</mat-label>
+  <input matInput [formControl]="c.verifyNpmCommand" class="mono" placeholder="Library default" />
+  <mat-hint><code>verify.commands.npm</code></mat-hint>
+  <mat-error>{{ errorText(c.verifyNpmCommand) }}</mat-error>
+</mat-form-field>
+<mat-form-field class="span-4">
+  <mat-label>pip command</mat-label>
+  <input matInput [formControl]="c.verifyPipCommand" class="mono" placeholder="Library default" />
+  <mat-hint><code>verify.commands.pip</code></mat-hint>
+  <mat-error>{{ errorText(c.verifyPipCommand) }}</mat-error>
+</mat-form-field>
+<mat-form-field class="span-4">
+  <mat-label>pub command</mat-label>
+  <input matInput [formControl]="c.verifyPubCommand" class="mono" placeholder="Library default" />
+  <mat-hint><code>verify.commands.pub</code></mat-hint>
+  <mat-error>{{ errorText(c.verifyPubCommand) }}</mat-error>
+</mat-form-field>
+
+<h5 class="sub-heading span-12">Commits</h5>
+<mat-form-field class="span-4">
+  <mat-label>Author name</mat-label>
+  <input matInput [formControl]="c.commitAuthorName" />
+  <mat-hint><code>commitAuthorName</code>{{ global(g?.commitAuthorName) }}</mat-hint>
+  <mat-error>{{ errorText(c.commitAuthorName) }}</mat-error>
+</mat-form-field>
+<mat-form-field class="span-5">
+  <mat-label>Author e-mail</mat-label>
+  <input matInput type="email" [formControl]="c.commitAuthorEmail" />
+  <mat-hint><code>commitAuthorEmail</code>{{ global(g?.commitAuthorEmail) }}</mat-hint>
+  <mat-error>{{ errorText(c.commitAuthorEmail) }}</mat-error>
+</mat-form-field>
+<mat-form-field class="span-3">
+  <mat-label>Time zone</mat-label>
+  <input matInput [formControl]="c.timeZone" placeholder="Europe/Warsaw" class="mono" />
+  <mat-hint><code>timeZone</code>{{ global(g?.timeZone) }}</mat-hint>
+  <mat-error>{{
+    errorText(c.timeZone, 'Must be a time zone ID such as Europe/Warsaw or UTC')
+  }}</mat-error>
+</mat-form-field>

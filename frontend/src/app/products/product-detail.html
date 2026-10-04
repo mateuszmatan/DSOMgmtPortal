@@ -168,9 +168,35 @@
                   <span matTooltip="Jenkins agent labels"
                     ><mat-icon>dns</mat-icon>{{ pipeline.agentLabels.join(', ') }}</span
                   >
+                  @if (pipeline.jenkinsJobUrl) {
+                    <a
+                      class="jenkins"
+                      [href]="pipeline.jenkinsJobUrl"
+                      target="_blank"
+                      rel="noopener"
+                      matTooltip="Open the Jenkins job"
+                      ><mat-icon>open_in_new</mat-icon
+                      ><span class="mono">{{ pipeline.jenkinsJob }}</span></a
+                    >
+                  } @else if (pipeline.jenkinsJob) {
+                    <span
+                      matTooltip="Set the Jenkins URL in the DevSecOps Global Settings to link the job"
+                      ><mat-icon>work_outline</mat-icon
+                      ><span class="mono">{{ pipeline.jenkinsJob }}</span></span
+                    >
+                  } @else {
+                    <span class="muted" matTooltip="Set the job in the pipeline settings"
+                      ><mat-icon>link_off</mat-icon>No Jenkins job</span
+                    >
+                  }
                   @if (pipeline.extendedPipelineJob) {
                     <span matTooltip="Extended pipeline job"
                       ><mat-icon>call_split</mat-icon>{{ pipeline.extendedPipelineJob }}</span
+                    >
+                  }
+                  @if (pipeline.securityPipelineJob) {
+                    <span matTooltip="Security pipeline job"
+                      ><mat-icon>call_merge</mat-icon>{{ pipeline.securityPipelineJob }}</span
                     >
                   }
                   <span matTooltip="InfluxDB project and env tags of its metrics">
@@ -223,6 +249,11 @@
                 }
               </div>
               <div class="pipeline-actions">
+                @if (pipeline.jenkinsJobUrl) {
+                  <a mat-button [href]="pipeline.jenkinsJobUrl" target="_blank" rel="noopener"
+                    ><mat-icon>open_in_new</mat-icon>Jenkins</a
+                  >
+                }
                 <a mat-button [routerLink]="['/monitoring/pipelines', pipeline.id]"
                   ><mat-icon>insights</mat-icon>Metrics</a
                 >

@@ -60,6 +60,27 @@
         }}</mat-error>
       </mat-form-field>
 
+      <mat-form-field class="full-width">
+        <mat-label>Jenkins job</mat-label>
+        <input
+          matInput
+          formControlName="jenkinsJob"
+          placeholder="DevSecOps/CERT/backend-api-full"
+          class="mono"
+          autocomplete="off"
+        />
+        <mat-hint
+          >The job the pipeline runs in: its path, linked under the Jenkins URL of the global
+          settings, or its full URL</mat-hint
+        >
+        <mat-error>{{
+          errorText(
+            form.controls.jenkinsJob,
+            'A job path such as DevSecOps/CERT/backend-api-full, or an http or https URL'
+          )
+        }}</mat-error>
+      </mat-form-field>
+
       @if (selectedType()?.value === 'SECURITY') {
         <mat-form-field class="full-width">
           <mat-label>Extended pipeline job</mat-label>
@@ -69,8 +90,28 @@
             placeholder="CERT/backend-api-extended"
             class="mono"
           />
-          <mat-hint>Jenkins job the security pipeline starts after its scans, if any</mat-hint>
+          <mat-hint
+            ><code>jenkins.pipeline.extendedPipeline</code>: the job the security pipeline starts
+            after its scans, if any</mat-hint
+          >
           <mat-error>{{ errorText(form.controls.extendedPipelineJob) }}</mat-error>
+        </mat-form-field>
+      }
+
+      @if (selectedType()?.value === 'EXTENDED') {
+        <mat-form-field class="full-width">
+          <mat-label>Security pipeline job</mat-label>
+          <input
+            matInput
+            formControlName="securityPipelineJob"
+            placeholder="CERT/backend-api-security"
+            class="mono"
+          />
+          <mat-hint
+            ><code>securityPipeline</code>: the security pipeline whose artifacts this pipeline
+            deploys and tests</mat-hint
+          >
+          <mat-error>{{ errorText(form.controls.securityPipelineJob) }}</mat-error>
         </mat-form-field>
       }
 

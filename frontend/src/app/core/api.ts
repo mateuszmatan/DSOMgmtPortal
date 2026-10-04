@@ -2,6 +2,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
+  GlobalSettings,
+  GlobalSettingsRequest,
   MonitoringOverview,
   MonitoringStatus,
   Pipeline,
@@ -9,6 +11,7 @@ import {
   PipelineRequest,
   Product,
   ProductMonitoring,
+  ProductEvidence,
   ProductRequest,
   ProductSummary,
   ServicePipelines,
@@ -102,5 +105,37 @@ export class MonitoringApi {
     return this.http.get<PipelineMonitoring>(`/api/monitoring/pipelines/${id}`, {
       params: { range },
     });
+  }
+}
+
+@Injectable({ providedIn: 'root' })
+export class SettingsApi {
+  private readonly http = inject(HttpClient);
+
+  get(): Observable<GlobalSettings> {
+    return this.http.get<GlobalSettings>('/api/settings');
+  }
+
+  /** Refused with 409 when the settings changed since the version the request carries. */
+  update(request: GlobalSettingsRequest): Observable<GlobalSettings> {
+    return this.http.put<GlobalSettings>('/api/settings', request);
+  }
+
+  /** The part of every pipeline's configuration that comes from the global settings, as YAML. */
+  config(): Observable<string> {
+    return this.http.get('/api/settings/config', {
+      params: { format: 'yaml' },
+      responseType: 'text',
+    });
+  }
+}
+
+@Injectable({ providedIn: 'root' })
+export class EvidenceApi {
+  private readonly http = inject(HttpClient);
+
+  /** What the latest run of every pipeline of the product recorded. */
+  product(productId: number): Observable<ProductEvidence> {
+    return this.http.get<ProductEvidence>(`/api/evidence/products/${productId}`);
   }
 }

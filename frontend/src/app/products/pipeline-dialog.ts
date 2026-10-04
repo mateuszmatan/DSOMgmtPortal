@@ -30,6 +30,8 @@ export interface PipelineDialogData {
 }
 
 export const AGENT_LABEL = /^[A-Za-z0-9._-]{1,100}$/;
+/** A Jenkins job path such as DevSecOps/CertScanner-gui, or the job's URL. */
+export const JENKINS_JOB = /^(https?:\/\/\S+|[^\s:?#][^:?#]*)$/;
 
 /** Adds a pipeline to a service or changes the settings of one; the result is the saved pipeline. */
 @Component({
@@ -75,7 +77,15 @@ export class PipelineDialog {
         (control) => (control.value.length > 20 ? { maxItems: true } : null),
       ],
     }),
+    jenkinsJob: new FormControl(this.data.pipeline?.jenkinsJob ?? '', {
+      nonNullable: true,
+      validators: [Validators.pattern(JENKINS_JOB), Validators.maxLength(1000)],
+    }),
     extendedPipelineJob: new FormControl(this.data.pipeline?.extendedPipelineJob ?? '', {
+      nonNullable: true,
+      validators: Validators.maxLength(500),
+    }),
+    securityPipelineJob: new FormControl(this.data.pipeline?.securityPipelineJob ?? '', {
       nonNullable: true,
       validators: Validators.maxLength(500),
     }),
@@ -134,6 +144,9 @@ export class PipelineDialog {
       agentLabels: value.agentLabels,
       extendedPipelineJob:
         value.type === 'SECURITY' ? value.extendedPipelineJob.trim() || null : null,
+      securityPipelineJob:
+        value.type === 'EXTENDED' ? value.securityPipelineJob.trim() || null : null,
+      jenkinsJob: value.jenkinsJob.trim() || null,
       description: value.description.trim() || null,
     };
     const pipeline = this.data.pipeline;

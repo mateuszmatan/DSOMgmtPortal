@@ -1,0 +1,208 @@
+@let f = form();
+@let uc = f.controls.urbanCode.controls;
+<div class="form-fields">
+  <mat-form-field class="span-6">
+    <mat-label>Site name</mat-label>
+    <input
+      matInput
+      [formControl]="uc.siteName"
+      [placeholder]="defaults()?.deployment?.urbanCodeSiteName ?? ''"
+    />
+    <mat-hint
+      ><code>deploy.vm.dod.siteName</code> ·
+      {{ fallback(defaults()?.deployment?.urbanCodeSiteName) }}</mat-hint
+    >
+    <mat-error>{{ errorText(uc.siteName) }}</mat-error>
+  </mat-form-field>
+  <mat-form-field class="span-6">
+    <mat-label>Deployment process</mat-label>
+    <input
+      matInput
+      [formControl]="uc.deployProcess"
+      [placeholder]="defaults()?.deployment?.urbanCodeDeployProcess ?? ''"
+    />
+    <mat-hint
+      ><code>deploy.vm.dod.deployProcess</code> ·
+      {{ fallback(defaults()?.deployment?.urbanCodeDeployProcess) }}</mat-hint
+    >
+    <mat-error>{{ errorText(uc.deployProcess) }}</mat-error>
+  </mat-form-field>
+  <mat-slide-toggle class="span-6" [formControl]="uc.deployWithSnapshot"
+    >Deploy with a snapshot (<code>deployWithSnapshot</code>)</mat-slide-toggle
+  >
+  <mat-slide-toggle class="span-6" [formControl]="uc.includeOnlyDeployVersions"
+    >Snapshot holds only the deployed versions (<code>includeOnlyDeployVersions</code>)</mat-slide-toggle
+  >
+  <mat-slide-toggle class="span-6" [formControl]="uc.updateSnapshotComponents"
+    >Update the snapshot's components (<code>updateSnapshotComp</code>)</mat-slide-toggle
+  >
+  <mat-slide-toggle class="span-6" [formControl]="uc.deployOnlyChanged"
+    >Deploy only changed versions (<code>deployOnlyChanged</code>)</mat-slide-toggle
+  >
+  <mat-slide-toggle class="span-12" [formControl]="uc.skipWait"
+    >Do not wait for the deployment result (<code>skipWait</code>)</mat-slide-toggle
+  >
+  <mat-form-field class="span-6">
+    <mat-label>Deployment description</mat-label>
+    <textarea matInput [formControl]="uc.deployDescription" rows="2"></textarea>
+    <mat-hint><code>deploy.vm.dod.deployDescription</code></mat-hint>
+    <mat-error>{{ errorText(uc.deployDescription) }}</mat-error>
+  </mat-form-field>
+  <mat-form-field class="span-6">
+    <mat-label>Request properties</mat-label>
+    <textarea
+      matInput
+      [formControl]="uc.requestProperties"
+      rows="2"
+      class="mono"
+      spellcheck="false"
+    ></textarea>
+    <mat-hint><code>deploy.vm.dod.requestProperties</code></mat-hint>
+    <mat-error>{{ errorText(uc.requestProperties) }}</mat-error>
+  </mat-form-field>
+</div>
+
+<section class="list-section">
+  <header class="list-header">
+    <h4>
+      Applications <span class="count">{{ applications().length }}</span>
+    </h4>
+    <span class="hint"><code>deploy.vm.dod.applications</code></span>
+    <span class="spacer"></span>
+    <button mat-stroked-button type="button" (click)="addApplication()">
+      <mat-icon>add</mat-icon>Add application
+    </button>
+  </header>
+
+  @if (f.controls.urbanCodeApplications.errors?.['server']; as message) {
+    <div class="banner list-error" role="alert">
+      <mat-icon>error_outline</mat-icon><span>{{ message }}</span>
+    </div>
+  }
+
+  @for (application of applications(); track application; let i = $index) {
+    <div
+      class="list-item"
+      [formGroup]="application"
+      [class.invalid]="application.invalid && application.touched"
+    >
+      <div class="list-item-head">
+        <span class="index">{{ i + 1 }}</span>
+        <strong class="mono">{{
+          application.controls.applicationName.value || 'New application'
+        }}</strong>
+        <span class="spacer"></span>
+        <button
+          mat-icon-button
+          type="button"
+          class="danger"
+          (click)="removeApplication(i)"
+          matTooltip="Remove application"
+        >
+          <mat-icon>delete</mat-icon>
+        </button>
+      </div>
+      <div class="form-fields">
+        <mat-form-field class="span-5">
+          <mat-label>Application name</mat-label>
+          <input matInput formControlName="applicationName" class="mono" />
+          <mat-hint><code>applicationName</code></mat-hint>
+          <mat-error>{{ errorText(application.controls.applicationName) }}</mat-error>
+        </mat-form-field>
+        <mat-form-field class="span-2">
+          <mat-label>Order</mat-label>
+          <input matInput type="number" min="1" max="999" formControlName="order" />
+          <mat-hint><code>order</code></mat-hint>
+          <mat-error>{{ errorText(application.controls.order) }}</mat-error>
+        </mat-form-field>
+        <mat-form-field class="span-5">
+          <mat-label>Environments</mat-label>
+          <input matInput formControlName="environments" placeholder="DV, RD" class="mono" />
+          <mat-hint><code>environments</code> · left empty: all of them</mat-hint>
+          <mat-error>{{ errorText(application.controls.environments) }}</mat-error>
+        </mat-form-field>
+        <mat-form-field class="span-6">
+          <mat-label>Snapshot name</mat-label>
+          <input matInput formControlName="snapshotName" />
+          <mat-hint><code>snapshotName</code></mat-hint>
+          <mat-error>{{ errorText(application.controls.snapshotName) }}</mat-error>
+        </mat-form-field>
+      </div>
+
+      <h5 class="sub-heading">Components <code>components</code></h5>
+      @for (
+        component of application.controls.components.controls;
+        track component;
+        let j = $index
+      ) {
+        <div class="component" [formGroup]="component">
+          <button
+            mat-icon-button
+            type="button"
+            class="remove danger"
+            (click)="removeComponent(application, j)"
+            matTooltip="Remove component"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+          <div class="form-fields">
+            <mat-form-field class="span-4">
+              <mat-label>Component name</mat-label>
+              <input matInput formControlName="componentName" class="mono" />
+              <mat-hint><code>componentName</code></mat-hint>
+              <mat-error>{{ errorText(component.controls.componentName) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="span-4">
+              <mat-label>Base folder</mat-label>
+              <input matInput formControlName="baseDir" placeholder="build/libs" class="mono" />
+              <mat-hint><code>baseDir</code></mat-hint>
+              <mat-error>{{ errorText(component.controls.baseDir) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="span-2">
+              <mat-label>Version prefix</mat-label>
+              <input matInput formControlName="versionPrefix" class="mono" />
+              <mat-hint><code>versionPrefix</code></mat-hint>
+              <mat-error>{{ errorText(component.controls.versionPrefix) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="span-2">
+              <mat-label>Version</mat-label>
+              <input matInput formControlName="version" class="mono" />
+              <mat-hint><code>version</code></mat-hint>
+              <mat-error>{{ errorText(component.controls.version) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="span-6">
+              <mat-label>Files to include</mat-label>
+              <input matInput formControlName="fileIncludePatterns" placeholder="*.jar" class="mono" />
+              <mat-hint><code>fileIncludePatterns</code></mat-hint>
+              <mat-error>{{ errorText(component.controls.fileIncludePatterns) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="span-6">
+              <mat-label>Files to exclude</mat-label>
+              <input matInput formControlName="fileExcludePatterns" class="mono" />
+              <mat-hint><code>fileExcludePatterns</code></mat-hint>
+              <mat-error>{{ errorText(component.controls.fileExcludePatterns) }}</mat-error>
+            </mat-form-field>
+            <mat-slide-toggle class="span-12" formControlName="incrementalVersion"
+              >Incremental version (<code>incrementalVersion</code>)</mat-slide-toggle
+            >
+          </div>
+        </div>
+      } @empty {
+        <p class="list-empty">No component yet.</p>
+      }
+      <button
+        mat-button
+        type="button"
+        class="add-component"
+        (click)="addComponent(application)"
+      >
+        <mat-icon>add</mat-icon>Add component
+      </button>
+    </div>
+  } @empty {
+    <p class="list-empty">
+      No application: the full pipeline does not deploy this service with UrbanCode Deploy, and the
+      options above are not written.
+    </p>
+  }
+</section>

@@ -218,7 +218,12 @@
                   </mat-panel-description>
                 </mat-expansion-panel-header>
 
-                <dso-service-fields [form]="service" [productCode]="form.controls.code.value" />
+                <dso-service-fields
+                  [form]="service"
+                  [productCode]="form.controls.code.value"
+                  [defaults]="settings()"
+                  [submitted]="submitted()"
+                />
 
                 <mat-action-row>
                   <button mat-button type="button" (click)="move(i, -1)" [disabled]="first">

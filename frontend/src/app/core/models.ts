@@ -7,6 +7,23 @@ export type KeyStatus = 'ACTIVE' | 'REVOKED';
 export type RunResult =
   'SUCCESS' | 'UNSTABLE' | 'FAILURE' | 'ABORTED' | 'NOT_BUILT' | 'NO_DATA' | 'DISABLED';
 export type DoraLevel = 'ELITE' | 'HIGH' | 'MEDIUM' | 'LOW';
+export type TestStage = 'SMOKE' | 'REGRESSION' | 'PERFORMANCE';
+export type TestJobType = 'LOCAL' | 'REMOTE';
+/** The test environments a service is deployed to: the lower test region (RD) and the higher one (QC). */
+export type Region = 'RD' | 'QC';
+export type BitbucketAuthType = 'BASIC' | 'BEARER';
+export type BitbucketType = 'SERVER' | 'CLOUD';
+export type FlutterPlatform = 'APK' | 'APPBUNDLE' | 'IOS' | 'MACOS' | 'LINUX' | 'WINDOWS' | 'WEB';
+/** The security scanners the BBH policy sets limits for. */
+export type Scanner = 'SAST' | 'SCA' | 'NEXUS_IQ' | 'DAST';
+/** The outcome of one check of a run, plus NO_DATA when the run recorded nothing for it. */
+export type CheckStatus = 'PASS' | 'WARN' | 'FAIL' | 'BLOCKED' | 'NOT_REQUIRED' | 'SKIP' | 'NO_DATA';
+/** The security and quality scans a change request reports on. */
+export type EvidenceScanner = 'SAST' | 'DAST' | 'SONARQUBE' | 'NEXUS_IQ';
+
+export const REGIONS: Region[] = ['RD', 'QC'];
+export const TEST_STAGES: TestStage[] = ['SMOKE', 'REGRESSION', 'PERFORMANCE'];
+export const SCANNERS: Scanner[] = ['SAST', 'SCA', 'NEXUS_IQ', 'DAST'];
 
 export interface ProductSummary {
   id: number;
@@ -20,24 +37,136 @@ export interface ProductSummary {
   updatedAt: string;
 }
 
+/**
+ * A Gradle or Maven command the library runs: tasks (Gradle) or goals (Maven), flags, the directory to run in,
+ * the Maven installation and environment variables written as NAME=value.
+ */
+export interface ToolCommand {
+  tasks: string[];
+  flags: string[];
+  directory: string | null;
+  mavenHome: string | null;
+  environment: string[];
+}
+
 /** The sections of a service, one per part of its config.yaml entry in the DevSecOps library. */
 export interface BuildSettings {
   tool: BuildTool;
-  sourceDir: string | null;
+  sourceDir: string;
   javaPath: string | null;
   autoSetup: boolean;
+  buildPath: string | null;
+  command: ToolCommand;
+}
+
+export interface UnitTestSettings {
+  command: ToolCommand;
+  resultPattern: string | null;
+  rootDir: string | null;
+  reportOutDir: string | null;
+  allowEmptyResults: boolean;
+  coverageReportPath: string | null;
+}
+
+export interface TestSettings {
+  maxParallel: number | null;
+  smokeMaxParallel: number | null;
+  regressionMaxParallel: number | null;
+  performanceMaxParallel: number | null;
+}
+
+export interface TestJob {
+  stage: TestStage;
+  name: string | null;
+  type: TestJobType | null;
+  job: string;
+  timeoutMinutes: number | null;
+  parameters: string | null;
+  remoteJenkins: string | null;
+  remoteJenkinsUrl: string | null;
+  credentialsId: string | null;
 }
 
 export interface DeploymentSettings {
   target: DeployTarget;
   appName: string | null;
   artifactName: string | null;
+  baseArtifactName: string | null;
+}
+
+export interface UrbanCodeSettings {
+  siteName: string | null;
+  deployProcess: string | null;
+  skipWait: boolean;
+  deployWithSnapshot: boolean;
+  updateSnapshotComponents: boolean;
+  includeOnlyDeployVersions: boolean;
+  deployOnlyChanged: boolean;
+  deployDescription: string | null;
+  requestProperties: string | null;
+}
+
+export interface UrbanCodeComponent {
+  componentName: string;
+  baseDir: string | null;
+  fileIncludePatterns: string | null;
+  fileExcludePatterns: string | null;
+  versionPrefix: string | null;
+  version: string | null;
+  incrementalVersion: boolean;
+}
+
+export interface UrbanCodeApplicationSettings {
+  applicationName: string;
+  order: number | null;
+  environments: string[];
+  snapshotName: string | null;
+  components: UrbanCodeComponent[];
+}
+
+export interface SshTarget {
+  host: string | null;
+  user: string | null;
+  deployDir: string | null;
+  deployScript: string | null;
+  versionFile: string | null;
+}
+
+export interface OpenShiftTarget {
+  projectBuild: string | null;
+  buildConfigPath: string | null;
+  dockerFilePath: string | null;
+  buildContext: string | null;
+  addFile: string | null;
+  dockerRepoPush: string | null;
+  dockerRepoPull: string | null;
+  certDir: string | null;
+  nexusAuthFile: string | null;
+  projectDeployment: string | null;
+  deployConfigPath: string | null;
+  configPath: string | null;
+  skipConfigDeploy: boolean;
+  healthCheckUrl: string | null;
+  routeHostname: string | null;
+  deploymentPath: string | null;
+  deploymentRepoUrl: string | null;
+  deploymentRepoBranch: string | null;
+  deploymentRepoCredentialsId: string | null;
 }
 
 export interface AppScanSettings {
   applicationId: string;
   sastScanName: string | null;
+  includedDirs: string[];
+  excludedDirs: string[];
+  compile: boolean;
+  sourceCodeOnly: boolean;
+  useConfigFile: boolean;
+  insecureTls: boolean;
+  clientPath: string | null;
+  compileCommand: ToolCommand;
   dastEnabled: boolean;
+  dastScanName: string | null;
   dastTargetUrl: string | null;
   dastPresenceId: string | null;
 }
@@ -45,17 +174,55 @@ export interface AppScanSettings {
 export interface SonarSettings {
   projectName: string | null;
   projectKey: string | null;
+  installationName: string | null;
+  credentialsId: string | null;
+  authTokenCredentialsId: string | null;
+  badgeToken: string | null;
+  addBadges: boolean;
+  fullBadges: boolean;
+  command: ToolCommand;
 }
 
 export interface NexusIqSettings {
   application: string | null;
   scanPatterns: string[];
+  stage: string;
+  failOnNetworkError: boolean;
+  scaScanName: string | null;
 }
 
 export interface ScmSettings {
   repositoryUrl: string | null;
   credentialsId: string | null;
-  goldenFixEnabled: boolean;
+  authType: BitbucketAuthType;
+  type: BitbucketType | null;
+  targetBranch: string | null;
+  cloneUrl: string | null;
+  reviewers: string[];
+}
+
+/**
+ * How GoldenFix raises dependency upgrade pull requests. The global settings set every value; a service sets
+ * only what it changes, its unset values (null or empty) falling back to the global ones.
+ */
+export interface GoldenFixPolicy {
+  enabled: boolean;
+  onlyDirectDependencies: boolean | null;
+  minThreatLevel: number | null;
+  ecosystems: string[];
+  goldenVersionTypes: string[];
+  excludeDirs: string[];
+  verifyEnabled: boolean | null;
+  verifyMaxAttempts: number | null;
+  verifyTimeoutMinutes: number | null;
+  verifyMavenCommand: string | null;
+  verifyGradleCommand: string | null;
+  verifyNpmCommand: string | null;
+  verifyPipCommand: string | null;
+  verifyPubCommand: string | null;
+  commitAuthorName: string | null;
+  commitAuthorEmail: string | null;
+  timeZone: string | null;
 }
 
 export interface MetricsSettings {
@@ -64,19 +231,43 @@ export interface MetricsSettings {
   influxEnv: string | null;
 }
 
-export interface AdditionalConfig {
-  yaml: string | null;
+export interface FlutterSettings {
+  platform: FlutterPlatform | null;
+  modules: string[];
+  testModules: string[];
+  testSubmodules: string[];
+  testSubplugins: string[];
+  signingPasswordCredentialsId: string | null;
+  prodLicenseCredentialsId: string | null;
+  testLicenseCredentialsId: string | null;
+  deliveryGroup: string | null;
+  deliveryArtifact: string | null;
+  deliveryPlugin: string | null;
+  sonarSources: string | null;
+  sonarTests: string | null;
+  sonarFlutterPlugin: boolean;
+  dartAnalyzeCommand: string | null;
+  sonarScannerVersion: string | null;
 }
 
 export interface ServiceSettings {
   build: BuildSettings;
+  unitTests: UnitTestSettings;
+  tests: TestSettings;
+  testJobs: TestJob[];
   deployment: DeploymentSettings;
+  delivery: ToolCommand;
+  urbanCode: UrbanCodeSettings;
+  urbanCodeApplications: UrbanCodeApplicationSettings[];
+  sshTargets: Partial<Record<Region, SshTarget>>;
+  openShiftTargets: Partial<Record<Region, OpenShiftTarget>>;
   appScan: AppScanSettings;
   sonar: SonarSettings;
   nexusIq: NexusIqSettings;
   scm: ScmSettings;
+  goldenFix: GoldenFixPolicy;
   metrics: MetricsSettings;
-  additionalConfig: AdditionalConfig;
+  flutter: FlutterSettings | null;
 }
 
 export interface Service extends ServiceSettings {
@@ -139,7 +330,14 @@ export interface Pipeline {
   type: PipelineType;
   entryPoint: string;
   agentLabels: string[];
+  /** The job a security pipeline starts after its scans; SECURITY pipelines only. */
   extendedPipelineJob: string | null;
+  /** The security pipeline whose artifacts an extended pipeline copies; EXTENDED pipelines only. */
+  securityPipelineJob: string | null;
+  /** The Jenkins job the pipeline runs in, as a job path or a full URL. */
+  jenkinsJob: string | null;
+  /** The address of that job; null when neither a URL nor the Jenkins of the global settings is known. */
+  jenkinsJobUrl: string | null;
   description: string | null;
   enabled: boolean;
   activeKey: PipelineKey | null;
@@ -154,6 +352,8 @@ export interface PipelineRequest {
   type: PipelineType;
   agentLabels: string[];
   extendedPipelineJob: string | null;
+  securityPipelineJob: string | null;
+  jenkinsJob: string | null;
   description: string | null;
 }
 
@@ -164,6 +364,95 @@ export interface ServicePipelines {
   buildTool: BuildTool;
   deployTarget: DeployTarget;
   pipelines: Pipeline[];
+}
+
+/** The BBH tools every pipeline uses; credentials are named, never stored. */
+export interface PlatformSettings {
+  jenkinsUrl: string | null;
+  jenkinsLibrary: string;
+  asocUrl: string;
+  appScanClientLinuxUrl: string;
+  appScanClientWindowsUrl: string;
+  proxyHost: string | null;
+  proxyPort: number | null;
+  proxyUser: string | null;
+  oisHost: string | null;
+  sonarServerUrl: string;
+  sonarInstallationName: string;
+  nexusIqServerUrl: string;
+  nexusIqCredentialsId: string;
+  nexusSnapshotRepositoryUrl: string | null;
+  nexusSnapshotRepositoryId: string | null;
+  influxWriteUrl: string | null;
+  influxCredentialsId: string | null;
+  iosBuildAgent: string | null;
+}
+
+/** Deployment values every VM service shares unless it sets its own. */
+export interface DeploymentDefaults {
+  urbanCodeSiteName: string;
+  urbanCodeDeployProcess: string;
+  rdHost: string;
+  qcHost: string;
+  sshUser: string;
+  deployScript: string;
+  versionFile: string;
+}
+
+export interface SeverityLimits {
+  maxCritical: number;
+  maxHigh: number;
+  maxMedium: number;
+}
+
+export interface ScanSettings {
+  coverageMinLine: number;
+  sastPrepareTimeoutMinutes: number;
+  sastPollTimeoutMinutes: number;
+  sastPollIntervalSeconds: number;
+  scaEnabled: boolean;
+  scaPollTimeoutMinutes: number;
+  scaPollIntervalSeconds: number;
+  dastPollTimeoutMinutes: number;
+  dastPollIntervalSeconds: number;
+  dastReportTimeoutMinutes: number;
+  dastReportIntervalSeconds: number;
+  sonarWaitForQualityGate: boolean;
+  sonarQualityGateTimeoutMinutes: number;
+}
+
+export interface ReleaseGateSettings {
+  scanners: Scanner[];
+  requireCoverage: boolean;
+  stateFile: string;
+}
+
+/** What a service gets when it does not say otherwise. */
+export interface ServiceDefaults {
+  buildTool: BuildTool;
+  deployTarget: DeployTarget;
+  sourceDir: string;
+  testsMaxParallel: number;
+}
+
+export interface GlobalSettingsValues {
+  platform: PlatformSettings;
+  deployment: DeploymentDefaults;
+  limits: Record<Scanner, SeverityLimits>;
+  scans: ScanSettings;
+  releaseGate: ReleaseGateSettings;
+  serviceDefaults: ServiceDefaults;
+  goldenFix: GoldenFixPolicy;
+}
+
+export interface GlobalSettings extends GlobalSettingsValues {
+  version: number;
+  updatedAt: string;
+}
+
+export interface GlobalSettingsRequest extends GlobalSettingsValues {
+  /** The version the settings were read at; a stale one is refused with 409. */
+  version: number | null;
 }
 
 export interface PipelineRun {
@@ -266,6 +555,108 @@ export interface PipelineMonitoring {
   metricsError: string | null;
 }
 
+/** What the latest run of every pipeline of a product proved, in the shape a ServiceNow change asks for. */
+export interface ProductEvidence {
+  productId: number;
+  code: string;
+  name: string;
+  description: string | null;
+  ownerTeam: string | null;
+  contactEmail: string | null;
+  services: ServiceEvidence[];
+  metricsError: string | null;
+}
+
+/** A service with the identifiers its scans run under and its pipelines. */
+export interface ServiceEvidence {
+  serviceId: number;
+  name: string;
+  description: string | null;
+  repositoryUrl: string | null;
+  artifactName: string | null;
+  appScanApplicationId: string | null;
+  sonarProjectKey: string | null;
+  nexusIqApplication: string | null;
+  pipelines: PipelineEvidence[];
+}
+
+export interface PipelineEvidence {
+  pipelineId: number;
+  type: PipelineType;
+  enabled: boolean;
+  jenkinsJobUrl: string | null;
+  status: RunResult;
+  /** Null when no run of the pipeline was recorded. */
+  run: RunEvidence | null;
+}
+
+export interface RunEvidence {
+  build: BuildEvidence;
+  coverage: CoverageEvidence | null;
+  testSuites: TestSuiteEvidence[];
+  scans: ScanEvidence[];
+  releaseGate: ReleaseGateEvidence | null;
+  stages: StageEvidence[];
+}
+
+export interface BuildEvidence {
+  number: number | null;
+  finishedAt: string | null;
+  result: RunResult;
+  branch: string | null;
+  commit: string | null;
+  durationSeconds: number | null;
+  job: string | null;
+  url: string | null;
+  reportUrl: string | null;
+  testReportUrl: string | null;
+  artifactsUrl: string | null;
+}
+
+export interface CoverageEvidence {
+  status: CheckStatus;
+  linePercent: number | null;
+  requiredPercent: number | null;
+  coveredLines: number | null;
+  totalLines: number | null;
+}
+
+export interface TestSuiteEvidence {
+  stage: TestStage;
+  status: CheckStatus;
+  jobs: number | null;
+  passed: number | null;
+  failed: number | null;
+  notConfigured: number | null;
+  durationMs: number | null;
+}
+
+export interface ScanEvidence {
+  scanner: EvidenceScanner;
+  status: CheckStatus;
+  critical: number | null;
+  high: number | null;
+  medium: number | null;
+  low: number | null;
+  maxCritical: number | null;
+  maxHigh: number | null;
+  maxMedium: number | null;
+  link: string | null;
+}
+
+export interface ReleaseGateEvidence {
+  allowed: boolean;
+  violations: number | null;
+  reason: string | null;
+}
+
+export interface StageEvidence {
+  name: string;
+  status: CheckStatus;
+  durationSeconds: number | null;
+  reason: string | null;
+}
+
 export interface FieldProblem {
   field: string;
   message: string;
@@ -289,3 +680,6 @@ export const PIPELINE_TYPES: { value: PipelineType; label: string; description: 
   },
   { value: 'SAST', label: 'SAST scanning', description: 'AppScan static scan of the sources only' },
 ];
+
+/** Name of the shared library in Jenkins when the global settings cannot be read. */
+export const DEFAULT_JENKINS_LIBRARY = 'DevSecOpsJenkinsLibrary';

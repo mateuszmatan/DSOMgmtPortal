@@ -9,20 +9,18 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
-import { filter, switchMap } from 'rxjs';
-import { PipelinesApi, ProductsApi } from '../core/api';
+import { catchError, filter, of, switchMap } from 'rxjs';
+import { PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { PIPELINE_TYPES, Pipeline, PipelineType, Product, ServicePipelines } from '../core/models';
 import { Notifier } from '../core/notifier';
 import { CodeDialog, CodeDialogData } from '../shared/code-dialog';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
 import { MaskKeyPipe, RelativeTimePipe } from '../shared/formatting';
+import { jenkinsfile } from './jenkinsfile';
 import { KeyHistoryDialog } from './key-history-dialog';
 import { PipelineDialog, PipelineDialogData } from './pipeline-dialog';
 import { RevokeKeyDialog } from './revoke-key-dialog';
-
-/** Name of the shared library in the Jenkins configuration, as the DevSecOps Jenkinsfile template loads it. */
-const JENKINS_LIBRARY = 'DevSecOpsJenkinsLibrary';
 
 const TYPE_ICONS: Record<PipelineType, string> = {
   FULL: 'all_inclusive',
@@ -56,6 +54,7 @@ export class ProductDetail {
 
   private readonly products = inject(ProductsApi);
   private readonly pipelines = inject(PipelinesApi);
+  private readonly settings = inject(SettingsApi);
   private readonly dialog = inject(MatDialog);
   private readonly notifier = inject(Notifier);
   private readonly router = inject(Router);
@@ -137,16 +136,21 @@ export class ProductDetail {
     });
   }
 
+  /** The Jenkinsfile loads the shared library under the name of the global settings, read when it is shown. */
   protected showJenkinsfile(pipeline: Pipeline): void {
-    const key = pipeline.activeKey?.value ?? '<issue a new key first>';
-    this.openCode({
-      title: 'Jenkinsfile',
-      subtitle:
-        'Once the DevSecOps library reads its configuration from the portal, this is the whole Jenkinsfile of the ' +
-        'service: everything else comes from the portal by the key.',
-      code: `@Library('${JENKINS_LIBRARY}') _\n\n${pipeline.entryPoint}(pipelineKey: '${key}')\n`,
-      fileName: 'Jenkinsfile',
-    });
+    this.settings
+      .get()
+      .pipe(catchError(() => of(null)))
+      .subscribe((settings) =>
+        this.openCode({
+          title: 'Jenkinsfile',
+          subtitle:
+            'Once the DevSecOps library reads its configuration from the portal, this is the whole Jenkinsfile of the ' +
+            'service: everything else comes from the portal by the key.',
+          code: jenkinsfile(pipeline, settings?.platform.jenkinsLibrary),
+          fileName: 'Jenkinsfile',
+        }),
+      );
   }
 
   protected addPipeline(service: ServicePipelines): void {

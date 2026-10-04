@@ -9,6 +9,7 @@ import {
   inject,
   input,
   signal,
+  viewChildren,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule } from '@angular/forms';
@@ -22,10 +23,10 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
-import { finalize, forkJoin } from 'rxjs';
-import { PipelinesApi, ProductsApi } from '../core/api';
+import { Observable, catchError, finalize, forkJoin, of } from 'rxjs';
+import { PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
-import { BuildTool, DeployTarget, FieldProblem, Product } from '../core/models';
+import { BuildTool, DeployTarget, FieldProblem, GlobalSettings, Product } from '../core/models';
 import { Notifier } from '../core/notifier';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
@@ -68,6 +69,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
 
   private readonly products = inject(ProductsApi);
   private readonly pipelines = inject(PipelinesApi);
+  private readonly settingsApi = inject(SettingsApi);
   private readonly router = inject(Router);
   private readonly notifier = inject(Notifier);
   private readonly dialog = inject(MatDialog);
@@ -76,6 +78,8 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
 
   protected readonly form = createProductForm();
   protected readonly product = signal<Product | null>(null);
+  /** The global settings: the defaults of new services and the values blank fields fall back to. */
+  protected readonly settings = signal<GlobalSettings | null>(null);
   protected readonly loading = signal(false);
   protected readonly loadError = signal<string | null>(null);
   protected readonly saving = signal(false);
@@ -94,6 +98,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
 
   /** Pipelines of each stored service, to warn that removing a service deletes them. */
   private readonly pipelineCounts = signal(new Map<number, number>());
+  private readonly serviceFields = viewChildren(ServiceFields);
   private saved = false;
 
   protected readonly errorText = errorText;
@@ -109,25 +114,35 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
 
   ngOnInit(): void {
     const id = this.id();
+    this.loading.set(true);
     if (id === undefined) {
-      this.addService();
-      this.form.markAsPristine();
+      this.loadSettings()
+        .pipe(
+          finalize(() => this.loading.set(false)),
+          takeUntilDestroyed(this.destroyRef),
+        )
+        .subscribe((settings) => {
+          this.settings.set(settings);
+          this.addService();
+          this.form.markAsPristine();
+        });
       return;
     }
-    this.loading.set(true);
     forkJoin({
       product: this.products.get(Number(id)),
       pipelines: this.pipelines.listForProduct(Number(id)),
+      settings: this.loadSettings(),
     })
       .pipe(
         finalize(() => this.loading.set(false)),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
-        next: ({ product, pipelines }) => {
+        next: ({ product, pipelines, settings }) => {
           patchProduct(this.form, product);
           this.form.markAsPristine();
           this.product.set(product);
+          this.settings.set(settings);
           this.pipelineCounts.set(
             new Map(pipelines.map((service) => [service.serviceId, service.pipelines.length])),
           );
@@ -151,7 +166,9 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   }
 
   protected addService(): void {
-    this.form.controls.services.push(createServiceForm());
+    this.form.controls.services.push(
+      createServiceForm(undefined, this.settings()?.serviceDefaults),
+    );
     this.expanded.set(this.form.controls.services.length - 1);
     this.form.markAsDirty();
   }
@@ -255,10 +272,18 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     this.revealProblem(firstServiceWithProblem(problems));
   }
 
-  /** Opens the panel of the service with a problem and scrolls to the first field showing an error. */
+  /**
+   * Opens the panel of the service with a problem, shows the section of the service holding it and scrolls to
+   * the first field showing an error.
+   */
   private revealProblem(serviceIndex: number | null): void {
-    if (serviceIndex !== null && serviceIndex >= 0) {
+    const service =
+      serviceIndex !== null && serviceIndex >= 0 ? this.form.controls.services.at(serviceIndex) : null;
+    if (service) {
       this.expanded.set(serviceIndex);
+      this.serviceFields()
+        .find((fields) => fields.form() === service)
+        ?.revealFirstProblem();
     }
     afterNextRender(
       () => {
@@ -269,6 +294,11 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       },
       { injector: this.injector },
     );
+  }
+
+  /** The global settings, or null when they cannot be read: the editor then works without them. */
+  private loadSettings(): Observable<GlobalSettings | null> {
+    return this.settingsApi.get().pipe(catchError(() => of(null)));
   }
 
   private removeAt(index: number): void {
