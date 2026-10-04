@@ -57,7 +57,7 @@ class PortalSmokeSpec extends Specification {
         started == null || !products.json.isEmpty()
     }
 
-    def "every product's services, pipelines and config.yaml can be read"() {
+    def "every product's services, pipelines, configuration and change evidence can be read"() {
         given:
         def products = api.get('/api/products').json.take(5)
 
@@ -66,12 +66,28 @@ class PortalSmokeSpec extends Specification {
             def details = api.get("/api/products/$product.id")
             def pipelines = api.get("/api/products/$product.id/pipelines")
             def config = api.get("/api/products/$product.id/config")
+            def evidence = api.get("/api/evidence/products/$product.id")
             assert details.status == 200: details
             assert pipelines.status == 200: pipelines
             assert config.status == 200: config
+            assert evidence.status == 200: evidence
             assert (new Yaml().load(config.body) as Map).projects.size() == details.json.services.size()
+            assert evidence.json.services*.name == details.json.services*.name
             true
         }
+    }
+
+    def "the global pipeline settings and the configuration they make can be read"() {
+        when:
+        def settings = api.get('/api/settings')
+        def config = api.get('/api/settings/config')
+
+        then:
+        settings.status == 200
+        settings.json.version >= 0
+        settings.json.platform.asocUrl != null
+        config.status == 200
+        (new Yaml().load(config.body) as Map).keySet() == ['platform', 'defaults'] as Set
     }
 
     def "a pipeline key that was never issued is refused"() {
@@ -94,7 +110,7 @@ class PortalSmokeSpec extends Specification {
     @Requires({ PortalSmokeSpec.uiExpected() })
     def "the web UI is served, also for links into the app"() {
         expect:
-        ['/', '/products', '/monitoring'].every { path ->
+        ['/', '/products', '/monitoring', '/evidence', '/settings'].every { path ->
             def page = api.get(path)
             assert page.status == 200: "$path: $page.status"
             assert page.header('Content-Type').startsWith('text/html')

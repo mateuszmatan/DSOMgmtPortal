@@ -9,12 +9,12 @@ import spock.lang.Stepwise
 import java.time.Duration
 import java.time.Instant
 
+import static com.bbh.itss.dso.portal.support.ApiJson.fullMavenService
 import static com.bbh.itss.dso.portal.support.ApiJson.product
-import static com.bbh.itss.dso.portal.support.ApiJson.service
 
 /**
- * Response times under a realistic load: 25 products of 16 services, a pipeline for every service and bursts
- * of configuration requests as when many Jenkins jobs start at once. The limits are generous so the suite
+ * Response times under a realistic load: 25 products of 16 services with every setting filled in, a pipeline for
+ * every service and bursts of configuration requests as when many Jenkins jobs start at once. The limits are generous so the suite
  * catches regressions such as a query per row rather than measuring the machine; scale them with
  * {@code -Dperformance.factor=2} on a slow agent. The figures are written to target/performance-report.md.
  */
@@ -35,6 +35,10 @@ class PortalPerformanceSpec extends PortalSpecification {
     @Shared
     List<LatencyStats> results = []
 
+    /** When the latest run of every pipeline finished, as recorded in InfluxDB by the monitoring step. */
+    @Shared
+    Instant lastRunsFinishedAt
+
     def setupSpec() {
         FakeInfluxDb.shared().reset()
     }
@@ -52,7 +56,7 @@ class PortalPerformanceSpec extends PortalSpecification {
         def stats = LatencyStats.measure("Create a product with $SERVICES services", calls: PRODUCTS, warmUp: false) { int i ->
             def code = uniqueCode('PERF')
             def response = api.post('/api/products', product(code: code, name: "Performance $code",
-                    services: (1..SERVICES).collect { service(name: "service-$it") }))
+                    services: (1..SERVICES).collect { fullService(code, "service-$it") }))
             if (response.status == 201) {
                 products << (response.json as Map)
             }
@@ -60,7 +64,7 @@ class PortalPerformanceSpec extends PortalSpecification {
         }
 
         then:
-        within(stats, 1500)
+        within(stats, 2000)
         products.size() == PRODUCTS
     }
 
@@ -111,13 +115,48 @@ class PortalPerformanceSpec extends PortalSpecification {
         within(stats, 300)
     }
 
+    def "a burst of pipelines reading their configuration from the database view is served"() {
+        given:
+        def keys = pipelines*.activeKey*.value
+
+        when:
+        def stats = LatencyStats.measure('Read config from the DB view, 32 at once', calls: 2000, threads: 32) { int i ->
+            libraryConfig(keys[i % keys.size()] as String).CONFIG_JSON != null
+        }
+
+        then:
+        within(stats, 100)
+    }
+
+    def "a global settings change publishes the configuration of every pipeline"() {
+        given:
+        Map original = api.get('/api/settings').json as Map
+
+        when:
+        def stats = LatencyStats.measure("Change global settings, ${pipelines.size()} pipelines", calls: 5,
+                warmUp: false) { int i ->
+            def current = api.get('/api/settings').json
+            api.put('/api/settings', original + [version: current.version,
+                                                 scans  : original.scans + [coverageMinLine: 61 + i]]).status == 200
+        }
+
+        then:
+        within(stats, 5000)
+        libraryConfig(pipelines.last().activeKey.value as String).CONFIG_JSON.contains('"minLine":65')
+
+        cleanup:
+        def current = api.get('/api/settings').json
+        api.put('/api/settings', original + [version: current.version])
+    }
+
     def "the monitoring pages stay fast with every pipeline reporting"() {
         given:
         def now = Instant.now()
-        pipelines.each { influx.addRun(project: it.influxProjectTag, time: now - Duration.ofHours(3)) }
+        lastRunsFinishedAt = now - Duration.ofHours(3)
+        pipelines.each { influx.addRun(project: it.influxProjectTag, env: it.influxEnv, time: lastRunsFinishedAt) }
         def history = pipelines.first()
-        (1..270).each { influx.addRun(project: history.influxProjectTag, time: now - Duration.ofHours(8 * it),
-                result: it % 5 == 0 ? 'FAILURE' : 'SUCCESS') }
+        (1..270).each { influx.addRun(project: history.influxProjectTag, env: history.influxEnv,
+                time: now - Duration.ofHours(8 * it), result: it % 5 == 0 ? 'FAILURE' : 'SUCCESS') }
 
         when:
         def overview = LatencyStats.measure("Monitoring overview of ${pipelines.size()} pipelines", calls: 50, threads: 4) {
@@ -134,6 +173,43 @@ class PortalPerformanceSpec extends PortalSpecification {
         within(details, 800)
     }
 
+    def "the change evidence of a product with 16 services stays fast"() {
+        given:
+        def evidenced = products.first()
+        def finished = lastRunsFinishedAt
+        pipelines.findAll { it.productId == evidenced.id }.each { pipeline ->
+            def point = { Map args ->
+                influx.addPoint([project: pipeline.influxProjectTag, env: pipeline.influxEnv, time: finished] + args)
+            }
+            point(measurement: 'code_coverage', module: pipeline.serviceName, line_pct: '82.5', required: '80', met: '1')
+            ['smoke', 'regression', 'performance'].each { suite ->
+                point(measurement: 'test_execution', module: pipeline.serviceName, suite: suite, total: '20', passed: '20',
+                        failed: '0')
+            }
+            ['sast', 'dast'].each { scanner ->
+                point(measurement: 'security_findings', module: pipeline.serviceName, scanner: scanner, critical: '0',
+                        high: '1', medium: '2', low: '3', status: 'pass')
+                point(measurement: 'policy_status', scanner: scanner, status: 'pass')
+            }
+            point(measurement: 'vulnerabilities', scanner: 'sonar', critical: '0', high: '0', medium: '1', low: '4')
+            point(measurement: 'release_gate', allowed: 'yes', violations: '0')
+            (1..12).each { stage ->
+                point(measurement: 'stage_event', stage: "Stage $stage", status: 'pass', order: "$stage",
+                        duration_s: '30', time: finished - Duration.ofSeconds(600 - 40 * stage))
+            }
+        }
+
+        when:
+        def stats = LatencyStats.measure("Change evidence of $SERVICES services", calls: 100, threads: 8) {
+            def response = api.get("/api/evidence/products/$evidenced.id")
+            response.status == 200 && response.json.metricsError == null &&
+                    response.json.services.every { it.pipelines[0].run.stages.size() == 12 }
+        }
+
+        then:
+        within(stats, 800)
+    }
+
     def "concurrent key changes keep one active key per pipeline"() {
         given:
         def targets = pipelines.take(10)*.id
@@ -146,6 +222,13 @@ class PortalPerformanceSpec extends PortalSpecification {
         then:
         within(stats, 1000)
         targets.every { id -> api.get("/api/pipelines/$id").json.keys.count { it.status == 'ACTIVE' } == 1 }
+    }
+
+    /** A Maven service with every section filled in, under metrics and SonarQube names of its own. */
+    private static Map fullService(String code, String name) {
+        String tag = "$code-$name"
+        fullMavenService(name: name, metrics: [enabled: true, influxProject: tag, influxEnv: 'uat'],
+                sonar: fullMavenService().sonar + [projectKey: tag], nexusIq: fullMavenService().nexusIq + [application: tag])
     }
 
     private boolean within(LatencyStats stats, double p95LimitMillis) {
