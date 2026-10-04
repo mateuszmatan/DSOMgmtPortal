@@ -11,7 +11,8 @@ import jakarta.validation.constraints.Size;
 
 /**
  * Where the service is deployed: {@code deployTarget}, plus {@code appName} and {@code artifactName} that
- * OpenShift deployments require.
+ * OpenShift deployments require and {@code baseArtifactName}, the built file renamed to {@code artifactName}.
+ * The environments themselves are the service's SSH, UrbanCode Deploy and OpenShift targets.
  */
 @Embeddable
 public record DeploymentSettings(
@@ -24,16 +25,23 @@ public record DeploymentSettings(
         String appName,
         @Size(max = 300)
         @Column(name = "ARTIFACT_NAME", length = 300)
-        String artifactName) implements ConfigSection {
+        String artifactName,
+        @Size(max = 300)
+        @Column(name = "BASE_ARTIFACT_NAME", length = 300)
+        String baseArtifactName) implements ConfigSection {
 
     public DeploymentSettings {
         appName = Text.trimToNull(appName);
         artifactName = Text.trimToNull(artifactName);
+        baseArtifactName = Text.trimToNull(baseArtifactName);
     }
 
     @Override
     public void writeTo(ConfigTree config) {
-        config.set("deployTarget", target.configValue()).set("appName", appName).set("artifactName", artifactName);
+        config.set("deployTarget", target.configValue())
+                .set("appName", appName)
+                .set("artifactName", artifactName)
+                .set("baseArtifactName", baseArtifactName);
     }
 
     @Override

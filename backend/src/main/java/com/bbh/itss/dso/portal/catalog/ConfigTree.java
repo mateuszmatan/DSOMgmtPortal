@@ -15,10 +15,9 @@ public class ConfigTree {
 
     private final Map<String, Object> root = new LinkedHashMap<>();
 
-    /** Sets the value at the path, creating the intermediate maps; null, blank text and empty lists are skipped. */
+    /** Sets the value at the path, creating the intermediate maps; null, blank text and empty lists and maps are skipped. */
     public ConfigTree set(String path, Object value) {
-        if (value == null || (value instanceof String text && Text.isBlank(text))
-                || (value instanceof Collection<?> collection && collection.isEmpty())) {
+        if (isEmpty(value)) {
             return this;
         }
         String[] keys = path.split("\\.");
@@ -27,6 +26,18 @@ public class ConfigTree {
             node = child(node, keys[i]);
         }
         node.put(keys[keys.length - 1], value);
+        return this;
+    }
+
+    /**
+     * Sets a default under a section that is already there: nothing happens when the section is missing or
+     * already has the key, so a default never creates a section the service did not configure.
+     */
+    @SuppressWarnings("unchecked")
+    public ConfigTree fillIn(String sectionPath, String key, Object value) {
+        if (!isEmpty(value) && get(sectionPath) instanceof Map<?, ?> section && !section.containsKey(key)) {
+            ((Map<String, Object>) section).put(key, value);
+        }
         return this;
     }
 
@@ -61,6 +72,12 @@ public class ConfigTree {
 
     public Map<String, Object> toMap() {
         return new LinkedHashMap<>(root);
+    }
+
+    private static boolean isEmpty(Object value) {
+        return value == null || (value instanceof String text && Text.isBlank(text))
+                || (value instanceof Collection<?> collection && collection.isEmpty())
+                || (value instanceof Map<?, ?> map && map.isEmpty());
     }
 
     /** Every nested map of the tree is created here, so the maps are always mutable and keep insertion order. */

@@ -13,6 +13,7 @@ import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.ProductMonitoring;
 import com.bbh.itss.dso.portal.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.pipeline.PipelineRepository;
 import com.bbh.itss.dso.portal.pipeline.PipelineResponse;
+import com.bbh.itss.dso.portal.settings.GlobalSettingsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -47,14 +48,17 @@ public class MonitoringService {
     private final PipelineRepository pipelines;
     private final PipelineMetricsRepository metrics;
     private final GrafanaPanels grafana;
+    private final GlobalSettingsService settings;
     private final Clock clock;
 
     public MonitoringService(ProductRepository products, PipelineRepository pipelines,
-                             PipelineMetricsRepository metrics, GrafanaPanels grafana, Clock clock) {
+                             PipelineMetricsRepository metrics, GrafanaPanels grafana, GlobalSettingsService settings,
+                             Clock clock) {
         this.products = products;
         this.pipelines = pipelines;
         this.metrics = metrics;
         this.grafana = grafana;
+        this.settings = settings;
         this.clock = clock;
     }
 
@@ -85,10 +89,12 @@ public class MonitoringService {
         Product product = products.findById(productId).orElseThrow(() -> NotFoundException.of("Product", productId));
         List<Pipeline> productPipelines = pipelines.findByProductId(productId);
         Reading<Map<MetricsTag, PipelineRun>> latest = latestRuns(productPipelines);
+        String jenkinsUrl = settings.jenkinsUrl();
         List<PipelineHealth> health = productPipelines.stream()
                 .map(pipeline -> {
                     PipelineRun run = latest.value().get(MetricsTag.of(pipeline));
-                    return new PipelineHealth(PipelineResponse.summary(pipeline), RunResult.of(pipeline, run), run);
+                    return new PipelineHealth(PipelineResponse.summary(pipeline, jenkinsUrl), RunResult.of(pipeline, run),
+                            run);
                 })
                 .toList();
         return new ProductMonitoring(product.getId(), product.getCode(), product.getName(), product.getDescription(),
@@ -113,8 +119,8 @@ public class MonitoringService {
         }
         DoraSummary dora = DoraCalculator.summarize(points.value() == null ? List.of() : points.value(), days,
                 Instant.now(clock));
-        return new PipelineMonitoring(PipelineResponse.withKeys(pipeline), RunResult.of(pipeline, last), last, dora,
-                runs, grafana.links(tag, days), points.error());
+        return new PipelineMonitoring(PipelineResponse.withKeys(pipeline, settings.jenkinsUrl()),
+                RunResult.of(pipeline, last), last, dora, runs, grafana.links(tag, days), points.error());
     }
 
     static int rangeDays(String range) {

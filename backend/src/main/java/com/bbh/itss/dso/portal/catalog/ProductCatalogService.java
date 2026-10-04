@@ -3,6 +3,7 @@ package com.bbh.itss.dso.portal.catalog;
 import com.bbh.itss.dso.portal.common.ConflictException;
 import com.bbh.itss.dso.portal.common.NotFoundException;
 import com.bbh.itss.dso.portal.common.ValidationProblems;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,12 +28,14 @@ public class ProductCatalogService {
     private final ProductRepository products;
     private final ServiceDefinitionRepository services;
     private final PipelineStatistics pipelineStatistics;
+    private final ApplicationEventPublisher events;
 
     public ProductCatalogService(ProductRepository products, ServiceDefinitionRepository services,
-                                 PipelineStatistics pipelineStatistics) {
+                                 PipelineStatistics pipelineStatistics, ApplicationEventPublisher events) {
         this.products = products;
         this.services = services;
         this.pipelineStatistics = pipelineStatistics;
+        this.events = events;
     }
 
     @Transactional(readOnly = true)
@@ -61,7 +64,7 @@ public class ProductCatalogService {
             ServiceRequest service = request.services().get(order);
             product.addService(service.name(), service.description(), order, service.settings());
         }
-        return ProductResponse.from(products.saveAndFlush(product));
+        return saved(product);
     }
 
     public ProductResponse update(Long id, ProductRequest request) {
@@ -88,11 +91,17 @@ public class ProductCatalogService {
                         .update(service.name(), service.description(), order, service.settings());
             }
         }
-        return ProductResponse.from(products.saveAndFlush(product));
+        return saved(product);
     }
 
     public void delete(Long id) {
         products.delete(find(id));
+    }
+
+    private ProductResponse saved(Product product) {
+        Product saved = products.saveAndFlush(product);
+        events.publishEvent(new ProductChanged(saved.getId()));
+        return ProductResponse.from(saved);
     }
 
     private Product find(Long id) {

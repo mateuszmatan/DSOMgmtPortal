@@ -9,6 +9,9 @@ import java.util.List;
 
 /**
  * A pipeline to add to a service, or the new settings of an existing one. The type cannot change.
+ *
+ * @param jenkinsJob the Jenkins job the pipeline runs in: a job path such as {@code DevSecOps/CertScanner-gui}
+ *                   or the job's full URL
  */
 public record PipelineRequest(
         @NotNull PipelineType type,
@@ -16,9 +19,14 @@ public record PipelineRequest(
         List<@Pattern(regexp = "^[A-Za-z0-9._-]{1,100}$", message = "agent labels may contain letters, digits, '.', '-' and '_'")
                 String> agentLabels,
         @Size(max = 500) String extendedPipelineJob,
+        @Size(max = 500) String securityPipelineJob,
+        @Size(max = 1000)
+        @Pattern(regexp = "^(https?://\\S+|[^\\s:?#][^:?#]*)?$",
+                message = "must be a job path such as DevSecOps/CertScanner-gui or the job's http or https URL")
+        String jenkinsJob,
         @Size(max = 1000) String description) {
 
     PipelineSettings settings() {
-        return new PipelineSettings(agentLabels, extendedPipelineJob, description);
+        return new PipelineSettings(agentLabels, extendedPipelineJob, securityPipelineJob, jenkinsJob, description);
     }
 }
