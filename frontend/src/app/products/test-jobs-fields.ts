@@ -34,10 +34,6 @@ const STAGES: { value: TestStage; label: string; noun: string; parallel: StagePa
   },
 ];
 
-/**
- * The Jenkins jobs the smoke, regression and performance stages trigger and wait for, grouped by stage
- * ({@code tests.<stage>.jobs}), and how many of them run at the same time.
- */
 @Component({
   selector: 'dso-test-jobs-fields',
   imports: [
@@ -73,7 +69,9 @@ export class TestJobsFields {
   protected readonly isJobUrl = isJobUrl;
 
   protected jobsOf(stage: TestStage): TestJobForm[] {
-    return this.form().controls.testJobs.controls.filter((job) => job.controls.stage.value === stage);
+    return this.form().controls.testJobs.controls.filter(
+      (job) => job.controls.stage.value === stage,
+    );
   }
 
   protected add(stage: TestStage): void {
@@ -87,7 +85,6 @@ export class TestJobsFields {
     this.form().markAsDirty();
   }
 
-  /** Moves a job before or after the neighbouring job of its stage; jobs start in the order they are listed. */
   protected move(job: TestJobForm, offset: -1 | 1): void {
     const jobs = this.form().controls.testJobs;
     const sameStage = this.jobsOf(job.controls.stage.value);

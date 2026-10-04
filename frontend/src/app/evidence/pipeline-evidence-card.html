@@ -45,7 +45,9 @@
             @if (b.number === null) {
               <span class="not-recorded">Not recorded</span>
             } @else if (b.url) {
-              <a class="build-link" [href]="b.url" target="_blank" rel="noopener">#{{ b.number }}</a>
+              <a class="build-link" [href]="b.url" target="_blank" rel="noopener"
+                >#{{ b.number }}</a
+              >
             } @else {
               #{{ b.number }}
             }
@@ -96,11 +98,13 @@
           ) {
             @if (link.url) {
               <a [href]="link.url" target="_blank" rel="noopener"
-                ><mat-icon>{{ link.icon }}</mat-icon>{{ link.label }}</a
+                ><mat-icon>{{ link.icon }}</mat-icon
+                >{{ link.label }}</a
               >
             } @else {
               <span class="not-recorded"
-                ><mat-icon>{{ link.icon }}</mat-icon>{{ link.label }}: not recorded</span
+                ><mat-icon>{{ link.icon }}</mat-icon
+                >{{ link.label }}: not recorded</span
               >
             }
           }
@@ -115,7 +119,11 @@
             <dso-check-chip [status]="c.status" />
           </div>
           <div class="meter" aria-hidden="true">
-            <span class="fill" [class]="c.status.toLowerCase()" [style.width.%]="c.linePercent ?? 0"></span>
+            <span
+              class="fill"
+              [class]="c.status.toLowerCase()"
+              [style.width.%]="c.linePercent ?? 0"
+            ></span>
             @if (c.requiredPercent !== null) {
               <span class="required" [style.left.%]="c.requiredPercent"></span>
             }

@@ -9,7 +9,12 @@
     <nav class="tabs" aria-label="Main">
       <div class="tabs-inner">
         @for (item of navigation; track item.path) {
-          <a class="tab" [routerLink]="item.path" routerLinkActive="active" [attr.title]="item.hint">
+          <a
+            class="tab"
+            [routerLink]="item.path"
+            routerLinkActive="active"
+            [attr.title]="item.hint"
+          >
             <span class="tab-label">{{ item.label }}</span>
             <span class="tab-hint">{{ item.hint }}</span>
           </a>

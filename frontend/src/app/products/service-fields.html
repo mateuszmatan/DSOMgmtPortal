@@ -100,8 +100,8 @@
           </mat-form-field>
           @if (tool() === 'FLUTTER') {
             <p class="note span-12">
-              A Flutter build runs no Gradle or Maven command; its modules and credentials are in the
-              Flutter section.
+              A Flutter build runs no Gradle or Maven command; its modules and credentials are in
+              the Flutter section.
             </p>
           } @else {
             <h4 class="sub-heading span-12">Build command</h4>
@@ -144,7 +144,9 @@
               matInput
               formControlName="resultPattern"
               [placeholder]="
-                tool() === 'MAVEN' ? 'target/surefire-reports/*.xml' : 'build/test-results/test/*.xml'
+                tool() === 'MAVEN'
+                  ? 'target/surefire-reports/*.xml'
+                  : 'build/test-results/test/*.xml'
               "
               class="mono"
             />
@@ -211,7 +213,9 @@
             aria-label="Deployment target"
             hideSingleSelectionIndicator
           >
-            <mat-button-toggle value="VM"><mat-icon>dns</mat-icon>Virtual machine</mat-button-toggle>
+            <mat-button-toggle value="VM"
+              ><mat-icon>dns</mat-icon>Virtual machine</mat-button-toggle
+            >
             <mat-button-toggle value="OPENSHIFT"
               ><mat-icon>cloud</mat-icon>OpenShift</mat-button-toggle
             >
@@ -258,8 +262,8 @@
         <header class="pane-header">
           <h3>UrbanCode Deploy</h3>
           <p>
-            How the full pipeline deploys the service to the lower test region with UrbanCode
-            Deploy (<code>deploy.vm.dod</code>).
+            How the full pipeline deploys the service to the lower test region with UrbanCode Deploy
+            (<code>deploy.vm.dod</code>).
           </p>
         </header>
         <dso-urban-code-fields [form]="f" [defaults]="defaults()" />
@@ -289,7 +293,10 @@
               />
               <mat-hint><code>host</code>{{ fallback(sshHost(region)) }}</mat-hint>
               <mat-error>{{
-                errorText(target.controls.host, 'Must be a host name such as rdltaapps1.testbbh.com')
+                errorText(
+                  target.controls.host,
+                  'Must be a host name such as rdltaapps1.testbbh.com'
+                )
               }}</mat-error>
             </mat-form-field>
             <mat-form-field class="span-3">
@@ -323,7 +330,8 @@
                 class="mono"
               />
               <mat-hint
-                ><code>deployScript</code>{{ fallback(defaults()?.deployment?.deployScript) }}</mat-hint
+                ><code>deployScript</code
+                >{{ fallback(defaults()?.deployment?.deployScript) }}</mat-hint
               >
               <mat-error>{{ errorText(target.controls.deployScript) }}</mat-error>
             </mat-form-field>
@@ -336,7 +344,8 @@
                 class="mono"
               />
               <mat-hint
-                ><code>versionFile</code>{{ fallback(defaults()?.deployment?.versionFile) }}</mat-hint
+                ><code>versionFile</code
+                >{{ fallback(defaults()?.deployment?.versionFile) }}</mat-hint
               >
               <mat-error>{{ errorText(target.controls.versionFile) }}</mat-error>
             </mat-form-field>
@@ -347,7 +356,10 @@
       @case ('openShift') {
         <header class="pane-header">
           <h3>OpenShift targets</h3>
-          <p>The OpenShift projects the service is built and deployed in; a region without values is not written.</p>
+          <p>
+            The OpenShift projects the service is built and deployed in; a region without values is
+            not written.
+          </p>
         </header>
         <dso-openshift-target-fields [form]="f" />
       }
@@ -425,8 +437,8 @@
             >Scan source code only (<code>asoc.sourceCodeOnly</code>)</mat-slide-toggle
           >
           <mat-slide-toggle class="span-6" formControlName="useConfigFile"
-            >Use the repository's AppScan configuration (<code>asoc.useAppScanConfig</code
-            >)</mat-slide-toggle
+            >Use the repository's AppScan configuration
+            (<code>asoc.useAppScanConfig</code>)</mat-slide-toggle
           >
           <mat-slide-toggle class="span-6" formControlName="insecureTls"
             >Accept any TLS certificate (<code>asoc.insecureTls</code>)</mat-slide-toggle
@@ -478,7 +490,10 @@
       @case ('sonar') {
         <header class="pane-header">
           <h3>SonarQube</h3>
-          <p>The SonarQube project (<code>tools.sonar</code>). Without a project key the scan is skipped.</p>
+          <p>
+            The SonarQube project (<code>tools.sonar</code>). Without a project key the scan is
+            skipped.
+          </p>
         </header>
         <div class="form-fields" formGroupName="sonar">
           <mat-form-field class="span-6">
@@ -658,16 +673,29 @@
           </mat-form-field>
           <mat-form-field class="span-6">
             <mat-label>Clone URL</mat-label>
-            <input matInput formControlName="cloneUrl" placeholder="ssh://git@bitbucket.bbh.com/ta/cert.git" />
-            <mat-hint><code>scm.bitbucket.cloneUrl</code> · left empty: the repository URL</mat-hint>
+            <input
+              matInput
+              formControlName="cloneUrl"
+              placeholder="ssh://git@bitbucket.bbh.com/ta/cert.git"
+            />
+            <mat-hint
+              ><code>scm.bitbucket.cloneUrl</code> · left empty: the repository URL</mat-hint
+            >
             <mat-error>{{
               errorText(f.controls.scm.controls.cloneUrl, 'Must be an http, https or ssh URL')
             }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-6">
             <mat-label>Reviewers</mat-label>
-            <input matInput formControlName="reviewers" placeholder="jsmith, akowalski" class="mono" />
-            <mat-hint><code>scm.bitbucket.reviewers</code> · user names, separated by commas</mat-hint>
+            <input
+              matInput
+              formControlName="reviewers"
+              placeholder="jsmith, akowalski"
+              class="mono"
+            />
+            <mat-hint
+              ><code>scm.bitbucket.reviewers</code> · user names, separated by commas</mat-hint
+            >
             <mat-error>{{ errorText(f.controls.scm.controls.reviewers) }}</mat-error>
           </mat-form-field>
         </div>
@@ -728,7 +756,10 @@
             />
             <mat-hint><code>influx.project</code> · left empty: {{ defaultProject() }}</mat-hint>
             <mat-error>{{
-              errorText(f.controls.metrics.controls.influxProject, "Letters, digits, '.', '-' and '_'")
+              errorText(
+                f.controls.metrics.controls.influxProject,
+                "Letters, digits, '.', '-' and '_'"
+              )
             }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-4">
@@ -745,7 +776,10 @@
       @case ('flutter') {
         <header class="pane-header">
           <h3>Flutter</h3>
-          <p>What a Flutter build needs besides the common settings; written only for Flutter services.</p>
+          <p>
+            What a Flutter build needs besides the common settings; written only for Flutter
+            services.
+          </p>
         </header>
         <div class="form-fields" formGroupName="flutter">
           <mat-form-field class="span-4">
@@ -760,25 +794,49 @@
           </mat-form-field>
           <mat-form-field class="span-8">
             <mat-label>Modules</mat-label>
-            <textarea matInput formControlName="modules" rows="2" class="mono" spellcheck="false"></textarea>
+            <textarea
+              matInput
+              formControlName="modules"
+              rows="2"
+              class="mono"
+              spellcheck="false"
+            ></textarea>
             <mat-hint><code>tools.flutter.flutterModules</code> · one per line</mat-hint>
             <mat-error>{{ errorText(f.controls.flutter.controls.modules) }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-4">
             <mat-label>Tested modules</mat-label>
-            <textarea matInput formControlName="testModules" rows="2" class="mono" spellcheck="false"></textarea>
+            <textarea
+              matInput
+              formControlName="testModules"
+              rows="2"
+              class="mono"
+              spellcheck="false"
+            ></textarea>
             <mat-hint><code>tests.modules</code></mat-hint>
             <mat-error>{{ errorText(f.controls.flutter.controls.testModules) }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-4">
             <mat-label>Tested submodules</mat-label>
-            <textarea matInput formControlName="testSubmodules" rows="2" class="mono" spellcheck="false"></textarea>
+            <textarea
+              matInput
+              formControlName="testSubmodules"
+              rows="2"
+              class="mono"
+              spellcheck="false"
+            ></textarea>
             <mat-hint><code>tests.submodules</code></mat-hint>
             <mat-error>{{ errorText(f.controls.flutter.controls.testSubmodules) }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-4">
             <mat-label>Tested subplugins</mat-label>
-            <textarea matInput formControlName="testSubplugins" rows="2" class="mono" spellcheck="false"></textarea>
+            <textarea
+              matInput
+              formControlName="testSubplugins"
+              rows="2"
+              class="mono"
+              spellcheck="false"
+            ></textarea>
             <mat-hint><code>tests.subplugins</code></mat-hint>
             <mat-error>{{ errorText(f.controls.flutter.controls.testSubplugins) }}</mat-error>
           </mat-form-field>
@@ -788,25 +846,36 @@
             <mat-label>Signing password</mat-label>
             <input matInput formControlName="signingPasswordCredentialsId" class="mono" />
             <mat-hint>Jenkins credentials ID, first entry</mat-hint>
-            <mat-error>{{ errorText(f.controls.flutter.controls.signingPasswordCredentialsId) }}</mat-error>
+            <mat-error>{{
+              errorText(f.controls.flutter.controls.signingPasswordCredentialsId)
+            }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-4">
             <mat-label>Production licence</mat-label>
             <input matInput formControlName="prodLicenseCredentialsId" class="mono" />
             <mat-hint>Second entry</mat-hint>
-            <mat-error>{{ errorText(f.controls.flutter.controls.prodLicenseCredentialsId) }}</mat-error>
+            <mat-error>{{
+              errorText(f.controls.flutter.controls.prodLicenseCredentialsId)
+            }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-4">
             <mat-label>Test licence</mat-label>
             <input matInput formControlName="testLicenseCredentialsId" class="mono" />
             <mat-hint>Third entry</mat-hint>
-            <mat-error>{{ errorText(f.controls.flutter.controls.testLicenseCredentialsId) }}</mat-error>
+            <mat-error>{{
+              errorText(f.controls.flutter.controls.testLicenseCredentialsId)
+            }}</mat-error>
           </mat-form-field>
 
           <h4 class="sub-heading span-12">Delivery</h4>
           <mat-form-field class="span-4">
             <mat-label>Group</mat-label>
-            <input matInput formControlName="deliveryGroup" placeholder="com.bbh.payhub" class="mono" />
+            <input
+              matInput
+              formControlName="deliveryGroup"
+              placeholder="com.bbh.payhub"
+              class="mono"
+            />
             <mat-hint><code>delivery.group</code></mat-hint>
             <mat-error>{{ errorText(f.controls.flutter.controls.deliveryGroup) }}</mat-error>
           </mat-form-field>
@@ -838,10 +907,18 @@
           </mat-form-field>
           <mat-form-field class="span-4">
             <mat-label>SonarScanner version</mat-label>
-            <input matInput formControlName="sonarScannerVersion" placeholder="5.0.1.3006" class="mono" />
+            <input
+              matInput
+              formControlName="sonarScannerVersion"
+              placeholder="5.0.1.3006"
+              class="mono"
+            />
             <mat-hint><code>tools.sonar.sonarScannerVersion</code></mat-hint>
             <mat-error>{{
-              errorText(f.controls.flutter.controls.sonarScannerVersion, 'Must be a version such as 5.0.1.3006')
+              errorText(
+                f.controls.flutter.controls.sonarScannerVersion,
+                'Must be a version such as 5.0.1.3006'
+              )
             }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-8">

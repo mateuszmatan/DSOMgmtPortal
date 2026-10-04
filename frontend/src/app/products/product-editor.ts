@@ -30,6 +30,7 @@ import { BuildTool, DeployTarget, FieldProblem, GlobalSettings, Product } from '
 import { Notifier } from '../core/notifier';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
+import { revalidateAll } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import {
   ServiceForm,
@@ -43,7 +44,6 @@ import {
 } from './product-form-model';
 import { ServiceFields } from './service-fields';
 
-/** Adds a product with its services, or changes a stored one when the route names its id. */
 @Component({
   selector: 'dso-product-editor',
   imports: [
@@ -64,7 +64,6 @@ import { ServiceFields } from './service-fields';
   styleUrl: './product-editor.scss',
 })
 export class ProductEditor implements OnInit, HasUnsavedChanges {
-  /** The id of the product to change, from the route; absent when a product is added. */
   readonly id = input<string>();
 
   private readonly products = inject(ProductsApi);
@@ -78,7 +77,6 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
 
   protected readonly form = createProductForm();
   protected readonly product = signal<Product | null>(null);
-  /** The global settings: the defaults of new services and the values blank fields fall back to. */
   protected readonly settings = signal<GlobalSettings | null>(null);
   protected readonly loading = signal(false);
   protected readonly loadError = signal<string | null>(null);
@@ -86,17 +84,14 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   protected readonly saveError = signal<string | null>(null);
   protected readonly unmatchedProblems = signal<FieldProblem[]>([]);
   protected readonly submitted = signal(false);
-  /** Index of the open service panel. */
   protected readonly expanded = signal<number | null>(null);
 
-  /** Changes on every form event, so the page follows changes made to the form outside its template. */
   private readonly formEvent = toSignal(this.form.events);
   protected readonly services = computed<ServiceForm[]>(() => {
     this.formEvent();
     return [...this.form.controls.services.controls];
   });
 
-  /** Pipelines of each stored service, to warn that removing a service deletes them. */
   private readonly pipelineCounts = signal(new Map<number, number>());
   private readonly serviceFields = viewChildren(ServiceFields);
   private saved = false;
@@ -182,7 +177,6 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     this.form.markAsDirty();
   }
 
-  /** Moves a service up or down; the order is the order of the services in the config.yaml. */
   protected move(index: number, offset: -1 | 1): void {
     const services = this.form.controls.services;
     const target = index + offset;
@@ -231,6 +225,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     this.submitted.set(true);
     this.saveError.set(null);
     this.unmatchedProblems.set([]);
+    revalidateAll(this.form);
     this.form.markAllAsTouched();
     if (this.form.invalid) {
       this.saveError.set('Some fields need your attention.');
@@ -272,13 +267,11 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     this.revealProblem(firstServiceWithProblem(problems));
   }
 
-  /**
-   * Opens the panel of the service with a problem, shows the section of the service holding it and scrolls to
-   * the first field showing an error.
-   */
   private revealProblem(serviceIndex: number | null): void {
     const service =
-      serviceIndex !== null && serviceIndex >= 0 ? this.form.controls.services.at(serviceIndex) : null;
+      serviceIndex !== null && serviceIndex >= 0
+        ? this.form.controls.services.at(serviceIndex)
+        : null;
     if (service) {
       this.expanded.set(serviceIndex);
       this.serviceFields()
@@ -296,7 +289,6 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     );
   }
 
-  /** The global settings, or null when they cannot be read: the editor then works without them. */
   private loadSettings(): Observable<GlobalSettings | null> {
     return this.settingsApi.get().pipe(catchError(() => of(null)));
   }

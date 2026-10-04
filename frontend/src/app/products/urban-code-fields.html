@@ -31,7 +31,8 @@
     >Deploy with a snapshot (<code>deployWithSnapshot</code>)</mat-slide-toggle
   >
   <mat-slide-toggle class="span-6" [formControl]="uc.includeOnlyDeployVersions"
-    >Snapshot holds only the deployed versions (<code>includeOnlyDeployVersions</code>)</mat-slide-toggle
+    >Snapshot holds only the deployed versions
+    (<code>includeOnlyDeployVersions</code>)</mat-slide-toggle
   >
   <mat-slide-toggle class="span-6" [formControl]="uc.updateSnapshotComponents"
     >Update the snapshot's components (<code>updateSnapshotComp</code>)</mat-slide-toggle
@@ -172,7 +173,12 @@
             </mat-form-field>
             <mat-form-field class="span-6">
               <mat-label>Files to include</mat-label>
-              <input matInput formControlName="fileIncludePatterns" placeholder="*.jar" class="mono" />
+              <input
+                matInput
+                formControlName="fileIncludePatterns"
+                placeholder="*.jar"
+                class="mono"
+              />
               <mat-hint><code>fileIncludePatterns</code></mat-hint>
               <mat-error>{{ errorText(component.controls.fileIncludePatterns) }}</mat-error>
             </mat-form-field>
@@ -190,12 +196,7 @@
       } @empty {
         <p class="list-empty">No component yet.</p>
       }
-      <button
-        mat-button
-        type="button"
-        class="add-component"
-        (click)="addComponent(application)"
-      >
+      <button mat-button type="button" class="add-component" (click)="addComponent(application)">
         <mat-icon>add</mat-icon>Add component
       </button>
     </div>

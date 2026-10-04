@@ -15,19 +15,35 @@ type TargetKey = keyof OpenShiftTargetForm['controls'];
 interface TargetField {
   key: Exclude<TargetKey, 'skipConfigDeploy'>;
   label: string;
-  /** The key under deploy.openshift.<region>, spelled as the library reads it. */
   config: string;
   span: number;
   placeholder?: string;
   pattern?: string;
 }
 
-/** The image is built in the RD region, so these fields only apply there. */
 const IMAGE_BUILD: TargetField[] = [
   { key: 'projectBuild', label: 'Build project', config: 'projectBuildR', span: 4 },
-  { key: 'buildConfigPath', label: 'BuildConfig file', config: 'buildConfigPath', span: 4, placeholder: 'openshift/buildconfig.yaml' },
-  { key: 'dockerFilePath', label: 'Dockerfile', config: 'dockerFilePath', span: 4, placeholder: 'openshift/Dockerfile' },
-  { key: 'buildContext', label: 'Build context', config: 'buildContext', span: 6, placeholder: 'target/docker' },
+  {
+    key: 'buildConfigPath',
+    label: 'BuildConfig file',
+    config: 'buildConfigPath',
+    span: 4,
+    placeholder: 'openshift/buildconfig.yaml',
+  },
+  {
+    key: 'dockerFilePath',
+    label: 'Dockerfile',
+    config: 'dockerFilePath',
+    span: 4,
+    placeholder: 'openshift/Dockerfile',
+  },
+  {
+    key: 'buildContext',
+    label: 'Build context',
+    config: 'buildContext',
+    span: 6,
+    placeholder: 'target/docker',
+  },
   { key: 'addFile', label: 'File added to the image', config: 'addFile', span: 6 },
 ];
 
@@ -40,20 +56,42 @@ const REGISTRY: TargetField[] = [
 
 const DEPLOYMENT: TargetField[] = [
   { key: 'projectDeployment', label: 'Deployment project', config: 'projectDeploymentR', span: 4 },
-  { key: 'deployConfigPath', label: 'Deployment file', config: 'deployConfigPath', span: 4, placeholder: 'openshift/deployment.yaml' },
+  {
+    key: 'deployConfigPath',
+    label: 'Deployment file',
+    config: 'deployConfigPath',
+    span: 4,
+    placeholder: 'openshift/deployment.yaml',
+  },
   { key: 'configPath', label: 'Configuration file', config: 'configPathR', span: 4 },
-  { key: 'healthCheckUrl', label: 'Health check path', config: 'healthCheckUrl', span: 4, placeholder: '/actuator/health' },
+  {
+    key: 'healthCheckUrl',
+    label: 'Health check path',
+    config: 'healthCheckUrl',
+    span: 4,
+    placeholder: '/actuator/health',
+  },
   { key: 'routeHostname', label: 'Route host name', config: 'routeHostnameR', span: 4 },
   { key: 'deploymentPath', label: 'Deployment path', config: 'deploymentPath', span: 4 },
 ];
 
 const REPOSITORY: TargetField[] = [
-  { key: 'deploymentRepoUrl', label: 'Repository URL', config: 'deploymentRepo.url', span: 6, pattern: 'Must be an http, https, ssh or git@ URL' },
+  {
+    key: 'deploymentRepoUrl',
+    label: 'Repository URL',
+    config: 'deploymentRepo.url',
+    span: 6,
+    pattern: 'Must be an http, https, ssh or git@ URL',
+  },
   { key: 'deploymentRepoBranch', label: 'Branch', config: 'deploymentRepo.branch', span: 3 },
-  { key: 'deploymentRepoCredentialsId', label: 'Credentials ID', config: 'deploymentRepo.credentials', span: 3 },
+  {
+    key: 'deploymentRepoCredentialsId',
+    label: 'Credentials ID',
+    config: 'deploymentRepo.credentials',
+    span: 3,
+  },
 ];
 
-/** The OpenShift environments of a service ({@code deploy.openshift.rd} and {@code deploy.openshift.qc}). */
 @Component({
   selector: 'dso-openshift-target-fields',
   imports: [
@@ -127,7 +165,9 @@ const REPOSITORY: TargetField[] = [
           [placeholder]="field.placeholder ?? ''"
           class="mono"
         />
-        <mat-hint><code>{{ field.config }}</code></mat-hint>
+        <mat-hint
+          ><code>{{ field.config }}</code></mat-hint
+        >
         <mat-error>{{ errorText(t.controls[field.key], field.pattern) }}</mat-error>
       </mat-form-field>
     </ng-template>
@@ -172,7 +212,6 @@ export class OpenShiftTargetFields {
     return this.form().controls.openShiftTargets.controls[region];
   }
 
-  /** A QC target shows the image build fields only when it sets one, so no stored value is hidden. */
   protected hasImageBuild(target: OpenShiftTargetForm): boolean {
     return IMAGE_BUILD.some((field) => !!target.controls[field.key].value.trim());
   }

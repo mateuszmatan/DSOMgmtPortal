@@ -1,4 +1,9 @@
-import { pipelineEvidence, productEvidence, runEvidence, serviceEvidence } from '../testing/fixtures';
+import {
+  pipelineEvidence,
+  productEvidence,
+  runEvidence,
+  serviceEvidence,
+} from '../testing/fixtures';
 import {
   evidenceText,
   formatPercent,
@@ -90,8 +95,12 @@ describe('evidenceText', () => {
 
     const text = evidenceText(product, serviceEvidence({ pipelines: [pipeline] }), pipeline);
 
-    expect(text).toContain('DevSecOps change evidence: CertScanner (CERT), gui, SAST scanning pipeline\n');
-    expect(text).toContain('- Status: Key invalidated\n- Jenkins job: Not recorded\n- Key: Invalidated\n');
+    expect(text).toContain(
+      'DevSecOps change evidence: CertScanner (CERT), gui, SAST scanning pipeline\n',
+    );
+    expect(text).toContain(
+      '- Status: Key invalidated\n- Jenkins job: Not recorded\n- Key: Invalidated\n',
+    );
     expect(text.endsWith('\n- Latest run: Not recorded\n')).toBe(true);
     expect(text).not.toContain('Jenkins build');
   });
@@ -156,7 +165,9 @@ describe('evidenceText', () => {
 
     const text = evidenceText(productEvidence(), serviceEvidence(), pipelineEvidence({ run }));
 
-    expect(text).toContain('- Line coverage: Failed, 41% of lines covered, required not recorded\n');
+    expect(text).toContain(
+      '- Line coverage: Failed, 41% of lines covered, required not recorded\n',
+    );
     expect(text).toContain('- Decision: Release allowed\n');
   });
 

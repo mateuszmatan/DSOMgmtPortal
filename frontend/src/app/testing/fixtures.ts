@@ -11,8 +11,6 @@ import {
   ToolCommand,
 } from '../core/models';
 
-/** API responses for the specs; every builder takes values that override its defaults. */
-
 export function command(overrides: Partial<ToolCommand> = {}): ToolCommand {
   return { tasks: [], flags: [], directory: null, mavenHome: null, environment: [], ...overrides };
 }
@@ -319,7 +317,10 @@ export function globalSettings(overrides: Partial<GlobalSettings> = {}): GlobalS
       onlyDirectDependencies: true,
       minThreatLevel: 2,
       ecosystems: ['maven', 'npm', 'pypi'],
-      goldenVersionTypes: ['recommended-non-breaking-with-dependencies', 'recommended-non-breaking'],
+      goldenVersionTypes: [
+        'recommended-non-breaking-with-dependencies',
+        'recommended-non-breaking',
+      ],
       excludeDirs: [],
       verifyEnabled: true,
       verifyMaxAttempts: 3,
@@ -418,7 +419,11 @@ export function runEvidence(overrides: Partial<RunEvidence> = {}): RunEvidence {
         link: build,
       },
     ],
-    releaseGate: { allowed: false, violations: 1, reason: 'Nexus IQ: 1 critical above the limit of 0' },
+    releaseGate: {
+      allowed: false,
+      violations: 1,
+      reason: 'Nexus IQ: 1 critical above the limit of 0',
+    },
     stages: [
       { name: 'Build', status: 'PASS', durationSeconds: 125, reason: null },
       { name: 'Unit tests', status: 'PASS', durationSeconds: 240, reason: null },

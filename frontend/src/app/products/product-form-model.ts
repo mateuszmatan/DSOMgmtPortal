@@ -44,15 +44,6 @@ import {
 
 export { HTTP_URL, applyFieldProblems, controlAt } from '../shared/form-controls';
 
-/**
- * The reactive form of a product and its services. Its shape follows the API request, so a field problem
- * reported by the API (for example {@code services[2].build.javaPath}) points at the control it concerns.
- * The validators repeat the API's rules to give feedback while typing; the API stays the authority.
- *
- * Sections that do not apply to a service's build tool or deployment target are disabled, which keeps them
- * out of the form's validity, and are sent empty, since the configuration never carries them.
- */
-
 export const PRODUCT_CODE = /^[A-Z][A-Z0-9_-]{1,49}$/;
 export const SERVICE_NAME = /^[a-z0-9][a-z0-9._-]{0,99}$/;
 export const UUID =
@@ -84,7 +75,6 @@ export const NO_COMMAND: ToolCommand = {
   environment: [],
 };
 
-/** A Gradle or Maven command: tasks separated by spaces, one flag and one NAME=value variable per line. */
 export function createToolCommandForm(command?: Partial<ToolCommand> | null) {
   return new FormGroup({
     tasks: text(
@@ -121,13 +111,11 @@ export function toToolCommand(form: ToolCommandForm): ToolCommand {
   };
 }
 
-/** A job given by its full URL runs on that Jenkins. */
 export function isJobUrl(job: unknown): boolean {
   const value = typeof job === 'string' ? job.trim() : '';
   return value.startsWith('http://') || value.startsWith('https://');
 }
 
-/** A remote job given as a path needs to know which Jenkins it runs on. */
 export const REMOTE_JENKINS_MESSAGE =
   'Name the remote Jenkins or its URL, or give the job as a full URL';
 
@@ -165,7 +153,6 @@ export function createTestJobForm(job?: Partial<TestJob> | null) {
 
 export type TestJobForm = ReturnType<typeof createTestJobForm>;
 
-/** Whether a test job runs on another Jenkins, which needs the remote fields. */
 export function isRemoteJob(form: TestJobForm): boolean {
   return form.controls.type.value === 'REMOTE' || isJobUrl(form.controls.job.value);
 }
@@ -200,7 +187,6 @@ export function createUrbanCodeComponentForm(component?: Partial<UrbanCodeCompon
 
 export type UrbanCodeComponentForm = ReturnType<typeof createUrbanCodeComponentForm>;
 
-/** An UrbanCode application; a new one starts with one component to fill. */
 export function createUrbanCodeApplicationForm(
   application?: Partial<UrbanCodeApplicationSettings> | null,
 ) {
@@ -283,10 +269,6 @@ export function createOpenShiftTargetForm(target?: Partial<OpenShiftTarget> | nu
 
 export type OpenShiftTargetForm = ReturnType<typeof createOpenShiftTargetForm>;
 
-/**
- * The GoldenFix policy fields. In the global settings every value is required, since nothing falls back
- * further; a service leaves blank what it takes from the global settings.
- */
 export function goldenFixControls(policy?: Partial<GoldenFixPolicy> | null, complete = false) {
   const required = complete ? [Validators.required] : [];
   const command = (value: string | null | undefined) => text(value, Validators.maxLength(500));
@@ -356,7 +338,6 @@ export function toGoldenFixPolicy(v: GoldenFixValue): GoldenFixPolicy {
   };
 }
 
-/** A service that takes every GoldenFix value from the global settings and only says whether it runs. */
 export function inheritedGoldenFix(enabled: boolean): GoldenFixPolicy {
   return {
     enabled,
@@ -379,7 +360,6 @@ export function inheritedGoldenFix(enabled: boolean): GoldenFixPolicy {
   };
 }
 
-/** Whether a service's policy sets nothing besides whether GoldenFix runs. */
 export function inheritsGoldenFix(policy?: Partial<GoldenFixPolicy> | null): boolean {
   if (!policy) {
     return true;
@@ -390,7 +370,6 @@ export function inheritsGoldenFix(policy?: Partial<GoldenFixPolicy> | null): boo
   );
 }
 
-/** The service's GoldenFix section: whether it runs, and either the global policy or its own values. */
 export function createServiceGoldenFixForm(policy?: Partial<GoldenFixPolicy> | null) {
   const form = new FormGroup({
     inherit: flag(inheritsGoldenFix(policy)),
@@ -410,10 +389,6 @@ export function createServiceGoldenFixForm(policy?: Partial<GoldenFixPolicy> | n
 
 export type ServiceGoldenFixForm = ReturnType<typeof createServiceGoldenFixForm>;
 
-/**
- * A service form. A new service starts with the build tool, deployment target and source folder of the
- * global service defaults, when they are known.
- */
 export function createServiceForm(
   service?: Partial<ServiceRequest>,
   defaults?: ServiceDefaults | null,
@@ -590,11 +565,8 @@ export function createServiceForm(
   const tool = build.controls.tool;
   const target = deployment.controls.target;
   const openShift = () => target.value === 'OPENSHIFT';
-  // The build stage stops without tasks; the command is disabled for Flutter, which runs none.
   build.controls.command.controls.tasks.addValidators(Validators.required);
-  // The VM deployment of a Maven service uploads the snapshot with these goals; disabled otherwise.
   form.controls.delivery.controls.tasks.addValidators(Validators.required);
-  // The unit tests stage of a Gradle or Maven build needs a JDK unless the build tool is set up automatically.
   requireWhile(
     build.controls.javaPath,
     () => tool.value !== 'FLUTTER' && !build.controls.autoSetup.value,
@@ -608,19 +580,16 @@ export function createServiceForm(
     () => appScan.controls.dastEnabled.value,
     appScan.controls.dastEnabled,
   );
-  // Any unit tests entry makes the library run the stage, which then needs tasks to run.
   requireWhile(
     unitTests.controls.command.controls.tasks,
     () => unitTestsConfigured(form),
     unitTests,
   );
-  // With a project key the library runs the analysis as a build command.
   requireWhile(
     sonar.controls.command.controls.tasks,
     () => !!optional(sonar.controls.projectKey.value),
     sonar.controls.projectKey,
   );
-  // GoldenFix pushes its branch and opens the pull request with these credentials.
   requireWhile(
     scm.controls.credentialsId,
     () => !!optional(scm.controls.repositoryUrl.value),
@@ -637,7 +606,6 @@ export function createServiceForm(
 
 export type ServiceForm = ReturnType<typeof createServiceForm>;
 
-/** Whether the service configures its unit tests stage at all; the coverage report alone does not count. */
 export function unitTestsConfigured(form: ServiceForm): boolean {
   const v = form.controls.unitTests.getRawValue();
   return (
@@ -647,7 +615,6 @@ export function unitTestsConfigured(form: ServiceForm): boolean {
   );
 }
 
-/** Enables the sections that apply to the service's build tool and deployment target, disables the others. */
 function syncApplicability(form: ServiceForm): void {
   const tool = form.controls.build.controls.tool.value;
   const vm = form.controls.deployment.controls.target.value === 'VM';
@@ -681,7 +648,6 @@ export function createProductForm() {
 
 export type ProductForm = ReturnType<typeof createProductForm>;
 
-/** Fills the form with a stored product, replacing its services. */
 export function patchProduct(form: ProductForm, product: Product): void {
   form.patchValue({
     code: product.code,
@@ -698,10 +664,6 @@ export function patchProduct(form: ProductForm, product: Product): void {
   product.services.forEach((service) => form.controls.services.push(createServiceForm(service)));
 }
 
-/**
- * A new service with the settings of an existing one. The values that must be unique across BBH, the
- * metrics project tag and the SonarQube project key, are left for the user to fill.
- */
 export function duplicateService(source: ServiceForm): ServiceForm {
   const copy = createServiceForm(toServiceRequest(source));
   copy.patchValue({
@@ -730,10 +692,6 @@ export function toProductRequest(form: ProductForm, version: number | null): Pro
   };
 }
 
-/**
- * The request for one service. Commands, deployment sections and the Flutter section that do not apply to
- * the build tool or deployment target are sent empty, like the configuration leaves them out.
- */
 export function toServiceRequest(form: ServiceForm): ServiceRequest {
   const c = form.controls;
   const v = form.getRawValue();
@@ -854,7 +812,6 @@ function toFlutterSettings(
   };
 }
 
-/** Every text value trimmed, blank ones as null; other values unchanged. */
 function trimTarget<T extends object>(value: T): Trimmed<T> {
   return Object.fromEntries(
     Object.entries(value).map(([key, item]) => [
@@ -866,7 +823,6 @@ function trimTarget<T extends object>(value: T): Trimmed<T> {
 
 type Trimmed<T> = { [K in keyof T]: T[K] extends string ? string | null : T[K] };
 
-/** The targets of each region, without the regions that set nothing. */
 function regionTargets<T extends object, R>(
   targets: Record<Region, T>,
   convert: (target: T) => R,
@@ -881,7 +837,6 @@ function regionTargets<T extends object, R>(
   return result;
 }
 
-/** Index of the first service holding a field problem, to open its panel. */
 export function firstServiceWithProblem(problems: FieldProblem[]): number | null {
   const indexes = problems
     .map((problem) => /^services\[(\d+)]/.exec(problem.field))
@@ -913,19 +868,21 @@ export interface ServiceSection {
   id: ServiceSectionId;
   label: string;
   icon: string;
-  /** The controls of the service the section edits. */
   keys: ServiceControlKey[];
-  /** Whether the section applies to a service; sections without it always do. */
   applies?: (tool: BuildTool, target: DeployTarget) => boolean;
 }
 
-/** The sections a service is edited in, in the order of its config.yaml entry. */
 export const SERVICE_SECTIONS: ServiceSection[] = [
   { id: 'general', label: 'General', icon: 'badge', keys: ['name', 'description'] },
   { id: 'build', label: 'Build', icon: 'build', keys: ['build'] },
   { id: 'unitTests', label: 'Unit tests and coverage', icon: 'fact_check', keys: ['unitTests'] },
   { id: 'testJobs', label: 'Test jobs', icon: 'science', keys: ['tests', 'testJobs'] },
-  { id: 'deployment', label: 'Deployment', icon: 'rocket_launch', keys: ['deployment', 'delivery'] },
+  {
+    id: 'deployment',
+    label: 'Deployment',
+    icon: 'rocket_launch',
+    keys: ['deployment', 'delivery'],
+  },
   {
     id: 'urbanCode',
     label: 'UrbanCode Deploy',
@@ -962,7 +919,6 @@ export const SERVICE_SECTIONS: ServiceSection[] = [
   },
 ];
 
-/** The sections that apply to the service's current build tool and deployment target. */
 export function visibleSections(form: ServiceForm): ServiceSection[] {
   const tool = form.controls.build.controls.tool.value;
   const target = form.controls.deployment.controls.target.value;
@@ -977,7 +933,6 @@ export function sectionTouched(form: ServiceForm, section: ServiceSection): bool
   return section.keys.some((key) => form.controls[key].touched);
 }
 
-/** The first visible section holding an invalid value, to show it. */
 export function firstInvalidSection(form: ServiceForm): ServiceSectionId | null {
   return visibleSections(form).find((section) => sectionInvalid(form, section))?.id ?? null;
 }

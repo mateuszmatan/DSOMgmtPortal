@@ -29,7 +29,6 @@ const TYPE_ICONS: Record<PipelineType, string> = {
   SAST: 'policy',
 };
 
-/** One product: its services, each with its pipelines and their keys. */
 @Component({
   selector: 'dso-product-detail',
   imports: [
@@ -49,7 +48,6 @@ const TYPE_ICONS: Record<PipelineType, string> = {
   styleUrl: './product-detail.scss',
 })
 export class ProductDetail {
-  /** The product id, from the route. */
   readonly id = input.required<string>();
 
   private readonly products = inject(ProductsApi);
@@ -83,7 +81,6 @@ export class ProductDetail {
     };
   });
 
-  /** Pipelines whose key is shown in full. */
   protected readonly revealed = signal<ReadonlySet<number>>(new Set());
   protected readonly typeIcons = TYPE_ICONS;
   protected readonly errorMessage = errorMessage;
@@ -136,7 +133,6 @@ export class ProductDetail {
     });
   }
 
-  /** The Jenkinsfile loads the shared library under the name of the global settings, read when it is shown. */
   protected showJenkinsfile(pipeline: Pipeline): void {
     this.settings
       .get()
@@ -259,7 +255,6 @@ export class ProductDetail {
       });
   }
 
-  /** Puts a pipeline the API returned in place of its old version, or adds it to its service. */
   private replacePipeline(pipeline: Pipeline): void {
     this.services.update((services) =>
       services?.map((service) => {

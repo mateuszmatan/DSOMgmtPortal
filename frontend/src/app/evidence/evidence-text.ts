@@ -70,7 +70,9 @@ export function formatPercent(value: number | null | undefined): string | null {
     : `${Number.isInteger(value) ? value : value.toFixed(2)}%`;
 }
 
-export function suiteRows(run: RunEvidence): { stage: TestStage; suite: TestSuiteEvidence | null }[] {
+export function suiteRows(
+  run: RunEvidence,
+): { stage: TestStage; suite: TestSuiteEvidence | null }[] {
   return TEST_STAGES.map((stage) => ({
     stage,
     suite: run.testSuites.find((suite) => suite.stage === stage) ?? null,
@@ -134,7 +136,10 @@ export function evidenceText(
     field('Finished', formatUtc(build.finishedAt)),
     field('Branch', build.branch),
     field('Commit', build.commit),
-    field('Duration', build.durationSeconds === null ? null : formatDuration(build.durationSeconds)),
+    field(
+      'Duration',
+      build.durationSeconds === null ? null : formatDuration(build.durationSeconds),
+    ),
     field('Job', build.job),
     field('Build link', build.url),
     field('Pipeline report', build.reportUrl),
@@ -145,7 +150,9 @@ export function evidenceText(
     coverageLine(run),
     '',
     'Tests',
-    ...suiteRows(run).map(({ stage, suite }) => field(STAGE_LABELS[stage], suite && suiteText(suite))),
+    ...suiteRows(run).map(({ stage, suite }) =>
+      field(STAGE_LABELS[stage], suite && suiteText(suite)),
+    ),
     '',
     'Security and quality scans',
     ...scanRows(run).map(({ label, scan }) => field(label, scan && scanText(scan))),
@@ -243,6 +250,8 @@ function gateText(run: RunEvidence): string | null {
     return 'Release allowed';
   }
   const violations =
-    gate.violations === null ? '' : `, ${gate.violations} ${gate.violations === 1 ? 'violation' : 'violations'}`;
+    gate.violations === null
+      ? ''
+      : `, ${gate.violations} ${gate.violations === 1 ? 'violation' : 'violations'}`;
   return `Release blocked${violations}${gate.reason ? `: ${gate.reason}` : ''}`;
 }

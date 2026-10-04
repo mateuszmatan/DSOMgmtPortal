@@ -35,7 +35,9 @@
           max="100"
           [formControl]="f.controls.tests.controls[stage.parallel]"
         />
-        <mat-hint><code>tests.{{ stage.noun }}.maxParallel</code></mat-hint>
+        <mat-hint
+          ><code>tests.{{ stage.noun }}.maxParallel</code></mat-hint
+        >
         <mat-error>{{ errorText(f.controls.tests.controls[stage.parallel]) }}</mat-error>
       </mat-form-field>
       <span class="spacer"></span>
@@ -97,8 +99,8 @@
               autocomplete="off"
             />
             <mat-hint
-              ><code>{{ isJobUrl(job.controls.job.value) ? 'url' : 'job' }}</code>
-              · a job path, or the full URL of a job on another Jenkins</mat-hint
+              ><code>{{ isJobUrl(job.controls.job.value) ? 'url' : 'job' }}</code> · a job path, or
+              the full URL of a job on another Jenkins</mat-hint
             >
             <mat-error>{{ errorText(job.controls.job) }}</mat-error>
           </mat-form-field>
@@ -135,7 +137,9 @@
                 <mat-option [value]="option.value">{{ option.label }}</mat-option>
               }
             </mat-select>
-            <mat-hint><code>tests.{{ stage.noun }}.jobs</code></mat-hint>
+            <mat-hint
+              ><code>tests.{{ stage.noun }}.jobs</code></mat-hint
+            >
           </mat-form-field>
           @if (isRemoteJob(job)) {
             <mat-form-field class="span-3">

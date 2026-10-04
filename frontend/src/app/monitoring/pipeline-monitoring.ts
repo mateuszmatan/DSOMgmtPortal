@@ -35,7 +35,6 @@ const moment = new Intl.DateTimeFormat('en-GB', {
   minute: '2-digit',
 });
 
-/** One pipeline: its latest run, its DORA metrics over a time range and the Grafana panels of its tags. */
 @Component({
   selector: 'dso-pipeline-monitoring',
   imports: [
@@ -59,9 +58,7 @@ const moment = new Intl.DateTimeFormat('en-GB', {
   styleUrl: './pipeline-monitoring.scss',
 })
 export class PipelineMonitoringPage {
-  /** The pipeline id, from the route. */
   readonly id = input.required<string>();
-  /** The time range, from the query parameter of the same name. */
   readonly range = input<string>();
 
   private readonly api = inject(MonitoringApi);
@@ -80,7 +77,6 @@ export class PipelineMonitoringPage {
     params: () => ({ id: Number(this.id()), range: this.selectedRange() }),
     stream: ({ params }) => this.api.pipeline(params.id, params.range),
   });
-  /** The latest data, kept on screen while another range loads. */
   protected readonly data = linkedSignal<
     PipelineMonitoring | undefined,
     PipelineMonitoring | undefined
@@ -101,7 +97,6 @@ export class PipelineMonitoringPage {
       .filter((panel) => /^https?:\/\//.test(panel.url))
       .map((panel) => ({
         ...panel,
-        // The URL is built by the portal from its own Grafana setting, not from user input.
         url: this.sanitizer.bypassSecurityTrustResourceUrl(panel.url),
       })),
   );
@@ -135,7 +130,6 @@ export interface DoraTile {
   alert?: string;
 }
 
-/** The four DORA metrics as tiles, each with its value, what it is based on and its performance level. */
 export function doraTiles(dora: DoraSummary): DoraTile[] {
   return [
     {

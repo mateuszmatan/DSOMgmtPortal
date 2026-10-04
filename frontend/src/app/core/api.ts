@@ -79,7 +79,6 @@ export class PipelinesApi {
     return this.http.post<Pipeline>(`/api/pipelines/${id}/keys`, {});
   }
 
-  /** The config.yaml the pipeline gets for its key; reading it here does not count as a use of the key. */
   config(id: number): Observable<string> {
     return this.http.get(`/api/pipelines/${id}/config`, { responseType: 'text' });
   }
@@ -116,12 +115,10 @@ export class SettingsApi {
     return this.http.get<GlobalSettings>('/api/settings');
   }
 
-  /** Refused with 409 when the settings changed since the version the request carries. */
   update(request: GlobalSettingsRequest): Observable<GlobalSettings> {
     return this.http.put<GlobalSettings>('/api/settings', request);
   }
 
-  /** The part of every pipeline's configuration that comes from the global settings, as YAML. */
   config(): Observable<string> {
     return this.http.get('/api/settings/config', {
       params: { format: 'yaml' },
@@ -134,7 +131,6 @@ export class SettingsApi {
 export class EvidenceApi {
   private readonly http = inject(HttpClient);
 
-  /** What the latest run of every pipeline of the product recorded. */
   product(productId: number): Observable<ProductEvidence> {
     return this.http.get<ProductEvidence>(`/api/evidence/products/${productId}`);
   }

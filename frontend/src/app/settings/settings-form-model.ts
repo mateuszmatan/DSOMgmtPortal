@@ -20,11 +20,6 @@ import {
   text,
 } from '../shared/form-controls';
 
-/**
- * The reactive form of the global settings. Its shape follows the API request, so a field problem the API
- * reports (for example {@code platform.proxyPort} or {@code limits[SAST].maxHigh}) points at its control.
- */
-
 export const STATE_FILE = /^[A-Za-z0-9._-]*$/;
 
 const required = Validators.required;
@@ -124,7 +119,6 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
     }),
     goldenFix: new FormGroup(goldenFixControls(settings?.goldenFix, true)),
   });
-  // The AppScan calls go through the proxy only when both its host and its port are known.
   const { proxyHost, proxyPort } = form.controls.platform.controls;
   requireWhile(proxyPort, () => !!optional(proxyHost.value), proxyHost);
   requireWhile(proxyHost, () => proxyPort.value !== null, proxyPort);
@@ -134,13 +128,14 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
 export type SettingsForm = ReturnType<typeof createSettingsForm>;
 export type SettingsSectionId = keyof SettingsForm['controls'];
 
-/** Fills the form with stored settings and marks it as unchanged. */
 export function patchSettings(form: SettingsForm, settings: GlobalSettingsValues): void {
   form.reset(createSettingsForm(settings).getRawValue());
 }
 
-/** The request for the settings; the form is valid, so every required number is set. */
-export function toSettingsRequest(form: SettingsForm, version: number | null): GlobalSettingsRequest {
+export function toSettingsRequest(
+  form: SettingsForm,
+  version: number | null,
+): GlobalSettingsRequest {
   const v = form.getRawValue();
   const number = (value: number | null) => value as number;
   const limits = Object.fromEntries(
@@ -215,7 +210,6 @@ export function toSettingsRequest(form: SettingsForm, version: number | null): G
   };
 }
 
-/** The sections of the settings page, in the order they appear. */
 export const SETTINGS_SECTIONS: { id: SettingsSectionId; label: string; icon: string }[] = [
   { id: 'platform', label: 'Platform and tools', icon: 'hub' },
   { id: 'deployment', label: 'Deployment defaults', icon: 'dns' },
@@ -226,7 +220,6 @@ export const SETTINGS_SECTIONS: { id: SettingsSectionId; label: string; icon: st
   { id: 'goldenFix', label: 'GoldenFix defaults', icon: 'auto_fix_high' },
 ];
 
-/** The first section holding an invalid value, or null when the form is valid. */
 export function firstInvalidSection(form: SettingsForm): SettingsSectionId | null {
   return SETTINGS_SECTIONS.find((section) => form.controls[section.id].invalid)?.id ?? null;
 }

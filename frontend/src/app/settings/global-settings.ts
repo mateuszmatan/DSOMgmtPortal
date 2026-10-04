@@ -24,12 +24,19 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { finalize } from 'rxjs';
 import { SettingsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
-import { BuildTool, DeployTarget, FieldProblem, GlobalSettings, Scanner, SCANNERS } from '../core/models';
+import {
+  BuildTool,
+  DeployTarget,
+  FieldProblem,
+  GlobalSettings,
+  Scanner,
+  SCANNERS,
+} from '../core/models';
 import { Notifier } from '../core/notifier';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { GoldenFixFields } from '../products/golden-fix-fields';
 import { CodeDialog, CodeDialogData } from '../shared/code-dialog';
-import { applyFieldProblems } from '../shared/form-controls';
+import { applyFieldProblems, revalidateAll } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { RelativeTimePipe } from '../shared/formatting';
 import {
@@ -47,7 +54,12 @@ export const SCANNER_INFO: Record<
 > = {
   SAST: { label: 'SAST', tool: 'HCL AppScan static analysis', gateKey: 'sast', path: 'sast' },
   SCA: { label: 'SCA', tool: 'HCL AppScan open source analysis', gateKey: 'sca', path: 'sca' },
-  NEXUS_IQ: { label: 'Nexus IQ', tool: 'Sonatype Nexus IQ policy evaluation', gateKey: 'niq', path: 'tools.nexusIq' },
+  NEXUS_IQ: {
+    label: 'Nexus IQ',
+    tool: 'Sonatype Nexus IQ policy evaluation',
+    gateKey: 'niq',
+    path: 'tools.nexusIq',
+  },
   DAST: { label: 'DAST', tool: 'HCL AppScan dynamic analysis', gateKey: 'dast', path: 'dast' },
 };
 
@@ -122,7 +134,7 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
   protected scrollTo(id: SettingsSectionId): void {
     document
       .getElementById(`settings-${id}`)
-      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      ?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   }
 
   protected reload(): void {
@@ -134,6 +146,7 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
     this.saveError.set(null);
     this.conflict.set(false);
     this.unmatchedProblems.set([]);
+    revalidateAll(this.form);
     this.form.markAllAsTouched();
     if (this.form.invalid) {
       this.saveError.set('Some fields need your attention.');
@@ -216,7 +229,13 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
     if (error instanceof HttpErrorResponse && error.status === 409) {
       this.conflict.set(true);
       this.saveError.set('Not saved: the settings were changed by someone else.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      afterNextRender(
+        () =>
+          document
+            .querySelector('.banner.conflict')
+            ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' }),
+        { injector: this.injector },
+      );
       return;
     }
     const problems = fieldProblems(error);
@@ -237,7 +256,7 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
         const field =
           target?.querySelector('.mat-form-field-invalid, .field-error') ??
           (this.unmatchedProblems().length ? document.querySelector('.settings .problems') : null);
-        (field ?? target)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        (field ?? target)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
       },
       { injector: this.injector },
     );

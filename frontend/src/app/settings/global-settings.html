@@ -8,9 +8,7 @@
         values that a service may replace with its own.
       </p>
       @if (settings(); as s) {
-        <p class="meta">
-          Version {{ s.version }} · saved {{ s.updatedAt | relative }}
-        </p>
+        <p class="meta">Version {{ s.version }} · saved {{ s.updatedAt | relative }}</p>
       }
     </div>
     <div class="actions">
@@ -49,8 +47,8 @@
         <mat-icon>sync_problem</mat-icon>
         <div class="banner-text">
           <strong>Someone else saved the settings after you opened this page.</strong>
-          Your changes were not saved, so nothing was overwritten. Reload to get the current
-          values, then make your changes again.
+          Your changes were not saved, so nothing was overwritten. Reload to get the current values,
+          then make your changes again.
         </div>
         <button mat-flat-button type="button" (click)="reload()">
           <mat-icon>refresh</mat-icon>Reload
@@ -117,7 +115,8 @@
                   placeholder="https://jenkins.bbh.com/"
                 />
                 <mat-hint
-                  ><code>platform.jenkinsUrl</code> · links the Jenkins job of each pipeline</mat-hint
+                  ><code>platform.jenkinsUrl</code> · links the Jenkins job of each
+                  pipeline</mat-hint
                 >
                 <mat-error>{{ errorText(p.jenkinsUrl) }}</mat-error>
               </mat-form-field>
@@ -125,7 +124,8 @@
                 <mat-label>Shared library</mat-label>
                 <input matInput formControlName="jenkinsLibrary" class="mono" />
                 <mat-hint
-                  ><code>platform.jenkinsLibrary</code> · the <code>&#64;Library</code> name</mat-hint
+                  ><code>platform.jenkinsLibrary</code> · the
+                  <code>&#64;Library</code> name</mat-hint
                 >
                 <mat-error>{{ errorText(p.jenkinsLibrary) }}</mat-error>
               </mat-form-field>
@@ -168,7 +168,9 @@
                 <mat-label>Proxy host</mat-label>
                 <input matInput formControlName="proxyHost" class="mono" />
                 <mat-hint><code>PROXY_HOST</code> · set together with the port</mat-hint>
-                <mat-error>{{ errorText(p.proxyHost, 'Use letters, digits, dots and hyphens') }}</mat-error>
+                <mat-error>{{
+                  errorText(p.proxyHost, 'Use letters, digits, dots and hyphens')
+                }}</mat-error>
               </mat-form-field>
               <mat-form-field class="span-3">
                 <mat-label>Proxy port</mat-label>
@@ -186,7 +188,9 @@
                 <mat-label>OIS host</mat-label>
                 <input matInput formControlName="oisHost" class="mono" />
                 <mat-hint><code>platform.oisHost</code></mat-hint>
-                <mat-error>{{ errorText(p.oisHost, 'Use letters, digits, dots and hyphens') }}</mat-error>
+                <mat-error>{{
+                  errorText(p.oisHost, 'Use letters, digits, dots and hyphens')
+                }}</mat-error>
               </mat-form-field>
             </div>
           </div>
@@ -305,13 +309,17 @@
                 <mat-label>RD host</mat-label>
                 <input matInput formControlName="rdHost" class="mono" />
                 <mat-hint><code>deploy.vm.rd.host</code> · the lower test region</mat-hint>
-                <mat-error>{{ errorText(d.rdHost, 'Use letters, digits, dots and hyphens') }}</mat-error>
+                <mat-error>{{
+                  errorText(d.rdHost, 'Use letters, digits, dots and hyphens')
+                }}</mat-error>
               </mat-form-field>
               <mat-form-field class="span-6">
                 <mat-label>QC host</mat-label>
                 <input matInput formControlName="qcHost" class="mono" />
                 <mat-hint><code>deploy.vm.qc.host</code> · the higher test region</mat-hint>
-                <mat-error>{{ errorText(d.qcHost, 'Use letters, digits, dots and hyphens') }}</mat-error>
+                <mat-error>{{
+                  errorText(d.qcHost, 'Use letters, digits, dots and hyphens')
+                }}</mat-error>
               </mat-form-field>
               <mat-form-field class="span-4">
                 <mat-label>SSH user</mat-label>
@@ -507,8 +515,8 @@
           <header class="section-head">
             <h2><mat-icon>verified</mat-icon>Release gate</h2>
             <p>
-              What a run must prove before the pipeline may release: the scans whose limits must hold
-              and, optionally, the required coverage.
+              What a run must prove before the pipeline may release: the scans whose limits must
+              hold and, optionally, the required coverage.
             </p>
           </header>
           <div class="form-fields gate">
@@ -538,7 +546,8 @@
               }
             </div>
             <mat-slide-toggle class="span-6" formControlName="requireCoverage"
-              >Require the minimum coverage (<code>releaseGate.requireCoverage</code>)</mat-slide-toggle
+              >Require the minimum coverage
+              (<code>releaseGate.requireCoverage</code>)</mat-slide-toggle
             >
             <mat-form-field class="span-6">
               <mat-label>State file</mat-label>
@@ -611,7 +620,9 @@
 
         <div class="save-bar">
           @if (saveError(); as error) {
-            <span class="save-error" role="alert"><mat-icon>error_outline</mat-icon>{{ error }}</span>
+            <span class="save-error" role="alert"
+              ><mat-icon>error_outline</mat-icon>{{ error }}</span
+            >
           } @else if (form.dirty) {
             <span class="muted">Unsaved changes</span>
           }

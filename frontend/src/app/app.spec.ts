@@ -39,7 +39,11 @@ describe('App', () => {
       'Builds, tests and scans for ServiceNow changes',
       'Tools, policy and defaults of every pipeline',
     ]);
-    expect(tabs.every((tab) => tab.getAttribute('title') === tab.querySelector('.tab-hint')?.textContent?.trim())).toBe(true);
+    expect(
+      tabs.every(
+        (tab) => tab.getAttribute('title') === tab.querySelector('.tab-hint')?.textContent?.trim(),
+      ),
+    ).toBe(true);
   });
 
   it('has an empty footer apart from the year mark', async () => {

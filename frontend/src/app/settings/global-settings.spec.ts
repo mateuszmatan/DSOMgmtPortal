@@ -43,7 +43,9 @@ describe('GlobalSettingsPage', () => {
     expect(page().querySelector('.lead')?.textContent).toContain(
       'apply to every DevSecOps pipeline of every product, and a service cannot override them',
     );
-    expect([...page().querySelectorAll('.toc-item')].map((item) => item.textContent?.trim())).toEqual([
+    expect(
+      [...page().querySelectorAll('.toc-item')].map((item) => item.textContent?.trim()),
+    ).toEqual([
       'hubPlatform and tools',
       'dnsDeployment defaults',
       'policySeverity limits',
@@ -105,9 +107,7 @@ describe('GlobalSettingsPage', () => {
     expect(page().querySelector('.save-error')?.textContent).toContain(
       'Some fields need your attention.',
     );
-    expect(page().querySelector('.toc-item.problem')?.textContent).toContain(
-      'Deployment defaults',
-    );
+    expect(page().querySelector('.toc-item.problem')?.textContent).toContain('Deployment defaults');
   });
 
   it('explains a concurrent change and reloads the current settings', async () => {
@@ -125,7 +125,9 @@ describe('GlobalSettingsPage', () => {
     await fixture.whenStable();
 
     const banner = page().querySelector('.banner.conflict');
-    expect(banner?.textContent).toContain('Someone else saved the settings after you opened this page.');
+    expect(banner?.textContent).toContain(
+      'Someone else saved the settings after you opened this page.',
+    );
     expect(page().querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(true);
 
     banner!.querySelector<HTMLButtonElement>('button')!.click();
@@ -173,9 +175,7 @@ describe('GlobalSettingsPage', () => {
     form().markAsDirty();
     await fixture.whenStable();
 
-    page()
-      .querySelectorAll<HTMLButtonElement>('.save-bar button')[0]
-      .click();
+    page().querySelectorAll<HTMLButtonElement>('.save-bar button')[0].click();
     await fixture.whenStable();
 
     expect(form().controls.platform.controls.jenkinsLibrary.value).toBe('DevSecOpsJenkinsLibrary');

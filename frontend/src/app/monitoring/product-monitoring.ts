@@ -15,7 +15,6 @@ import { StatusChip } from '../shared/status-chip';
 import { MetricsBanner } from './metrics-banner';
 import { StatusBar } from './status-bar';
 
-/** The pipelines of one product with the outcome of their latest run. */
 @Component({
   selector: 'dso-product-monitoring',
   imports: [
@@ -36,7 +35,6 @@ import { StatusBar } from './status-bar';
   styleUrl: './product-monitoring.scss',
 })
 export class ProductMonitoringPage {
-  /** The product id, from the route. */
   readonly id = input.required<string>();
 
   private readonly api = inject(MonitoringApi);

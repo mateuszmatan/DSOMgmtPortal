@@ -6,12 +6,12 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { GoldenFixPolicy } from '../core/models';
 import { errorText } from '../shared/form-errors';
-import { GOLDEN_FIX_ECOSYSTEMS, GoldenFixControls, ServiceGoldenFixForm } from './product-form-model';
+import {
+  GOLDEN_FIX_ECOSYSTEMS,
+  GoldenFixControls,
+  ServiceGoldenFixForm,
+} from './product-form-model';
 
-/**
- * The fields of a GoldenFix policy ({@code goldenFix}). In the global settings every value is set; for a
- * service a blank field keeps the global value, which its hint shows.
- */
 @Component({
   selector: 'dso-golden-fix-fields',
   imports: [
@@ -37,16 +37,15 @@ import { GOLDEN_FIX_ECOSYSTEMS, GoldenFixControls, ServiceGoldenFixForm } from '
 })
 export class GoldenFixFields {
   readonly group = input.required<FormGroup<GoldenFixControls> | ServiceGoldenFixForm>();
-  /** The global policy a service falls back to; absent in the global settings themselves. */
   readonly inherited = input<GoldenFixPolicy | null>(null);
-  /** Whether this is the global policy, where every value is required. */
   readonly complete = input(false);
 
   protected readonly ecosystems = GOLDEN_FIX_ECOSYSTEMS;
   protected readonly errorText = errorText;
 
-  /** The hint of a field a service may leave blank. */
-  protected global(value: string | number | boolean | readonly string[] | null | undefined): string {
+  protected global(
+    value: string | number | boolean | readonly string[] | null | undefined,
+  ): string {
     if (this.complete()) {
       return '';
     }

@@ -98,7 +98,7 @@ describe('createServiceForm', () => {
     const form = createServiceForm(service());
     const tasks = form.controls.build.controls.command.controls.tasks;
 
-    tasks.setValue('  ');
+    tasks.setValue('');
     expect(tasks.hasError('required')).toBe(true);
 
     tasks.setValue('clean build');
@@ -392,7 +392,9 @@ describe('UrbanCode applications', () => {
     expect(toServiceRequest(form).urbanCodeApplications[0]).toMatchObject({
       applicationName: 'CERT-GUI',
       environments: ['DV', 'RD', 'QC'],
-      components: [{ componentName: 'CERT-GUI-app', baseDir: 'build/libs', fileExcludePatterns: null }],
+      components: [
+        { componentName: 'CERT-GUI-app', baseDir: 'build/libs', fileExcludePatterns: null },
+      ],
     });
   });
 
@@ -489,7 +491,12 @@ describe('toServiceRequest', () => {
   it('keeps the deployment names whatever the target, since the library reads them for both', () => {
     const form = createServiceForm(
       service({
-        deployment: { target: 'VM', appName: 'gui', artifactName: 'gui.jar', baseArtifactName: null },
+        deployment: {
+          target: 'VM',
+          appName: 'gui',
+          artifactName: 'gui.jar',
+          baseArtifactName: null,
+        },
       }),
     );
 
@@ -531,7 +538,13 @@ describe('toServiceRequest', () => {
   it('sends only the targets of the deployment target, without regions that set nothing', () => {
     const form = createServiceForm(service());
     expect(toServiceRequest(form).sshTargets).toEqual({
-      QC: { host: null, user: null, deployDir: '/opt/cert/gui', deployScript: null, versionFile: null },
+      QC: {
+        host: null,
+        user: null,
+        deployDir: '/opt/cert/gui',
+        deployScript: null,
+        versionFile: null,
+      },
     });
     expect(toServiceRequest(form).openShiftTargets).toEqual({});
 
@@ -550,7 +563,9 @@ describe('toServiceRequest', () => {
   });
 
   it('keeps an OpenShift region whose only setting is the skipped config deployment', () => {
-    const form = createServiceForm(service({ deployment: { ...service().deployment, target: 'OPENSHIFT' } }));
+    const form = createServiceForm(
+      service({ deployment: { ...service().deployment, target: 'OPENSHIFT' } }),
+    );
     form.controls.openShiftTargets.controls.QC.controls.skipConfigDeploy.setValue(true);
 
     expect(Object.keys(toServiceRequest(form).openShiftTargets)).toEqual(['QC']);

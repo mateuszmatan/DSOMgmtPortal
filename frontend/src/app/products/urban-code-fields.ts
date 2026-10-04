@@ -15,10 +15,6 @@ import {
   createUrbanCodeComponentForm,
 } from './product-form-model';
 
-/**
- * How the full pipeline deploys a VM service with UrbanCode Deploy ({@code deploy.vm.dod}): the deployment
- * options and the applications, each with the components it publishes before it is deployed.
- */
 @Component({
   selector: 'dso-urban-code-fields',
   imports: [
@@ -90,7 +86,6 @@ export class UrbanCodeFields {
     this.form().markAsDirty();
   }
 
-  /** The hint of a value the global deployment defaults fill in when the service leaves it empty. */
   protected fallback(value: string | undefined): string {
     return value ? `left empty: ${value}` : 'left empty: the global default';
   }

@@ -1,5 +1,3 @@
-/** Types of the portal REST API, mirroring the Spring Boot DTOs. */
-
 export type BuildTool = 'GRADLE' | 'MAVEN' | 'FLUTTER';
 export type DeployTarget = 'VM' | 'OPENSHIFT';
 export type PipelineType = 'FULL' | 'SECURITY' | 'EXTENDED' | 'SAST';
@@ -9,16 +7,13 @@ export type RunResult =
 export type DoraLevel = 'ELITE' | 'HIGH' | 'MEDIUM' | 'LOW';
 export type TestStage = 'SMOKE' | 'REGRESSION' | 'PERFORMANCE';
 export type TestJobType = 'LOCAL' | 'REMOTE';
-/** The test environments a service is deployed to: the lower test region (RD) and the higher one (QC). */
 export type Region = 'RD' | 'QC';
 export type BitbucketAuthType = 'BASIC' | 'BEARER';
 export type BitbucketType = 'SERVER' | 'CLOUD';
 export type FlutterPlatform = 'APK' | 'APPBUNDLE' | 'IOS' | 'MACOS' | 'LINUX' | 'WINDOWS' | 'WEB';
-/** The security scanners the BBH policy sets limits for. */
 export type Scanner = 'SAST' | 'SCA' | 'NEXUS_IQ' | 'DAST';
-/** The outcome of one check of a run, plus NO_DATA when the run recorded nothing for it. */
-export type CheckStatus = 'PASS' | 'WARN' | 'FAIL' | 'BLOCKED' | 'NOT_REQUIRED' | 'SKIP' | 'NO_DATA';
-/** The security and quality scans a change request reports on. */
+export type CheckStatus =
+  'PASS' | 'WARN' | 'FAIL' | 'BLOCKED' | 'NOT_REQUIRED' | 'SKIP' | 'NO_DATA';
 export type EvidenceScanner = 'SAST' | 'DAST' | 'SONARQUBE' | 'NEXUS_IQ';
 
 export const REGIONS: Region[] = ['RD', 'QC'];
@@ -37,10 +32,6 @@ export interface ProductSummary {
   updatedAt: string;
 }
 
-/**
- * A Gradle or Maven command the library runs: tasks (Gradle) or goals (Maven), flags, the directory to run in,
- * the Maven installation and environment variables written as NAME=value.
- */
 export interface ToolCommand {
   tasks: string[];
   flags: string[];
@@ -49,7 +40,6 @@ export interface ToolCommand {
   environment: string[];
 }
 
-/** The sections of a service, one per part of its config.yaml entry in the DevSecOps library. */
 export interface BuildSettings {
   tool: BuildTool;
   sourceDir: string;
@@ -201,10 +191,6 @@ export interface ScmSettings {
   reviewers: string[];
 }
 
-/**
- * How GoldenFix raises dependency upgrade pull requests. The global settings set every value; a service sets
- * only what it changes, its unset values (null or empty) falling back to the global ones.
- */
 export interface GoldenFixPolicy {
   enabled: boolean;
   onlyDirectDependencies: boolean | null;
@@ -282,7 +268,6 @@ export interface ServiceRequest extends ServiceSettings {
   description: string | null;
 }
 
-/** The HCL AppScan API key the services of a product share; the secret stays in Jenkins credentials. */
 export interface AppScanAccount {
   keyId: string;
   secretCredentialsId: string | null;
@@ -330,13 +315,9 @@ export interface Pipeline {
   type: PipelineType;
   entryPoint: string;
   agentLabels: string[];
-  /** The job a security pipeline starts after its scans; SECURITY pipelines only. */
   extendedPipelineJob: string | null;
-  /** The security pipeline whose artifacts an extended pipeline copies; EXTENDED pipelines only. */
   securityPipelineJob: string | null;
-  /** The Jenkins job the pipeline runs in, as a job path or a full URL. */
   jenkinsJob: string | null;
-  /** The address of that job; null when neither a URL nor the Jenkins of the global settings is known. */
   jenkinsJobUrl: string | null;
   description: string | null;
   enabled: boolean;
@@ -366,7 +347,6 @@ export interface ServicePipelines {
   pipelines: Pipeline[];
 }
 
-/** The BBH tools every pipeline uses; credentials are named, never stored. */
 export interface PlatformSettings {
   jenkinsUrl: string | null;
   jenkinsLibrary: string;
@@ -388,7 +368,6 @@ export interface PlatformSettings {
   iosBuildAgent: string | null;
 }
 
-/** Deployment values every VM service shares unless it sets its own. */
 export interface DeploymentDefaults {
   urbanCodeSiteName: string;
   urbanCodeDeployProcess: string;
@@ -427,7 +406,6 @@ export interface ReleaseGateSettings {
   stateFile: string;
 }
 
-/** What a service gets when it does not say otherwise. */
 export interface ServiceDefaults {
   buildTool: BuildTool;
   deployTarget: DeployTarget;
@@ -451,7 +429,6 @@ export interface GlobalSettings extends GlobalSettingsValues {
 }
 
 export interface GlobalSettingsRequest extends GlobalSettingsValues {
-  /** The version the settings were read at; a stale one is refused with 409. */
   version: number | null;
 }
 
@@ -555,7 +532,6 @@ export interface PipelineMonitoring {
   metricsError: string | null;
 }
 
-/** What the latest run of every pipeline of a product proved, in the shape a ServiceNow change asks for. */
 export interface ProductEvidence {
   productId: number;
   code: string;
@@ -567,7 +543,6 @@ export interface ProductEvidence {
   metricsError: string | null;
 }
 
-/** A service with the identifiers its scans run under and its pipelines. */
 export interface ServiceEvidence {
   serviceId: number;
   name: string;
@@ -586,7 +561,6 @@ export interface PipelineEvidence {
   enabled: boolean;
   jenkinsJobUrl: string | null;
   status: RunResult;
-  /** Null when no run of the pipeline was recorded. */
   run: RunEvidence | null;
 }
 
@@ -681,5 +655,4 @@ export const PIPELINE_TYPES: { value: PipelineType; label: string; description: 
   { value: 'SAST', label: 'SAST scanning', description: 'AppScan static scan of the sources only' },
 ];
 
-/** Name of the shared library in Jenkins when the global settings cannot be read. */
 export const DEFAULT_JENKINS_LIBRARY = 'DevSecOpsJenkinsLibrary';

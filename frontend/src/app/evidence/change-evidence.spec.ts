@@ -46,15 +46,13 @@ describe('ChangeEvidencePage', () => {
   const page = () => fixture.nativeElement as HTMLElement;
 
   async function list(products: ProductSummary[]) {
-    await fixture.whenStable();
+    fixture.detectChanges();
     http.expectOne('/api/products').flush(products);
     await fixture.whenStable();
   }
 
   async function expand(index: number) {
-    page()
-      .querySelectorAll<HTMLElement>('mat-expansion-panel-header')
-      [index].click();
+    page().querySelectorAll<HTMLElement>('mat-expansion-panel-header')[index].click();
     await fixture.whenStable();
   }
 
@@ -97,10 +95,12 @@ describe('ChangeEvidencePage', () => {
       .flush(productEvidence({ ownerTeam: null, services: [serviceEvidence()] }));
     await fixture.whenStable();
 
-    const identifiers = [...page().querySelectorAll('.identifiers > div')].map((item) =>
-      item.textContent?.replace(/\s+/g, ' ').trim(),
-    );
-    expect(identifiers).toContain('Nexus IQ application Not recorded');
+    const identifiers = [...page().querySelectorAll('.identifiers > div')].map((item) => [
+      item.querySelector('dt')?.textContent?.trim(),
+      item.querySelector('dd')?.textContent?.trim(),
+    ]);
+    expect(identifiers).toContainEqual(['Nexus IQ application', 'Not recorded']);
+    expect(identifiers).toContainEqual(['SonarQube project key', 'cert-gui']);
     expect(page().querySelector('.product-facts')?.textContent).toContain('Not recorded');
   });
 
@@ -140,12 +140,11 @@ describe('ChangeEvidencePage', () => {
       'inventory_2Artifacts',
     ]);
     expect(card.querySelector('.coverage .value')?.textContent).toBe('84.25%');
-    expect([...card.querySelectorAll('.stage')].map((stage) => stage.className)).toEqual([
-      'stage pass',
-      'stage pass',
-      'stage fail',
-      'stage blocked',
-    ]);
+    expect(
+      [...card.querySelectorAll('.stage')].map((stage) =>
+        ['pass', 'fail', 'blocked'].find((status) => stage.classList.contains(status)),
+      ),
+    ).toEqual(['pass', 'pass', 'fail', 'blocked']);
     const nexusIq = [...card.querySelectorAll('tr')].find((row) =>
       row.textContent?.includes('Nexus IQ'),
     )!;
@@ -158,7 +157,9 @@ describe('ChangeEvidencePage', () => {
     await expand(0);
     http.expectOne('/api/evidence/products/1').flush(
       productEvidence({
-        services: [serviceEvidence({ pipelines: [pipelineEvidence({ run: null, status: 'NO_DATA' })] })],
+        services: [
+          serviceEvidence({ pipelines: [pipelineEvidence({ run: null, status: 'NO_DATA' })] }),
+        ],
       }),
     );
     await fixture.whenStable();
@@ -178,9 +179,9 @@ describe('ChangeEvidencePage', () => {
     http.expectOne('/api/evidence/products/1').flush(evidence);
     await fixture.whenStable();
 
-    const button = [...page().querySelectorAll<HTMLButtonElement>('dso-pipeline-evidence-card button')].find(
-      (b) => b.textContent?.includes('Copy for ServiceNow'),
-    )!;
+    const button = [
+      ...page().querySelectorAll<HTMLButtonElement>('dso-pipeline-evidence-card button'),
+    ].find((b) => b.textContent?.includes('Copy for ServiceNow'))!;
     button.click();
     await fixture.whenStable();
 

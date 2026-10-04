@@ -25,15 +25,12 @@ import { applyFieldProblems } from './product-form-model';
 
 export interface PipelineDialogData {
   service: ServicePipelines;
-  /** The pipeline to change; absent when a pipeline is added. */
   pipeline?: Pipeline;
 }
 
 export const AGENT_LABEL = /^[A-Za-z0-9._-]{1,100}$/;
-/** A Jenkins job path such as DevSecOps/CertScanner-gui, or the job's URL. */
 export const JENKINS_JOB = /^(https?:\/\/\S+|[^\s:?#][^:?#]*)$/;
 
-/** Adds a pipeline to a service or changes the settings of one; the result is the saved pipeline. */
 @Component({
   selector: 'dso-pipeline-dialog',
   imports: [
@@ -58,7 +55,6 @@ export class PipelineDialog {
 
   protected readonly separators = [ENTER, COMMA, SPACE];
   protected readonly editing = this.data.pipeline !== undefined;
-  /** Types the service has no pipeline of yet; a service has at most one pipeline of each type. */
   protected readonly types = PIPELINE_TYPES.filter(
     (type) =>
       type.value === this.data.pipeline?.type ||

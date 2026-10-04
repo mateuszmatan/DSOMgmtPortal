@@ -6,11 +6,6 @@ import { BuildTool } from '../core/models';
 import { errorText } from '../shared/form-errors';
 import { ToolCommandForm } from './product-form-model';
 
-/**
- * The fields of a Gradle or Maven command, laid out in the 12-column grid of the form around it. The hints
- * name the keys the command becomes: {@code <path>.gradle.tasks} for Gradle, {@code <path>.maven.goals} for
- * Maven. It is checked with its parent so that errors the API reported show up at once.
- */
 @Component({
   selector: 'dso-tool-command-fields',
   imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule],
@@ -34,14 +29,23 @@ import { ToolCommandForm } from './product-form-model';
     <mat-form-field [class]="maven() ? 'span-3' : 'span-6'">
       <mat-label>Directory</mat-label>
       <input matInput [formControl]="g.controls.directory" placeholder="." class="mono" />
-      <mat-hint><code>{{ key() }}.dir</code></mat-hint>
+      <mat-hint
+        ><code>{{ key() }}.dir</code></mat-hint
+      >
       <mat-error>{{ errorText(g.controls.directory) }}</mat-error>
     </mat-form-field>
     @if (maven()) {
       <mat-form-field class="span-3">
         <mat-label>Maven home</mat-label>
-        <input matInput [formControl]="g.controls.mavenHome" placeholder="/opt/maven" class="mono" />
-        <mat-hint><code>{{ key() }}.mvnPath</code></mat-hint>
+        <input
+          matInput
+          [formControl]="g.controls.mavenHome"
+          placeholder="/opt/maven"
+          class="mono"
+        />
+        <mat-hint
+          ><code>{{ key() }}.mvnPath</code></mat-hint
+        >
         <mat-error>{{ errorText(g.controls.mavenHome) }}</mat-error>
       </mat-form-field>
     }
@@ -55,7 +59,9 @@ import { ToolCommandForm } from './product-form-model';
         spellcheck="false"
         [placeholder]="maven() ? '-B' : '--refresh-dependencies'"
       ></textarea>
-      <mat-hint><code>{{ key() }}.flags</code> · one per line</mat-hint>
+      <mat-hint
+        ><code>{{ key() }}.flags</code> · one per line</mat-hint
+      >
       <mat-error>{{ errorText(g.controls.flags) }}</mat-error>
     </mat-form-field>
     <mat-form-field class="span-6">
@@ -68,7 +74,9 @@ import { ToolCommandForm } from './product-form-model';
         spellcheck="false"
         placeholder="JAVA_OPTS=-Xmx1g"
       ></textarea>
-      <mat-hint><code>{{ key() }}.env</code> · one NAME=value per line</mat-hint>
+      <mat-hint
+        ><code>{{ key() }}.env</code> · one NAME=value per line</mat-hint
+      >
       <mat-error>{{ errorText(g.controls.environment) }}</mat-error>
     </mat-form-field>
   `,
@@ -84,7 +92,6 @@ import { ToolCommandForm } from './product-form-model';
 export class ToolCommandFields {
   readonly group = input.required<ToolCommandForm>();
   readonly tool = input.required<BuildTool>();
-  /** Where the command is written, for example build or tools.sonar. */
   readonly path = input.required<string>();
   readonly gradleExample = input('');
   readonly mavenExample = input('');
