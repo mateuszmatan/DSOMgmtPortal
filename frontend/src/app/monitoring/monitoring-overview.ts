@@ -17,7 +17,7 @@ import { StatusChip } from '../shared/status-chip';
 import { MetricsBanner } from './metrics-banner';
 import { STATUS_ORDER, StatusBar } from './status-bar';
 
-/** "Pipeline Monitoring": every product with the worst status of its pipelines. */
+/** "DevSecOps Pipeline Monitoring": every product with the worst status of its pipelines. */
 @Component({
   selector: 'dso-monitoring-overview',
   imports: [

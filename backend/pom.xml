@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.bbh.dso</groupId>
+    <groupId>com.bbh.itss.dso</groupId>
     <artifactId>dso-portal-backend</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <name>DSO Management Portal - backend</name>
@@ -227,7 +227,7 @@
                 <version>${jacoco.version}</version>
                 <configuration>
                     <excludes>
-                        <exclude>com/bbh/dso/portal/DsoPortalApplication.class</exclude>
+                        <exclude>com/bbh/itss/dso/portal/DsoPortalApplication.class</exclude>
                     </excludes>
                 </configuration>
                 <executions>

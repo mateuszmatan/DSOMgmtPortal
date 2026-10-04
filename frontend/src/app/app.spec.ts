@@ -15,8 +15,8 @@ describe('App', () => {
 
     expect(page.querySelector('.brand-name')?.textContent).toBe('BBH DevSecOps Management Portal');
     expect(tabs.map((tab) => tab.textContent?.trim())).toEqual([
-      'Product Management',
-      'Pipeline Monitoring',
+      'DevSecOps Product Management',
+      'DevSecOps Pipeline Monitoring',
     ]);
     expect(tabs.map((tab) => tab.getAttribute('href'))).toEqual(['/products', '/monitoring']);
   });

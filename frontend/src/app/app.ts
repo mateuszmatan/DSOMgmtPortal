@@ -12,7 +12,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 })
 export class App {
   protected readonly navigation = [
-    { path: '/products', label: 'Product Management', hint: 'Products, services, pipelines, keys' },
-    { path: '/monitoring', label: 'Pipeline Monitoring', hint: 'Status and DORA metrics' },
+    { path: '/products', label: 'DevSecOps Product Management', hint: 'Products, services, pipelines, keys' },
+    { path: '/monitoring', label: 'DevSecOps Pipeline Monitoring', hint: 'Status and DORA metrics' },
   ];
 }

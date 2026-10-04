@@ -15,6 +15,6 @@ Needs Node.js 22.22.3 or newer.
 | Folder        | Holds |
 |---------------|-------|
 | `core/`       | API clients, models mirroring the backend DTOs, error handling |
-| `products/`   | Product Management: product list, product editor, product page with pipelines and keys |
-| `monitoring/` | Pipeline Monitoring: overview, product pipelines, pipeline details with DORA and Grafana |
+| `products/`   | DevSecOps Product Management: product list, product editor, product page with pipelines and keys |
+| `monitoring/` | DevSecOps Pipeline Monitoring: overview, product pipelines, pipeline details with DORA and Grafana |
 | `shared/`     | status chips, dialogs, formatting |

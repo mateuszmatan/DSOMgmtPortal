@@ -5,7 +5,7 @@ export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'products' },
   {
     path: 'products',
-    title: 'Product management',
+    title: 'DevSecOps Product Management',
     loadComponent: () => import('./products/product-list').then((m) => m.ProductList),
   },
   {
@@ -27,7 +27,7 @@ export const routes: Routes = [
   },
   {
     path: 'monitoring',
-    title: 'Pipeline monitoring',
+    title: 'DevSecOps Pipeline Monitoring',
     loadComponent: () =>
       import('./monitoring/monitoring-overview').then((m) => m.MonitoringOverview),
   },

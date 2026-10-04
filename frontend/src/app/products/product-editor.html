@@ -1,6 +1,6 @@
 <div class="page editor">
   <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a routerLink="/products">Product Management</a>
+    <a routerLink="/products">DevSecOps Product Management</a>
     <mat-icon>chevron_right</mat-icon>
     @if (product(); as stored) {
       <a [routerLink]="['/products', stored.id]">{{ stored.name }}</a>
