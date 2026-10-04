@@ -154,46 +154,46 @@ projects:
     deploy:
       openshift:
         rd:
-          projectBuildR: ledger-rd-build
+          projectBuildR: payhub-rd-build
           buildConfigPath: openshift/build.yaml
           dockerFilePath: Dockerfile
           buildContext: .
           addFile: target/app.jar
-          qcDockerRepoPush: registry.bbh.com/ledger
-          qcDockerRepoPull: registry.bbh.com/ledger
+          qcDockerRepoPush: registry.bbh.com/payhub-rd
+          qcDockerRepoPull: registry.bbh.com/payhub-rd
           openshiftCertDir: /etc/certs
           nexus:
             authfile: /etc/nexus/auth.json
-          projectDeploymentR: ledger-rd
+          projectDeploymentR: payhub-rd
           deployConfigPath: openshift/deploy.yaml
           configPathR: openshift/config
           healthCheckUrl: /actuator/health
-          routeHostnameR: ledger-rd.apps.bbh.com
+          routeHostnameR: payhub-rd.apps.bbh.com
           deploymentPath: k8s
           deploymentRepo:
-            url: https://bitbucket.bbh.com/scm/led/ledger-deploy.git
+            url: https://bitbucket.bbh.com/scm/deploy/payhub-rd.git
             branch: main
             credentials: bitbucket-http-credentials
           skipConfigDeploy: true
         qc:
-          projectBuildR: ledger-qc-build
+          projectBuildR: payhub-qc-build
           buildConfigPath: openshift/build.yaml
           dockerFilePath: Dockerfile
           buildContext: .
           addFile: target/app.jar
-          qcDockerRepoPush: registry.bbh.com/ledger
-          qcDockerRepoPull: registry.bbh.com/ledger
+          qcDockerRepoPush: registry.bbh.com/payhub-qc
+          qcDockerRepoPull: registry.bbh.com/payhub-qc
           openshiftCertDir: /etc/certs
           nexus:
             authfile: /etc/nexus/auth.json
-          projectDeploymentR: ledger-qc
+          projectDeploymentR: payhub-qc
           deployConfigPath: openshift/deploy.yaml
           configPathR: openshift/config
           healthCheckUrl: /actuator/health
-          routeHostnameR: ledger-qc.apps.bbh.com
+          routeHostnameR: payhub-qc.apps.bbh.com
           deploymentPath: k8s
           deploymentRepo:
-            url: https://bitbucket.bbh.com/scm/led/ledger-deploy.git
+            url: https://bitbucket.bbh.com/scm/deploy/payhub-qc.git
             branch: main
             credentials: bitbucket-http-credentials
           skipConfigDeploy: true

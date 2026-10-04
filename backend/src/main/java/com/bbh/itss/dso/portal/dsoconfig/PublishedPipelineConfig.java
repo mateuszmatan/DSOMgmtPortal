@@ -12,11 +12,6 @@ import org.springframework.data.domain.Persistable;
 
 import java.time.Instant;
 
-/**
- * A pipeline's complete configuration as JSON, kept up to date by {@link PipelineConfigPublisher}. The view
- * {@code DSO_LIBRARY_CONFIG_V} joins it with the pipeline's keys, so the DevSecOps library can read its
- * configuration by key with a read-only database account and nothing else.
- */
 @Entity
 @Table(name = "DSO_PIPELINE_CONFIG")
 public class PublishedPipelineConfig implements Persistable<Long> {
@@ -25,15 +20,13 @@ public class PublishedPipelineConfig implements Persistable<Long> {
     @Column(name = "PIPELINE_ID")
     private Long pipelineId;
 
-    // The length makes MySQL expect LONGTEXT, as created by the changelog; Oracle and H2 store a CLOB.
     @Lob
-    @Column(name = "CONFIG_JSON", nullable = false, length = Integer.MAX_VALUE)
+    @Column(name = "CONFIG_JSON", nullable = false)
     private String configJson;
 
     @Column(name = "RENDERED_AT", nullable = false)
     private Instant renderedAt;
 
-    /** The key is the pipeline's, so saving a new row must insert it rather than merge it. */
     @Transient
     private boolean stored;
 
@@ -44,7 +37,6 @@ public class PublishedPipelineConfig implements Persistable<Long> {
         this.pipelineId = pipelineId;
     }
 
-    /** Takes the newly rendered configuration; returns false, and keeps the time, when it is unchanged. */
     boolean publish(String renderedJson, Instant now) {
         if (renderedJson.equals(configJson)) {
             return false;
