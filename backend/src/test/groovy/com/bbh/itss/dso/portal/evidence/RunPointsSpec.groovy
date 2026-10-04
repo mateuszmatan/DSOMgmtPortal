@@ -50,8 +50,6 @@ class RunPointsSpec extends Specification {
         points.releaseGate() == null
     }
 
-    // coverage
-
     def "the module's line coverage is read against the required minimum"() {
         given:
         def points = new RunPoints([
@@ -122,8 +120,6 @@ class RunPointsSpec extends Specification {
                 new CoverageEvidence(NO_DATA, null, null, null, null)
     }
 
-    // test suites
-
     def "a run without tests reports every suite without data in stage order"() {
         expect:
         new RunPoints([]).testSuites('gui') == [
@@ -192,8 +188,6 @@ class RunPointsSpec extends Specification {
                 failed: '0')]).testSuites('gui')[1] ==
                 new TestSuiteEvidence(TestStage.REGRESSION, PASS, 7L, 7L, 0L, null, null)
     }
-
-    // scans
 
     def "a run without scans reports each scanner without data, with its link"() {
         expect:
@@ -264,8 +258,6 @@ class RunPointsSpec extends Specification {
         new RunPoints([]).scans('gui', none)*.link() == [null, null, null, null]
     }
 
-    // release gate
-
     def "a run without a release gate decision has none"() {
         expect:
         new RunPoints([row('stage_event', stage: 'Build')]).releaseGate() == null
@@ -284,8 +276,6 @@ class RunPointsSpec extends Specification {
         '0'     | '1'        | '  '                   || new ReleaseGateEvidence(false, 1L, null)
         null    | null       | null                   || new ReleaseGateEvidence(false, null, null)
     }
-
-    // stages
 
     def "the stages are listed in the order they ran, unknown positions last"() {
         given:
@@ -310,8 +300,6 @@ class RunPointsSpec extends Specification {
         new RunPoints([row('release_gate', allowed: 'yes')]).stages() == []
     }
 
-    // numbers
-
     def "the value #value reads as the number #number and the decimal #decimal"() {
         expect:
         RunPoints.number(value) == number
@@ -330,7 +318,6 @@ class RunPointsSpec extends Specification {
         '1e3'   || 1000L  | 1000.0d
     }
 
-    /** A row of the pivoted Flux result: the measurement, its tags and its fields, all as text. */
     static Map<String, String> row(Map values, String measurement) {
         row(measurement, values)
     }

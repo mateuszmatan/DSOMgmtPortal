@@ -8,7 +8,6 @@ import spock.lang.Specification
 
 class GoldenFixPolicySpec extends Specification {
 
-    /** The BBH defaults as the global settings hold them, every value set. */
     static final GoldenFixPolicy COMPLETE = new GoldenFixPolicy(true, false, 7, ['maven', 'npm'],
             ['recommended-non-breaking', 'next-no-violations'], ['docs', 'examples'], true, 3, 30, 'mvn -B verify',
             './gradlew build', 'npm test', 'pytest', 'flutter test', 'GoldenFix', 'goldenfix@bbh.com', 'Europe/Warsaw')
@@ -154,7 +153,6 @@ class GoldenFixPolicySpec extends Specification {
         'a time zone with a space'       | change(timeZone: 'Europe Warsaw')             || 'timeZone'
     }
 
-    /** The complete policy with the named values changed. */
     private static GoldenFixPolicy change(Map args) {
         Map values = [enabled             : COMPLETE.enabled(), onlyDirectDependencies: COMPLETE.onlyDirectDependencies(),
                       minThreatLevel      : COMPLETE.minThreatLevel(), ecosystems: COMPLETE.ecosystems(),

@@ -3,10 +3,6 @@ package com.bbh.itss.dso.portal.support
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 
-/**
- * Request bodies of the portal API as the Angular client sends them, with named arguments overriding the
- * defaults, and parsing of the responses.
- */
 final class ApiJson {
 
     static final String APP_ID = Fixtures.APP_ID
@@ -21,7 +17,6 @@ final class ApiJson {
          services: [service()]] + overrides
     }
 
-    /** A Gradle service deployed to VMs: the sections a service cannot do without. */
     static Map service(Map overrides = [:]) {
         [name      : 'gui',
          build     : build(),
@@ -33,13 +28,11 @@ final class ApiJson {
         [tool: 'GRADLE', javaPath: Fixtures.JDK, command: [tasks: ['clean', 'build']]] + overrides
     }
 
-    /** A Maven service deployed to VMs, which also needs the goals that upload its snapshot. */
     static Map mavenService(Map overrides = [:]) {
         service([build   : build(tool: 'MAVEN', command: [tasks: ['clean', 'verify']]),
                  delivery: [tasks: ['deploy:deploy-file']]] + overrides)
     }
 
-    /** A Maven service on VMs with every section the portal stores filled in, as the portal returns it. */
     static Map fullMavenService(Map overrides = [:]) {
         [name                 : 'ledger',
          description          : 'Ledger postings',
@@ -101,7 +94,6 @@ final class ApiJson {
          metrics              : [enabled: true, influxProject: 'ledger', influxEnv: 'uat']] + overrides
     }
 
-    /** A Gradle service on OpenShift with both regions' targets filled in. */
     static Map fullOpenShiftService(Map overrides = [:]) {
         [name            : 'ledger-api',
          build           : [tool: 'GRADLE', sourceDir: 'api', javaPath: Fixtures.JDK, autoSetup: false, buildPath: null,
@@ -112,7 +104,6 @@ final class ApiJson {
          appScan         : [applicationId: APP_ID]] + overrides
     }
 
-    /** A Flutter application with every Flutter option filled in. */
     static Map fullFlutterService(Map overrides = [:]) {
         [name      : 'ledger-mobile',
          build     : [tool: 'FLUTTER', sourceDir: 'mobile', javaPath: null, autoSetup: true, buildPath: null,
@@ -133,7 +124,6 @@ final class ApiJson {
          environment: options.environment ?: []]
     }
 
-    /** An OpenShift target with every option filled in, named after its OpenShift project. */
     static Map openShiftTarget(String project) {
         [projectBuild       : "$project-build".toString(), buildConfigPath: 'openshift/build.yaml',
          dockerFilePath     : 'Dockerfile', buildContext: '.', addFile: 'target/app.jar',

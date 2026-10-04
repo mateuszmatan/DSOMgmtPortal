@@ -17,10 +17,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * Adds, changes and removes products together with their services. Rules that concern a single section
- * live in the section's value object; this class checks what needs the other services or the database.
- */
 @Service
 @Transactional
 public class ProductCatalogService {
@@ -79,7 +75,6 @@ public class ProductCatalogService {
                 .collect(Collectors.toSet());
         product.getServices().stream().filter(s -> !kept.contains(s.getId())).toList()
                 .forEach(product::removeService);
-        // Removals are flushed first so a new service may take over a removed one's unique values.
         products.flush();
 
         for (int order = 0; order < request.services().size(); order++) {
@@ -145,7 +140,6 @@ public class ProductCatalogService {
         problems.throwIfAny();
     }
 
-    /** Two services writing metrics under the same tags would mix their DORA figures. */
     private void checkMetricsTags(MetricsSettings metrics, Set<Long> ownServiceIds, UniqueValues seen,
                                   ValidationProblems problems) {
         if (!seen.add(metrics.influxProject() + "|" + metrics.influxEnv())) {
@@ -158,7 +152,6 @@ public class ProductCatalogService {
                         + metrics.influxEnv() + ") is already used by " + describe(other)));
     }
 
-    /** SonarQube project keys are unique across BBH. */
     private void checkSonarKey(SonarSettings sonar, Set<Long> ownServiceIds, UniqueValues seen,
                                ValidationProblems problems) {
         if (sonar.projectKey() == null) {
@@ -194,7 +187,6 @@ public class ProductCatalogService {
         return counts;
     }
 
-    /** Case-insensitive set of the values seen so far. */
     private static final class UniqueValues {
         private final Set<String> values = new HashSet<>();
 

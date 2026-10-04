@@ -13,9 +13,6 @@ import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
-/**
- * The Bitbucket repository GoldenFix raises dependency upgrade pull requests against ({@code scm.bitbucket}).
- */
 @Embeddable
 public record ScmSettings(
         @Size(max = 1000)
@@ -55,12 +52,10 @@ public record ScmSettings(
         reviewers = DelimitedListConverter.clean(reviewers);
     }
 
-    /** A repository and its credentials with every other option at its default. */
     public static ScmSettings of(String repositoryUrl, String credentialsId) {
         return new ScmSettings(repositoryUrl, credentialsId, BitbucketAuthType.BASIC, null, null, null, List.of());
     }
 
-    /** Nothing is written without a repository: GoldenFix then lists the fixes in the report only. */
     @Override
     public void writeTo(ConfigTree config) {
         if (repositoryUrl == null) {
@@ -75,7 +70,6 @@ public record ScmSettings(
                 .set("scm.bitbucket.reviewers", reviewers);
     }
 
-    /** GoldenFix pushes its branch and opens the pull request with these credentials. */
     @Override
     public void validate(ValidationProblems problems) {
         if (repositoryUrl != null && credentialsId == null) {

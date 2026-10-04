@@ -11,10 +11,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Derives the DORA metrics from the {@code dora} points of one pipeline the same way the Flux queries of the
- * DevSecOps documentation (chapter 21) do, and rates each against the DORA performance clusters.
- */
 final class DoraCalculator {
 
     private static final long HOUR = 3_600;
@@ -62,7 +58,6 @@ final class DoraCalculator {
                 restoreTimes.size(), failingSince, averageDuration, daily(points, rangeDays, now));
     }
 
-    /** Elite deploys on demand (daily or more), high weekly to daily, medium monthly to weekly. */
     static DoraLevel deploymentFrequencyLevel(double perWeek) {
         if (perWeek >= 7) {
             return DoraLevel.ELITE;
@@ -76,17 +71,14 @@ final class DoraCalculator {
         return DoraLevel.LOW;
     }
 
-    /** Elite under a day, high under a week, medium under a month. */
     static DoraLevel leadTimeLevel(long seconds) {
         return duration(seconds, DAY, WEEK, MONTH);
     }
 
-    /** Elite under an hour, high under a day, medium under a week. */
     static DoraLevel timeToRestoreLevel(long seconds) {
         return duration(seconds, HOUR, DAY, WEEK);
     }
 
-    /** 2023 cluster values: elite 5 %, high 10 %, medium 15 %. */
     static DoraLevel changeFailureRateLevel(double percent) {
         if (percent <= 5) {
             return DoraLevel.ELITE;

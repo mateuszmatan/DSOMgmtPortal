@@ -11,12 +11,6 @@ import static com.bbh.itss.dso.portal.support.ApiJson.openShiftTarget
 import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 
-/**
- * Pins the configuration the portal renders, which the DevSecOps library will read instead of the config.yaml in
- * the product's repository and its own defaults.yaml: a pipeline's configuration, a product's and the part that
- * comes from the global settings. A difference means the contract changed: check it against the library and,
- * when it is intended, regenerate the expected files with {@code -Dregression.updateExpected=true}.
- */
 class ConfigContractRegressionSpec extends PortalSpecification {
 
     static final String EXPECTED_DIR = 'src/test/resources/regression'

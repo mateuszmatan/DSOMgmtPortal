@@ -6,9 +6,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * The read-only evidence a ServiceNow change request needs, per product.
- */
 @RestController
 @RequestMapping("/api/evidence")
 public class EvidenceController {

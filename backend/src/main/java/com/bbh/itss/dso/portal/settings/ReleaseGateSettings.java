@@ -16,10 +16,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * Which results block the Nexus release and the QC deployment ({@code releaseGate}): the scanners whose
- * limits count, whether the required coverage counts, and the file the gate's state is kept in.
- */
 @Embeddable
 public record ReleaseGateSettings(
         @NotNull @Size(max = 4)
@@ -36,7 +32,6 @@ public record ReleaseGateSettings(
         String stateFile) {
 
     public ReleaseGateSettings {
-        // A null entry is kept, last, so validation reports it instead of the sort failing.
         scanners = scanners == null ? List.of()
                 : scanners.stream().distinct().sorted(Comparator.nullsLast(Comparator.naturalOrder())).toList();
         stateFile = Text.trimToNull(stateFile);
@@ -48,7 +43,6 @@ public record ReleaseGateSettings(
                 .set("releaseGate.stateFile", stateFile);
     }
 
-    /** Stores the scanners as their names, comma separated, in scanner order. */
     public static class ScannerListConverter implements AttributeConverter<List<Scanner>, String> {
 
         @Override

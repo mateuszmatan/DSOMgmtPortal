@@ -3,9 +3,6 @@ package com.bbh.itss.dso.portal.monitoring;
 import java.time.Instant;
 import java.util.Map;
 
-/**
- * One run recorded in the {@code pipeline_run} measurement.
- */
 public record PipelineRun(
         Instant time,
         RunResult result,

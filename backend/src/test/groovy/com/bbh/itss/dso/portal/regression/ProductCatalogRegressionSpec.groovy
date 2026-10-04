@@ -10,9 +10,6 @@ import static com.bbh.itss.dso.portal.support.ApiJson.mavenService
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 
-/**
- * The product management API end to end: HTTP, validation, JPA and the database schema created by Liquibase.
- */
 class ProductCatalogRegressionSpec extends PortalSpecification {
 
     def "a product with its services is created, read back and found by search"() {

@@ -13,10 +13,6 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-/**
- * What a service gets when it does not say otherwise: the build tool and deployment target new services start
- * with in the portal, the source root, and how many test jobs run at the same time.
- */
 @Embeddable
 public record ServiceDefaults(
         @NotNull

@@ -15,17 +15,12 @@ import static com.bbh.itss.dso.portal.catalog.TestStage.PERFORMANCE
 import static com.bbh.itss.dso.portal.catalog.TestStage.REGRESSION
 import static com.bbh.itss.dso.portal.catalog.TestStage.SMOKE
 
-/**
- * The unit tests stage and the test stages that trigger Jenkins jobs.
- */
 class TestSectionsSpec extends Specification {
 
     static final String REMOTE_URL = 'https://jenkins-qc.bbh.com/job/CERT/job/regression/'
 
     @Shared
     Validator validator = Validation.buildDefaultValidatorFactory().validator
-
-    // --- unit tests ----------------------------------------------------------------------------------------------
 
     def "unit test settings trim their paths and allow no empty results by default"() {
         when:
@@ -108,8 +103,6 @@ class TestSectionsSpec extends Specification {
         messages { unitTests.validate(it, GRADLE) } == ['add the Gradle tasks of the unit tests, for example test jacocoTestReport']
     }
 
-    // --- test jobs -----------------------------------------------------------------------------------------------
-
     def "a test job trims its values and stores blank ones as null"() {
         when:
         def job = new TestJob(SMOKE, ' ', null, ' CERT/gui-smoke ', null, ' ', ' ', ' ', ' ')
@@ -166,8 +159,6 @@ class TestSectionsSpec extends Specification {
         TestJobType.values()*.configValue() == ['local', 'remote']
     }
 
-    // --- test stage limits ---------------------------------------------------------------------------------------
-
     def "default test settings without jobs write nothing"() {
         expect:
         TestSettings.DEFAULTS == new TestSettings(null, null, null, null)
@@ -202,8 +193,6 @@ class TestSectionsSpec extends Specification {
         } == [tests: [performance: [jobs: [[job: 'CERT/load']]]]]
     }
 
-    // --- bean validation -----------------------------------------------------------------------------------------
-
     def "valid test sections pass bean validation"() {
         expect:
         validator.validate(section).isEmpty()
@@ -237,8 +226,6 @@ class TestSectionsSpec extends Specification {
         'a too long coverage report path' | new UnitTestSettings(null, null, null, null, false, 'c' * 501)              || 'coverageReportPath'
         'a unit test variable w/o value'  | new UnitTestSettings(new ToolCommand(['test'], [], null, null, ['CI']), null, null, null, false, null) || 'command.environment[0].<list element>'
     }
-
-    // --- helpers -------------------------------------------------------------------------------------------------
 
     private static Map written(Closure write) {
         def tree = new ConfigTree()

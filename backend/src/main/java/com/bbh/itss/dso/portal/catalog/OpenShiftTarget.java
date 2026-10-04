@@ -11,10 +11,6 @@ import org.hibernate.type.NumericBooleanConverter;
 
 import java.util.Map;
 
-/**
- * An OpenShift environment of the service ({@code deploy.openshift.rd} or {@code deploy.openshift.qc}). The
- * image is built in the RD region, so the build fields only apply there; QC deploys the image built by the run.
- */
 @Embeddable
 public record OpenShiftTarget(
         @Size(max = 200) @Column(name = "PROJECT_BUILD", length = 200) String projectBuild,
@@ -67,7 +63,6 @@ public record OpenShiftTarget(
         return toConfig().isEmpty();
     }
 
-    /** The environment under the key names the library reads, some of which end in R as the library spells them. */
     public Map<String, Object> toConfig() {
         ConfigTree entry = new ConfigTree()
                 .set("projectBuildR", projectBuild)

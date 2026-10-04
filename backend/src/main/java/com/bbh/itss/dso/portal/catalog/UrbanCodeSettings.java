@@ -9,11 +9,6 @@ import org.hibernate.type.NumericBooleanConverter;
 
 import java.util.List;
 
-/**
- * How the full pipeline deploys a VM service to the lower test region with UrbanCode Deploy
- * ({@code deploy.vm.dod}). The applications and their components are listed separately; an unset site or
- * process falls back to the global deployment defaults.
- */
 @Embeddable
 public record UrbanCodeSettings(
         @Size(max = 200)
@@ -44,7 +39,6 @@ public record UrbanCodeSettings(
         @Column(name = "UCD_REQUEST_PROPERTIES", length = 2000)
         String requestProperties) {
 
-    /** The library's defaults: deploy with a snapshot of only the deployed versions and wait for the result. */
     public static final UrbanCodeSettings DEFAULTS = new UrbanCodeSettings(null, null, false, true, false, true, false,
             null, null);
 
@@ -60,7 +54,6 @@ public record UrbanCodeSettings(
         requestProperties = Text.trimToNull(requestProperties);
     }
 
-    /** Writes {@code deploy.vm.dod} with its applications, the part the library needs to deploy with UrbanCode. */
     public void writeTo(ConfigTree config, List<UrbanCodeApplicationSettings> applications) {
         if (applications.isEmpty()) {
             return;

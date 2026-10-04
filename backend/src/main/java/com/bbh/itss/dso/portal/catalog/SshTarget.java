@@ -9,10 +9,6 @@ import jakarta.validation.constraints.Size;
 
 import java.util.Map;
 
-/**
- * A virtual machine the service is deployed to over SSH ({@code deploy.vm.rd} or {@code deploy.vm.qc}). Unset
- * values fall back to the global deployment defaults.
- */
 @Embeddable
 public record SshTarget(
         @Size(max = 255)

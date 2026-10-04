@@ -10,10 +10,6 @@ import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 
-/**
- * The read-only change evidence of a product end to end: the services and pipelines stored in the portal and what
- * each pipeline's latest run wrote to InfluxDB, in the measurements of the DevSecOps library.
- */
 class EvidenceRegressionSpec extends PortalSpecification {
 
     static final String JOB = 'https://jenkins.bbh.com/job/DevSecOps/job/gui-full/'
@@ -65,7 +61,6 @@ class EvidenceRegressionSpec extends PortalSpecification {
                 time: finished - Duration.ofSeconds(400))
         point(measurement: 'stage_event', stage: 'Regression Tests', status: 'warn', order: '3', duration_s: '70',
                 time: finished - Duration.ofSeconds(200), reason: '2 tests failed')
-        // A DAST result of an earlier run of the same pipeline, which the latest run must not show.
         point(measurement: 'security_findings', module: 'gui', scanner: 'dast', critical: '5', high: '5', medium: '5',
                 low: '5', status: 'fail', time: finished - Duration.ofSeconds(300))
     }

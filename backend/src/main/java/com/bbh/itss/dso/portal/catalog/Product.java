@@ -18,10 +18,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * An application onboarded to DevSecOps, for example CertScanner. It owns the services that are built,
- * scanned and deployed by DevSecOps pipelines and the AppScan account they share.
- */
 @Entity
 @Table(name = "DSO_PRODUCT")
 public class Product extends AuditedEntity {
@@ -120,7 +116,6 @@ public class Product extends AuditedEntity {
         return appScanAccount;
     }
 
-    /** The services in display order, also right after a change and before they are loaded again. */
     public List<ServiceDefinition> getServices() {
         return services.stream().sorted(DISPLAY_ORDER).toList();
     }

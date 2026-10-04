@@ -18,14 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/**
- * Serves DevSecOps configuration rendered as the library's config.yaml.
- * <p>
- * {@code GET /api/dso/config/{key}} is the endpoint the DevSecOps library will call with the pipeline's
- * unique key: 200 with the configuration while the key is active, 403 once it has been invalidated and
- * 404 for a key that was never issued. The portal itself shows the same configuration by pipeline id, which
- * leaves the key's last use untouched.
- */
 @RestController
 public class DsoConfigController {
 
@@ -63,7 +55,6 @@ public class DsoConfigController {
                 format);
     }
 
-    /** The part of every pipeline's configuration that comes from the global settings. */
     @GetMapping("/api/settings/config")
     public ResponseEntity<?> globalConfig(@RequestParam(defaultValue = "yaml") String format) {
         return render(builder.globalConfig(), format);

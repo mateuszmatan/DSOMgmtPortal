@@ -16,13 +16,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 
-/**
- * The points one pipeline run wrote to InfluxDB, as rows of tags and fields, and how to read the evidence from
- * them. It knows the measurements of the DevSecOps library ({@code com.bbh.metrics.PipelineMetrics}): findings,
- * policy statuses, coverage and test suites are tagged with the {@code module}, the name of the service in the
- * configuration. Where the library writes a value in two places, the one it fills reliably is read: Nexus IQ and
- * SonarQube counts come from {@code vulnerabilities}, since their {@code security_findings} rows hold zeros.
- */
 public final class RunPoints {
 
     static final List<String> MEASUREMENTS = List.of("security_findings", "policy_status", "code_coverage",
@@ -38,7 +31,6 @@ public final class RunPoints {
         return rows.isEmpty();
     }
 
-    /** Line coverage of the module's unit tests; NO_DATA when the run did not measure it. */
     public CoverageEvidence coverage(String module) {
         Optional<Map<String, String>> row = forModule("code_coverage", module);
         CheckStatus policy = policyStatus("coverage");
@@ -55,7 +47,6 @@ public final class RunPoints {
                 measured ? number(coverage.get("total")) : null);
     }
 
-    /** The smoke, regression and performance suites in that order, each with NO_DATA when it did not run. */
     public List<TestSuiteEvidence> testSuites(String module) {
         List<TestSuiteEvidence> suites = new ArrayList<>();
         for (TestStage stage : TestStage.values()) {
@@ -77,7 +68,6 @@ public final class RunPoints {
         return suites;
     }
 
-    /** SAST, DAST, SonarQube and Nexus IQ, each with the link of the given links. */
     public List<ScanEvidence> scans(String module, EvidenceLinks links) {
         return List.of(
                 appScan(EvidenceScanner.SAST, "sast", module, links.appScanUrl()),
@@ -87,7 +77,6 @@ public final class RunPoints {
                         links.nexusIqUrl()));
     }
 
-    /** The release gate's decision; null when the run did not record one. */
     public ReleaseGateEvidence releaseGate() {
         return rows("release_gate").stream().findFirst()
                 .map(row -> new ReleaseGateEvidence("yes".equals(row.get("allowed")) || flag(row.get("allowed")),
@@ -95,7 +84,6 @@ public final class RunPoints {
                 .orElse(null);
     }
 
-    /** Every stage of the run in the order it ran. */
     public List<StageEvidence> stages() {
         return rows("stage_event").stream()
                 .sorted(Comparator.comparing((Map<String, String> row) -> number(row.get("order")),
@@ -142,7 +130,6 @@ public final class RunPoints {
         return forModule(measurement, module, row -> true);
     }
 
-    /** The row of the module, or the only row when the run named its module differently. */
     private Optional<Map<String, String>> forModule(String measurement, String module,
                                                     Predicate<Map<String, String>> filter) {
         List<Map<String, String>> candidates = rows(measurement).stream().filter(filter).toList();

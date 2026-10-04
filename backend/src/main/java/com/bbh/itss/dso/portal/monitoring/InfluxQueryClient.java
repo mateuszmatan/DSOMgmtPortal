@@ -9,9 +9,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Runs Flux queries against the InfluxDB 2 HTTP API and returns the rows as column name to value maps.
- */
 @Component
 public class InfluxQueryClient {
 
@@ -48,7 +45,6 @@ public class InfluxQueryClient {
         return FluxCsv.parse(csv);
     }
 
-    /** Escapes a value for a Flux string literal. */
     public static String literal(String value) {
         return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"").replace("${", "\\${") + "\"";
     }

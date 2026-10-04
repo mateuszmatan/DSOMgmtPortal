@@ -9,11 +9,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-/**
- * Where the service is deployed: {@code deployTarget}, plus {@code appName} and {@code artifactName} that
- * OpenShift deployments require and {@code baseArtifactName}, the built file renamed to {@code artifactName}.
- * The environments themselves are the service's SSH, UrbanCode Deploy and OpenShift targets.
- */
 @Embeddable
 public record DeploymentSettings(
         @NotNull

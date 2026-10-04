@@ -16,15 +16,9 @@ import java.util.stream.Collectors;
 
 import static com.bbh.itss.dso.portal.monitoring.InfluxQueryClient.literal;
 
-/**
- * Reads what given pipeline runs wrote to InfluxDB besides {@code pipeline_run}, in one query. The library
- * stamps every point of a run with the time the run finished, except the stage events, which carry the end of
- * their stage; so the points of a run are those at its finish time, plus the stage events since it started.
- */
 @Component
 public class RunEvidenceRepository {
 
-    /** Points are written with a precision of a second; this absorbs rounding. */
     private static final Duration TOLERANCE = Duration.ofSeconds(2);
 
     private final InfluxQueryClient influx;
@@ -46,8 +40,6 @@ public class RunEvidenceRepository {
                 .collect(Collectors.joining(", "));
         String measurements = RunPoints.MEASUREMENTS.stream().map(InfluxQueryClient::literal)
                 .collect(Collectors.joining(", "));
-        // last() per series keeps one point of every series; a series whose last point is older belongs to an
-        // earlier run and is dropped below. The release gate writes "allowed" as a tag and a field: the tag is kept.
         String flux = """
                 from(bucket: %s)
                   |> range(start: time(v: %s), stop: time(v: %s))
@@ -82,7 +74,6 @@ public class RunEvidenceRepository {
         return !at.isBefore(earliest) && !at.isAfter(latest);
     }
 
-    /** When the run started, with some slack, since its duration is recorded in whole seconds. */
     static Instant startOf(PipelineRun run) {
         long seconds = run.durationSeconds() == null ? 0 : run.durationSeconds();
         return run.time().minusSeconds(seconds).minus(TOLERANCE).minus(TOLERANCE);

@@ -27,12 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Puts together the evidence of a product's pipelines for change requests: the services and pipelines stored in
- * the portal, the latest run of each pipeline and what that run recorded in InfluxDB. When InfluxDB is not
- * configured or cannot be read, every pipeline is still listed, without a run, and the reason is returned in
- * {@code metricsError}.
- */
 @Service
 @Transactional(readOnly = true)
 public class EvidenceService {
@@ -107,7 +101,6 @@ public class EvidenceService {
         if (run == null) {
             return new PipelineEvidence(pipeline.getId(), pipeline.getType(), pipeline.isEnabled(), jobUrl, status, null);
         }
-        // A pipeline without a job of its own is linked through the job the run reported.
         String buildJobUrl = jobUrl != null ? jobUrl : PipelineSettings.jobUrl(run.job(), platform.jenkinsUrl());
         ServiceDefinition service = pipeline.getService();
         EvidenceLinks links = EvidenceLinks.of(buildJobUrl, run.build(), platform.asocUrl(),

@@ -8,10 +8,6 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.hibernate.type.NumericBooleanConverter;
 
-/**
- * Whether the pipelines write DORA metrics to InfluxDB and under which tags ({@code influx.enabled},
- * {@code influx.project}, {@code influx.env}). The monitoring pages find a pipeline's runs by these tags.
- */
 @Embeddable
 public record MetricsSettings(
         @Convert(converter = NumericBooleanConverter.class)
@@ -29,14 +25,12 @@ public record MetricsSettings(
     public static final String DEFAULT_ENV = "test";
     public static final MetricsSettings DEFAULTS = new MetricsSettings(true, null, null);
 
-    /** Metrics are on unless switched off. */
     public MetricsSettings {
         enabled = !Boolean.FALSE.equals(enabled);
         influxProject = Text.trimToNull(influxProject);
         influxEnv = Text.orDefault(influxEnv, DEFAULT_ENV);
     }
 
-    /** Fills a missing project tag with {@code <PRODUCT CODE>-<service name>}, unique like the product code. */
     public MetricsSettings withDefaultProject(String productCode, String serviceName) {
         return influxProject != null ? this : new MetricsSettings(enabled, productCode + "-" + serviceName, influxEnv);
     }

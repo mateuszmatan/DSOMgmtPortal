@@ -1,10 +1,5 @@
 package com.bbh.itss.dso.portal.pipeline;
 
-/**
- * The four pipelines of the DevSecOps library. {@code variant} is the value the library writes to the
- * InfluxDB {@code variant} tag, and {@code projectTagSuffix} is what it appends to {@code influx.project}
- * to build the {@code project} tag ({@code InfluxDbService.buildContext}).
- */
 public enum PipelineType {
     FULL("devSecOpsPipeline", "full", ""),
     SECURITY("devSecOpsSecurityPipeline", "security", "security"),

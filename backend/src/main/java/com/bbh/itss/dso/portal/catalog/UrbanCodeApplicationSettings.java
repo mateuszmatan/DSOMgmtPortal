@@ -15,13 +15,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-/**
- * An UrbanCode Deploy application the full pipeline deploys, with the components it publishes first, an entry
- * of {@code deploy.vm.dod.applications}.
- *
- * @param order        deployment order among the service's applications, optional
- * @param environments the environments the application is deployed to; empty means all of them
- */
 public record UrbanCodeApplicationSettings(
         @NotBlank @Size(max = 200) String applicationName,
         @Min(1) @Max(999) Integer order,
@@ -34,7 +27,6 @@ public record UrbanCodeApplicationSettings(
         applicationName = applicationName == null ? null : applicationName.trim();
         environments = DelimitedListConverter.clean(environments);
         snapshotName = Text.trimToNull(snapshotName);
-        // Copied with any null entry kept, so validation reports it against its index instead of failing here.
         components = components == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(components));
     }
 

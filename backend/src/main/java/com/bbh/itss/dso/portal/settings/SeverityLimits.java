@@ -7,10 +7,6 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
-/**
- * The most findings of each severity a scanner may report before the stage turns orange and the release gate
- * blocks the Nexus release and the QC deployment ({@code maxCritical}, {@code maxHigh}, {@code maxMedium}).
- */
 @Embeddable
 public record SeverityLimits(
         @NotNull @Min(0) @Max(100_000)

@@ -1,8 +1,5 @@
 package com.bbh.itss.dso.portal.common;
 
-/**
- * Null-safe handling of optional text entered in the portal: blank input is stored as null.
- */
 public final class Text {
 
     private Text() {

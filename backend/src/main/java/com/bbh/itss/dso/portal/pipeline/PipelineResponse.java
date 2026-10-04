@@ -5,10 +5,6 @@ import com.bbh.itss.dso.portal.catalog.ServiceDefinition;
 import java.time.Instant;
 import java.util.List;
 
-/**
- * A pipeline with its active key. {@code keys} holds the full key history and is filled only when a single
- * pipeline is requested; {@code jenkinsJobUrl} is the address of the pipeline's Jenkins job when it is known.
- */
 public record PipelineResponse(
         Long id,
         Long productId,
@@ -32,7 +28,6 @@ public record PipelineResponse(
         Instant updatedAt,
         List<KeyResponse> keys) {
 
-    /** @param jenkinsUrl the Jenkins of the global settings, to link a job given as a path */
     public static PipelineResponse summary(Pipeline pipeline, String jenkinsUrl) {
         return of(pipeline, jenkinsUrl, null);
     }

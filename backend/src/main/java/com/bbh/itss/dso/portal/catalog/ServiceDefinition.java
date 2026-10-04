@@ -28,12 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * One deployable service of a product, the equivalent of one entry under {@code projects:} in the configuration
- * the DevSecOps library reads. Its settings are value objects, each of which knows how to write and validate
- * itself; single values live in the service's table, lists such as test jobs and deployment targets in tables
- * of their own.
- */
 @Entity
 @Table(name = "DSO_SERVICE")
 public class ServiceDefinition extends AuditedEntity {
@@ -129,7 +123,6 @@ public class ServiceDefinition extends AuditedEntity {
         update(name, description, displayOrder, settings);
     }
 
-    /** Replaces the service's details; a missing metrics project tag defaults to {@code <PRODUCT CODE>-<name>}. */
     public void update(String name, String description, int displayOrder, ServiceSettings settings) {
         this.name = name.trim();
         this.description = Text.trimToNull(description);
@@ -153,14 +146,12 @@ public class ServiceDefinition extends AuditedEntity {
         this.flutter = settings.flutter();
     }
 
-    /** The settings with empty sections restored, since JPA loads an embeddable whose columns are all null as null. */
     public ServiceSettings settings() {
         return new ServiceSettings(build, unitTests, tests, List.copyOf(testJobs), deployment, delivery, urbanCode,
                 urbanCodeApplications.stream().map(UrbanCodeApplication::settings).toList(), Map.copyOf(sshTargets),
                 Map.copyOf(openShiftTargets), appScan, sonar, nexusIq, scm, goldenFix, metrics, flutter);
     }
 
-    /** The project entry of this service, without the BBH-wide defaults. */
     public void writeTo(ConfigTree config) {
         settings().writeTo(config);
         product.getAppScanAccount().writeTo(config);
@@ -170,7 +161,6 @@ public class ServiceDefinition extends AuditedEntity {
         product = null;
     }
 
-    /** Lists are rewritten only when they changed, so saving an unchanged service writes no list rows. */
     private static <T> void replace(List<T> current, List<T> replacement) {
         if (!current.equals(replacement)) {
             current.clear();
@@ -215,7 +205,6 @@ public class ServiceDefinition extends AuditedEntity {
         return displayOrder;
     }
 
-    /** Read without loading the service's lists, since monitoring needs it for every pipeline. */
     public MetricsSettings getMetrics() {
         return metrics == null ? MetricsSettings.DEFAULTS : metrics;
     }

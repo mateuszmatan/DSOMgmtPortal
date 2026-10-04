@@ -12,12 +12,6 @@ import java.time.Instant
 import static com.bbh.itss.dso.portal.support.ApiJson.fullMavenService
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 
-/**
- * Response times under a realistic load: 25 products of 16 services with every setting filled in, a pipeline for
- * every service and bursts of configuration requests as when many Jenkins jobs start at once. The limits are generous so the suite
- * catches regressions such as a query per row rather than measuring the machine; scale them with
- * {@code -Dperformance.factor=2} on a slow agent. The figures are written to target/performance-report.md.
- */
 @Stepwise
 class PortalPerformanceSpec extends PortalSpecification {
 
@@ -35,7 +29,6 @@ class PortalPerformanceSpec extends PortalSpecification {
     @Shared
     List<LatencyStats> results = []
 
-    /** When the latest run of every pipeline finished, as recorded in InfluxDB by the monitoring step. */
     @Shared
     Instant lastRunsFinishedAt
 
@@ -224,7 +217,6 @@ class PortalPerformanceSpec extends PortalSpecification {
         targets.every { id -> api.get("/api/pipelines/$id").json.keys.count { it.status == 'ACTIVE' } == 1 }
     }
 
-    /** A Maven service with every section filled in, under metrics and SonarQube names of its own. */
     private static Map fullService(String code, String name) {
         String tag = "$code-$name"
         fullMavenService(name: name, metrics: [enabled: true, influxProject: tag, influxEnv: 'uat'],

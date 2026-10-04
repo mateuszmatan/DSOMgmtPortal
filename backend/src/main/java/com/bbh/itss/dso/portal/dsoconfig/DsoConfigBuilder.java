@@ -17,18 +17,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Renders the portal's data in the shape the DevSecOps library reads today, so the library can take its
- * configuration from the portal instead of the config.yaml in the repository and the defaults.yaml in its own
- * resources, without changing how it interprets the values.
- * <p>
- * A service entry is layered: the BBH tool servers of the global settings, then the service's own values, then
- * the global deployment defaults for the deployment sections the service configured.
- */
 @Component
 public class DsoConfigBuilder {
 
-    /** Top-level key order of the config.yaml reference, so the output reads like the template. */
     static final List<String> KEY_ORDER = List.of(
             "appId", "buildTool", "deployTarget", "sourceDir", "javaPath", "buildToolAutoSetup", "includedDirs",
             "excludedDirs", "appscanPath", "appName", "artifactName", "baseArtifactName", "jenkins", "asoc", "influx",
@@ -41,7 +32,6 @@ public class DsoConfigBuilder {
         this.settings = settings;
     }
 
-    /** The configuration of every service of a product, as one config.yaml. */
     public Map<String, Object> productConfig(Product product) {
         GlobalSettingsValues global = settings.values();
         Map<String, Object> projects = new LinkedHashMap<>();
@@ -49,10 +39,6 @@ public class DsoConfigBuilder {
         return Map.of("projects", projects);
     }
 
-    /**
-     * Everything a pipeline receives for its key: the settings the Jenkinsfile passes today ({@code pipeline}),
-     * the BBH tools ({@code platform}), the library defaults ({@code defaults}) and its service ({@code projects}).
-     */
     public Map<String, Object> pipelineConfig(Pipeline pipeline) {
         GlobalSettingsValues global = settings.values();
         ServiceDefinition service = pipeline.getService();
@@ -80,7 +66,6 @@ public class DsoConfigBuilder {
         return root;
     }
 
-    /** The global part every pipeline shares: the BBH tools and the library defaults. */
     public Map<String, Object> globalConfig() {
         GlobalSettingsValues global = settings.values();
         Map<String, Object> root = new LinkedHashMap<>();

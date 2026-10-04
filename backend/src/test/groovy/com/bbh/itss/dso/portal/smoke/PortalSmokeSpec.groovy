@@ -9,11 +9,6 @@ import spock.lang.Requires
 import spock.lang.Shared
 import spock.lang.Specification
 
-/**
- * Quick read-only checks that a started portal works. Point it at a deployment with
- * {@code -Dsmoke.baseUrl=https://dso-portal.bbh.com}; without it the portal is started here with the local
- * profile and its demo data. {@code -Dsmoke.ui=false} skips the web UI check for a back end without it.
- */
 class PortalSmokeSpec extends Specification {
 
     @Shared

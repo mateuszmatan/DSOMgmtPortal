@@ -7,12 +7,6 @@ import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
-/**
- * A pipeline to add to a service, or the new settings of an existing one. The type cannot change.
- *
- * @param jenkinsJob the Jenkins job the pipeline runs in: a job path such as {@code DevSecOps/CertScanner-gui}
- *                   or the job's full URL
- */
 public record PipelineRequest(
         @NotNull PipelineType type,
         @NotEmpty(message = "add at least one Jenkins agent label") @Size(max = 20)

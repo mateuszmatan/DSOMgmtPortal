@@ -8,11 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
-/**
- * Every setting of a service: everything the DevSecOps library reads for one entry under {@code projects:},
- * grouped in sections. Sections left out are replaced by their defaults, so a request only needs the build,
- * the deployment target and the AppScan application.
- */
 public record ServiceSettings(
         BuildSettings build,
         UnitTestSettings unitTests,
@@ -49,16 +44,11 @@ public record ServiceSettings(
         flutter = flutter == null ? FlutterSettings.NONE : flutter;
     }
 
-    /** The minimum a service needs; every other section starts at its default. */
     public static ServiceSettings of(BuildSettings build, DeploymentSettings deployment, AppScanSettings appScan) {
         return new ServiceSettings(build, null, null, null, deployment, null, null, null, null, null, appScan, null,
                 null, null, null, null, null);
     }
 
-    /**
-     * Writes the service's project entry. Only what applies to the build tool and the deployment target is
-     * written, so the entry never carries settings the library would read for another kind of service.
-     */
     public void writeTo(ConfigTree config) {
         BuildTool tool = build.tool();
         build.writeTo(config);
@@ -98,7 +88,6 @@ public record ServiceSettings(
         if (tool == BuildTool.FLUTTER) {
             flutter.validate(problems.at("flutter"));
         }
-        // The VM deployment of a Maven service uploads the snapshot with these goals and stops without them.
         if (deployment.target() == DeployTarget.VM && tool == BuildTool.MAVEN && delivery.tasks().isEmpty()) {
             problems.add("delivery.tasks", "add the Maven goals that upload the snapshot, for example deploy:deploy-file");
         }
@@ -112,7 +101,6 @@ public record ServiceSettings(
         }
     }
 
-    /** The targets in region order, without the ones that set nothing. */
     private static <T> Map<Region, T> withoutEmpty(Map<Region, T> targets, Predicate<T> empty) {
         if (targets == null) {
             return Map.of();

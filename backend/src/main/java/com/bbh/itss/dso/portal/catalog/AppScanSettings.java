@@ -17,12 +17,6 @@ import org.hibernate.type.NumericBooleanConverter;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * The service's HCL AppScan application, scanned by SAST and, when enabled, by DAST: {@code appId}, the folders
- * SAST scans or skips ({@code includedDirs}, {@code excludedDirs}), how the IRX is prepared ({@code asoc.*} and
- * the optional compile command {@code asoc.gradle} or {@code asoc.maven}), {@code sast.scanName} and the
- * {@code dast} section.
- */
 @Embeddable
 public record AppScanSettings(
         @NotBlank
@@ -95,13 +89,11 @@ public record AppScanSettings(
         dastPresenceId = Text.trimToNull(dastPresenceId);
     }
 
-    /** Settings that only name the application, with every other option at the library's default. */
     public static AppScanSettings of(String applicationId) {
         return new AppScanSettings(applicationId, null, List.of(), List.of(), true, false, false, false, null, null,
                 false, null, null, null);
     }
 
-    /** The folder lists are comma separated in the library, the IRX options are written when they differ from its defaults. */
     public void writeTo(ConfigTree config, BuildTool tool) {
         config.set("appId", applicationId)
                 .set("includedDirs", String.join(",", includedDirs))

@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Write demo DevSecOps metrics to a local InfluxDB so the portal's monitoring pages have data to show.
+import argparse
+import json
+import random
+import sys
+import time
+import urllib.request
+
+DESCRIPTION = """Write demo DevSecOps metrics to a local InfluxDB so the portal's monitoring pages have data to show.
 
 The points have the same measurements, tags and fields the DevSecOps library writes from
 com.bbh.metrics.PipelineMetrics: pipeline_run, dora, stage_event, security_findings, policy_status,
@@ -16,12 +23,6 @@ Pipelines can also be given directly as <project tag>:<env>:<variant>:
 
 Only for local use: it writes random data.
 """
-import argparse
-import json
-import random
-import sys
-import time
-import urllib.request
 
 STAGES = [
     "Monitor source changes (download sources)",
@@ -166,7 +167,6 @@ def runs_for(project, env, variant, module, days, rng):
             violations = sum(1 for key in SCANNERS if counts[key][1]) + (0 if line_pct >= 60 else 1) + (1 if broken else 0)
             reason = "" if not violations else rng.choice(
                 ["sast high 2 > 0", f"line coverage {line_pct}% below the required 60%", f"stage '{broken}' is WARN"])
-            # The library writes "allowed" both as a tag and as a field.
             lines.append(line("release_gate", {"project": project, "env": env, "allowed": "no" if violations else "yes"}, {
                 "allowed": "0i" if violations else "1i", "blocked": "1i" if violations else "0i",
                 "violations": f"{violations}i", "reason": text(reason)}, end))
@@ -175,7 +175,7 @@ def runs_for(project, env, variant, module, days, rng):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=DESCRIPTION, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--url", default="http://localhost:8086")
     parser.add_argument("--org", default="DevSecOps")
     parser.add_argument("--bucket", default="DORA-metrics")

@@ -24,8 +24,6 @@ class ConfigSectionsSpec extends Specification {
     @Shared
     Validator validator = Validation.buildDefaultValidatorFactory().validator
 
-    // --- build ---------------------------------------------------------------------------------------------------
-
     def "build settings default the source directory, trim the paths and start without a command"() {
         when:
         def build = new BuildSettings(MAVEN, ' ', ' /opt/jdk-17 ', null, ' target/cert.jar ', null)
@@ -94,8 +92,6 @@ class ConfigSectionsSpec extends Specification {
                 ['set the JDK path or enable automatic build tool setup, the unit tests stage needs one of them']
     }
 
-    // --- deployment ----------------------------------------------------------------------------------------------
-
     def "OpenShift deployment needs the application and artifact names"() {
         expect:
         problems(new DeploymentSettings(OPENSHIFT, ' ', null, 'gui-1.0.jar')) == ['appName', 'artifactName']
@@ -120,8 +116,6 @@ class ConfigSectionsSpec extends Specification {
         written(new DeploymentSettings(VM, ' ', '', ' ')) == [deployTarget: 'vm']
         new DeploymentSettings(VM, ' ', '', ' ') == new DeploymentSettings(VM, null, null, null)
     }
-
-    // --- AppScan -------------------------------------------------------------------------------------------------
 
     def "AppScan settings store the application ID in lower case and start at the library's defaults"() {
         when:
@@ -197,8 +191,6 @@ class ConfigSectionsSpec extends Specification {
         problems { AppScanSettings.of(APP_ID).validate(it) } == []
     }
 
-    // --- SonarQube -----------------------------------------------------------------------------------------------
-
     def "SonarQube settings trim their values and switch the badges off by default"() {
         when:
         def sonar = new SonarSettings(' ', ' cert ', ' ', ' ', ' ', ' ', null, null, null)
@@ -260,8 +252,6 @@ class ConfigSectionsSpec extends Specification {
                 ['add the Gradle tasks of the analysis, for example sonarqube']
     }
 
-    // --- Nexus IQ ------------------------------------------------------------------------------------------------
-
     def "Nexus IQ settings keep each scan pattern once and default the stage to build"() {
         when:
         def nexusIq = new NexusIqSettings(' cert ', ['**/*.jar', ' ', '**/*.jar', ' **/*.war '], ' ', null, ' ')
@@ -287,8 +277,6 @@ class ConfigSectionsSpec extends Specification {
         written(NexusIqSettings.NONE) == [tools: [nexusIq: [stage: 'build', failOnNetworkError: false]]]
         problems(NexusIqSettings.NONE) == []
     }
-
-    // --- SCM -----------------------------------------------------------------------------------------------------
 
     def "SCM settings trim their values, sign in with a password by default and keep each reviewer once"() {
         when:
@@ -333,8 +321,6 @@ class ConfigSectionsSpec extends Specification {
         problems(ScmSettings.NONE) == []
     }
 
-    // --- metrics -------------------------------------------------------------------------------------------------
-
     def "metrics are on by default and use the test environment"() {
         expect:
         MetricsSettings.DEFAULTS.enabled()
@@ -357,8 +343,6 @@ class ConfigSectionsSpec extends Specification {
         explicit.withDefaultProject('CERT', 'gui').is(explicit)
     }
 
-    // --- AppScan account and enums -------------------------------------------------------------------------------
-
     def "the AppScan account writes the key ID and the credential holding the secret"() {
         expect:
         written(new AppScanAccount(' bbh_key ', ' asoc-creds ')) == [asoc: [keyId: 'bbh_key', token: 'asoc-creds']]
@@ -374,8 +358,6 @@ class ConfigSectionsSpec extends Specification {
         BitbucketAuthType.values()*.configValue() == ['basic', 'bearer']
         BitbucketType.values()*.configValue() == ['server', 'cloud']
     }
-
-    // --- bean validation -----------------------------------------------------------------------------------------
 
     def "valid sections pass bean validation"() {
         expect:
@@ -430,8 +412,6 @@ class ConfigSectionsSpec extends Specification {
         'a missing AppScan key ID'         | new AppScanAccount(' ', null)                                                                   || 'keyId'
         'a too long secret credential'     | new AppScanAccount('key', 's' * 201)                                                            || 'secretCredentialsId'
     }
-
-    // --- helpers -------------------------------------------------------------------------------------------------
 
     private static List<String> tasks(int count) {
         (1..count).collect { "t$it" as String }

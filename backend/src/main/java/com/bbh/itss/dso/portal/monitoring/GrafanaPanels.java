@@ -11,10 +11,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Builds the URLs of the Grafana dashboard and of its single panels ({@code /d-solo}) for one pipeline,
- * passing the pipeline's tags as dashboard variables.
- */
 @Component
 public class GrafanaPanels {
 
@@ -32,7 +28,6 @@ public class GrafanaPanels {
         return grafana.url();
     }
 
-    /** The links for a pipeline, or null when Grafana is not configured. */
     public GrafanaLinks links(MetricsTag tag, int rangeDays) {
         if (!grafana.configured()) {
             return null;
@@ -54,7 +49,6 @@ public class GrafanaPanels {
         return new GrafanaLinks(url(base + "/d" + path, query, null), panels);
     }
 
-    /** Every value is encoded as a query parameter, so characters such as '&' cannot split it. */
     private static String url(String path, Map<String, String> query, Integer panelId) {
         UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(path);
         query.forEach((name, value) -> builder.queryParam(name, UriUtils.encodeQueryParam(value, StandardCharsets.UTF_8)));

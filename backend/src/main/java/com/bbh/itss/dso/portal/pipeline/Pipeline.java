@@ -24,11 +24,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * A DevSecOps pipeline of one service. The Jenkins job identifies itself with the pipeline's active key and
- * everything else is read from the portal. A pipeline has at most one active key; revoked keys stay as the
- * audit trail.
- */
 @Entity
 @Table(name = "DSO_PIPELINE")
 public class Pipeline extends AuditedEntity {
@@ -58,7 +53,6 @@ public class Pipeline extends AuditedEntity {
     protected Pipeline() {
     }
 
-    /** Creates the pipeline with its first active key. */
     public Pipeline(ServiceDefinition service, PipelineType type, PipelineSettings settings) {
         this.service = service;
         this.type = type;
@@ -70,7 +64,6 @@ public class Pipeline extends AuditedEntity {
         this.settings = settings.forType(type);
     }
 
-    /** Issues a new key; the active one, if any, is revoked as replaced. */
     public PipelineKey issueKey() {
         activeKey().ifPresent(active -> active.revoke(REPLACED_REASON));
         PipelineKey key = new PipelineKey(this);
@@ -78,7 +71,6 @@ public class Pipeline extends AuditedEntity {
         return key;
     }
 
-    /** Invalidates the active key; from then on the portal refuses the pipeline's configuration. */
     public PipelineKey revokeActiveKey(String reason) {
         PipelineKey active = activeKey()
                 .orElseThrow(() -> new ConflictException("The pipeline has no active key to invalidate"));
@@ -94,7 +86,6 @@ public class Pipeline extends AuditedEntity {
         return activeKey().isPresent();
     }
 
-    /** The InfluxDB {@code project} tag the library writes for this pipeline. */
     public String influxProjectTag() {
         return type.influxProjectTag(service.getMetrics().influxProject());
     }

@@ -12,11 +12,6 @@ import org.hibernate.type.NumericBooleanConverter;
 
 import java.util.List;
 
-/**
- * The service's Nexus IQ application ({@code tools.nexusIq}): the Ant patterns of the artifacts it scans, the
- * Nexus IQ stage, whether a network error fails the build, and the name of the SCA findings in the report
- * ({@code sca.scanName}). The server and its credentials are global settings.
- */
 @Embeddable
 public record NexusIqSettings(
         @Size(max = 200)
@@ -48,7 +43,6 @@ public record NexusIqSettings(
         scaScanName = Text.trimToNull(scaScanName);
     }
 
-    /** An application and its scan patterns with every other option at its default. */
     public static NexusIqSettings of(String application, List<String> scanPatterns) {
         return new NexusIqSettings(application, scanPatterns, null, false, null);
     }

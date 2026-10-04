@@ -174,7 +174,6 @@ class PipelineConfigPublisherSpec extends Specification {
         0 * published._
     }
 
-    /** A row as JPA loads it, rendered earlier. */
     private static PublishedPipelineConfig stored(Long pipelineId, String configJson) {
         def config = new PublishedPipelineConfig(pipelineId)
         config.publish(configJson, EARLIER)

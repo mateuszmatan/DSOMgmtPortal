@@ -18,10 +18,6 @@ import jakarta.persistence.Table;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * An UrbanCode Deploy application of a service, stored with its components. The service replaces its
- * applications as a whole, so an application is created from its settings and never changed in place.
- */
 @Entity
 @Table(name = "DSO_UCD_APPLICATION")
 public class UrbanCodeApplication {

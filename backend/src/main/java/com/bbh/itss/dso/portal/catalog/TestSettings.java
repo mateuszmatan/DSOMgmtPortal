@@ -7,10 +7,6 @@ import jakarta.validation.constraints.Min;
 
 import java.util.List;
 
-/**
- * How many test jobs run at the same time: for every test stage ({@code tests.maxParallel}) and per stage
- * ({@code tests.<stage>.maxParallel}). Unset values fall back to the global default.
- */
 @Embeddable
 public record TestSettings(
         @Min(1) @Max(100)
@@ -28,7 +24,6 @@ public record TestSettings(
 
     public static final TestSettings DEFAULTS = new TestSettings(null, null, null, null);
 
-    /** Writes the limits and the jobs of each stage in the order they were entered. */
     public void writeTo(ConfigTree config, List<TestJob> jobs) {
         config.set("tests.maxParallel", maxParallel);
         for (TestStage stage : TestStage.values()) {

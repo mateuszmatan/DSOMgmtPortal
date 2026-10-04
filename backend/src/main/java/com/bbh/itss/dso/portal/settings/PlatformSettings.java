@@ -15,11 +15,6 @@ import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * The BBH tools every pipeline uses: Jenkins and the name of the shared library in it, HCL AppScan on Cloud and
- * how it is reached through the BBH proxy, SonarQube, Nexus IQ, the Nexus snapshot repository, the InfluxDB the
- * metrics go to and the agent iOS builds run on. Credentials are named, never stored.
- */
 @Embeddable
 public record PlatformSettings(
         @Size(max = 500) @Pattern(regexp = URL, message = URL_MESSAGE)
@@ -109,10 +104,6 @@ public record PlatformSettings(
                 influxCredentialsId, iosBuildAgent);
     }
 
-    /**
-     * The {@code platform} section of a pipeline's configuration. {@code environment} holds the variables the
-     * library sets for its tools today, under the same names, so it can take them from here.
-     */
     public Map<String, Object> toConfig() {
         Map<String, Object> environment = new LinkedHashMap<>();
         putIfSet(environment, "APPSCAN_SERVER_URL", asocUrl);
@@ -133,7 +124,6 @@ public record PlatformSettings(
                 .toMap();
     }
 
-    /** The tool servers and credentials a project entry names; a service's own value written later wins. */
     public void writeProjectDefaults(ConfigTree config) {
         config.set("asoc.url", asocUrl)
                 .set("influx.url", influxWriteUrl)
@@ -144,7 +134,6 @@ public record PlatformSettings(
                 .set("tools.nexusIq.credentialsId", nexusIqCredentialsId);
     }
 
-    /** The AppScan calls go through the proxy only when both its host and port are known. */
     public void validate(ValidationProblems problems) {
         if (proxyHost != null && proxyPort == null) {
             problems.add("proxyPort", "is required with a proxy host");

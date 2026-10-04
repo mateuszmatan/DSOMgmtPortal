@@ -14,12 +14,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * A Gradle or Maven command the library runs with its {@code BuildRunner}: the tasks (Gradle) or goals (Maven),
- * extra flags, the directory to run in, the Maven installation and environment variables. The same shape is
- * used by {@code build}, {@code tests.unitTests}, {@code tools.sonar}, {@code asoc} and {@code delivery}; the
- * columns are named where the command is embedded.
- */
 @Embeddable
 public record ToolCommand(
         @Size(max = 30)
@@ -52,7 +46,6 @@ public record ToolCommand(
         environment = DelimitedListConverter.trimmed(environment);
     }
 
-    /** A command made of tasks or goals only. */
     public static ToolCommand of(List<String> tasks, List<String> flags) {
         return new ToolCommand(tasks, flags, null, null, List.of());
     }
@@ -62,10 +55,6 @@ public record ToolCommand(
         return tasks.isEmpty() && flags.isEmpty() && directory == null && mavenHome == null && environment.isEmpty();
     }
 
-    /**
-     * Writes the command under {@code <path>.gradle} or {@code <path>.maven}, the key the library picks by the
-     * build tool. A Flutter build runs no Gradle or Maven command, so nothing is written for it.
-     */
     public void writeTo(ConfigTree config, String path, BuildTool tool) {
         if (tool == BuildTool.GRADLE) {
             config.set(path + ".gradle.tasks", tasks)
@@ -81,7 +70,6 @@ public record ToolCommand(
         }
     }
 
-    /** The variables as the library's {@code env} map; a value keeps any further '=' it contains. */
     public Map<String, String> environmentMap() {
         Map<String, String> variables = new LinkedHashMap<>();
         for (String variable : environment) {

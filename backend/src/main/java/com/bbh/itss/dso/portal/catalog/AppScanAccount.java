@@ -6,10 +6,6 @@ import jakarta.persistence.Embeddable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-/**
- * The HCL AppScan on Cloud API key a product's services use. Only the key ID is stored; the secret stays in
- * the Jenkins credential named here ({@code asoc.keyId} and {@code asoc.token}).
- */
 @Embeddable
 public record AppScanAccount(
         @NotBlank @Size(max = 200)

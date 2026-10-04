@@ -9,10 +9,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/**
- * Deployment values every VM service shares unless it sets its own: the UrbanCode Deploy site and process, and
- * the SSH hosts, user, deployment script and version file of the RD and QC regions.
- */
 @Embeddable
 public record DeploymentDefaults(
         @NotBlank @Size(max = 200)
@@ -47,7 +43,6 @@ public record DeploymentDefaults(
         versionFile = Text.trimToNull(versionFile);
     }
 
-    /** Completes the deployment sections a service configured, without adding sections it did not. */
     public void fillIn(ConfigTree config) {
         config.fillIn("deploy.vm.dod", "siteName", urbanCodeSiteName)
                 .fillIn("deploy.vm.dod", "deployProcess", urbanCodeDeployProcess);

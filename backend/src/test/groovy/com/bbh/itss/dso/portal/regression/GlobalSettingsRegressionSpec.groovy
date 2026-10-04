@@ -8,10 +8,6 @@ import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 
-/**
- * The global pipeline settings end to end: stored in the database, edited over the API and published to the
- * configuration of every pipeline. Each feature puts the settings back, since all specs share them.
- */
 class GlobalSettingsRegressionSpec extends PortalSpecification {
 
     Map original

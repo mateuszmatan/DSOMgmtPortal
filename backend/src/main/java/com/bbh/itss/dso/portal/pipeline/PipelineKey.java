@@ -16,9 +16,6 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * A unique key issued to a pipeline. A revoked key is never reactivated; a new one is issued instead.
- */
 @Entity
 @Table(name = "DSO_PIPELINE_KEY")
 public class PipelineKey {
@@ -67,7 +64,6 @@ public class PipelineKey {
         revokeReason = reason == null ? null : reason.trim();
     }
 
-    /** Records that a pipeline fetched its configuration with this key. */
     public void markUsed() {
         lastUsedAt = Timestamps.now();
     }

@@ -29,11 +29,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-/**
- * Combines the pipelines stored in the portal with the runs the DevSecOps library writes to InfluxDB.
- * When InfluxDB is not configured or cannot be read, the pages still show every pipeline, with the reason
- * in {@code metricsError}.
- */
 @Service
 @Transactional(readOnly = true)
 public class MonitoringService {
@@ -114,7 +109,6 @@ public class MonitoringService {
         List<PipelineRun> runs = recent.value() == null ? List.of() : recent.value();
         PipelineRun last = runs.isEmpty() ? null : runs.getFirst();
         if (last == null && points.error() == null) {
-            // Nothing in the selected range: still show when the pipeline last ran.
             last = latestRuns(List.of(pipeline)).value().get(tag);
         }
         DoraSummary dora = DoraCalculator.summarize(points.value() == null ? List.of() : points.value(), days,
@@ -160,7 +154,6 @@ public class MonitoringService {
         return reading.value() == null ? new Reading<>(Map.of(), reading.error()) : reading;
     }
 
-    /** Runs a query, turning a missing configuration or a failure into an error message. */
     private <T> Reading<T> read(Supplier<T> query) {
         if (!metrics.configured()) {
             return new Reading<>(null, NOT_CONFIGURED);

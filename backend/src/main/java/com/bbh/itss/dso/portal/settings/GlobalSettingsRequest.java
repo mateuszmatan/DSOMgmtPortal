@@ -6,10 +6,6 @@ import jakarta.validation.constraints.NotNull;
 
 import java.util.Map;
 
-/**
- * The global settings as edited in the portal, with the version they were read at so a concurrent change is
- * detected instead of overwritten.
- */
 public record GlobalSettingsRequest(
         Long version,
         @NotNull @Valid PlatformSettings platform,

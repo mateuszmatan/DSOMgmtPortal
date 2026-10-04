@@ -9,12 +9,6 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.Map;
 
-/**
- * One service as entered in the portal, grouped in the sections of its project entry. Only the build, the
- * deployment target and the AppScan application are required; sections left out take their defaults.
- *
- * @param id null for a service to add
- */
 public record ServiceRequest(
         Long id,
         @NotBlank @Pattern(regexp = "^[a-z0-9][a-z0-9._-]{0,99}$",

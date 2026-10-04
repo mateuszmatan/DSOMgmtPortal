@@ -11,10 +11,6 @@ import static com.bbh.itss.dso.portal.support.Fixtures.deployment
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.withId
 
-/**
- * A service request becomes the service's settings section by section, and a stored service is answered in
- * the same shape.
- */
 class ServiceMappingSpec extends Specification {
 
     static final List<String> SECTIONS = ServiceSettings.getRecordComponents()*.name
@@ -68,7 +64,6 @@ class ServiceMappingSpec extends Specification {
         ServiceRequest.getRecordComponents()*.name.drop(3) == SECTIONS
     }
 
-    /** A request where every section differs from its default, so a section passed in the wrong place shows. */
     private static ServiceRequest fullRequest() {
         new ServiceRequest(7L, 'gui', 'Angular front end',
                 build(tool: BuildTool.MAVEN, buildPath: 'target/gui.war'),

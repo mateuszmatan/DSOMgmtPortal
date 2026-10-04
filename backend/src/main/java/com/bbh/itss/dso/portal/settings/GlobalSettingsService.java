@@ -6,10 +6,6 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Reads and changes the global settings. A change is announced with {@link GlobalSettingsChanged} in the same
- * transaction, since every pipeline's configuration is rendered from these settings.
- */
 @Service
 @Transactional
 public class GlobalSettingsService {
@@ -22,19 +18,16 @@ public class GlobalSettingsService {
         this.events = events;
     }
 
-    /** Creates the settings with the DSOEnhanced defaults when the database has none yet. */
     public GlobalSettings ensureExists() {
         return repository.findById(GlobalSettings.ID)
                 .orElseGet(() -> repository.saveAndFlush(new GlobalSettings(GlobalSettingsValues.bbhDefaults())));
     }
 
-    /** The current settings as values, complete with their lists, so they can be used outside the transaction. */
     @Transactional(readOnly = true)
     public GlobalSettingsValues values() {
         return load().values();
     }
 
-    /** The Jenkins the pipelines run on, to link a pipeline's job path; null while it is not set. */
     @Transactional(readOnly = true)
     public String jenkinsUrl() {
         return load().platform().jenkinsUrl();
@@ -49,7 +42,6 @@ public class GlobalSettingsService {
         return update(request.version(), request.values());
     }
 
-    /** @param version the version the values were edited at; null skips the concurrent change check */
     public GlobalSettingsResponse update(Long version, GlobalSettingsValues values) {
         GlobalSettings settings = load();
         if (version != null && version != settings.getVersion()) {

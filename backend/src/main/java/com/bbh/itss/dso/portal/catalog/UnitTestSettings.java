@@ -11,11 +11,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import org.hibernate.type.NumericBooleanConverter;
 
-/**
- * The unit tests stage ({@code tests.unitTests}) and where its coverage report is ({@code coverage.reportPath}).
- * Without a command the library skips the stage. The required coverage is BBH policy and lives in the global
- * settings.
- */
 @Embeddable
 public record UnitTestSettings(
         @Valid
@@ -64,7 +59,6 @@ public record UnitTestSettings(
         config.set("coverage.reportPath", coverageReportPath);
     }
 
-    /** Any {@code tests.unitTests} entry makes the library run the stage, which needs tasks or goals to run. */
     public void validate(ValidationProblems problems, BuildTool tool) {
         boolean configured = !command.isEmpty() || resultPattern != null || rootDir != null || reportOutDir != null
                 || allowEmptyResults;

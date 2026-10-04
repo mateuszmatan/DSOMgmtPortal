@@ -11,11 +11,6 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Every global setting: the BBH tools, the deployment defaults, the security policy no service can change, and
- * the defaults a service may override. Together they replace the library's {@code defaults.yaml} and the tool
- * addresses written into the library's code.
- */
 public record GlobalSettingsValues(
         PlatformSettings platform,
         DeploymentDefaults deployment,
@@ -37,7 +32,6 @@ public record GlobalSettingsValues(
         limits = Collections.unmodifiableMap(ordered);
     }
 
-    /** The settings DSOEnhanced ships with: its {@code defaults.yaml} and the BBH addresses in its code. */
     public static GlobalSettingsValues bbhDefaults() {
         PlatformSettings platform = new PlatformSettings(null, "DevSecOpsJenkinsLibrary",
                 "https://bbh.cloud.appscan.com",
@@ -73,7 +67,6 @@ public record GlobalSettingsValues(
         return new GlobalSettingsValues(changed, deployment, limits, scans, releaseGate, serviceDefaults, goldenFix);
     }
 
-    /** The checks Bean Validation cannot express: complete limits, a complete GoldenFix policy and the proxy pair. */
     public void validate(ValidationProblems problems) {
         platform.validate(problems.at("platform"));
         for (Scanner scanner : Scanner.values()) {
@@ -84,7 +77,6 @@ public record GlobalSettingsValues(
         goldenFix.validateComplete(problems.at("goldenFix"));
     }
 
-    /** The library defaults in the shape of its {@code defaults.yaml}. */
     public Map<String, Object> defaultsConfig() {
         ConfigTree defaults = new ConfigTree();
         serviceDefaults.writeTo(defaults);

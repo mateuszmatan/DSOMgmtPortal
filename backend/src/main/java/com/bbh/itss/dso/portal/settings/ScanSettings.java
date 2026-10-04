@@ -9,10 +9,6 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import org.hibernate.type.NumericBooleanConverter;
 
-/**
- * BBH policy no service can change: the required line coverage, how long the library waits for each scanner and
- * how often it polls, whether the SCA findings count, and whether the build waits for the SonarQube quality gate.
- */
 @Embeddable
 public record ScanSettings(
         @NotNull @Min(0) @Max(100)

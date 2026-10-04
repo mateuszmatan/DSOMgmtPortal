@@ -171,7 +171,6 @@ class GlobalSettingsControllerSpec extends Specification {
         1 * settings.ensureExists() >> new GlobalSettings(bbh)
     }
 
-    /** The body the portal sends back: what GET returned, without the modification time. */
     private Map readBack() {
         Map read = parse(mvc.perform(get('/api/settings')).andReturn().response.contentAsString) as Map
         read.remove('updatedAt')

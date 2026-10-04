@@ -1,8 +1,5 @@
 package com.bbh.itss.dso.portal.pipeline;
 
-/**
- * A pipeline presented a key that has been invalidated.
- */
 public class KeyRevokedException extends RuntimeException {
 
     public KeyRevokedException(PipelineKey key) {

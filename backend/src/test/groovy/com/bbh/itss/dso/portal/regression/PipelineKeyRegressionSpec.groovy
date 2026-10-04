@@ -10,9 +10,6 @@ import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 
-/**
- * Pipelines and their keys end to end, including the endpoint the DevSecOps library will call.
- */
 class PipelineKeyRegressionSpec extends PortalSpecification {
 
     String code

@@ -12,12 +12,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * What a pipeline needs besides its service: the agent labels offered by the AGENT_NAME parameter
- * ({@code agentNames}), the job the security pipeline starts when RUN_EXTENDED_PIPELINE is selected
- * ({@code jenkins.pipeline.extendedPipeline}), the security pipeline whose artifacts the extended pipeline copies
- * ({@code securityPipeline}) and the Jenkins job the pipeline runs in, which the portal links to.
- */
 @Embeddable
 public record PipelineSettings(
         @Convert(converter = DelimitedListConverter.Commas.class)
@@ -40,24 +34,15 @@ public record PipelineSettings(
         description = Text.trimToNull(description);
     }
 
-    /** Keeps only what applies to the pipeline type: each of the two linked jobs belongs to one type. */
     PipelineSettings forType(PipelineType type) {
         return new PipelineSettings(agentLabels, type == PipelineType.SECURITY ? extendedPipelineJob : null,
                 type == PipelineType.EXTENDED ? securityPipelineJob : null, jenkinsJob, description);
     }
 
-    /**
-     * The address of the pipeline's Jenkins job: the job as entered when it is a URL, otherwise the job path
-     * ({@code folder/job-name}) under the Jenkins URL of the global settings; null when neither is known.
-     */
     public String jenkinsJobUrl(String jenkinsUrl) {
         return jobUrl(jenkinsJob, jenkinsUrl);
     }
 
-    /**
-     * The address of a Jenkins job given as a URL or as a path such as {@code DevSecOps/TARA/app-full}, which
-     * becomes {@code <jenkinsUrl>/job/DevSecOps/job/TARA/job/app-full/}; null when it cannot be known.
-     */
     public static String jobUrl(String job, String jenkinsUrl) {
         if (Text.isBlank(job)) {
             return null;

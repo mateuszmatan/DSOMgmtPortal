@@ -14,11 +14,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.hibernate.type.NumericBooleanConverter;
 
-/**
- * How the service is built: {@code buildTool}, {@code sourceDir}, {@code javaPath}, {@code buildToolAutoSetup},
- * the artifact path {@code build.buildPath} and the Gradle or Maven command of the build stage
- * ({@code build.gradle} or {@code build.maven}).
- */
 @Embeddable
 public record BuildSettings(
         @NotNull
@@ -68,11 +63,9 @@ public record BuildSettings(
 
     @Override
     public void validate(ValidationProblems problems) {
-        // The unit tests stage stops with "JAVA_HOME parameter is not specified" without a JDK for Gradle and Maven.
         if (tool != BuildTool.FLUTTER && javaPath == null && !autoSetup) {
             problems.add("javaPath", "set the JDK path or enable automatic build tool setup, the unit tests stage needs one of them");
         }
-        // The build stage stops with "tasks must be provided" without a Gradle or Maven command.
         if (tool != BuildTool.FLUTTER && command.tasks().isEmpty()) {
             problems.add("command.tasks", tool == BuildTool.MAVEN
                     ? "add the Maven goals of the build, for example clean verify"

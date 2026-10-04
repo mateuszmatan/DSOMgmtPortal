@@ -16,10 +16,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Creates pipelines and manages their keys. Key changes run under a row lock on the pipeline, so two
- * concurrent requests can never leave a pipeline with two active keys.
- */
 @Service
 @Transactional
 public class PipelineService {
@@ -59,7 +55,6 @@ public class PipelineService {
         return withKeys(find(id));
     }
 
-    /** The pipeline with its service, to render its configuration without counting that as a use of its key. */
     @Transactional(readOnly = true)
     public Pipeline pipeline(Long id) {
         return find(id);
@@ -100,12 +95,6 @@ public class PipelineService {
         return withKeys(pipelines.saveAndFlush(pipeline));
     }
 
-    /**
-     * Finds the pipeline a DevSecOps job identifies itself with and records that the key was used.
-     *
-     * @throws NotFoundException   when no such key was ever issued
-     * @throws KeyRevokedException when the key has been invalidated
-     */
     public Pipeline resolveKey(String keyValue) {
         PipelineKey key = keys.findByValue(keyValue.trim().toLowerCase(Locale.ROOT))
                 .orElseThrow(() -> new NotFoundException("Unknown DevSecOps pipeline key"));

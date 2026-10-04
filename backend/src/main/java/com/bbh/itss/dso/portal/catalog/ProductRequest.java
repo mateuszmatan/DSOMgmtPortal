@@ -9,13 +9,6 @@ import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
-/**
- * A product with the complete list of its services. On update the list replaces the stored one: services
- * with an id are changed, services without one are added and stored services missing from the list are
- * removed together with their pipelines.
- *
- * @param version the version the client edited, to detect a concurrent change; null skips the check
- */
 public record ProductRequest(
         @NotBlank @Pattern(regexp = "^[A-Z][A-Z0-9_-]{1,49}$",
                 message = "use 2 to 50 upper case letters, digits, '-' or '_', starting with a letter")

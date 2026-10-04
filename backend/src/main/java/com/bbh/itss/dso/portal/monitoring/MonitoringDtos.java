@@ -6,9 +6,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Responses of the monitoring API.
- */
 public final class MonitoringDtos {
 
     private MonitoringDtos() {

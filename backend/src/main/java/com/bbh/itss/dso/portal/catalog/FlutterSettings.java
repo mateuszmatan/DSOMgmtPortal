@@ -14,14 +14,6 @@ import org.hibernate.type.NumericBooleanConverter;
 
 import java.util.List;
 
-/**
- * What a Flutter build needs besides the common settings: the platform ({@code flutter.platform}), the modules
- * prepared and tested ({@code tools.flutter.flutterModules}, {@code tests.modules}, {@code tests.submodules},
- * {@code tests.subplugins}), the Jenkins credentials of the signing password and licences
- * ({@code build.credentialsId}), the Maven coordinates of the delivered app ({@code delivery.group},
- * {@code delivery.artifact}, {@code delivery.plugin}) and how SonarQube analyses Dart code. Written only for
- * Flutter services.
- */
 @Embeddable
 public record FlutterSettings(
         @Enumerated(EnumType.STRING)
@@ -95,7 +87,6 @@ public record FlutterSettings(
         sonarScannerVersion = Text.trimToNull(sonarScannerVersion);
     }
 
-    /** {@code build.credentialsId} is positional in the library: signing password, production licence, test licence. */
     public void writeTo(ConfigTree config) {
         config.set("flutter.platform", platform == null ? null : platform.configValue())
                 .set("tools.flutter.flutterModules", modules)
@@ -118,7 +109,6 @@ public record FlutterSettings(
         }
     }
 
-    /** The Flutter build stage opens all three credentials before it builds the app. */
     public void validate(ValidationProblems problems) {
         String message = "is required: the Flutter build stage reads this Jenkins credential";
         if (signingPasswordCredentialsId == null) {

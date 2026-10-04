@@ -33,9 +33,6 @@ import com.bbh.itss.dso.portal.pipeline.PipelineType
 import com.bbh.itss.dso.portal.settings.GlobalSettingsValues
 import org.springframework.test.util.ReflectionTestUtils
 
-/**
- * Valid domain objects for the unit specs. Every builder takes named arguments that override its defaults.
- */
 final class Fixtures {
 
     static final String APP_ID = '109f44ac-cc06-4ca0-884e-d944904f7019'
@@ -44,7 +41,6 @@ final class Fixtures {
     private Fixtures() {
     }
 
-    /** A command with the given tasks (or goals) and flags. */
     static ToolCommand command(List<String> tasks, List<String> flags = []) {
         ToolCommand.of(tasks, flags)
     }
@@ -71,10 +67,6 @@ final class Fixtures {
                 args.dastScanName as String, args.dastTargetUrl as String, args.dastPresenceId as String)
     }
 
-    /**
-     * Service settings: a Gradle service deployed to a VM with every other section at its default. A Maven
-     * service on a VM gets the delivery goals it needs, so the defaults always validate.
-     */
     static ServiceSettings settings(Map args = [:]) {
         BuildSettings build = args.build as BuildSettings ?: build()
         DeploymentSettings deployment = args.deployment as DeploymentSettings ?: deployment()
@@ -119,7 +111,6 @@ final class Fixtures {
         service([:], product)
     }
 
-    /** Adds a service to the product, with the id JPA would assign when {@code id} is given. */
     static ServiceDefinition service(Map args, Product product) {
         ServiceDefinition service = product.addService(args.name as String ?: 'gui', args.description as String,
                 product.services.size(), settings(args))
@@ -141,12 +132,10 @@ final class Fixtures {
                 args.securityPipelineJob as String, args.jenkinsJob as String, args.description as String)
     }
 
-    /** The global settings with BBH's values, changed by the given function. */
     static GlobalSettingsValues globalSettings(Closure<GlobalSettingsValues> change = { it }) {
         change(GlobalSettingsValues.bbhDefaults())
     }
 
-    /** Sets the id JPA would generate. */
     static <T> T withId(T entity, Long id) {
         if (id != null) {
             ReflectionTestUtils.setField(entity, 'id', id)

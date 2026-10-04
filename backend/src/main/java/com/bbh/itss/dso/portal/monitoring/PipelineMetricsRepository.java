@@ -12,9 +12,6 @@ import java.util.stream.Collectors;
 
 import static com.bbh.itss.dso.portal.monitoring.InfluxQueryClient.literal;
 
-/**
- * Reads the measurements the DevSecOps library writes ({@code com.bbh.metrics.PipelineMetrics}) with Flux.
- */
 @Component
 public class PipelineMetricsRepository {
 
@@ -30,19 +27,16 @@ public class PipelineMetricsRepository {
         return influx.configured();
     }
 
-    /** Fails when InfluxDB cannot be queried. */
     public void ping() {
         influx.query("buckets() |> limit(n: 1)");
     }
 
-    /** The most recent run of each pipeline within the configured look-back period. */
     public Map<MetricsTag, PipelineRun> latestRuns(Collection<MetricsTag> tags) {
         if (tags.isEmpty()) {
             return Map.of();
         }
         String projects = tags.stream().map(MetricsTag::project).distinct().map(InfluxQueryClient::literal)
                 .collect(Collectors.joining(", "));
-        // last() per series first: result and branch are tags, so every outcome is a series of its own.
         String flux = """
                 from(bucket: %s)
                   |> range(start: -%s)
@@ -64,7 +58,6 @@ public class PipelineMetricsRepository {
         return runs;
     }
 
-    /** The newest runs of one pipeline in the last {@code days} days, newest first. */
     public List<PipelineRun> recentRuns(MetricsTag tag, int days, int limit) {
         String flux = """
                 from(bucket: %s)
@@ -79,7 +72,6 @@ public class PipelineMetricsRepository {
         return influx.query(flux).stream().map(PipelineRun::fromRow).toList();
     }
 
-    /** What every run of one pipeline in the last {@code days} days contributed to the DORA metrics. */
     public List<DoraPoint> doraPoints(MetricsTag tag, int days) {
         String flux = """
                 from(bucket: %s)

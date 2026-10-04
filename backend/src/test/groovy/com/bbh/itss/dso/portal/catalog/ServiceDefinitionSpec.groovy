@@ -185,7 +185,6 @@ class ServiceDefinitionSpec extends Specification {
         tree.get('influx') == [enabled: true, project: 'cert-gui', env: 'qc']
     }
 
-    /** Every section set, built anew on each call so equal settings are different instances. */
     private static ServiceSettings fullSettings() {
         def sshTargets = new LinkedHashMap<Region, SshTarget>()
         sshTargets[QC] = new SshTarget('qc.host', null, null, null, null)

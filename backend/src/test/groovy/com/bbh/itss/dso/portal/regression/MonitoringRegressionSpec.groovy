@@ -9,9 +9,6 @@ import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 
-/**
- * The monitoring pages end to end against an InfluxDB holding runs the way the DevSecOps library writes them.
- */
 class MonitoringRegressionSpec extends PortalSpecification {
 
     String code

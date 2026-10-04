@@ -6,9 +6,6 @@ import com.bbh.itss.dso.portal.catalog.ServiceDefinition;
 
 import java.util.List;
 
-/**
- * A service of a product with the pipelines defined for it.
- */
 public record ServicePipelines(
         Long serviceId,
         String serviceName,

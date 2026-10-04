@@ -17,11 +17,6 @@ import tools.jackson.databind.json.JsonMapper;
 import java.time.Instant;
 import java.util.List;
 
-/**
- * Keeps every pipeline's published configuration in step with what it is rendered from. It listens inside the
- * transaction of each change, so the published configuration commits together with the change; at start-up it
- * renders every pipeline again, so a new portal version publishes in its own shape.
- */
 @Component
 @Transactional
 public class PipelineConfigPublisher {
@@ -68,7 +63,6 @@ public class PipelineConfigPublisher {
         pipelinesToPublish.forEach(pipeline -> publish(pipeline, now));
     }
 
-    /** Writes the pipeline's configuration when it differs from the published one. */
     private void publish(Pipeline pipeline, Instant now) {
         PublishedPipelineConfig config = published.findById(pipeline.getId())
                 .orElseGet(() -> new PublishedPipelineConfig(pipeline.getId()));

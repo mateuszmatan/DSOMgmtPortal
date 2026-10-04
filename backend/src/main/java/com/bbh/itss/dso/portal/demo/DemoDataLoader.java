@@ -47,15 +47,10 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Fills an empty database with two sample products so a local start shows every page with content, every
- * section of a service included. Enabled by {@code dso.demo-data=true}, which the local and mysql profiles set.
- */
 @Component
 @ConditionalOnBooleanProperty("dso.demo-data")
 public class DemoDataLoader implements ApplicationRunner {
 
-    /** Where the demo pipelines' Jenkins jobs are; the global settings ship without a Jenkins URL. */
     static final String DEMO_JENKINS_URL = "https://jenkins.bbh.com";
 
     private static final Logger log = LoggerFactory.getLogger(DemoDataLoader.class);
@@ -121,7 +116,6 @@ public class DemoDataLoader implements ApplicationRunner {
         log.info("Created demo data: {} and {}", certScanner.name(), payments.name());
     }
 
-    /** A Gradle service deployed to virtual machines: UrbanCode Deploy for RD, SSH for QC. */
     private static ServiceRequest gradleVm(String name, String description, String appScanId, String sonarKey,
                                            String bitbucketProject, String repo, String deployDir, boolean dast) {
         String title = sonarKey.toUpperCase();
@@ -149,7 +143,6 @@ public class DemoDataLoader implements ApplicationRunner {
                 null);
     }
 
-    /** A Maven service built into an image and deployed to OpenShift. */
     private static ServiceRequest mavenOpenShift(String name, String description, String appScanId, String sonarKey,
                                                  String bitbucketProject, String repo, String namespace) {
         String title = sonarKey.toUpperCase();
@@ -181,7 +174,6 @@ public class DemoDataLoader implements ApplicationRunner {
                 null);
     }
 
-    /** A Flutter app: no Gradle or Maven command, but its modules, credentials and delivery coordinates. */
     private static ServiceRequest flutter(String name, String description, String appScanId, String bitbucketProject,
                                           String repo) {
         return new ServiceRequest(null, name, description,

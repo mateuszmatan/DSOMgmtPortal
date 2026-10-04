@@ -12,11 +12,6 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-/**
- * A stand-in for the query API of InfluxDB 2 on a local port. It records every request and answers the Flux
- * queries the portal sends from the runs added with {@link #addRun} and the points added with {@link #addPoint},
- * in the CSV shape InfluxDB returns, unless a fixed answer or an error status is set.
- */
 class FakeInfluxDb implements AutoCloseable {
 
     static final List<String> RUN_COLUMNS = ['_time', 'project', 'env', 'variant', 'result', 'branch', 'build',
@@ -51,7 +46,6 @@ class FakeInfluxDb implements AutoCloseable {
         new FakeInfluxDb()
     }
 
-    /** One instance for the whole test run, so every cached Spring context can point at the same URL. */
     static synchronized FakeInfluxDb shared() {
         if (sharedInstance == null) {
             sharedInstance = start()
@@ -64,20 +58,14 @@ class FakeInfluxDb implements AutoCloseable {
         "http://127.0.0.1:${server.address.port}"
     }
 
-    /** Answers every query with this CSV. */
     void respondWith(String csv) {
         fixedAnswer = csv
     }
 
-    /** Answers every query with this HTTP status, as InfluxDB does for a wrong token or a missing bucket. */
     void failWith(int status) {
         this.status = status
     }
 
-    /**
-     * Records a run as the DevSecOps library writes it to {@code pipeline_run} and {@code dora}.
-     * Named arguments: project, env, time, result, build, durationSeconds, branch, deployment, leadTimeSeconds.
-     */
     void addRun(Map args) {
         String result = args.result ?: 'SUCCESS'
         runs << new Run(project: args.project, env: args.env ?: 'test', variant: args.variant ?: 'full',
@@ -87,10 +75,6 @@ class FakeInfluxDb implements AutoCloseable {
                 leadTimeSeconds: args.leadTimeSeconds as Long ?: 3600)
     }
 
-    /**
-     * Records a point of another measurement of the library, already pivoted to one row of tags and fields, the
-     * way the evidence query returns it. Named arguments: measurement, project, env, time and any tag or field.
-     */
     void addPoint(Map args) {
         Map<String, String> row = [_measurement: args.measurement as String, project: args.project as String,
                                    env         : (args.env ?: 'test') as String,
@@ -151,7 +135,6 @@ class FakeInfluxDb implements AutoCloseable {
         return ''
     }
 
-    /** One table per project and environment holding its newest run, as the portal's query returns them. */
     private String latestRuns(String flux) {
         Set<String> projects = (flux =~ /set: \[(.*?)]/)[0][1].findAll(/"([^"]*)"/) { all, value -> value } as Set
         Instant since = Instant.now() - Duration.ofDays(days(flux))
@@ -176,7 +159,6 @@ class FakeInfluxDb implements AutoCloseable {
         })
     }
 
-    /** The points of the queried projects in the queried time range, each in a table of its own shape. */
     private String evidencePoints(String flux) {
         def sets = (flux =~ /set: \[(.*?)]/).collect { it[1].findAll(/"([^"]*)"/) { all, value -> value } as Set }
         def range = (flux =~ /range\(start: time\(v: "([^"]+)"\), stop: time\(v: "([^"]+)"\)\)/)[0]
@@ -212,7 +194,6 @@ class FakeInfluxDb implements AutoCloseable {
          '0', '0']
     }
 
-    /** CSV without annotations: a header with the yield and table columns, then the rows. */
     private static String csv(List<String> columns, List<List> tablesAndValues) {
         if (tablesAndValues.isEmpty()) {
             return ''

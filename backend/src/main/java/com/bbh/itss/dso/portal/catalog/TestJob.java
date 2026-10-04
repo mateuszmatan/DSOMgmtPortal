@@ -16,10 +16,6 @@ import jakarta.validation.constraints.Size;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * One Jenkins job a test stage triggers and waits for, an entry of {@code tests.<stage>.jobs}. {@code job} is a
- * job path such as {@code folder/job-name} or the full URL of a job on another Jenkins.
- */
 @Embeddable
 public record TestJob(
         @NotNull
@@ -62,13 +58,11 @@ public record TestJob(
         credentialsId = Text.trimToNull(credentialsId);
     }
 
-    /** A job given by its full URL runs on that Jenkins; the library names it after the URL when no name is set. */
     @JsonIgnore
     public boolean isUrl() {
         return job != null && (job.startsWith("http://") || job.startsWith("https://"));
     }
 
-    /** The job entry as the library reads it; unset fields fall back to the library's defaults. */
     public Map<String, Object> toConfig() {
         Map<String, Object> entry = new LinkedHashMap<>();
         put(entry, "name", name);

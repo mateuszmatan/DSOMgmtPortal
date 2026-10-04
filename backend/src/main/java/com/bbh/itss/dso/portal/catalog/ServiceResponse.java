@@ -3,9 +3,6 @@ package com.bbh.itss.dso.portal.catalog;
 import java.util.List;
 import java.util.Map;
 
-/**
- * A stored service with every section of its settings, in the shape of {@link ServiceRequest}.
- */
 public record ServiceResponse(
         Long id,
         String name,

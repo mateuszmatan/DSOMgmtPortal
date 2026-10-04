@@ -15,11 +15,6 @@ import org.hibernate.type.NumericBooleanConverter;
 
 import java.util.List;
 
-/**
- * How GoldenFix raises dependency upgrade pull requests ({@code goldenFix}). The global settings hold the BBH
- * defaults with every value set; a service repeats only what it changes, so its unset values (null or empty)
- * fall back to the global ones.
- */
 @Embeddable
 public record GoldenFixPolicy(
         @Convert(converter = NumericBooleanConverter.class)
@@ -69,7 +64,6 @@ public record GoldenFixPolicy(
         @Column(name = "GOLDEN_FIX_TIME_ZONE", length = 100)
         String timeZone) {
 
-    /** A service that keeps every global value and only says whether GoldenFix runs. */
     public static final GoldenFixPolicy INHERITED = inherit(true);
 
     public GoldenFixPolicy {
@@ -92,7 +86,6 @@ public record GoldenFixPolicy(
                 null, null, null, null, null, null);
     }
 
-    /** Writes the values that are set under {@code goldenFix}; an empty verify command keeps the library's default. */
     public void writeTo(ConfigTree config) {
         config.set("goldenFix.enabled", enabled)
                 .set("goldenFix.onlyDirectDependencies", onlyDirectDependencies)
@@ -113,7 +106,6 @@ public record GoldenFixPolicy(
                 .set("goldenFix.timeZone", timeZone);
     }
 
-    /** The BBH defaults must say everything the library needs, since nothing falls back further. */
     public void validateComplete(ValidationProblems problems) {
         require(problems, "onlyDirectDependencies", onlyDirectDependencies);
         require(problems, "minThreatLevel", minThreatLevel);

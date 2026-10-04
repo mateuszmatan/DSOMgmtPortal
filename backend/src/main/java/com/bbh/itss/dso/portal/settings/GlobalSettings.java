@@ -18,10 +18,6 @@ import org.springframework.data.domain.Persistable;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * The one row of global settings every pipeline shares. The portal creates it with the DSOEnhanced defaults at
- * its first start; from then on it is changed in the portal only.
- */
 @Entity
 @Table(name = "DSO_GLOBAL_SETTINGS")
 public class GlobalSettings extends AuditedEntity implements Persistable<Long> {
@@ -81,7 +77,6 @@ public class GlobalSettings extends AuditedEntity implements Persistable<Long> {
         return id;
     }
 
-    /** The key is fixed, so saving the settings the first time must insert them rather than merge them. */
     @Override
     public boolean isNew() {
         return getCreatedAt() == null;

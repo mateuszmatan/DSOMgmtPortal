@@ -5,21 +5,10 @@ import org.springframework.web.util.UriUtils;
 
 import java.nio.charset.StandardCharsets;
 
-/**
- * The pages a change request links to for one run. They are built from the portal's own settings, since the
- * DevSecOps library records no links: the Jenkins build from the pipeline's job and the build number, the
- * pages the library publishes in every build, the service's AppScan application, its SonarQube project and the
- * Nexus IQ server.
- */
 public record EvidenceLinks(String buildUrl, String appScanUrl, String sonarUrl, String nexusIqUrl) {
 
-    /** The HTML report the library publishes in every build as "Pipeline Report". */
     static final String PIPELINE_REPORT = "Pipeline_20Report/";
 
-    /**
-     * @param jobUrl the pipeline's Jenkins job, null when unknown
-     * @param build  the build number of the run, null when no run was recorded
-     */
     static EvidenceLinks of(String jobUrl, Long build, String asocUrl, String appScanApplicationId,
                             String sonarServerUrl, String sonarProjectKey, String nexusIqServerUrl) {
         String buildUrl = jobUrl == null || build == null ? null : withSlash(jobUrl) + build + "/";

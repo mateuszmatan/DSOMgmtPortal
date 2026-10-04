@@ -1,9 +1,5 @@
 package com.bbh.itss.dso.portal.settings;
 
-/**
- * The security scanners the BBH policy sets limits for. {@code gateKey} is the name the release gate uses and
- * {@code defaultsPath} the section of the library defaults that holds the scanner's limits.
- */
 public enum Scanner {
     SAST("sast", "sast"),
     SCA("sca", "sca"),

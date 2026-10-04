@@ -142,7 +142,6 @@ class PlatformSettingsSpec extends Specification {
         null               | 8080      || [new FieldProblem('platform.proxyHost', 'is required with a proxy port')]
     }
 
-    /** The record with the given components replaced. */
     static <T extends Record> T copy(Map changes, T record) {
         def components = record.class.recordComponents
         def args = components.collect { changes.containsKey(it.name) ? changes[it.name] : it.accessor.invoke(record) }

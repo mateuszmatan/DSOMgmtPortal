@@ -10,10 +10,6 @@ import org.hibernate.type.NumericBooleanConverter;
 
 import java.util.Map;
 
-/**
- * A component version published to UrbanCode Deploy before an application is deployed, an entry of
- * {@code deploy.vm.dod.applications[].components}.
- */
 @Embeddable
 public record UrbanCodeComponent(
         @NotBlank @Size(max = 200)

@@ -12,11 +12,6 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.hibernate.type.NumericBooleanConverter;
 
-/**
- * The service's SonarQube project ({@code tools.sonar}): the project, the Jenkins installation and credentials
- * the scan uses, the badges of the report and the Gradle or Maven command that runs the analysis. Without a
- * project key the library skips the scan; an unset installation falls back to the global settings.
- */
 @Embeddable
 public record SonarSettings(
         @Size(max = 200)
@@ -69,7 +64,6 @@ public record SonarSettings(
         command = command == null ? ToolCommand.NONE : command;
     }
 
-    /** A project with the analysis command and every other option at its default. */
     public static SonarSettings of(String projectName, String projectKey, ToolCommand command) {
         return new SonarSettings(projectName, projectKey, null, null, null, null, false, false, command);
     }
@@ -90,7 +84,6 @@ public record SonarSettings(
         command.writeTo(config, "tools.sonar", tool);
     }
 
-    /** For Gradle and Maven the library runs the analysis as a build command, which needs tasks or goals. */
     public void validate(ValidationProblems problems, BuildTool tool) {
         if (tool != BuildTool.FLUTTER && projectKey != null && command.tasks().isEmpty()) {
             problems.add("command.tasks", tool == BuildTool.MAVEN

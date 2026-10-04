@@ -5,9 +5,6 @@ import jakarta.validation.Validator
 import spock.lang.Shared
 import spock.lang.Specification
 
-/**
- * Where a service is deployed: SSH and OpenShift targets per region and UrbanCode Deploy applications.
- */
 class DeploymentTargetsSpec extends Specification {
 
     static final UrbanCodeComponent GUI_COMPONENT = new UrbanCodeComponent('cert-gui', 'build/libs', '*.war', '*-plain.war',
@@ -20,8 +17,6 @@ class DeploymentTargetsSpec extends Specification {
         expect:
         Region.values()*.configKey() == ['rd', 'qc']
     }
-
-    // --- SSH -----------------------------------------------------------------------------------------------------
 
     def "an SSH target trims its values and writes the ones that are set in the library's order"() {
         when:
@@ -44,8 +39,6 @@ class DeploymentTargetsSpec extends Specification {
         target.isEmpty()
         target.toConfig() == [:]
     }
-
-    // --- OpenShift -----------------------------------------------------------------------------------------------
 
     def "OpenShift field #field is written as #config"() {
         expect:
@@ -108,8 +101,6 @@ class DeploymentTargetsSpec extends Specification {
         target.toConfig() == [:]
         openShift(skipConfigDeploy: false).isEmpty()
     }
-
-    // --- UrbanCode -----------------------------------------------------------------------------------------------
 
     def "UrbanCode settings default to deploying a snapshot of only the deployed versions and waiting for it"() {
         when:
@@ -233,8 +224,6 @@ class DeploymentTargetsSpec extends Specification {
         new UrbanCodeApplication().settings() == new UrbanCodeApplicationSettings(null, null, [], null, [])
     }
 
-    // --- bean validation -----------------------------------------------------------------------------------------
-
     def "valid deployment targets pass bean validation"() {
         expect:
         validator.validate(section).isEmpty()
@@ -275,8 +264,6 @@ class DeploymentTargetsSpec extends Specification {
         'a too long base directory'        | new UrbanCodeComponent('c', 'b' * 501, null, null, null, null, null)          || 'baseDir'
     }
 
-    // --- helpers -------------------------------------------------------------------------------------------------
-
     private static UrbanCodeSettings fullUrbanCode() {
         new UrbanCodeSettings(' BBH-RD ', ' Deploy Cert ', true, false, true, false, true, ' Deployed by Jenkins ', ' key=value ')
     }
@@ -285,7 +272,6 @@ class DeploymentTargetsSpec extends Specification {
         new UrbanCodeComponent(name, null, null, null, null, null, null)
     }
 
-    /** An OpenShift target with only the named fields set. */
     private static OpenShiftTarget openShift(Map args) {
         new OpenShiftTarget(args.projectBuild as String, args.buildConfigPath as String, args.dockerFilePath as String,
                 args.buildContext as String, args.addFile as String, args.dockerRepoPush as String,

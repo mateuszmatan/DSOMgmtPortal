@@ -7,15 +7,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * The nested map of one config.yaml entry, written by dotted path such as {@code tools.sonar.projectKey}.
- * Missing values are skipped, so a section only writes what is set.
- */
 public class ConfigTree {
 
     private final Map<String, Object> root = new LinkedHashMap<>();
 
-    /** Sets the value at the path, creating the intermediate maps; null, blank text and empty lists and maps are skipped. */
     public ConfigTree set(String path, Object value) {
         if (isEmpty(value)) {
             return this;
@@ -29,10 +24,6 @@ public class ConfigTree {
         return this;
     }
 
-    /**
-     * Sets a default under a section that is already there: nothing happens when the section is missing or
-     * already has the key, so a default never creates a section the service did not configure.
-     */
     @SuppressWarnings("unchecked")
     public ConfigTree fillIn(String sectionPath, String key, Object value) {
         if (!isEmpty(value) && get(sectionPath) instanceof Map<?, ?> section && !section.containsKey(key)) {
@@ -41,7 +32,6 @@ public class ConfigTree {
         return this;
     }
 
-    /** Merges a whole map: nested maps merge key by key, any other value replaces what is there. */
     public ConfigTree merge(Map<String, ?> values) {
         merge(root, values);
         return this;
@@ -58,7 +48,6 @@ public class ConfigTree {
         return node;
     }
 
-    /** The tree with its top-level keys in the given order, other keys after them in insertion order. */
     public Map<String, Object> toMap(List<String> keyOrder) {
         Map<String, Object> ordered = new LinkedHashMap<>();
         for (String key : keyOrder) {
@@ -80,7 +69,6 @@ public class ConfigTree {
                 || (value instanceof Map<?, ?> map && map.isEmpty());
     }
 
-    /** Every nested map of the tree is created here, so the maps are always mutable and keep insertion order. */
     @SuppressWarnings("unchecked")
     private static Map<String, Object> child(Map<String, Object> node, String key) {
         if (node.get(key) instanceof Map<?, ?> existing) {
