@@ -1,0 +1,44 @@
+# Local environment for the portal: Oracle Free, the InfluxDB the pipelines write to, and Grafana with the
+# portal's DORA dashboard. Credentials below are for local use only.
+services:
+  oracle:
+    image: gvenzl/oracle-free:23-slim-faststart
+    environment:
+      ORACLE_PASSWORD: oracle
+      APP_USER: DSO_PORTAL
+      APP_USER_PASSWORD: dso_portal
+    ports:
+      - "1521:1521"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  influxdb:
+    image: influxdb:2.7
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: admin12345
+      DOCKER_INFLUXDB_INIT_ORG: DevSecOps
+      DOCKER_INFLUXDB_INIT_BUCKET: DORA-metrics
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: dso-local-token
+    ports:
+      - "8086:8086"
+
+  grafana:
+    image: grafana/grafana:13.2.3
+    depends_on:
+      - influxdb
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      INFLUX_TOKEN: dso-local-token
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
