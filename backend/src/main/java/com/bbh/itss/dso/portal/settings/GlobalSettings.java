@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.MapKeyColumn;
 import jakarta.persistence.MapKeyEnumerated;
 import jakarta.persistence.Table;
+import org.springframework.data.domain.Persistable;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,7 +24,7 @@ import java.util.Map;
  */
 @Entity
 @Table(name = "DSO_GLOBAL_SETTINGS")
-public class GlobalSettings extends AuditedEntity {
+public class GlobalSettings extends AuditedEntity implements Persistable<Long> {
 
     public static final long ID = 1L;
 
@@ -73,6 +74,17 @@ public class GlobalSettings extends AuditedEntity {
         this.releaseGate = values.releaseGate();
         this.serviceDefaults = values.serviceDefaults();
         this.goldenFix = values.goldenFix();
+    }
+
+    @Override
+    public Long getId() {
+        return id;
+    }
+
+    /** The key is fixed, so saving the settings the first time must insert them rather than merge them. */
+    @Override
+    public boolean isNew() {
+        return getCreatedAt() == null;
     }
 
     public GlobalSettingsValues values() {

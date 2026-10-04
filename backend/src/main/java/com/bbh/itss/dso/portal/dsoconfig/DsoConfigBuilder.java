@@ -6,8 +6,8 @@ import com.bbh.itss.dso.portal.catalog.ServiceDefinition;
 import com.bbh.itss.dso.portal.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.pipeline.PipelineSettings;
 import com.bbh.itss.dso.portal.pipeline.PipelineType;
-import com.bbh.itss.dso.portal.settings.GlobalSettings;
 import com.bbh.itss.dso.portal.settings.GlobalSettingsService;
+import com.bbh.itss.dso.portal.settings.GlobalSettingsValues;
 import org.springframework.stereotype.Component;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -43,7 +43,7 @@ public class DsoConfigBuilder {
 
     /** The configuration of every service of a product, as one config.yaml. */
     public Map<String, Object> productConfig(Product product) {
-        GlobalSettings global = settings.current();
+        GlobalSettingsValues global = settings.values();
         Map<String, Object> projects = new LinkedHashMap<>();
         product.getServices().forEach(service -> projects.put(service.getName(), serviceTree(service, global).toMap(KEY_ORDER)));
         return Map.of("projects", projects);
@@ -54,7 +54,7 @@ public class DsoConfigBuilder {
      * the BBH tools ({@code platform}), the library defaults ({@code defaults}) and its service ({@code projects}).
      */
     public Map<String, Object> pipelineConfig(Pipeline pipeline) {
-        GlobalSettings global = settings.current();
+        GlobalSettingsValues global = settings.values();
         ServiceDefinition service = pipeline.getService();
         PipelineSettings pipelineSettings = pipeline.getSettings();
         ConfigTree serviceTree = serviceTree(service, global);
@@ -75,17 +75,17 @@ public class DsoConfigBuilder {
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("pipeline", pipelineSection);
         root.put("platform", global.platform().toConfig());
-        root.put("defaults", global.values().defaultsConfig());
+        root.put("defaults", global.defaultsConfig());
         root.put("projects", Map.of(service.getName(), serviceTree.toMap(KEY_ORDER)));
         return root;
     }
 
     /** The global part every pipeline shares: the BBH tools and the library defaults. */
     public Map<String, Object> globalConfig() {
-        GlobalSettings global = settings.current();
+        GlobalSettingsValues global = settings.values();
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("platform", global.platform().toConfig());
-        root.put("defaults", global.values().defaultsConfig());
+        root.put("defaults", global.defaultsConfig());
         return root;
     }
 
@@ -99,7 +99,7 @@ public class DsoConfigBuilder {
         return new Yaml(new Representer(options), options).dump(config);
     }
 
-    private static ConfigTree serviceTree(ServiceDefinition service, GlobalSettings global) {
+    private static ConfigTree serviceTree(ServiceDefinition service, GlobalSettingsValues global) {
         ConfigTree tree = new ConfigTree();
         global.platform().writeProjectDefaults(tree);
         service.writeTo(tree);

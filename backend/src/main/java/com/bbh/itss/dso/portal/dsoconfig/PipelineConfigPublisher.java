@@ -68,10 +68,12 @@ public class PipelineConfigPublisher {
         pipelinesToPublish.forEach(pipeline -> publish(pipeline, now));
     }
 
+    /** Writes the pipeline's configuration when it differs from the published one. */
     private void publish(Pipeline pipeline, Instant now) {
         PublishedPipelineConfig config = published.findById(pipeline.getId())
                 .orElseGet(() -> new PublishedPipelineConfig(pipeline.getId()));
-        config.publish(json.writeValueAsString(builder.pipelineConfig(pipeline)), now);
-        published.save(config);
+        if (config.publish(json.writeValueAsString(builder.pipelineConfig(pipeline)), now) && config.isNew()) {
+            published.save(config);
+        }
     }
 }

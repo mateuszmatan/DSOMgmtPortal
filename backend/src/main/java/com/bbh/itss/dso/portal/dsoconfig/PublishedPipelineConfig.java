@@ -4,7 +4,11 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
+import jakarta.persistence.PostLoad;
+import jakarta.persistence.PostPersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import org.springframework.data.domain.Persistable;
 
 import java.time.Instant;
 
@@ -15,7 +19,7 @@ import java.time.Instant;
  */
 @Entity
 @Table(name = "DSO_PIPELINE_CONFIG")
-public class PublishedPipelineConfig {
+public class PublishedPipelineConfig implements Persistable<Long> {
 
     @Id
     @Column(name = "PIPELINE_ID")
@@ -28,6 +32,10 @@ public class PublishedPipelineConfig {
     @Column(name = "RENDERED_AT", nullable = false)
     private Instant renderedAt;
 
+    /** The key is the pipeline's, so saving a new row must insert it rather than merge it. */
+    @Transient
+    private boolean stored;
+
     protected PublishedPipelineConfig() {
     }
 
@@ -35,9 +43,30 @@ public class PublishedPipelineConfig {
         this.pipelineId = pipelineId;
     }
 
-    void publish(String configJson, Instant renderedAt) {
-        this.configJson = configJson;
-        this.renderedAt = renderedAt;
+    /** Takes the newly rendered configuration; returns false, and keeps the time, when it is unchanged. */
+    boolean publish(String renderedJson, Instant now) {
+        if (renderedJson.equals(configJson)) {
+            return false;
+        }
+        this.configJson = renderedJson;
+        this.renderedAt = now;
+        return true;
+    }
+
+    @PostLoad
+    @PostPersist
+    void markStored() {
+        stored = true;
+    }
+
+    @Override
+    public Long getId() {
+        return pipelineId;
+    }
+
+    @Override
+    public boolean isNew() {
+        return !stored;
     }
 
     public Long getPipelineId() {

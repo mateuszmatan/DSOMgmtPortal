@@ -28,21 +28,21 @@ public class GlobalSettingsService {
                 .orElseGet(() -> repository.saveAndFlush(new GlobalSettings(GlobalSettingsValues.bbhDefaults())));
     }
 
+    /** The current settings as values, complete with their lists, so they can be used outside the transaction. */
     @Transactional(readOnly = true)
-    public GlobalSettings current() {
-        return repository.findById(GlobalSettings.ID)
-                .orElseThrow(() -> new IllegalStateException("The global settings are missing; the portal creates them at start-up"));
+    public GlobalSettingsValues values() {
+        return load().values();
     }
 
     /** The Jenkins the pipelines run on, to link a pipeline's job path; null while it is not set. */
     @Transactional(readOnly = true)
     public String jenkinsUrl() {
-        return current().platform().jenkinsUrl();
+        return load().platform().jenkinsUrl();
     }
 
     @Transactional(readOnly = true)
     public GlobalSettingsResponse get() {
-        return GlobalSettingsResponse.from(current());
+        return GlobalSettingsResponse.from(load());
     }
 
     public GlobalSettingsResponse update(GlobalSettingsRequest request) {
@@ -51,7 +51,7 @@ public class GlobalSettingsService {
 
     /** @param version the version the values were edited at; null skips the concurrent change check */
     public GlobalSettingsResponse update(Long version, GlobalSettingsValues values) {
-        GlobalSettings settings = current();
+        GlobalSettings settings = load();
         if (version != null && version != settings.getVersion()) {
             throw new ObjectOptimisticLockingFailureException(GlobalSettings.class, GlobalSettings.ID);
         }
@@ -63,5 +63,10 @@ public class GlobalSettingsService {
         GlobalSettings saved = repository.saveAndFlush(settings);
         events.publishEvent(new GlobalSettingsChanged());
         return GlobalSettingsResponse.from(saved);
+    }
+
+    private GlobalSettings load() {
+        return repository.findById(GlobalSettings.ID)
+                .orElseThrow(() -> new IllegalStateException("The global settings are missing; the portal creates them at start-up"));
     }
 }

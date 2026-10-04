@@ -81,7 +81,7 @@ public class DemoDataLoader implements ApplicationRunner {
         if (products.count() > 0) {
             return;
         }
-        GlobalSettingsValues global = settings.current().values();
+        GlobalSettingsValues global = settings.values();
         if (global.platform().jenkinsUrl() == null) {
             settings.update(null, global.withPlatform(global.platform().withJenkinsUrl(DEMO_JENKINS_URL)));
         }
