@@ -33,7 +33,7 @@ public enum RunResult {
     }
 
     /** The status of a pipeline given its latest run, which may be missing. */
-    static RunResult of(Pipeline pipeline, PipelineRun latestRun) {
+    public static RunResult of(Pipeline pipeline, PipelineRun latestRun) {
         if (!pipeline.isEnabled()) {
             return DISABLED;
         }

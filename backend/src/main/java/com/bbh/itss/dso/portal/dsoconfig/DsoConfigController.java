@@ -63,6 +63,12 @@ public class DsoConfigController {
                 format);
     }
 
+    /** The part of every pipeline's configuration that comes from the global settings. */
+    @GetMapping("/api/settings/config")
+    public ResponseEntity<?> globalConfig(@RequestParam(defaultValue = "yaml") String format) {
+        return render(builder.globalConfig(), format);
+    }
+
     @ExceptionHandler(KeyRevokedException.class)
     ProblemDetail revoked(KeyRevokedException e) {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());

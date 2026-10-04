@@ -51,16 +51,25 @@ public record PipelineSettings(
      * ({@code folder/job-name}) under the Jenkins URL of the global settings; null when neither is known.
      */
     public String jenkinsJobUrl(String jenkinsUrl) {
-        if (jenkinsJob == null) {
+        return jobUrl(jenkinsJob, jenkinsUrl);
+    }
+
+    /**
+     * The address of a Jenkins job given as a URL or as a path such as {@code DevSecOps/TARA/app-full}, which
+     * becomes {@code <jenkinsUrl>/job/DevSecOps/job/TARA/job/app-full/}; null when it cannot be known.
+     */
+    public static String jobUrl(String job, String jenkinsUrl) {
+        if (Text.isBlank(job)) {
             return null;
         }
-        if (jenkinsJob.startsWith("http://") || jenkinsJob.startsWith("https://")) {
-            return jenkinsJob;
+        String trimmed = job.trim();
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+            return trimmed;
         }
         if (Text.isBlank(jenkinsUrl)) {
             return null;
         }
-        String path = Arrays.stream(jenkinsJob.split("/"))
+        String path = Arrays.stream(trimmed.split("/"))
                 .filter(segment -> !segment.isBlank())
                 .map(segment -> "job/" + UriUtils.encodePathSegment(segment.trim(), StandardCharsets.UTF_8))
                 .collect(Collectors.joining("/"));

@@ -224,6 +224,18 @@ public class ServiceDefinition extends AuditedEntity {
         return sonar == null ? SonarSettings.NONE : sonar;
     }
 
+    public AppScanSettings getAppScan() {
+        return appScan;
+    }
+
+    public NexusIqSettings getNexusIq() {
+        return nexusIq == null ? NexusIqSettings.NONE : nexusIq;
+    }
+
+    public ScmSettings getScm() {
+        return scm == null ? ScmSettings.NONE : scm;
+    }
+
     public BuildSettings getBuild() {
         return build;
     }
