@@ -33,7 +33,7 @@ class PipelineControllerSpec extends Specification {
         def response = mvc.perform(get('/api/products/1/pipelines')).andReturn().response
 
         then:
-        1 * pipelines.listForProduct(1L) >> [ServicePipelines.of(gui, [PipelineResponse.summary(pipeline)])]
+        1 * pipelines.listForProduct(1L) >> [ServicePipelines.of(gui, [PipelineResponse.summary(pipeline, null)])]
         response.status == 200
         with(parse(response.contentAsString)[0]) {
             serviceName == 'gui'
@@ -50,7 +50,7 @@ class PipelineControllerSpec extends Specification {
 
         then:
         1 * pipelines.create(10L, { PipelineRequest r -> r.type() == PipelineType.FULL && r.agentLabels() == ['linux-agent'] }) >>
-                PipelineResponse.withKeys(pipeline)
+                PipelineResponse.withKeys(pipeline, null)
         response.status == 201
         parse(response.contentAsString).activeKey.value == pipeline.activeKey().get().value
     }
@@ -80,8 +80,8 @@ class PipelineControllerSpec extends Specification {
         def deleted = mvc.perform(delete('/api/pipelines/100')).andReturn().response
 
         then:
-        1 * pipelines.get(100L) >> PipelineResponse.withKeys(pipeline)
-        1 * pipelines.update(100L, { it.description() == 'Nightly' }) >> PipelineResponse.withKeys(pipeline)
+        1 * pipelines.get(100L) >> PipelineResponse.withKeys(pipeline, null)
+        1 * pipelines.update(100L, { it.description() == 'Nightly' }) >> PipelineResponse.withKeys(pipeline, null)
         1 * pipelines.delete(100L)
         got.status == 200
         parse(got.contentAsString).keys.size() == 1
@@ -97,7 +97,7 @@ class PipelineControllerSpec extends Specification {
                 .content(toJson([reason: 'Leaked']))).andReturn().response
 
         then:
-        1 * pipelines.revokeKey(100L, 'Leaked') >> PipelineResponse.withKeys(pipeline)
+        1 * pipelines.revokeKey(100L, 'Leaked') >> PipelineResponse.withKeys(pipeline, null)
         missing.status == 400
         parse(missing.contentAsString).detail == 'say why the key is invalidated'
         revoked.status == 200
@@ -110,7 +110,7 @@ class PipelineControllerSpec extends Specification {
                 .content(toJson([reason: 'again']))).andReturn().response
 
         then:
-        1 * pipelines.issueKey(100L) >> PipelineResponse.withKeys(pipeline)
+        1 * pipelines.issueKey(100L) >> PipelineResponse.withKeys(pipeline, null)
         1 * pipelines.revokeKey(100L, 'again') >> { throw new ConflictException('The pipeline has no active key to invalidate') }
         issued.status == 200
         again.status == 409

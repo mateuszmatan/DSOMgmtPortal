@@ -4,6 +4,7 @@ import com.bbh.itss.dso.portal.common.ConflictException
 import com.bbh.itss.dso.portal.common.InvalidRequestException
 import com.bbh.itss.dso.portal.common.NotFoundException
 import org.spockframework.mock.EmptyOrDummyResponse
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.orm.ObjectOptimisticLockingFailureException
 import spock.lang.Specification
 import spock.lang.Subject
@@ -17,12 +18,15 @@ import static com.bbh.itss.dso.portal.support.Fixtures.withId
 
 class ProductCatalogServiceSpec extends Specification {
 
+    static final SonarSettings CERT_SONAR = SonarSettings.of(null, 'cert', ToolCommand.of(['sonarqube'], []))
+
     ProductRepository products = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
     ServiceDefinitionRepository services = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
     PipelineStatistics statistics = Stub()
+    ApplicationEventPublisher events = Mock()
 
     @Subject
-    def catalog = new ProductCatalogService(products, services, statistics)
+    def catalog = new ProductCatalogService(products, services, statistics, events)
 
     def "the list shows each product with its service and pipeline counts"() {
         given:
@@ -97,6 +101,7 @@ class ProductCatalogServiceSpec extends Specification {
 
         then:
         1 * products.saveAndFlush({ Product p -> p.services*.displayOrder == [0, 1] }) >> { Product p -> withId(p, 9L) }
+        1 * events.publishEvent(new ProductChanged(9L))
         response.id == 9
         response.services*.name == ['gui', 'backend-api']
         response.services*.metrics*.influxProject() == ['CERT-gui', 'CERT-backend-api']
@@ -164,8 +169,8 @@ class ProductCatalogServiceSpec extends Specification {
         def other = service(product(id: 2, name: 'Payments Hub'), name: 'gateway', id: 50)
         services.findBySonarProjectKey('cert') >> Optional.of(other)
         def request = productRequest(services: [
-                serviceRequest(name: 'gui', sonar: new SonarSettings(null, 'cert')),
-                serviceRequest(name: 'api', sonar: new SonarSettings(null, 'cert'))])
+                serviceRequest(name: 'gui', sonar: CERT_SONAR),
+                serviceRequest(name: 'api', sonar: CERT_SONAR)])
 
         when:
         catalog.create(request)
@@ -180,7 +185,7 @@ class ProductCatalogServiceSpec extends Specification {
     def "a product's own services do not clash with themselves on update"() {
         given:
         def product = product(id: 5)
-        def gui = service(product, name: 'gui', id: 10, sonar: new SonarSettings(null, 'cert'))
+        def gui = service(product, name: 'gui', id: 10, sonar: CERT_SONAR)
         products.findById(5L) >> Optional.of(product)
         products.findByCodeIgnoreCase('CERT') >> Optional.of(product)
         products.findByNameIgnoreCase('CertScanner') >> Optional.of(product)
@@ -188,7 +193,7 @@ class ProductCatalogServiceSpec extends Specification {
         services.findByMetricsTags('CERT-gui', 'test') >> Optional.of(gui)
 
         when:
-        catalog.update(5L, productRequest(services: [serviceRequest(id: 10, name: 'gui', sonar: new SonarSettings(null, 'cert'))]))
+        catalog.update(5L, productRequest(services: [serviceRequest(id: 10, name: 'gui', sonar: CERT_SONAR)]))
 
         then:
         1 * products.saveAndFlush(product) >> product

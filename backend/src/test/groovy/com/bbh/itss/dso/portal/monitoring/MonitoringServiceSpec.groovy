@@ -6,6 +6,7 @@ import com.bbh.itss.dso.portal.common.NotFoundException
 import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.GrafanaLinks
 import com.bbh.itss.dso.portal.pipeline.PipelineRepository
 import com.bbh.itss.dso.portal.pipeline.PipelineType
+import com.bbh.itss.dso.portal.settings.GlobalSettingsService
 import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
 import spock.lang.Subject
@@ -31,14 +32,18 @@ class MonitoringServiceSpec extends Specification {
     PipelineRepository pipelines = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
     PipelineMetricsRepository metrics = Mock()
     GrafanaPanels grafana = Mock()
+    GlobalSettingsService settings = Stub() {
+        jenkinsUrl() >> 'https://jenkins.test'
+    }
 
     @Subject
-    def monitoring = new MonitoringService(products, pipelines, metrics, grafana, Clock.fixed(NOW, ZoneOffset.UTC))
+    def monitoring = new MonitoringService(products, pipelines, metrics, grafana, settings,
+            Clock.fixed(NOW, ZoneOffset.UTC))
 
     def certScanner = product(id: 1, code: 'CERT', name: 'CertScanner', ownerTeam: 'TA')
     def gui = service(certScanner, name: 'gui', id: 10)
     def api = service(certScanner, name: 'backend-api', id: 11)
-    def guiFull = pipeline(gui, id: 100)
+    def guiFull = pipeline(gui, id: 100, jenkinsJob: 'DevSecOps/CERT/gui-full')
     def guiSast = pipeline(gui, id: 101, type: PipelineType.SAST)
     def apiFull = pipeline(api, id: 102)
     def payments = product(id: 2, code: 'PAY', name: 'Payments Hub')
@@ -178,7 +183,9 @@ class MonitoringServiceSpec extends Specification {
         product.pipelines()*.status() == [UNSTABLE, DISABLED]
         product.pipelines()[0].lastRun() == unstable
         product.pipelines()[0].pipeline().id() == 100
+        product.pipelines()[0].pipeline().jenkinsJobUrl() == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-full/'
         product.pipelines()[1].lastRun() == null
+        product.pipelines()[1].pipeline().jenkinsJobUrl() == null
         product.metricsError() == null
     }
 
@@ -207,6 +214,7 @@ class MonitoringServiceSpec extends Specification {
         1 * grafana.links(tag, 30) >> links
         0 * metrics.latestRuns(_)
         details.pipeline().keys().size() == 1
+        details.pipeline().jenkinsJobUrl() == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-full/'
         details.status() == SUCCESS
         details.lastRun() == newest
         details.recentRuns().size() == 2

@@ -4,7 +4,9 @@ import com.bbh.itss.dso.portal.catalog.ProductRepository
 import com.bbh.itss.dso.portal.catalog.ServiceDefinitionRepository
 import com.bbh.itss.dso.portal.common.ConflictException
 import com.bbh.itss.dso.portal.common.NotFoundException
+import com.bbh.itss.dso.portal.settings.GlobalSettingsService
 import org.spockframework.mock.EmptyOrDummyResponse
+import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
 import spock.lang.Subject
 
@@ -19,9 +21,13 @@ class PipelineServiceSpec extends Specification {
     PipelineKeyRepository keys = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
     ServiceDefinitionRepository services = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
     ProductRepository products = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
+    GlobalSettingsService settings = Stub() {
+        jenkinsUrl() >> 'https://jenkins.test'
+    }
+    ApplicationEventPublisher events = Mock()
 
     @Subject
-    def pipelineService = new PipelineService(pipelines, keys, services, products)
+    def pipelineService = new PipelineService(pipelines, keys, services, products, settings, events)
 
     def certScanner = product(id: 1)
     def gui = service(certScanner, name: 'gui', id: 10)
@@ -94,12 +100,16 @@ class PipelineServiceSpec extends Specification {
         services.findById(10L) >> Optional.of(gui)
 
         when:
-        def response = pipelineService.create(10L, new PipelineRequest(PipelineType.SECURITY, ['linux'], 'CERT/gui-extended', null))
+        def response = pipelineService.create(10L, new PipelineRequest(PipelineType.SECURITY, ['linux'], 'CERT/gui-extended', null,
+                'DevSecOps/CERT/gui-security', null))
 
         then:
         1 * pipelines.saveAndFlush({ Pipeline p -> p.type == PipelineType.SECURITY && p.service.is(gui) }) >> { Pipeline p -> withId(p, 100L) }
+        1 * events.publishEvent(new PipelineChanged(100L))
         response.id == 100
         response.extendedPipelineJob == 'CERT/gui-extended'
+        response.jenkinsJob == 'DevSecOps/CERT/gui-security'
+        response.jenkinsJobUrl == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-security/'
         response.keys.size() == 1
         response.activeKey.status == KeyStatus.ACTIVE
     }
@@ -110,7 +120,7 @@ class PipelineServiceSpec extends Specification {
         pipelines.existsByServiceIdAndType(10L, PipelineType.FULL) >> true
 
         when:
-        pipelineService.create(10L, new PipelineRequest(PipelineType.FULL, ['linux'], null, null))
+        pipelineService.create(10L, new PipelineRequest(PipelineType.FULL, ['linux'], null, null, null, null))
 
         then:
         def e = thrown(ConflictException)
@@ -120,7 +130,7 @@ class PipelineServiceSpec extends Specification {
 
     def "a pipeline needs an existing service"() {
         when:
-        pipelineService.create(10L, new PipelineRequest(PipelineType.FULL, ['linux'], null, null))
+        pipelineService.create(10L, new PipelineRequest(PipelineType.FULL, ['linux'], null, null, null, null))
 
         then:
         def e = thrown(NotFoundException)
@@ -133,12 +143,15 @@ class PipelineServiceSpec extends Specification {
         pipelines.findWithServiceById(100L) >> Optional.of(pipeline)
 
         when:
-        def response = pipelineService.update(100L, new PipelineRequest(PipelineType.FULL, ['windows', 'linux'], null, 'Nightly'))
+        def response = pipelineService.update(100L, new PipelineRequest(PipelineType.FULL, ['windows', 'linux'], 'CERT/x', 'CERT/y', null, 'Nightly'))
 
         then:
         1 * pipelines.saveAndFlush(pipeline) >> pipeline
+        1 * events.publishEvent(new PipelineChanged(100L))
         response.agentLabels == ['windows', 'linux']
         response.description == 'Nightly'
+        response.extendedPipelineJob == null
+        response.securityPipelineJob == null
     }
 
     def "a pipeline's type cannot change"() {
@@ -146,7 +159,7 @@ class PipelineServiceSpec extends Specification {
         pipelines.findWithServiceById(100L) >> Optional.of(pipeline(gui, id: 100))
 
         when:
-        pipelineService.update(100L, new PipelineRequest(PipelineType.SAST, ['linux'], null, null))
+        pipelineService.update(100L, new PipelineRequest(PipelineType.SAST, ['linux'], null, null, null, null))
 
         then:
         thrown(ConflictException)

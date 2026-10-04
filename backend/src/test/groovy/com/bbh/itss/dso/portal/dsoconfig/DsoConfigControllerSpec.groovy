@@ -5,6 +5,7 @@ import com.bbh.itss.dso.portal.common.ApiExceptionHandler
 import com.bbh.itss.dso.portal.common.NotFoundException
 import com.bbh.itss.dso.portal.pipeline.KeyRevokedException
 import com.bbh.itss.dso.portal.pipeline.PipelineService
+import com.bbh.itss.dso.portal.settings.GlobalSettingsService
 import org.spockframework.mock.EmptyOrDummyResponse
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
@@ -12,6 +13,7 @@ import org.yaml.snakeyaml.Yaml
 import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.support.ApiJson.parse
+import static com.bbh.itss.dso.portal.support.Fixtures.globalSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.service
@@ -23,8 +25,11 @@ class DsoConfigControllerSpec extends Specification {
 
     PipelineService pipelines = Mock()
     ProductRepository products = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
+    GlobalSettingsService settings = Stub() {
+        values() >> globalSettings()
+    }
     MockMvc mvc = MockMvcBuilders
-            .standaloneSetup(new DsoConfigController(pipelines, products, new DsoConfigBuilder(DsoConfigBuilderSpec.DEFAULTS)))
+            .standaloneSetup(new DsoConfigController(pipelines, products, new DsoConfigBuilder(settings)))
             .setControllerAdvice(new ApiExceptionHandler())
             .build()
 
@@ -119,5 +124,16 @@ class DsoConfigControllerSpec extends Specification {
 
         then:
         response.status == 404
+    }
+
+    def "the global part of every pipeline's config is shown as YAML or JSON"() {
+        when:
+        def yaml = mvc.perform(get('/api/settings/config')).andReturn().response
+        def json = mvc.perform(get('/api/settings/config').param('format', 'json')).andReturn().response
+
+        then:
+        yaml.status == 200
+        (new Yaml().load(yaml.contentAsString) as Map).platform.jenkinsLibrary == 'DevSecOpsJenkinsLibrary'
+        parse(json.contentAsString).defaults.releaseGate.stateFile == 'release-gate.json'
     }
 }

@@ -4,6 +4,8 @@ import org.springframework.test.util.ReflectionTestUtils
 import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.support.Fixtures.account
+import static com.bbh.itss.dso.portal.support.Fixtures.build
+import static com.bbh.itss.dso.portal.support.Fixtures.command
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.service
 import static com.bbh.itss.dso.portal.support.Fixtures.settings
@@ -113,7 +115,11 @@ class ProductSpec extends Specification {
     def "updating a service replaces all of its settings"() {
         given:
         def service = product().addService('gui', 'old', 0, settings())
-        def changed = settings(sonar: new SonarSettings('CertScanner GUI', 'cert-gui'), build: new BuildSettings(BuildTool.MAVEN, 'gui', '/jdk', false))
+        def changed = settings(sonar: SonarSettings.of('CertScanner GUI', 'cert-gui', command(['sonar:sonar'])),
+                build: build(tool: BuildTool.MAVEN, sourceDir: 'gui', javaPath: '/jdk'),
+                testJobs: [new TestJob(TestStage.SMOKE, null, null, 'CERT/smoke', null, null, null, null, null)],
+                sshTargets: [(Region.RD): new SshTarget('rd.host', null, null, null, null)],
+                urbanCodeApplications: [new UrbanCodeApplicationSettings('Cert', null, [], null, [])])
 
         when:
         service.update('web', 'Angular front end', 5, changed)
@@ -124,13 +130,18 @@ class ProductSpec extends Specification {
         service.displayOrder == 5
         service.sonar == changed.sonar()
         service.build == changed.build()
+        service.settings().testJobs() == changed.testJobs()
+        service.settings().sshTargets() == changed.sshTargets()
+        service.settings().urbanCodeApplications() == changed.urbanCodeApplications()
         service.metrics.influxProject() == 'CERT-web'
     }
 
     def "sections loaded as null by JPA are restored as empty"() {
         given:
         def service = product().addService('gui', null, 0, settings())
-        ['sonar', 'nexusIq', 'scm', 'metrics', 'additionalConfig'].each { ReflectionTestUtils.setField(service, it, null) }
+        ['unitTests', 'tests', 'delivery', 'urbanCode', 'sonar', 'nexusIq', 'scm', 'goldenFix', 'metrics', 'flutter'].each {
+            ReflectionTestUtils.setField(service, it, null)
+        }
 
         expect:
         service.settings() == settings()
@@ -141,7 +152,8 @@ class ProductSpec extends Specification {
     def "a service writes its config.yaml entry with the product's AppScan account"() {
         given:
         def product = product()
-        def service = product.addService('gui', null, 0, settings(additionalConfig: new AdditionalConfig('buildTool: maven\ntests:\n  smoke:\n    enabled: true')))
+        def service = product.addService('gui', null, 0, settings(
+                testJobs: [new TestJob(TestStage.SMOKE, 'smoke', null, 'CERT/gui-smoke', null, null, null, null, null)]))
         def tree = new ConfigTree()
 
         when:
@@ -149,7 +161,7 @@ class ProductSpec extends Specification {
 
         then:
         tree.get('buildTool') == 'gradle'
-        tree.get('tests.smoke.enabled') == true
+        tree.get('tests.smoke.jobs') == [[name: 'smoke', job: 'CERT/gui-smoke']]
         tree.get('asoc') == [keyId: 'bbh_key-id', token: 'hcl-app-scan-account']
         tree.get('influx.project') == 'CERT-gui'
         tree.get('appId') == '109f44ac-cc06-4ca0-884e-d944904f7019'

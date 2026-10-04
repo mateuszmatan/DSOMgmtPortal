@@ -148,10 +148,10 @@ class PipelineSpec extends Specification {
         def key = pipeline.activeKey().get()
 
         when:
-        pipeline.configure(new PipelineSettings(['windows'], null, ' nightly '))
+        pipeline.configure(new PipelineSettings(['windows'], null, null, ' CERT/gui ', ' nightly '))
 
         then:
-        pipeline.settings == new PipelineSettings(['windows'], null, 'nightly')
+        pipeline.settings == new PipelineSettings(['windows'], null, null, 'CERT/gui', 'nightly')
         pipeline.activeKey().get().is(key)
     }
 
