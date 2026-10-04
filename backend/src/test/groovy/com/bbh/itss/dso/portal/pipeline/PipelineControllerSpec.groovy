@@ -72,6 +72,58 @@ class PipelineControllerSpec extends Specification {
         pipelineJson(agentLabels: ['linux node']) || ['agentLabels[0]']
     }
 
+    def "the Jenkins job #jenkinsJob is accepted as a job path or URL"() {
+        when:
+        def response = mvc.perform(post('/api/services/10/pipelines').contentType(MediaType.APPLICATION_JSON)
+                .content(toJson(pipelineJson(jenkinsJob: jenkinsJob)))).andReturn().response
+
+        then:
+        1 * pipelines.create(10L, { PipelineRequest r -> r.jenkinsJob() == jenkinsJob }) >> PipelineResponse.withKeys(pipeline, null)
+        response.status == 201
+
+        where:
+        jenkinsJob << [null, '', 'DevSecOps/CertScanner-gui', 'DevSecOps/Cert Scanner/gui', 'https://jenkins.bbh.com/job/CERT/job/gui/',
+                       'http://jenkins:8080/job/gui']
+    }
+
+    def "the Jenkins job #jenkinsJob is refused"() {
+        when:
+        def response = mvc.perform(post('/api/services/10/pipelines').contentType(MediaType.APPLICATION_JSON)
+                .content(toJson(pipelineJson(jenkinsJob: jenkinsJob)))).andReturn().response
+
+        then:
+        0 * pipelines.create(*_)
+        response.status == 400
+        with(parse(response.contentAsString)) {
+            errors*.field == ['jenkinsJob']
+            errors[0].message == message
+        }
+
+        where:
+        jenkinsJob                  || message
+        'ftp://jenkins.bbh.com/job' || "must be a job path such as DevSecOps/CertScanner-gui or the job's http or https URL"
+        'https://jenkins bbh/job'   || "must be a job path such as DevSecOps/CertScanner-gui or the job's http or https URL"
+        ' DevSecOps/gui'            || "must be a job path such as DevSecOps/CertScanner-gui or the job's http or https URL"
+        'DevSecOps/gui?delay=0'     || "must be a job path such as DevSecOps/CertScanner-gui or the job's http or https URL"
+        'DevSecOps/gui#main'        || "must be a job path such as DevSecOps/CertScanner-gui or the job's http or https URL"
+        'a' * 1001                  || 'size must be between 0 and 1000'
+    }
+
+    def "a pipeline's Jenkins job is linked in the response"() {
+        given:
+        def linked = pipeline(gui, id: 100, jenkinsJob: 'DevSecOps/CERT/gui')
+
+        when:
+        def response = mvc.perform(get('/api/pipelines/100')).andReturn().response
+
+        then:
+        1 * pipelines.get(100L) >> PipelineResponse.withKeys(linked, 'https://jenkins.test')
+        with(parse(response.contentAsString)) {
+            jenkinsJob == 'DevSecOps/CERT/gui'
+            jenkinsJobUrl == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui/'
+        }
+    }
+
     def "returns, changes and deletes a pipeline"() {
         when:
         def got = mvc.perform(get('/api/pipelines/100')).andReturn().response
