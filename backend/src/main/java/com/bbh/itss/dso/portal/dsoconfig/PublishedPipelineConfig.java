@@ -25,8 +25,9 @@ public class PublishedPipelineConfig implements Persistable<Long> {
     @Column(name = "PIPELINE_ID")
     private Long pipelineId;
 
+    // The length makes MySQL expect LONGTEXT, as created by the changelog; Oracle and H2 store a CLOB.
     @Lob
-    @Column(name = "CONFIG_JSON", nullable = false)
+    @Column(name = "CONFIG_JSON", nullable = false, length = Integer.MAX_VALUE)
     private String configJson;
 
     @Column(name = "RENDERED_AT", nullable = false)

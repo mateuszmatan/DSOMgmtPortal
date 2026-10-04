@@ -13,6 +13,7 @@ import jakarta.validation.constraints.Size;
 import org.hibernate.type.NumericBooleanConverter;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -35,7 +36,9 @@ public record ReleaseGateSettings(
         String stateFile) {
 
     public ReleaseGateSettings {
-        scanners = scanners == null ? List.of() : scanners.stream().distinct().sorted().toList();
+        // A null entry is kept, last, so validation reports it instead of the sort failing.
+        scanners = scanners == null ? List.of()
+                : scanners.stream().distinct().sorted(Comparator.nullsLast(Comparator.naturalOrder())).toList();
         stateFile = Text.trimToNull(stateFile);
     }
 
