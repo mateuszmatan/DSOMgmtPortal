@@ -1,0 +1,261 @@
+<div class="page editor">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/products">Product Management</a>
+    <mat-icon>chevron_right</mat-icon>
+    @if (product(); as stored) {
+      <a [routerLink]="['/products', stored.id]">{{ stored.name }}</a>
+      <mat-icon>chevron_right</mat-icon>
+      <span>Edit</span>
+    } @else {
+      <span>{{ id() ? 'Edit' : 'Add product' }}</span>
+    }
+  </nav>
+
+  <header class="page-header">
+    <div>
+      @if (product(); as stored) {
+        <h1>Edit {{ stored.name }}</h1>
+        <p>Changes reach every pipeline of the product the next time it reads its configuration.</p>
+      } @else if (!id()) {
+        <h1>Add product</h1>
+        <p>
+          Describe the product and define its services. Each service can then get its own DevSecOps
+          pipelines.
+        </p>
+      } @else {
+        <h1>Edit product</h1>
+      }
+    </div>
+  </header>
+
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  @if (loadError(); as error) {
+    <div class="banner">
+      <mat-icon>error_outline</mat-icon><span>{{ error }}</span>
+    </div>
+    <a mat-stroked-button routerLink="/products"><mat-icon>arrow_back</mat-icon>Back to products</a>
+  } @else if (!loading()) {
+    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+      @if (unmatchedProblems().length) {
+        <div class="banner" role="alert">
+          <mat-icon>error_outline</mat-icon>
+          <ul class="problems">
+            @for (problem of unmatchedProblems(); track problem.field + problem.message) {
+              <li>
+                <span class="mono">{{ problem.field }}</span
+                >: {{ problem.message }}
+              </li>
+            }
+          </ul>
+        </div>
+      }
+
+      <section class="card product-fields">
+        <div class="form-block">
+          <header>
+            <h3><mat-icon>inventory_2</mat-icon>Product</h3>
+            <p>
+              How the product appears in the portal. The code starts the default metrics tags of its
+              services.
+            </p>
+          </header>
+          <div class="form-fields">
+            <mat-form-field class="span-3">
+              <mat-label>Code</mat-label>
+              <input
+                matInput
+                formControlName="code"
+                placeholder="CERT"
+                class="mono uppercase"
+                autocomplete="off"
+                maxlength="50"
+              />
+              <mat-hint>Upper case, unique</mat-hint>
+              <mat-error>{{
+                errorText(form.controls.code, "Start with a letter; use A-Z, 0-9, '-' or '_'")
+              }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="span-5">
+              <mat-label>Name</mat-label>
+              <input matInput formControlName="name" placeholder="CertScanner" />
+              <mat-error>{{ errorText(form.controls.name) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="span-4">
+              <mat-label>Owner team</mat-label>
+              <input matInput formControlName="ownerTeam" placeholder="Security Engineering" />
+              <mat-error>{{ errorText(form.controls.ownerTeam) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="span-8">
+              <mat-label>Description</mat-label>
+              <textarea
+                matInput
+                formControlName="description"
+                rows="2"
+                placeholder="What the product does and who uses it"
+              ></textarea>
+              <mat-error>{{ errorText(form.controls.description) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="span-4">
+              <mat-label>Contact e-mail</mat-label>
+              <input
+                matInput
+                type="email"
+                formControlName="contactEmail"
+                placeholder="team@bbh.com"
+              />
+              <mat-error>{{ errorText(form.controls.contactEmail) }}</mat-error>
+            </mat-form-field>
+          </div>
+        </div>
+
+        <div class="form-block" formGroupName="appScan">
+          <header>
+            <h3><mat-icon>vpn_key</mat-icon>HCL AppScan account</h3>
+            <p>
+              The API key every service of the product scans with. Its secret stays in Jenkins
+              credentials.
+            </p>
+          </header>
+          <div class="form-fields">
+            <mat-form-field class="span-6">
+              <mat-label>API key ID</mat-label>
+              <input
+                matInput
+                formControlName="keyId"
+                placeholder="bbh_..."
+                class="mono"
+                autocomplete="off"
+              />
+              <mat-hint><code>asoc.keyId</code></mat-hint>
+              <mat-error>{{ errorText(form.controls.appScan.controls.keyId) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="span-6">
+              <mat-label>Secret credentials ID</mat-label>
+              <input
+                matInput
+                formControlName="secretCredentialsId"
+                placeholder="hcl-app-scan-account"
+                class="mono"
+                autocomplete="off"
+              />
+              <mat-hint>Jenkins credentials holding the key secret</mat-hint>
+              <mat-error>{{
+                errorText(form.controls.appScan.controls.secretCredentialsId)
+              }}</mat-error>
+            </mat-form-field>
+          </div>
+        </div>
+      </section>
+
+      <section class="services">
+        <header class="section-header">
+          <div>
+            <h2>
+              Services <span class="count">{{ services().length }}</span>
+            </h2>
+            <p>
+              Each service is one entry under <code>projects:</code> in config.yaml and can get its
+              own pipelines.
+            </p>
+          </div>
+          <button mat-stroked-button type="button" (click)="addService()">
+            <mat-icon>add</mat-icon>Add service
+          </button>
+        </header>
+
+        @if (services().length === 0) {
+          <div class="card empty-state">
+            <mat-icon>widgets</mat-icon>
+            <h3>No services yet</h3>
+            <p>Add the services of the product, for example its GUI and its backend API.</p>
+            <button mat-flat-button type="button" (click)="addService()">
+              <mat-icon>add</mat-icon>Add service
+            </button>
+          </div>
+        } @else {
+          <mat-accordion displayMode="flat">
+            @for (
+              service of services();
+              track service;
+              let i = $index, first = $first, last = $last
+            ) {
+              <mat-expansion-panel
+                [expanded]="expanded() === i"
+                (opened)="panelToggled(i, true)"
+                (closed)="panelToggled(i, false)"
+                [class.has-errors]="showsErrors(service)"
+              >
+                <mat-expansion-panel-header>
+                  <mat-panel-title>
+                    <span class="index">{{ i + 1 }}</span>
+                    <span class="mono service-name">{{
+                      service.controls.name.value || 'new-service'
+                    }}</span>
+                    @if (showsErrors(service)) {
+                      <mat-icon
+                        class="error-icon"
+                        matTooltip="Some fields of this service need your attention"
+                        >error</mat-icon
+                      >
+                    }
+                  </mat-panel-title>
+                  <mat-panel-description>
+                    <span>{{ toolLabels[service.controls.build.controls.tool.value] }}</span>
+                    <span class="dot">·</span>
+                    <span>{{
+                      targetLabels[service.controls.deployment.controls.target.value]
+                    }}</span>
+                    @if (service.controls.id.value === null) {
+                      <span class="tag new">New</span>
+                    } @else if (pipelinesOf(service); as count) {
+                      <span class="tag"
+                        >{{ count }} {{ count === 1 ? 'pipeline' : 'pipelines' }}</span
+                      >
+                    }
+                  </mat-panel-description>
+                </mat-expansion-panel-header>
+
+                <dso-service-fields [form]="service" [productCode]="form.controls.code.value" />
+
+                <mat-action-row>
+                  <button mat-button type="button" (click)="move(i, -1)" [disabled]="first">
+                    <mat-icon>arrow_upward</mat-icon>Up
+                  </button>
+                  <button mat-button type="button" (click)="move(i, 1)" [disabled]="last">
+                    <mat-icon>arrow_downward</mat-icon>Down
+                  </button>
+                  <span class="spacer"></span>
+                  <button mat-button type="button" (click)="duplicate(i)">
+                    <mat-icon>content_copy</mat-icon>Duplicate
+                  </button>
+                  <button mat-button type="button" class="danger" (click)="remove(i)">
+                    <mat-icon>delete</mat-icon>Remove
+                  </button>
+                </mat-action-row>
+              </mat-expansion-panel>
+            }
+          </mat-accordion>
+        }
+      </section>
+
+      <div class="save-bar">
+        @if (saveError(); as error) {
+          <span class="save-error" role="alert"><mat-icon>error_outline</mat-icon>{{ error }}</span>
+        } @else if (form.dirty) {
+          <span class="muted">Unsaved changes</span>
+        }
+        <span class="spacer"></span>
+        <button mat-button type="button" (click)="cancel()">Cancel</button>
+        <button mat-flat-button type="submit" [disabled]="saving()">
+          @if (saving()) {
+            <mat-spinner diameter="18" />
+          }
+          {{ product() ? 'Save changes' : 'Add product' }}
+        </button>
+      </div>
+    </form>
+  }
+</div>
