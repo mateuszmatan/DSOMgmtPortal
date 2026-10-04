@@ -171,4 +171,15 @@ class ProductSpec extends Specification {
         expect:
         withId(product(), 42L).id == 42L
     }
+
+    def "a product loaded by JPA starts without services or details"() {
+        when:
+        def product = new Product()
+
+        then:
+        product.services == []
+        product.id == null
+        product.code == null
+        product.appScanAccount == null
+    }
 }

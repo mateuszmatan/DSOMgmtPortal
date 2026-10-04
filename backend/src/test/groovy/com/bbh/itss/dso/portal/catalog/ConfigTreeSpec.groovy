@@ -31,6 +31,104 @@ class ConfigTreeSpec extends Specification {
         'empty text' | ''
         'blank text' | '  '
         'empty list' | []
+        'empty map'  | [:]
+        'empty set'  | [] as Set
+    }
+
+    def "false, zero and maps or lists with entries are written"() {
+        when:
+        tree.set('dast.enabled', false)
+                .set('tests.maxParallel', 0)
+                .set('tests.smoke.jobs', [[job: 'CERT/smoke']])
+                .set('build.gradle.env', [CI: 'true'])
+
+        then:
+        tree.toMap() == [dast : [enabled: false],
+                         tests: [maxParallel: 0, smoke: [jobs: [[job: 'CERT/smoke']]]],
+                         build: [gradle: [env: [CI: 'true']]]]
+    }
+
+    def "a skipped value creates no section on its way"() {
+        when:
+        tree.set('build.gradle.env', [:]).set('deploy.vm.dod.applications', []).set('tools.sonar.projectKey', ' ')
+
+        then:
+        tree.toMap() == [:]
+        tree.get('build') == null
+    }
+
+    def "a later value replaces the earlier one at the same path"() {
+        when:
+        tree.set('tests.maxParallel', 2).set('tests.maxParallel', 4).set('tests.maxParallel', null)
+
+        then:
+        tree.toMap() == [tests: [maxParallel: 4]]
+    }
+
+    def "a default is filled into a section that is there and does not have the key"() {
+        given:
+        tree.set('deploy.vm.rd.deployDir', '/opt/cert')
+
+        when:
+        tree.fillIn('deploy.vm.rd', 'host', 'rdltaapps1.testbbh.com').fillIn('deploy.vm.rd', 'user', 'dsoadm')
+
+        then:
+        tree.get('deploy.vm.rd') == [deployDir: '/opt/cert', host: 'rdltaapps1.testbbh.com', user: 'dsoadm']
+        tree.get('deploy.vm.rd').keySet() as List == ['deployDir', 'host', 'user']
+    }
+
+    def "a default never replaces the service's own value"() {
+        given:
+        tree.set('deploy.vm.rd.host', 'own.host')
+
+        when:
+        tree.fillIn('deploy.vm.rd', 'host', 'default.host')
+
+        then:
+        tree.get('deploy.vm.rd') == [host: 'own.host']
+    }
+
+    def "a default never creates a section the service did not configure"() {
+        given:
+        tree.set('deploy.vm.rd.host', 'rd.host').set('appId', 'x')
+
+        when:
+        tree.fillIn('deploy.vm.qc', 'host', 'qc.host')
+                .fillIn('deploy.vm.dod', 'siteName', 'BBH')
+                .fillIn('appId', 'value', 'y')
+                .fillIn('deploy.vm.rd.host', 'user', 'dsoadm')
+
+        then:
+        tree.toMap() == [deploy: [vm: [rd: [host: 'rd.host']]], appId: 'x']
+    }
+
+    def "a missing default is not filled in: #description"() {
+        given:
+        tree.set('deploy.vm.rd.deployDir', '/opt/cert')
+
+        when:
+        tree.fillIn('deploy.vm.rd', 'host', value)
+
+        then:
+        tree.get('deploy.vm.rd') == [deployDir: '/opt/cert']
+
+        where:
+        description  | value
+        'null'       | null
+        'blank text' | ' '
+        'empty list' | []
+        'empty map'  | [:]
+    }
+
+    def "a default may be filled into a top-level section and into a section merged from a map"() {
+        given:
+        tree.merge([tests: [smoke: [enabled: true]]])
+
+        when:
+        tree.fillIn('tests', 'maxParallel', 2).fillIn('tests.smoke', 'timeoutMin', 15)
+
+        then:
+        tree.toMap() == [tests: [smoke: [enabled: true, timeoutMin: 15], maxParallel: 2]]
     }
 
     def "a value on the way to a path is replaced by a section"() {

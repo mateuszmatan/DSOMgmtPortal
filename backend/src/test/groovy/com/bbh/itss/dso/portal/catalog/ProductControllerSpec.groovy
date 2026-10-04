@@ -8,10 +8,15 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.catalog.Region.QC
+import static com.bbh.itss.dso.portal.catalog.Region.RD
+import static com.bbh.itss.dso.portal.support.ApiJson.APP_ID
 import static com.bbh.itss.dso.portal.support.ApiJson.parse
 import static com.bbh.itss.dso.portal.support.ApiJson.product as productJson
 import static com.bbh.itss.dso.portal.support.ApiJson.service as serviceJson
 import static com.bbh.itss.dso.portal.support.ApiJson.toJson
+import static com.bbh.itss.dso.portal.support.Fixtures.JDK
+import static com.bbh.itss.dso.portal.support.Fixtures.command
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.service
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
@@ -20,6 +25,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 
 class ProductControllerSpec extends Specification {
+
+    static final String REGRESSION_URL = 'https://jenkins-qc.bbh.com/job/CERT/job/regression/'
 
     ProductCatalogService catalog = Mock()
     MockMvc mvc = MockMvcBuilders.standaloneSetup(new ProductController(catalog))
@@ -144,5 +151,164 @@ class ProductControllerSpec extends Specification {
         then:
         1 * catalog.delete(5L)
         response.status == 204
+    }
+
+    def "a service with test jobs, UrbanCode applications, deployment targets, GoldenFix and Flutter reaches the catalog as entered"() {
+        given:
+        ProductRequest received = null
+        def body = productJson(services: [serviceJson(
+                build: [tool: 'GRADLE', javaPath: JDK, buildPath: 'build/libs/gui.war',
+                        command: [tasks: ['clean', 'build'], flags: ['--no-daemon'], environment: ['CI=true']]],
+                unitTests: [command: [tasks: ['test']], resultPattern: '**/TEST-*.xml', allowEmptyResults: true],
+                tests: [maxParallel: 4, smokeMaxParallel: 2],
+                testJobs: [[stage: 'SMOKE', name: 'smoke', job: 'CERT/gui-smoke', timeoutMinutes: 15],
+                           [stage: 'REGRESSION', type: 'REMOTE', job: REGRESSION_URL, credentialsId: 'jenkins-qc']],
+                urbanCode: [siteName: 'BBH-RD', skipWait: true],
+                urbanCodeApplications: [[applicationName: 'Cert', order: 1, environments: ['RD'],
+                                         components     : [[componentName: 'cert-gui', baseDir: 'build/libs',
+                                                            fileIncludePatterns: '*.war']]]],
+                sshTargets: [RD: [host: 'rdltaapps1.testbbh.com', user: 'dsoadm'], QC: [host: 'qcltaapps1.testbbh.com']],
+                openShiftTargets: [RD: [projectBuild: 'cert-build', projectDeployment: 'cert-rd', skipConfigDeploy: true]],
+                goldenFix: [enabled: false, minThreatLevel: 8, ecosystems: ['maven', 'npm'], verifyGradleCommand: './gradlew check'],
+                flutter: [platform: 'APK', modules: ['app'], signingPasswordCredentialsId: 'sign',
+                          prodLicenseCredentialsId: 'prod', testLicenseCredentialsId: 'test'])])
+
+        when:
+        def response = mvc.perform(post('/api/products').contentType(MediaType.APPLICATION_JSON)
+                .content(toJson(body))).andReturn().response
+
+        then:
+        1 * catalog.create(_) >> { ProductRequest r -> received = r; ProductResponse.from(product(id: 9)) }
+        response.status == 201
+        with(received.services()[0]) {
+            build() == new BuildSettings(BuildTool.GRADLE, null, JDK, false, 'build/libs/gui.war',
+                    new ToolCommand(['clean', 'build'], ['--no-daemon'], null, null, ['CI=true']))
+            unitTests() == new UnitTestSettings(command(['test']), '**/TEST-*.xml', null, null, true, null)
+            tests() == new TestSettings(4, 2, null, null)
+            testJobs() == [new TestJob(TestStage.SMOKE, 'smoke', null, 'CERT/gui-smoke', 15, null, null, null, null),
+                           new TestJob(TestStage.REGRESSION, null, TestJobType.REMOTE, REGRESSION_URL, null, null, null, null,
+                                   'jenkins-qc')]
+            urbanCode() == new UrbanCodeSettings('BBH-RD', null, true, true, false, true, false, null, null)
+            urbanCodeApplications() == [new UrbanCodeApplicationSettings('Cert', 1, ['RD'], null,
+                    [new UrbanCodeComponent('cert-gui', 'build/libs', '*.war', null, null, null, true)])]
+            sshTargets() == [(RD): new SshTarget('rdltaapps1.testbbh.com', 'dsoadm', null, null, null),
+                             (QC): new SshTarget('qcltaapps1.testbbh.com', null, null, null, null)]
+            openShiftTargets() == [(RD): new OpenShiftTarget('cert-build', null, null, null, null, null, null, null, null,
+                    'cert-rd', null, null, true, null, null, null, null, null, null)]
+            goldenFix() == new GoldenFixPolicy(false, null, 8, ['maven', 'npm'], [], [], null, null, null, null,
+                    './gradlew check', null, null, null, null, null, null)
+            flutter() == new FlutterSettings(FlutterPlatform.APK, ['app'], [], [], [], 'sign', 'prod', 'test', null, null,
+                    null, null, null, false, null, null)
+            delivery() == null
+            sonar() == null
+        }
+    }
+
+    def "a stored service is answered with its test jobs, UrbanCode applications, deployment targets, GoldenFix and Flutter"() {
+        given:
+        def product = product(id: 5)
+        service(product, id: 10,
+                testJobs: [new TestJob(TestStage.SMOKE, 'smoke', null, 'CERT/gui-smoke', 15, null, null, null, null),
+                           new TestJob(TestStage.REGRESSION, null, TestJobType.REMOTE, REGRESSION_URL, null, null, null, null,
+                                   null)],
+                urbanCodeApplications: [new UrbanCodeApplicationSettings('Cert', 1, ['RD'], null,
+                        [new UrbanCodeComponent('cert-gui', 'build/libs', null, null, null, null, false)])],
+                sshTargets: [(QC): new SshTarget('qc.host', null, null, null, null),
+                             (RD): new SshTarget('rd.host', 'dsoadm', null, null, null)],
+                openShiftTargets: [(RD): new OpenShiftTarget('cert-build', null, null, null, null, null, null, null, null,
+                        'cert-rd', null, null, false, null, null, null, null, null, null)],
+                goldenFix: new GoldenFixPolicy(false, true, 8, ['maven'], [], [], null, null, null, null, null, null, null,
+                        null, null, null, null),
+                flutter: new FlutterSettings(FlutterPlatform.WEB, ['app'], [], [], [], null, null, null, null, null, null, null,
+                        null, false, null, null))
+
+        when:
+        def response = mvc.perform(get('/api/products/5')).andReturn().response
+
+        then:
+        1 * catalog.get(5L) >> ProductResponse.from(product)
+        response.status == 200
+        with(parse(response.contentAsString).services[0]) {
+            testJobs*.stage == ['SMOKE', 'REGRESSION']
+            testJobs*.job == ['CERT/gui-smoke', ProductControllerSpec.REGRESSION_URL]
+            testJobs[0].timeoutMinutes == 15
+            testJobs[1].type == 'REMOTE'
+            urbanCodeApplications[0].applicationName == 'Cert'
+            urbanCodeApplications[0].environments == ['RD']
+            urbanCodeApplications[0].components[0].componentName == 'cert-gui'
+            urbanCodeApplications[0].components[0].incrementalVersion == false
+            sshTargets.keySet() as List == ['RD', 'QC']
+            sshTargets.RD.host == 'rd.host'
+            sshTargets.RD.user == 'dsoadm'
+            sshTargets.QC.host == 'qc.host'
+            openShiftTargets.keySet() as List == ['RD']
+            openShiftTargets.RD.projectBuild == 'cert-build'
+            openShiftTargets.RD.projectDeployment == 'cert-rd'
+            goldenFix.enabled == false
+            goldenFix.onlyDirectDependencies == true
+            goldenFix.minThreatLevel == 8
+            goldenFix.ecosystems == ['maven']
+            flutter.platform == 'WEB'
+            flutter.modules == ['app']
+            urbanCode.deployWithSnapshot == true
+            tests.maxParallel == null
+        }
+    }
+
+    def "invalid nested values are reported with the path of each field"() {
+        given:
+        def body = productJson(services: [serviceJson(
+                appScan: [applicationId: APP_ID, includedDirs: ['src,lib']],
+                unitTests: [command: [environment: ['CI']]],
+                tests: [smokeMaxParallel: 0],
+                testJobs: [[stage: 'SMOKE', job: ' ', timeoutMinutes: 0]],
+                urbanCodeApplications: [[applicationName: 'Cert', environments: ['R D'], components: [[componentName: ' ']]]],
+                sshTargets: [RD: [host: 'rd host'], QC: [host: 'qcltaapps1.testbbh.com']],
+                openShiftTargets: [QC: [deploymentRepoUrl: 'bitbucket/ta/deploy']],
+                scm: [repositoryUrl: 'https://bitbucket.bbh.com/scm/ta/cert.git', reviewers: ['john doe']],
+                goldenFix: [minThreatLevel: 11, ecosystems: ['gradle']],
+                flutter: [modules: ['my module']])])
+
+        when:
+        def response = mvc.perform(post('/api/products').contentType(MediaType.APPLICATION_JSON)
+                .content(toJson(body))).andReturn().response
+        def errors = parse(response.contentAsString).errors
+
+        then:
+        0 * catalog.create(_)
+        response.status == 400
+        errors*.field.sort() == ['services[0].appScan.includedDirs[0]',
+                                 'services[0].flutter.modules[0]',
+                                 'services[0].goldenFix.ecosystems[0]',
+                                 'services[0].goldenFix.minThreatLevel',
+                                 'services[0].openShiftTargets[QC].deploymentRepoUrl',
+                                 'services[0].scm.reviewers[0]',
+                                 'services[0].sshTargets[RD].host',
+                                 'services[0].testJobs[0].job',
+                                 'services[0].testJobs[0].timeoutMinutes',
+                                 'services[0].tests.smokeMaxParallel',
+                                 'services[0].unitTests.command.environment[0]',
+                                 'services[0].urbanCodeApplications[0].components[0].componentName',
+                                 'services[0].urbanCodeApplications[0].environments[0]'].sort()
+        def messages = errors.collectEntries { [(it.field): it.message] }
+        messages['services[0].sshTargets[RD].host'] == 'must be a host name such as rdltaapps1.testbbh.com'
+        messages['services[0].openShiftTargets[QC].deploymentRepoUrl'] == 'must be a Git repository URL'
+        messages['services[0].unitTests.command.environment[0]'] == 'write each variable as NAME=value'
+        messages['services[0].goldenFix.ecosystems[0]'] == 'must be maven, npm, pypi or pub'
+        messages['services[0].flutter.modules[0]'] == 'must be a module folder name'
+        parse(response.contentAsString).detail == '13 fields are invalid'
+    }
+
+    def "an UrbanCode application listing a missing component is rejected"() {
+        given:
+        def body = productJson(services: [serviceJson(urbanCodeApplications: [[applicationName: 'Cert', components: [null]]])])
+
+        when:
+        def response = mvc.perform(post('/api/products').contentType(MediaType.APPLICATION_JSON)
+                .content(toJson(body))).andReturn().response
+
+        then:
+        0 * catalog.create(_)
+        response.status == 400
     }
 }
