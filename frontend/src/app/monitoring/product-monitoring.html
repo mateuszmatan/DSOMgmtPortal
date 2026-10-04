@@ -1,0 +1,147 @@
+<div class="page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/monitoring">Pipeline Monitoring</a>
+    <mat-icon>chevron_right</mat-icon>
+    <span>{{ product.hasValue() ? product.value().name : 'Product' }}</span>
+  </nav>
+
+  @if (product.error(); as error) {
+    <div class="banner">
+      <mat-icon>error_outline</mat-icon><span>{{ errorMessage(error) }}</span>
+    </div>
+    <a mat-stroked-button routerLink="/monitoring"
+      ><mat-icon>arrow_back</mat-icon>Back to monitoring</a
+    >
+  } @else {
+    @if (product.hasValue()) {
+      @let p = product.value();
+      <header class="page-header">
+        <div>
+          <div class="title">
+            <h1>{{ p.name }}</h1>
+            <span class="code mono">{{ p.code }}</span>
+            <dso-status-chip [status]="p.overall" />
+          </div>
+          <p>{{ p.description ?? 'Status of the latest run of each pipeline.' }}</p>
+        </div>
+        <div class="actions">
+          <button mat-stroked-button (click)="product.reload()" [disabled]="product.isLoading()">
+            <mat-icon>refresh</mat-icon>Refresh
+          </button>
+          <a mat-stroked-button [routerLink]="['/products', p.productId]"
+            ><mat-icon>inventory_2</mat-icon>Manage product</a
+          >
+        </div>
+      </header>
+
+      <dso-metrics-banner [metricsError]="p.metricsError" />
+
+      <section class="card">
+        <div class="summary">
+          <span
+            ><strong>{{ p.pipelines.length }}</strong>
+            {{ p.pipelines.length === 1 ? 'pipeline' : 'pipelines' }}</span
+          >
+          <dso-status-bar [counts]="counts()" />
+        </div>
+
+        @if (product.isLoading()) {
+          <mat-progress-bar mode="indeterminate" />
+        }
+
+        @if (p.pipelines.length === 0) {
+          <div class="empty-state">
+            <mat-icon>account_tree</mat-icon>
+            <h3>No pipelines yet</h3>
+            <p>Add pipelines to the services of {{ p.name }} to see their status here.</p>
+            <a mat-flat-button [routerLink]="['/products', p.productId]"
+              ><mat-icon>add</mat-icon>Add pipelines</a
+            >
+          </div>
+        } @else {
+          <table mat-table [dataSource]="p.pipelines">
+            <ng-container matColumnDef="service">
+              <th mat-header-cell *matHeaderCellDef>Service</th>
+              <td mat-cell *matCellDef="let health" class="mono service">
+                {{ health.pipeline.serviceName }}
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="type">
+              <th mat-header-cell *matHeaderCellDef>Pipeline</th>
+              <td mat-cell *matCellDef="let health">
+                <div>{{ typeLabel(health.pipeline.type) }}</div>
+                <div class="muted small mono">
+                  {{ health.pipeline.influxProjectTag }} · {{ health.pipeline.influxEnv }}
+                </div>
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let health">
+                <dso-status-chip [status]="health.status" />
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="lastRun">
+              <th mat-header-cell *matHeaderCellDef>Latest run</th>
+              <td mat-cell *matCellDef="let health">
+                @if (health.lastRun; as run) {
+                  <div>{{ run.time | relative }}</div>
+                  <div class="muted small">
+                    @if (run.build !== null) {
+                      #{{ run.build }}
+                    }
+                    @if (run.branch) {
+                      on <span class="mono">{{ run.branch }}</span>
+                    }
+                  </div>
+                } @else {
+                  <span class="muted">–</span>
+                }
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="duration">
+              <th mat-header-cell *matHeaderCellDef>Duration</th>
+              <td mat-cell *matCellDef="let health">
+                {{ health.lastRun?.durationSeconds | duration }}
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="stages">
+              <th mat-header-cell *matHeaderCellDef>Stages</th>
+              <td mat-cell *matCellDef="let health">
+                @if (health.lastRun?.stagesTotal; as total) {
+                  <span class="stages">
+                    <span class="passed" matTooltip="Passed">{{ health.lastRun.passed ?? 0 }}</span>
+                    @if (health.lastRun.warned) {
+                      <span class="warned" matTooltip="Warned">{{ health.lastRun.warned }}</span>
+                    }
+                    @if (health.lastRun.failed) {
+                      <span class="failed" matTooltip="Failed">{{ health.lastRun.failed }}</span>
+                    }
+                    <span class="muted">/ {{ total }}</span>
+                  </span>
+                } @else {
+                  <span class="muted">–</span>
+                }
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="open">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let health" class="open">
+                <mat-icon>chevron_right</mat-icon>
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="columns"></tr>
+            <tr
+              mat-row
+              *matRowDef="let health; columns: columns"
+              class="clickable"
+              (click)="open(health)"
+            ></tr>
+          </table>
+        }
+      </section>
+    } @else {
+      <mat-progress-bar mode="indeterminate" />
+    }
+  }
+</div>

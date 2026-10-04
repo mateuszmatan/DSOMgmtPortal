@@ -4,7 +4,8 @@ export type BuildTool = 'GRADLE' | 'MAVEN' | 'FLUTTER';
 export type DeployTarget = 'VM' | 'OPENSHIFT';
 export type PipelineType = 'FULL' | 'SECURITY' | 'EXTENDED' | 'SAST';
 export type KeyStatus = 'ACTIVE' | 'REVOKED';
-export type RunResult = 'SUCCESS' | 'UNSTABLE' | 'FAILURE' | 'ABORTED' | 'NOT_BUILT' | 'NO_DATA' | 'DISABLED';
+export type RunResult =
+  'SUCCESS' | 'UNSTABLE' | 'FAILURE' | 'ABORTED' | 'NOT_BUILT' | 'NO_DATA' | 'DISABLED';
 export type DoraLevel = 'ELITE' | 'HIGH' | 'MEDIUM' | 'LOW';
 
 export interface ProductSummary {
@@ -19,40 +20,81 @@ export interface ProductSummary {
   updatedAt: string;
 }
 
-export interface ServiceFields {
-  name: string;
-  description: string | null;
-  buildTool: BuildTool;
-  deployTarget: DeployTarget;
+/** The sections of a service, one per part of its config.yaml entry in the DevSecOps library. */
+export interface BuildSettings {
+  tool: BuildTool;
   sourceDir: string | null;
   javaPath: string | null;
-  buildToolAutoSetup: boolean;
-  appScanAppId: string;
+  autoSetup: boolean;
+}
+
+export interface DeploymentSettings {
+  target: DeployTarget;
+  appName: string | null;
+  artifactName: string | null;
+}
+
+export interface AppScanSettings {
+  applicationId: string;
   sastScanName: string | null;
   dastEnabled: boolean;
   dastTargetUrl: string | null;
   dastPresenceId: string | null;
-  sonarProjectName: string | null;
-  sonarProjectKey: string | null;
-  nexusIqApplication: string | null;
-  nexusIqScanPatterns: string[];
+}
+
+export interface SonarSettings {
+  projectName: string | null;
+  projectKey: string | null;
+}
+
+export interface NexusIqSettings {
+  application: string | null;
+  scanPatterns: string[];
+}
+
+export interface ScmSettings {
   repositoryUrl: string | null;
-  bitbucketCredentialsId: string | null;
+  credentialsId: string | null;
   goldenFixEnabled: boolean;
-  metricsEnabled: boolean;
+}
+
+export interface MetricsSettings {
+  enabled: boolean;
   influxProject: string | null;
   influxEnv: string | null;
-  appName: string | null;
-  artifactName: string | null;
-  additionalConfig: string | null;
 }
 
-export interface Service extends ServiceFields {
+export interface AdditionalConfig {
+  yaml: string | null;
+}
+
+export interface ServiceSettings {
+  build: BuildSettings;
+  deployment: DeploymentSettings;
+  appScan: AppScanSettings;
+  sonar: SonarSettings;
+  nexusIq: NexusIqSettings;
+  scm: ScmSettings;
+  metrics: MetricsSettings;
+  additionalConfig: AdditionalConfig;
+}
+
+export interface Service extends ServiceSettings {
   id: number;
+  name: string;
+  description: string | null;
 }
 
-export interface ServiceRequest extends ServiceFields {
+export interface ServiceRequest extends ServiceSettings {
   id: number | null;
+  name: string;
+  description: string | null;
+}
+
+/** The HCL AppScan API key the services of a product share; the secret stays in Jenkins credentials. */
+export interface AppScanAccount {
+  keyId: string;
+  secretCredentialsId: string | null;
 }
 
 export interface ProductFields {
@@ -61,8 +103,7 @@ export interface ProductFields {
   description: string | null;
   ownerTeam: string | null;
   contactEmail: string | null;
-  asocKeyId: string;
-  asocSecretCredentialsId: string | null;
+  appScan: AppScanAccount;
 }
 
 export interface Product extends ProductFields {
@@ -231,8 +272,20 @@ export interface FieldProblem {
 }
 
 export const PIPELINE_TYPES: { value: PipelineType; label: string; description: string }[] = [
-  { value: 'FULL', label: 'Full', description: 'Build, scans, tests, deployment and release (devSecOpsPipeline)' },
-  { value: 'SECURITY', label: 'Security', description: 'Build and security scans, optionally starts the extended pipeline' },
-  { value: 'EXTENDED', label: 'Extended', description: 'Deployment and tests started by the security pipeline' },
+  {
+    value: 'FULL',
+    label: 'Full',
+    description: 'Build, scans, tests, deployment and release (devSecOpsPipeline)',
+  },
+  {
+    value: 'SECURITY',
+    label: 'Security',
+    description: 'Build and security scans, optionally starts the extended pipeline',
+  },
+  {
+    value: 'EXTENDED',
+    label: 'Extended',
+    description: 'Deployment and tests started by the security pipeline',
+  },
   { value: 'SAST', label: 'SAST scanning', description: 'AppScan static scan of the sources only' },
 ];

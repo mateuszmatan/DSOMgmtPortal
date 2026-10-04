@@ -76,8 +76,9 @@ export class PipelinesApi {
     return this.http.post<Pipeline>(`/api/pipelines/${id}/keys`, {});
   }
 
-  config(key: string): Observable<string> {
-    return this.http.get(`/api/dso/config/${key}`, { responseType: 'text' });
+  /** The config.yaml the pipeline gets for its key; reading it here does not count as a use of the key. */
+  config(id: number): Observable<string> {
+    return this.http.get(`/api/pipelines/${id}/config`, { responseType: 'text' });
   }
 }
 
@@ -98,6 +99,8 @@ export class MonitoringApi {
   }
 
   pipeline(id: number, range: string): Observable<PipelineMonitoring> {
-    return this.http.get<PipelineMonitoring>(`/api/monitoring/pipelines/${id}`, { params: { range } });
+    return this.http.get<PipelineMonitoring>(`/api/monitoring/pipelines/${id}`, {
+      params: { range },
+    });
   }
 }

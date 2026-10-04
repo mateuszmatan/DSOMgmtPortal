@@ -1,0 +1,294 @@
+<div class="service" [formGroup]="form()">
+  <section class="form-block">
+    <header>
+      <h3><mat-icon>badge</mat-icon>General</h3>
+      <p>The service's entry under <code>projects:</code> in config.yaml.</p>
+    </header>
+    <div class="form-fields">
+      <mat-form-field class="span-5">
+        <mat-label>Service name</mat-label>
+        <input matInput formControlName="name" placeholder="backend-api" autocomplete="off" />
+        <mat-hint>Lower case, for example gui or backend-api</mat-hint>
+        <mat-error>{{
+          errorText(form().controls.name, "Use lower case letters, digits, '.', '-' or '_'")
+        }}</mat-error>
+      </mat-form-field>
+      <mat-form-field class="span-7">
+        <mat-label>Description</mat-label>
+        <input
+          matInput
+          formControlName="description"
+          placeholder="REST API and certificate scanner"
+        />
+        <mat-error>{{ errorText(form().controls.description) }}</mat-error>
+      </mat-form-field>
+    </div>
+  </section>
+
+  <section class="form-block" formGroupName="build">
+    <header>
+      <h3><mat-icon>build</mat-icon>Build</h3>
+      <p><code>buildTool</code>, <code>sourceDir</code>, <code>javaPath</code></p>
+    </header>
+    <div class="form-fields">
+      <mat-form-field class="span-3">
+        <mat-label>Build tool</mat-label>
+        <mat-select formControlName="tool">
+          @for (tool of buildTools; track tool.value) {
+            <mat-option [value]="tool.value">{{ tool.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field class="span-3">
+        <mat-label>Source directory</mat-label>
+        <input matInput formControlName="sourceDir" placeholder="." />
+        <mat-hint>Relative to the repository root</mat-hint>
+        <mat-error>{{ errorText(form().controls.build.controls.sourceDir) }}</mat-error>
+      </mat-form-field>
+      @if (form().controls.build.controls.tool.value !== 'FLUTTER') {
+        <mat-form-field class="span-6">
+          <mat-label>JDK path</mat-label>
+          <input
+            matInput
+            formControlName="javaPath"
+            placeholder="/usr/lib/jvm/java-17-openjdk"
+            class="mono"
+          />
+          <mat-hint
+            >JAVA_HOME of the unit tests stage, unless the build tool is set up
+            automatically</mat-hint
+          >
+          <mat-error>{{ errorText(form().controls.build.controls.javaPath) }}</mat-error>
+        </mat-form-field>
+      }
+      <mat-slide-toggle class="span-12" formControlName="autoSetup">
+        Set up the build tool automatically (<code>buildToolAutoSetup</code>)
+      </mat-slide-toggle>
+    </div>
+  </section>
+
+  <section class="form-block" formGroupName="deployment">
+    <header>
+      <h3><mat-icon>rocket_launch</mat-icon>Deployment</h3>
+      <p><code>deployTarget</code>, <code>appName</code>, <code>artifactName</code></p>
+    </header>
+    <div class="form-fields">
+      <mat-button-toggle-group
+        class="span-12"
+        formControlName="target"
+        aria-label="Deployment target"
+        hideSingleSelectionIndicator
+      >
+        <mat-button-toggle value="VM"><mat-icon>dns</mat-icon>Virtual machine</mat-button-toggle>
+        <mat-button-toggle value="OPENSHIFT"><mat-icon>cloud</mat-icon>OpenShift</mat-button-toggle>
+      </mat-button-toggle-group>
+      @if (form().controls.deployment.controls.target.value === 'OPENSHIFT') {
+        <mat-form-field class="span-6">
+          <mat-label>OpenShift application name</mat-label>
+          <input matInput formControlName="appName" placeholder="cert-scanner-api" />
+          <mat-error>{{ errorText(form().controls.deployment.controls.appName) }}</mat-error>
+        </mat-form-field>
+        <mat-form-field class="span-6">
+          <mat-label>Artifact name</mat-label>
+          <input matInput formControlName="artifactName" placeholder="cert-scanner-api.jar" />
+          <mat-error>{{ errorText(form().controls.deployment.controls.artifactName) }}</mat-error>
+        </mat-form-field>
+      }
+    </div>
+  </section>
+
+  <section class="form-block" formGroupName="appScan">
+    <header>
+      <h3><mat-icon>security</mat-icon>HCL AppScan</h3>
+      <p>SAST of the sources and, when enabled, DAST of the deployed application.</p>
+    </header>
+    <div class="form-fields">
+      <mat-form-field class="span-6">
+        <mat-label>AppScan application ID</mat-label>
+        <input
+          matInput
+          formControlName="applicationId"
+          placeholder="109f44ac-cc06-4ca0-884e-d944904f7019"
+          class="mono"
+        />
+        <mat-error>{{
+          errorText(
+            form().controls.appScan.controls.applicationId,
+            'Must be the application UUID from AppScan on Cloud'
+          )
+        }}</mat-error>
+      </mat-form-field>
+      <mat-form-field class="span-6">
+        <mat-label>SAST scan name</mat-label>
+        <input matInput formControlName="sastScanName" />
+        <mat-hint>Optional, defaults to the service name</mat-hint>
+        <mat-error>{{ errorText(form().controls.appScan.controls.sastScanName) }}</mat-error>
+      </mat-form-field>
+      <mat-slide-toggle class="span-12" formControlName="dastEnabled"
+        >Run DAST against the deployed application</mat-slide-toggle
+      >
+      @if (form().controls.appScan.controls.dastEnabled.value) {
+        <mat-form-field class="span-8">
+          <mat-label>DAST target URL</mat-label>
+          <input
+            matInput
+            formControlName="dastTargetUrl"
+            placeholder="https://cert-scanner.testbbh.com"
+          />
+          <mat-error>{{
+            errorText(
+              form().controls.appScan.controls.dastTargetUrl,
+              'Must be an http or https URL'
+            )
+          }}</mat-error>
+        </mat-form-field>
+        <mat-form-field class="span-4">
+          <mat-label>Presence ID</mat-label>
+          <input matInput formControlName="dastPresenceId" />
+          <mat-hint>AppScan Presence for internal hosts</mat-hint>
+          <mat-error>{{ errorText(form().controls.appScan.controls.dastPresenceId) }}</mat-error>
+        </mat-form-field>
+      }
+    </div>
+  </section>
+
+  <section class="form-block" formGroupName="sonar">
+    <header>
+      <h3><mat-icon>analytics</mat-icon>SonarQube</h3>
+      <p>Without a project key the SonarQube stage is skipped.</p>
+    </header>
+    <div class="form-fields">
+      <mat-form-field class="span-6">
+        <mat-label>Project name</mat-label>
+        <input matInput formControlName="projectName" />
+        <mat-error>{{ errorText(form().controls.sonar.controls.projectName) }}</mat-error>
+      </mat-form-field>
+      <mat-form-field class="span-6">
+        <mat-label>Project key</mat-label>
+        <input matInput formControlName="projectKey" class="mono" />
+        <mat-hint>Unique across BBH</mat-hint>
+        <mat-error>{{
+          errorText(
+            form().controls.sonar.controls.projectKey,
+            "Letters, digits, '-', '_', '.' and ':' with at least one non-digit"
+          )
+        }}</mat-error>
+      </mat-form-field>
+    </div>
+  </section>
+
+  <section class="form-block" formGroupName="nexusIq">
+    <header>
+      <h3><mat-icon>inventory</mat-icon>Nexus IQ</h3>
+      <p>Dependency scan of the built artifacts.</p>
+    </header>
+    <div class="form-fields">
+      <mat-form-field class="span-5">
+        <mat-label>Application</mat-label>
+        <input matInput formControlName="application" />
+        <mat-error>{{ errorText(form().controls.nexusIq.controls.application) }}</mat-error>
+      </mat-form-field>
+      <mat-form-field class="span-7">
+        <mat-label>Scan patterns</mat-label>
+        <textarea
+          matInput
+          formControlName="scanPatterns"
+          rows="2"
+          class="mono"
+          placeholder="**/build/libs/*.jar"
+        ></textarea>
+        <mat-hint>One Ant pattern per line</mat-hint>
+        <mat-error>{{ errorText(form().controls.nexusIq.controls.scanPatterns) }}</mat-error>
+      </mat-form-field>
+    </div>
+  </section>
+
+  <section class="form-block" formGroupName="scm">
+    <header>
+      <h3><mat-icon>merge</mat-icon>Bitbucket and GoldenFix</h3>
+      <p>The repository GoldenFix opens dependency upgrade pull requests against.</p>
+    </header>
+    <div class="form-fields">
+      <mat-form-field class="span-8">
+        <mat-label>Repository URL</mat-label>
+        <input
+          matInput
+          formControlName="repositoryUrl"
+          placeholder="https://bitbucket.bbh.com/projects/TA/repos/cert-scanner"
+        />
+        <mat-error>{{
+          errorText(form().controls.scm.controls.repositoryUrl, 'Must be an http or https URL')
+        }}</mat-error>
+      </mat-form-field>
+      <mat-form-field class="span-4">
+        <mat-label>Credentials ID</mat-label>
+        <input matInput formControlName="credentialsId" placeholder="bitbucket-http-credentials" />
+        <mat-hint>Jenkins credential</mat-hint>
+        <mat-error>{{ errorText(form().controls.scm.controls.credentialsId) }}</mat-error>
+      </mat-form-field>
+      <mat-slide-toggle class="span-12" formControlName="goldenFixEnabled"
+        >Run GoldenFix</mat-slide-toggle
+      >
+    </div>
+  </section>
+
+  <section class="form-block" formGroupName="metrics">
+    <header>
+      <h3><mat-icon>insights</mat-icon>DORA metrics</h3>
+      <p>The InfluxDB tags the pipelines write under; monitoring reads them back.</p>
+    </header>
+    <div class="form-fields">
+      <mat-slide-toggle class="span-12" formControlName="enabled"
+        >Write pipeline metrics to InfluxDB</mat-slide-toggle
+      >
+      <mat-form-field class="span-8">
+        <mat-label>Project tag</mat-label>
+        <input
+          matInput
+          formControlName="influxProject"
+          [placeholder]="defaultProject()"
+          class="mono"
+        />
+        <mat-hint>Left empty: {{ defaultProject() }}</mat-hint>
+        <mat-error>{{
+          errorText(
+            form().controls.metrics.controls.influxProject,
+            "Letters, digits, '.', '-' and '_'"
+          )
+        }}</mat-error>
+      </mat-form-field>
+      <mat-form-field class="span-4">
+        <mat-label>Environment tag</mat-label>
+        <input matInput formControlName="influxEnv" class="mono" />
+        <mat-error>{{
+          errorText(form().controls.metrics.controls.influxEnv, "Letters, digits, '.', '-' and '_'")
+        }}</mat-error>
+      </mat-form-field>
+    </div>
+  </section>
+
+  <section class="form-block" formGroupName="additionalConfig">
+    <header>
+      <h3><mat-icon>code</mat-icon>Additional config.yaml</h3>
+      <p>Sections without a field above, merged into the service's entry.</p>
+    </header>
+    <div class="form-fields">
+      <mat-form-field class="span-12">
+        <mat-label>YAML</mat-label>
+        <textarea
+          matInput
+          formControlName="yaml"
+          rows="6"
+          class="mono yaml"
+          spellcheck="false"
+          placeholder="tests:&#10;  smoke:&#10;    jobs:&#10;      - name: smoke&#10;        job: my-product/smoke-tests"
+        ></textarea>
+        <mat-hint
+          >For example {{ additionalKeys }}. Secrets belong in Jenkins credentials, never
+          here.</mat-hint
+        >
+        <mat-error>{{ errorText(form().controls.additionalConfig.controls.yaml) }}</mat-error>
+      </mat-form-field>
+    </div>
+  </section>
+</div>

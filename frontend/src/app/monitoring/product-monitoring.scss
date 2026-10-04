@@ -1,0 +1,57 @@
+.title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.code {
+  padding: 2px 8px;
+  background: var(--dso-neutral-bg);
+  font-size: 12.5px;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--dso-border);
+  font-size: 13.5px;
+}
+
+.service {
+  font-weight: 600;
+}
+
+.small {
+  font-size: 12px;
+}
+
+td.mat-mdc-cell {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.stages {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12.5px;
+  font-weight: 600;
+
+  .passed {
+    color: var(--dso-success);
+  }
+  .warned {
+    color: var(--dso-warning);
+  }
+  .failed {
+    color: var(--dso-danger);
+  }
+}
+
+.open {
+  width: 32px;
+  color: var(--dso-muted);
+}

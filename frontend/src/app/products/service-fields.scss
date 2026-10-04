@@ -1,0 +1,22 @@
+code {
+  font-size: 12px;
+  padding: 0 4px;
+  background: var(--dso-neutral-bg);
+}
+
+.yaml {
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+mat-slide-toggle {
+  padding: 4px 0;
+}
+
+mat-button-toggle-group mat-icon {
+  margin-right: 6px;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+}

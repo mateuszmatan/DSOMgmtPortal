@@ -36,11 +36,14 @@ export interface CodeDialogData {
     </mat-dialog-actions>
   `,
   styles: `
-    .subtitle { margin: 0 0 12px; color: var(--dso-muted); }
+    .subtitle {
+      margin: 0 0 12px;
+      color: var(--dso-muted);
+    }
     .code {
       margin: 0;
       padding: 16px;
-      border-radius: 8px;
+
       background: var(--dso-code-bg);
       color: var(--dso-code-fg);
       font-size: 12.5px;
