@@ -55,7 +55,7 @@ final class DoraCalculator {
                 : Math.round(points.stream().mapToLong(DoraPoint::durationSeconds).average().orElse(0));
 
         return new DoraSummary(rangeDays, runs, deployments, perWeek,
-                runs == 0 ? null : deploymentFrequencyLevel(perWeek),
+                runs == 0 || perWeek == null ? null : deploymentFrequencyLevel(perWeek),
                 leadMedian, leadMedian == null ? null : leadTimeLevel(leadMedian),
                 cfr, cfr == null ? null : changeFailureRateLevel(cfr),
                 mttr, mttr == null ? null : timeToRestoreLevel(mttr),

@@ -4,7 +4,9 @@ import com.bbh.dso.portal.monitoring.MonitoringDtos.GrafanaLinks;
 import com.bbh.dso.portal.monitoring.MonitoringDtos.GrafanaPanel;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,12 +54,13 @@ public class GrafanaPanels {
         return new GrafanaLinks(url(base + "/d" + path, query, null), panels);
     }
 
+    /** Every value is encoded as a query parameter, so characters such as '&' cannot split it. */
     private static String url(String path, Map<String, String> query, Integer panelId) {
         UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(path);
-        query.forEach(builder::queryParam);
+        query.forEach((name, value) -> builder.queryParam(name, UriUtils.encodeQueryParam(value, StandardCharsets.UTF_8)));
         if (panelId != null) {
             builder.queryParam("panelId", panelId);
         }
-        return builder.encode().build().toUriString();
+        return builder.build(true).toUriString();
     }
 }

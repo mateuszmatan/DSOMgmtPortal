@@ -63,13 +63,11 @@ public class ConfigTree {
         return new LinkedHashMap<>(root);
     }
 
+    /** Every nested map of the tree is created here, so the maps are always mutable and keep insertion order. */
     @SuppressWarnings("unchecked")
     private static Map<String, Object> child(Map<String, Object> node, String key) {
-        Object existing = node.get(key);
-        if (existing instanceof Map<?, ?> map) {
-            Map<String, Object> copy = map instanceof LinkedHashMap<?, ?> ? (Map<String, Object>) map : new LinkedHashMap<>((Map<String, Object>) map);
-            node.put(key, copy);
-            return copy;
+        if (node.get(key) instanceof Map<?, ?> existing) {
+            return (Map<String, Object>) existing;
         }
         Map<String, Object> created = new LinkedHashMap<>();
         node.put(key, created);
