@@ -1,8 +1,10 @@
 package com.bbh.dso.portal.catalog;
 
 import com.bbh.dso.portal.common.AuditedEntity;
+import com.bbh.dso.portal.common.Text;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -12,11 +14,13 @@ import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
- * An application onboarded to DevSecOps, for example CertScanner. It groups the services that are built,
- * scanned and deployed by DevSecOps pipelines.
+ * An application onboarded to DevSecOps, for example CertScanner. It owns the services that are built,
+ * scanned and deployed by DevSecOps pipelines and the AppScan account they share.
  */
 @Entity
 @Table(name = "DSO_PRODUCT")
@@ -42,26 +46,47 @@ public class Product extends AuditedEntity {
     @Column(name = "CONTACT_EMAIL", length = 320)
     private String contactEmail;
 
-    /** HCL AppScan on Cloud API key ID shared by the product's services ({@code asoc.keyId}). */
-    @Column(name = "ASOC_KEY_ID", nullable = false, length = 200)
-    private String asocKeyId;
-
-    /** Jenkins Secret text credential holding the AppScan key secret ({@code asoc.token}). */
-    @Column(name = "ASOC_SECRET_CREDENTIALS_ID", length = 200)
-    private String asocSecretCredentialsId;
+    @Embedded
+    private AppScanAccount appScanAccount;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC, name ASC")
     private List<ServiceDefinition> services = new ArrayList<>();
 
-    public void addService(ServiceDefinition service) {
-        service.setProduct(this);
+    protected Product() {
+    }
+
+    public Product(ProductDetails details, AppScanAccount appScanAccount) {
+        update(details, appScanAccount);
+    }
+
+    public final void update(ProductDetails details, AppScanAccount appScanAccount) {
+        this.code = details.code().trim();
+        this.name = details.name().trim();
+        this.description = Text.trimToNull(details.description());
+        this.ownerTeam = Text.trimToNull(details.ownerTeam());
+        this.contactEmail = Text.trimToNull(details.contactEmail());
+        this.appScanAccount = appScanAccount;
+    }
+
+    public ServiceDefinition addService(String name, String description, int displayOrder, ServiceSettings settings) {
+        ServiceDefinition service = new ServiceDefinition(this, name, description, displayOrder, settings);
         services.add(service);
+        return service;
     }
 
     public void removeService(ServiceDefinition service) {
-        services.remove(service);
-        service.setProduct(null);
+        if (services.remove(service)) {
+            service.detach();
+        }
+    }
+
+    public Optional<ServiceDefinition> service(Long serviceId) {
+        return services.stream().filter(s -> s.getId() != null && s.getId().equals(serviceId)).findFirst();
+    }
+
+    public ProductDetails details() {
+        return new ProductDetails(code, name, description, ownerTeam, contactEmail);
     }
 
     public Long getId() {
@@ -72,59 +97,27 @@ public class Product extends AuditedEntity {
         return code;
     }
 
-    public void setCode(String code) {
-        this.code = code;
-    }
-
     public String getName() {
         return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
     }
 
     public String getDescription() {
         return description;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
     public String getOwnerTeam() {
         return ownerTeam;
-    }
-
-    public void setOwnerTeam(String ownerTeam) {
-        this.ownerTeam = ownerTeam;
     }
 
     public String getContactEmail() {
         return contactEmail;
     }
 
-    public void setContactEmail(String contactEmail) {
-        this.contactEmail = contactEmail;
-    }
-
-    public String getAsocKeyId() {
-        return asocKeyId;
-    }
-
-    public void setAsocKeyId(String asocKeyId) {
-        this.asocKeyId = asocKeyId;
-    }
-
-    public String getAsocSecretCredentialsId() {
-        return asocSecretCredentialsId;
-    }
-
-    public void setAsocSecretCredentialsId(String asocSecretCredentialsId) {
-        this.asocSecretCredentialsId = asocSecretCredentialsId;
+    public AppScanAccount getAppScanAccount() {
+        return appScanAccount;
     }
 
     public List<ServiceDefinition> getServices() {
-        return services;
+        return Collections.unmodifiableList(services);
     }
 }

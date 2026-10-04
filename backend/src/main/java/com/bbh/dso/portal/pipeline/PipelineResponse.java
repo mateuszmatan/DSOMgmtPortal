@@ -39,12 +39,12 @@ public record PipelineResponse(
 
     private static PipelineResponse of(Pipeline pipeline, List<KeyResponse> keys) {
         ServiceDefinition service = pipeline.getService();
-        KeyResponse activeKey = pipeline.activeKey().map(KeyResponse::from).orElse(null);
+        PipelineSettings settings = pipeline.getSettings();
         return new PipelineResponse(pipeline.getId(), service.getProduct().getId(), service.getProduct().getCode(),
                 service.getProduct().getName(), service.getId(), service.getName(), pipeline.getType(),
-                pipeline.getType().entryPoint(), pipeline.agentLabelList(), pipeline.getExtendedPipelineJob(),
-                pipeline.getDescription(), activeKey != null, activeKey,
-                pipeline.getType().influxProjectTag(service.getInfluxProject()), service.getInfluxEnv(),
-                pipeline.getCreatedAt(), pipeline.getUpdatedAt(), keys);
+                pipeline.getType().entryPoint(), settings.agentLabels(), settings.extendedPipelineJob(),
+                settings.description(), pipeline.isEnabled(), pipeline.activeKey().map(KeyResponse::from).orElse(null),
+                pipeline.influxProjectTag(), pipeline.influxEnv(), pipeline.getCreatedAt(), pipeline.getUpdatedAt(),
+                keys);
     }
 }

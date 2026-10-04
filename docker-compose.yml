@@ -1,5 +1,6 @@
-# Local environment for the portal: Oracle Free, the InfluxDB the pipelines write to, and Grafana with the
-# portal's DORA dashboard. Credentials below are for local use only.
+# Local environment for the portal: Oracle Free (production database), MySQL (lighter local alternative),
+# the InfluxDB the pipelines write to, and Grafana with the portal's DORA dashboard.
+# Start only what you need, e.g. `docker compose up -d mysql`. Credentials below are for local use only.
 services:
   oracle:
     image: gvenzl/oracle-free:23-slim-faststart
@@ -14,6 +15,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 30
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: dso_portal
+      MYSQL_USER: dso_portal
+      MYSQL_PASSWORD: dso_portal
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
 
   influxdb:
     image: influxdb:2.7

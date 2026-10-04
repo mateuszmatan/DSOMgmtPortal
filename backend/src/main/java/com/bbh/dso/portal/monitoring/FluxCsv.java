@@ -31,7 +31,9 @@ final class FluxCsv {
                 continue;
             }
             Map<String, String> row = new LinkedHashMap<>();
-            for (int i = 0; i < header.size() && i < cells.size(); i++) {
+            // Column 1 is the yield name, also called "result", which would hide a tag of that name.
+            int first = header.size() > 2 && header.get(1).equals("result") && header.get(2).equals("table") ? 2 : 0;
+            for (int i = first; i < header.size() && i < cells.size(); i++) {
                 if (!header.get(i).isEmpty()) {
                     row.put(header.get(i), cells.get(i));
                 }

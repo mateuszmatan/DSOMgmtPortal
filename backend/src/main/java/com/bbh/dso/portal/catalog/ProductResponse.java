@@ -10,8 +10,7 @@ public record ProductResponse(
         String description,
         String ownerTeam,
         String contactEmail,
-        String asocKeyId,
-        String asocSecretCredentialsId,
+        AppScanAccount appScan,
         long version,
         Instant createdAt,
         Instant updatedAt,
@@ -19,8 +18,8 @@ public record ProductResponse(
 
     static ProductResponse from(Product product) {
         return new ProductResponse(product.getId(), product.getCode(), product.getName(), product.getDescription(),
-                product.getOwnerTeam(), product.getContactEmail(), product.getAsocKeyId(),
-                product.getAsocSecretCredentialsId(), product.getVersion(), product.getCreatedAt(),
-                product.getUpdatedAt(), product.getServices().stream().map(ServiceResponse::from).toList());
+                product.getOwnerTeam(), product.getContactEmail(), product.getAppScanAccount(), product.getVersion(),
+                product.getCreatedAt(), product.getUpdatedAt(),
+                product.getServices().stream().map(ServiceResponse::from).toList());
     }
 }

@@ -1,16 +1,12 @@
 package com.bbh.dso.portal.catalog;
 
 import com.bbh.dso.portal.common.ConflictException;
-import com.bbh.dso.portal.common.InvalidRequestException;
-import com.bbh.dso.portal.common.InvalidRequestException.FieldProblem;
 import com.bbh.dso.portal.common.NotFoundException;
-import com.bbh.dso.portal.dsoconfig.AdditionalConfigValidator;
-import com.bbh.dso.portal.pipeline.PipelineRepository;
+import com.bbh.dso.portal.common.ValidationProblems;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -18,38 +14,32 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Adds, changes and removes products together with their services, applying the rules of the DevSecOps
- * library that a single field annotation cannot express.
+ * Adds, changes and removes products together with their services. Rules that concern a single section
+ * live in the section's value object; this class checks what needs the other services or the database.
  */
 @Service
 @Transactional
 public class ProductCatalogService {
 
-    static final String DEFAULT_SOURCE_DIR = ".";
-    static final String DEFAULT_INFLUX_ENV = "test";
-
     private final ProductRepository products;
     private final ServiceDefinitionRepository services;
-    private final PipelineRepository pipelines;
-    private final AdditionalConfigValidator additionalConfigValidator;
+    private final PipelineStatistics pipelineStatistics;
 
     public ProductCatalogService(ProductRepository products, ServiceDefinitionRepository services,
-                                 PipelineRepository pipelines, AdditionalConfigValidator additionalConfigValidator) {
+                                 PipelineStatistics pipelineStatistics) {
         this.products = products;
         this.services = services;
-        this.pipelines = pipelines;
-        this.additionalConfigValidator = additionalConfigValidator;
+        this.pipelineStatistics = pipelineStatistics;
     }
 
     @Transactional(readOnly = true)
     public List<ProductSummary> list(String search) {
         Map<Long, Long> serviceCounts = toCountMap(services.countByProduct());
-        Map<Long, Long> pipelineCounts = toCountMap(pipelines.countByProduct());
-        Map<Long, Long> activeCounts = toCountMap(pipelines.countWithActiveKeyByProduct());
+        Map<Long, Long> pipelineCounts = pipelineStatistics.pipelinesPerProduct();
+        Map<Long, Long> activeCounts = pipelineStatistics.activePipelinesPerProduct();
         String needle = search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
         return products.findAllByOrderByNameAsc().stream()
                 .filter(p -> needle.isEmpty() || matches(p, needle))
@@ -66,13 +56,10 @@ public class ProductCatalogService {
 
     public ProductResponse create(ProductRequest request) {
         validate(request, null);
-        Product product = new Product();
-        applyProduct(product, request);
-        int order = 0;
-        for (ServiceRequest serviceRequest : request.services()) {
-            ServiceDefinition service = new ServiceDefinition();
-            applyService(service, serviceRequest, request.code(), order++);
-            product.addService(service);
+        Product product = new Product(request.details(), request.appScan());
+        for (int order = 0; order < request.services().size(); order++) {
+            ServiceRequest service = request.services().get(order);
+            product.addService(service.name(), service.description(), order, service.settings());
         }
         return ProductResponse.from(products.saveAndFlush(product));
     }
@@ -83,26 +70,22 @@ public class ProductCatalogService {
             throw new ObjectOptimisticLockingFailureException(Product.class, id);
         }
         validate(request, product);
-        applyProduct(product, request);
+        product.update(request.details(), request.appScan());
 
-        Map<Long, ServiceDefinition> stored = product.getServices().stream()
-                .collect(Collectors.toMap(ServiceDefinition::getId, Function.identity()));
         Set<Long> kept = request.services().stream().map(ServiceRequest::id).filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-        for (ServiceDefinition service : new ArrayList<>(product.getServices())) {
-            if (!kept.contains(service.getId())) {
-                product.removeService(service);
-            }
-        }
-        // Removals are flushed first so a re-added service may reuse a removed one's unique values.
+        product.getServices().stream().filter(s -> !kept.contains(s.getId())).toList()
+                .forEach(product::removeService);
+        // Removals are flushed first so a new service may take over a removed one's unique values.
         products.flush();
 
-        int order = 0;
-        for (ServiceRequest serviceRequest : request.services()) {
-            ServiceDefinition service = serviceRequest.id() == null ? new ServiceDefinition() : stored.get(serviceRequest.id());
-            applyService(service, serviceRequest, request.code(), order++);
-            if (serviceRequest.id() == null) {
-                product.addService(service);
+        for (int order = 0; order < request.services().size(); order++) {
+            ServiceRequest service = request.services().get(order);
+            if (service.id() == null) {
+                product.addService(service.name(), service.description(), order, service.settings());
+            } else {
+                product.service(service.id()).orElseThrow()
+                        .update(service.name(), service.description(), order, service.settings());
             }
         }
         return ProductResponse.from(products.saveAndFlush(product));
@@ -112,12 +95,12 @@ public class ProductCatalogService {
         products.delete(find(id));
     }
 
-    Product find(Long id) {
+    private Product find(Long id) {
         return products.findById(id).orElseThrow(() -> NotFoundException.of("Product", id));
     }
 
     private void validate(ProductRequest request, Product existing) {
-        products.findByCodeIgnoreCase(request.code())
+        products.findByCodeIgnoreCase(request.code().trim())
                 .filter(other -> existing == null || !other.getId().equals(existing.getId()))
                 .ifPresent(other -> {
                     throw new ConflictException("Product code " + request.code() + " is already used by " + other.getName());
@@ -130,115 +113,59 @@ public class ProductCatalogService {
 
         Set<Long> ownServiceIds = existing == null ? Set.of()
                 : existing.getServices().stream().map(ServiceDefinition::getId).collect(Collectors.toSet());
-        List<FieldProblem> problems = new ArrayList<>();
-        Set<String> names = new HashSet<>();
-        Set<String> influxTags = new HashSet<>();
-        Set<String> sonarKeys = new HashSet<>();
+        ValidationProblems problems = new ValidationProblems();
+        UniqueValues names = new UniqueValues();
+        UniqueValues metricsTags = new UniqueValues();
+        UniqueValues sonarKeys = new UniqueValues();
         for (int i = 0; i < request.services().size(); i++) {
             ServiceRequest service = request.services().get(i);
-            String path = "services[" + i + "].";
+            ValidationProblems at = problems.at("services[" + i + "]");
+            ServiceSettings settings = service.settings();
+            settings.validate(at);
+
             if (service.id() != null && !ownServiceIds.contains(service.id())) {
-                problems.add(new FieldProblem(path + "id", "service " + service.id() + " does not belong to this product"));
+                at.add("id", "service " + service.id() + " does not belong to this product");
             }
-            if (!names.add(service.name().toLowerCase(Locale.ROOT))) {
-                problems.add(new FieldProblem(path + "name", "another service of this product already uses this name"));
+            if (!names.add(service.name())) {
+                at.add("name", "another service of this product already uses this name");
             }
-            if (service.buildTool() != BuildTool.FLUTTER && isBlank(service.javaPath()) && !service.buildToolAutoSetup()) {
-                problems.add(new FieldProblem(path + "javaPath",
-                        "set the JDK path or enable automatic build tool setup, the unit tests stage needs one of them"));
-            }
-            if (service.dastEnabled() && isBlank(service.dastTargetUrl())) {
-                problems.add(new FieldProblem(path + "dastTargetUrl", "is required when DAST is enabled"));
-            }
-            if (service.deployTarget() == DeployTarget.OPENSHIFT) {
-                if (isBlank(service.appName())) {
-                    problems.add(new FieldProblem(path + "appName", "is required for OpenShift deployment"));
-                }
-                if (isBlank(service.artifactName())) {
-                    problems.add(new FieldProblem(path + "artifactName", "is required for OpenShift deployment"));
-                }
-            }
-            for (String problem : additionalConfigValidator.validate(service.additionalConfig())) {
-                problems.add(new FieldProblem(path + "additionalConfig", problem));
-            }
-
-            String influxProject = influxProject(service, request.code());
-            String influxEnv = influxEnv(service);
-            String tag = (influxProject + "|" + influxEnv).toLowerCase(Locale.ROOT);
-            if (!influxTags.add(tag)) {
-                problems.add(new FieldProblem(path + "influxProject",
-                        "another service of this product writes metrics under the same project and environment"));
-            } else {
-                services.findByInfluxProjectIgnoreCaseAndInfluxEnvIgnoreCase(influxProject, influxEnv)
-                        .filter(other -> !Objects.equals(other.getId(), service.id()) && !ownServiceIds.contains(other.getId()))
-                        .ifPresent(other -> problems.add(new FieldProblem(path + "influxProject",
-                                "metrics project " + influxProject + " (" + influxEnv + ") is already used by "
-                                        + other.getProduct().getName() + " / " + other.getName())));
-            }
-            if (!isBlank(service.sonarProjectKey())) {
-                String key = service.sonarProjectKey().trim();
-                if (!sonarKeys.add(key)) {
-                    problems.add(new FieldProblem(path + "sonarProjectKey", "another service of this product uses this key"));
-                } else {
-                    services.findBySonarProjectKey(key)
-                            .filter(other -> !Objects.equals(other.getId(), service.id()) && !ownServiceIds.contains(other.getId()))
-                            .ifPresent(other -> problems.add(new FieldProblem(path + "sonarProjectKey",
-                                    "SonarQube project key is already used by " + other.getProduct().getName() + " / "
-                                            + other.getName())));
-                }
-            }
+            checkMetricsTags(settings.metrics().withDefaultProject(request.code().trim(), service.name().trim()),
+                    ownServiceIds, metricsTags, at.at("metrics"));
+            checkSonarKey(settings.sonar(), ownServiceIds, sonarKeys, at.at("sonar"));
         }
-        if (!problems.isEmpty()) {
-            throw new InvalidRequestException(problems);
+        problems.throwIfAny();
+    }
+
+    /** Two services writing metrics under the same tags would mix their DORA figures. */
+    private void checkMetricsTags(MetricsSettings metrics, Set<Long> ownServiceIds, UniqueValues seen,
+                                  ValidationProblems problems) {
+        if (!seen.add(metrics.influxProject() + "|" + metrics.influxEnv())) {
+            problems.add("influxProject", "another service of this product writes metrics under the same project and environment");
+            return;
         }
+        services.findByMetricsTags(metrics.influxProject(), metrics.influxEnv())
+                .filter(other -> !ownServiceIds.contains(other.getId()))
+                .ifPresent(other -> problems.add("influxProject", "metrics project " + metrics.influxProject() + " ("
+                        + metrics.influxEnv() + ") is already used by " + describe(other)));
     }
 
-    private static void applyProduct(Product product, ProductRequest request) {
-        product.setCode(request.code().trim());
-        product.setName(request.name().trim());
-        product.setDescription(trimToNull(request.description()));
-        product.setOwnerTeam(trimToNull(request.ownerTeam()));
-        product.setContactEmail(trimToNull(request.contactEmail()));
-        product.setAsocKeyId(request.asocKeyId().trim());
-        product.setAsocSecretCredentialsId(trimToNull(request.asocSecretCredentialsId()));
+    /** SonarQube project keys are unique across BBH. */
+    private void checkSonarKey(SonarSettings sonar, Set<Long> ownServiceIds, UniqueValues seen,
+                               ValidationProblems problems) {
+        if (sonar.projectKey() == null) {
+            return;
+        }
+        if (!seen.add(sonar.projectKey())) {
+            problems.add("projectKey", "another service of this product uses this key");
+            return;
+        }
+        services.findBySonarProjectKey(sonar.projectKey())
+                .filter(other -> !ownServiceIds.contains(other.getId()))
+                .ifPresent(other -> problems.add("projectKey", "SonarQube project key is already used by " + describe(other)));
     }
 
-    private static void applyService(ServiceDefinition service, ServiceRequest request, String productCode, int order) {
-        service.setName(request.name().trim());
-        service.setDescription(trimToNull(request.description()));
-        service.setDisplayOrder(order);
-        service.setBuildTool(request.buildTool());
-        service.setDeployTarget(request.deployTarget());
-        service.setSourceDir(isBlank(request.sourceDir()) ? DEFAULT_SOURCE_DIR : request.sourceDir().trim());
-        service.setJavaPath(trimToNull(request.javaPath()));
-        service.setBuildToolAutoSetup(request.buildToolAutoSetup());
-        service.setAppScanAppId(request.appScanAppId().trim().toLowerCase(Locale.ROOT));
-        service.setSastScanName(trimToNull(request.sastScanName()));
-        service.setDastEnabled(request.dastEnabled());
-        service.setDastTargetUrl(trimToNull(request.dastTargetUrl()));
-        service.setDastPresenceId(trimToNull(request.dastPresenceId()));
-        service.setSonarProjectName(trimToNull(request.sonarProjectName()));
-        service.setSonarProjectKey(trimToNull(request.sonarProjectKey()));
-        service.setNexusIqApplication(trimToNull(request.nexusIqApplication()));
-        service.setNexusIqScanPatterns(ScanPatterns.join(request.nexusIqScanPatterns()));
-        service.setRepositoryUrl(trimToNull(request.repositoryUrl()));
-        service.setBitbucketCredentialsId(trimToNull(request.bitbucketCredentialsId()));
-        service.setGoldenFixEnabled(request.goldenFixEnabled());
-        service.setMetricsEnabled(request.metricsEnabled());
-        service.setInfluxProject(influxProject(request, productCode));
-        service.setInfluxEnv(influxEnv(request));
-        service.setAppName(trimToNull(request.appName()));
-        service.setArtifactName(trimToNull(request.artifactName()));
-        service.setAdditionalConfig(isBlank(request.additionalConfig()) ? null : request.additionalConfig().strip());
-    }
-
-    /** Defaults to {@code <PRODUCT CODE>-<service name>}, unique across the portal like the product code. */
-    static String influxProject(ServiceRequest request, String productCode) {
-        return isBlank(request.influxProject()) ? productCode.trim() + "-" + request.name().trim() : request.influxProject().trim();
-    }
-
-    static String influxEnv(ServiceRequest request) {
-        return isBlank(request.influxEnv()) ? DEFAULT_INFLUX_ENV : request.influxEnv().trim();
+    private static String describe(ServiceDefinition service) {
+        return service.getProduct().getName() + " / " + service.getName();
     }
 
     private static boolean matches(Product product, String needle) {
@@ -250,7 +177,7 @@ public class ProductCatalogService {
         return value != null && value.toLowerCase(Locale.ROOT).contains(needle);
     }
 
-    private static Map<Long, Long> toCountMap(List<Object[]> rows) {
+    static Map<Long, Long> toCountMap(List<Object[]> rows) {
         Map<Long, Long> counts = new HashMap<>();
         for (Object[] row : rows) {
             counts.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue());
@@ -258,11 +185,12 @@ public class ProductCatalogService {
         return counts;
     }
 
-    private static boolean isBlank(String value) {
-        return value == null || value.isBlank();
-    }
+    /** Case-insensitive set of the values seen so far. */
+    private static final class UniqueValues {
+        private final Set<String> values = new HashSet<>();
 
-    private static String trimToNull(String value) {
-        return isBlank(value) ? null : value.trim();
+        boolean add(String value) {
+            return values.add(value.trim().toLowerCase(Locale.ROOT));
+        }
     }
 }

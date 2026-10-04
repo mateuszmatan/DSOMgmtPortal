@@ -32,10 +32,6 @@ public class InfluxQueryClient {
         return client != null;
     }
 
-    public String bucket() {
-        return properties.bucket();
-    }
-
     public List<Map<String, String>> query(String flux) {
         if (client == null) {
             throw new IllegalStateException("InfluxDB is not configured");

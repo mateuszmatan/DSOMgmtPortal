@@ -4,8 +4,6 @@ import com.bbh.dso.portal.catalog.Product;
 import com.bbh.dso.portal.catalog.ProductRepository;
 import com.bbh.dso.portal.common.InvalidRequestException;
 import com.bbh.dso.portal.common.NotFoundException;
-import com.bbh.dso.portal.monitoring.MonitoringDtos.GrafanaLinks;
-import com.bbh.dso.portal.monitoring.MonitoringDtos.GrafanaPanel;
 import com.bbh.dso.portal.monitoring.MonitoringDtos.MonitoringStatus;
 import com.bbh.dso.portal.monitoring.MonitoringDtos.Overview;
 import com.bbh.dso.portal.monitoring.MonitoringDtos.PipelineHealth;
@@ -19,282 +17,158 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.Clock;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.function.Supplier;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
  * Combines the pipelines stored in the portal with the runs the DevSecOps library writes to InfluxDB.
- * A pipeline's runs are found by the tags the library writes: {@code project} (influx.project plus the
- * pipeline type suffix) and {@code env}.
+ * When InfluxDB is not configured or cannot be read, the pages still show every pipeline, with the reason
+ * in {@code metricsError}.
  */
 @Service
 @Transactional(readOnly = true)
 public class MonitoringService {
 
+    static final String NOT_CONFIGURED = "InfluxDB is not configured for the portal";
+    static final int RECENT_RUNS = 25;
     private static final Logger log = LoggerFactory.getLogger(MonitoringService.class);
     private static final Pattern RANGE = Pattern.compile("^([1-9][0-9]{0,2})d$");
-    private static final int RECENT_RUNS = 25;
-
-    /** Order of severity used to summarise several pipelines in one status. */
-    private static final List<RunResult> SEVERITY = List.of(RunResult.FAILURE, RunResult.UNSTABLE, RunResult.ABORTED,
-            RunResult.NOT_BUILT, RunResult.SUCCESS, RunResult.NO_DATA, RunResult.DISABLED);
+    private static final int MAX_RANGE_DAYS = 730;
 
     private final ProductRepository products;
     private final PipelineRepository pipelines;
-    private final InfluxQueryClient influx;
-    private final InfluxProperties influxProperties;
-    private final GrafanaProperties grafana;
+    private final PipelineMetricsRepository metrics;
+    private final GrafanaPanels grafana;
+    private final Clock clock;
 
-    public MonitoringService(ProductRepository products, PipelineRepository pipelines, InfluxQueryClient influx,
-                             InfluxProperties influxProperties, GrafanaProperties grafana) {
+    public MonitoringService(ProductRepository products, PipelineRepository pipelines,
+                             PipelineMetricsRepository metrics, GrafanaPanels grafana, Clock clock) {
         this.products = products;
         this.pipelines = pipelines;
-        this.influx = influx;
-        this.influxProperties = influxProperties;
+        this.metrics = metrics;
         this.grafana = grafana;
+        this.clock = clock;
     }
 
     public MonitoringStatus status() {
-        boolean reachable = false;
         String error = null;
-        if (influx.configured()) {
-            try {
-                influx.query("buckets() |> limit(n: 1)");
-                reachable = true;
-            } catch (RuntimeException e) {
-                error = describe(e);
-            }
+        if (metrics.configured()) {
+            error = read(() -> {
+                metrics.ping();
+                return null;
+            }).error();
         }
-        return new MonitoringStatus(influx.configured(), reachable, error, grafana.configured(),
-                grafana.configured() ? grafana.url() : null);
+        return new MonitoringStatus(metrics.configured(), metrics.configured() && error == null, error,
+                grafana.configured(), grafana.configured() ? grafana.url() : null);
     }
 
     public Overview overview() {
         List<Pipeline> all = pipelines.findAllWithService();
-        LatestRuns latest = latestRuns(all);
+        Reading<Map<MetricsTag, PipelineRun>> latest = latestRuns(all);
         Map<Long, List<Pipeline>> byProduct = all.stream()
                 .collect(Collectors.groupingBy(p -> p.getService().getProduct().getId()));
-        List<ProductHealth> health = new ArrayList<>();
-        for (Product product : products.findAllByOrderByNameAsc()) {
-            Map<RunResult, Integer> counts = new EnumMap<>(RunResult.class);
-            Instant lastRunAt = null;
-            for (Pipeline pipeline : byProduct.getOrDefault(product.getId(), List.of())) {
-                PipelineRun run = latest.runs().get(pipeline.getId());
-                counts.merge(statusOf(pipeline, run), 1, Integer::sum);
-                if (run != null && (lastRunAt == null || run.time().isAfter(lastRunAt))) {
-                    lastRunAt = run.time();
-                }
-            }
-            health.add(new ProductHealth(product.getId(), product.getCode(), product.getName(), product.getOwnerTeam(),
-                    product.getServices().size(), counts.values().stream().mapToInt(Integer::intValue).sum(),
-                    worst(counts.keySet().stream().toList()), counts, lastRunAt));
-        }
+        List<ProductHealth> health = products.findAllByOrderByNameAsc().stream()
+                .map(product -> health(product, byProduct.getOrDefault(product.getId(), List.of()), latest.value()))
+                .toList();
         return new Overview(health, latest.error());
     }
 
     public ProductMonitoring product(Long productId) {
         Product product = products.findById(productId).orElseThrow(() -> NotFoundException.of("Product", productId));
         List<Pipeline> productPipelines = pipelines.findByProductId(productId);
-        LatestRuns latest = latestRuns(productPipelines);
+        Reading<Map<MetricsTag, PipelineRun>> latest = latestRuns(productPipelines);
         List<PipelineHealth> health = productPipelines.stream()
-                .map(p -> {
-                    PipelineRun run = latest.runs().get(p.getId());
-                    return new PipelineHealth(PipelineResponse.summary(p), statusOf(p, run), run);
+                .map(pipeline -> {
+                    PipelineRun run = latest.value().get(MetricsTag.of(pipeline));
+                    return new PipelineHealth(PipelineResponse.summary(pipeline), RunResult.of(pipeline, run), run);
                 })
                 .toList();
         return new ProductMonitoring(product.getId(), product.getCode(), product.getName(), product.getDescription(),
-                product.getOwnerTeam(), worst(health.stream().map(PipelineHealth::status).toList()), health,
+                product.getOwnerTeam(), RunResult.worst(health.stream().map(PipelineHealth::status).toList()), health,
                 latest.error());
     }
 
     public PipelineMonitoring pipeline(Long pipelineId, String range) {
-        int rangeDays = rangeDays(range);
+        int days = rangeDays(range);
         Pipeline pipeline = pipelines.findWithServiceById(pipelineId)
                 .orElseThrow(() -> NotFoundException.of("Pipeline", pipelineId));
-        String tag = projectTag(pipeline);
-        String env = pipeline.getService().getInfluxEnv();
+        MetricsTag tag = MetricsTag.of(pipeline);
 
-        List<PipelineRun> recent = List.of();
-        DoraSummary dora = DoraCalculator.summarize(List.of(), rangeDays, Instant.now());
-        String error = influx.configured() ? null : "InfluxDB is not configured for the portal";
-        if (influx.configured()) {
-            try {
-                recent = influx.query(recentRunsQuery(tag, env, rangeDays)).stream().map(PipelineRun::fromRow)
-                        .sorted(Comparator.comparing(PipelineRun::time).reversed()).toList();
-                dora = DoraCalculator.summarize(influx.query(doraQuery(tag, env, rangeDays)).stream()
-                        .map(MonitoringService::doraPoint).filter(Objects::nonNull).toList(), rangeDays, Instant.now());
-            } catch (RuntimeException e) {
-                log.warn("Reading the metrics of pipeline {} failed: {}", pipelineId, e.getMessage());
-                error = describe(e);
-            }
+        Reading<List<PipelineRun>> recent = read(() -> metrics.recentRuns(tag, days, RECENT_RUNS));
+        Reading<List<DoraPoint>> points = recent.error() != null ? new Reading<>(List.of(), recent.error())
+                : read(() -> metrics.doraPoints(tag, days));
+        List<PipelineRun> runs = recent.value() == null ? List.of() : recent.value();
+        PipelineRun last = runs.isEmpty() ? null : runs.getFirst();
+        if (last == null && points.error() == null) {
+            // Nothing in the selected range: still show when the pipeline last ran.
+            last = latestRuns(List.of(pipeline)).value().get(tag);
         }
-        PipelineRun last = recent.isEmpty() ? null : recent.getFirst();
-        if (last == null && error == null) {
-            last = latestRuns(List.of(pipeline)).runs().get(pipeline.getId());
-        }
-        return new PipelineMonitoring(PipelineResponse.withKeys(pipeline), statusOf(pipeline, last), last, dora, recent,
-                grafanaLinks(pipeline, rangeDays), error);
+        DoraSummary dora = DoraCalculator.summarize(points.value() == null ? List.of() : points.value(), days,
+                Instant.now(clock));
+        return new PipelineMonitoring(PipelineResponse.withKeys(pipeline), RunResult.of(pipeline, last), last, dora,
+                runs, grafana.links(tag, days), points.error());
     }
 
     static int rangeDays(String range) {
-        var matcher = RANGE.matcher(range == null ? "" : range.trim());
+        Matcher matcher = RANGE.matcher(range == null ? "" : range.trim());
         if (!matcher.matches()) {
             throw InvalidRequestException.of("range", "use a number of days such as 7d, 30d or 90d");
         }
         int days = Integer.parseInt(matcher.group(1));
-        if (days > 730) {
-            throw InvalidRequestException.of("range", "can cover at most 730 days");
+        if (days > MAX_RANGE_DAYS) {
+            throw InvalidRequestException.of("range", "can cover at most " + MAX_RANGE_DAYS + " days");
         }
         return days;
     }
 
-    private GrafanaLinks grafanaLinks(Pipeline pipeline, int rangeDays) {
-        if (!grafana.configured()) {
-            return null;
+    private static ProductHealth health(Product product, List<Pipeline> productPipelines,
+                                        Map<MetricsTag, PipelineRun> latest) {
+        Map<RunResult, Integer> counts = new EnumMap<>(RunResult.class);
+        Instant lastRunAt = null;
+        for (Pipeline pipeline : productPipelines) {
+            PipelineRun run = latest.get(MetricsTag.of(pipeline));
+            counts.merge(RunResult.of(pipeline, run), 1, Integer::sum);
+            if (run != null && (lastRunAt == null || run.time().isAfter(lastRunAt))) {
+                lastRunAt = run.time();
+            }
         }
-        String base = grafana.url().replaceAll("/+$", "");
-        Map<String, String> query = new java.util.LinkedHashMap<>();
-        query.put("orgId", String.valueOf(grafana.orgId()));
-        query.put("var-project", projectTag(pipeline));
-        query.put("var-env", pipeline.getService().getInfluxEnv());
-        query.put("var-variant", pipeline.getType().variant());
-        query.put("from", "now-" + rangeDays + "d");
-        query.put("to", "now");
-        query.put("theme", grafana.theme());
-
-        String dashboardUrl = url(base + "/d/" + grafana.dashboardUid() + "/" + grafana.dashboardSlug(), query, null);
-        List<GrafanaPanel> panels = grafana.panels().stream()
-                .map(panel -> new GrafanaPanel(panel.id(), panel.title(), panel.width(),
-                        url(base + "/d-solo/" + grafana.dashboardUid() + "/" + grafana.dashboardSlug(), query, panel.id())))
-                .toList();
-        return new GrafanaLinks(dashboardUrl, panels);
+        return new ProductHealth(product.getId(), product.getCode(), product.getName(), product.getOwnerTeam(),
+                product.getServices().size(), productPipelines.size(), RunResult.worst(counts.keySet()), counts,
+                lastRunAt);
     }
 
-    private static String url(String path, Map<String, String> query, Integer panelId) {
-        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(path);
-        query.forEach(builder::queryParam);
-        if (panelId != null) {
-            builder.queryParam("panelId", panelId);
+    private Reading<Map<MetricsTag, PipelineRun>> latestRuns(List<Pipeline> forPipelines) {
+        if (forPipelines.isEmpty()) {
+            return new Reading<>(Map.of(), metrics.configured() ? null : NOT_CONFIGURED);
         }
-        return builder.encode().build().toUriString();
+        Reading<Map<MetricsTag, PipelineRun>> reading =
+                read(() -> metrics.latestRuns(forPipelines.stream().map(MetricsTag::of).collect(Collectors.toSet())));
+        return reading.value() == null ? new Reading<>(Map.of(), reading.error()) : reading;
     }
 
-    private LatestRuns latestRuns(List<Pipeline> forPipelines) {
-        if (forPipelines.isEmpty() || !influx.configured()) {
-            return new LatestRuns(Map.of(), influx.configured() ? null : "InfluxDB is not configured for the portal");
+    /** Runs a query, turning a missing configuration or a failure into an error message. */
+    private <T> Reading<T> read(Supplier<T> query) {
+        if (!metrics.configured()) {
+            return new Reading<>(null, NOT_CONFIGURED);
         }
         try {
-            Map<String, PipelineRun> byTag = new HashMap<>();
-            for (Map<String, String> row : influx.query(latestRunsQuery(forPipelines))) {
-                byTag.put(row.get("project") + "|" + row.get("env"), PipelineRun.fromRow(row));
-            }
-            Map<Long, PipelineRun> runs = new HashMap<>();
-            for (Pipeline pipeline : forPipelines) {
-                PipelineRun run = byTag.get(projectTag(pipeline) + "|" + pipeline.getService().getInfluxEnv());
-                if (run != null) {
-                    runs.put(pipeline.getId(), run);
-                }
-            }
-            return new LatestRuns(runs, null);
+            return new Reading<>(query.get(), null);
         } catch (RuntimeException e) {
-            log.warn("Reading the latest pipeline runs failed: {}", e.getMessage());
-            return new LatestRuns(Map.of(), describe(e));
+            log.warn("Reading pipeline metrics from InfluxDB failed: {}", e.getMessage());
+            String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            return new Reading<>(null, "InfluxDB could not be read: "
+                    + (message.length() > 300 ? message.substring(0, 300) : message));
         }
     }
 
-    private String latestRunsQuery(List<Pipeline> forPipelines) {
-        String tags = forPipelines.stream().map(MonitoringService::projectTag).distinct()
-                .map(InfluxQueryClient::literal).collect(Collectors.joining(", "));
-        // last() per series first: result and branch are tags, so each outcome is its own series.
-        return """
-                from(bucket: %s)
-                  |> range(start: -%s)
-                  |> filter(fn: (r) => r._measurement == "pipeline_run")
-                  |> filter(fn: (r) => contains(value: r.project, set: [%s]))
-                  |> last()
-                  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
-                  |> group(columns: ["project", "env"])
-                  |> sort(columns: ["_time"])
-                  |> last(column: "_time")
-                """.formatted(InfluxQueryClient.literal(influx.bucket()), influxProperties.lastRunLookback(), tags);
-    }
-
-    private String recentRunsQuery(String tag, String env, int rangeDays) {
-        return """
-                from(bucket: %s)
-                  |> range(start: -%dd)
-                  |> filter(fn: (r) => r._measurement == "pipeline_run")
-                  |> filter(fn: (r) => r.project == %s and r.env == %s)
-                  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
-                  |> group()
-                  |> sort(columns: ["_time"], desc: true)
-                  |> limit(n: %d)
-                """.formatted(InfluxQueryClient.literal(influx.bucket()), rangeDays, InfluxQueryClient.literal(tag),
-                InfluxQueryClient.literal(env), RECENT_RUNS);
-    }
-
-    private String doraQuery(String tag, String env, int rangeDays) {
-        return """
-                from(bucket: %s)
-                  |> range(start: -%dd)
-                  |> filter(fn: (r) => r._measurement == "dora")
-                  |> filter(fn: (r) => r.project == %s and r.env == %s)
-                  |> filter(fn: (r) => r._field == "deployment" or r._field == "change_failure" or r._field == "lead_time_s" or r._field == "duration_s")
-                  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
-                  |> group()
-                  |> sort(columns: ["_time"])
-                """.formatted(InfluxQueryClient.literal(influx.bucket()), rangeDays, InfluxQueryClient.literal(tag),
-                InfluxQueryClient.literal(env));
-    }
-
-    private static DoraPoint doraPoint(Map<String, String> row) {
-        if (row.get("_time") == null) {
-            return null;
-        }
-        return new DoraPoint(Instant.parse(row.get("_time")), positive(row.get("deployment")),
-                positive(row.get("change_failure")), orZero(PipelineRun.number(row.get("lead_time_s"))),
-                orZero(PipelineRun.number(row.get("duration_s"))));
-    }
-
-    private static boolean positive(String value) {
-        Long number = PipelineRun.number(value);
-        return number != null && number > 0;
-    }
-
-    private static long orZero(Long value) {
-        return value == null ? 0 : value;
-    }
-
-    private static String projectTag(Pipeline pipeline) {
-        return pipeline.getType().influxProjectTag(pipeline.getService().getInfluxProject());
-    }
-
-    private static RunResult statusOf(Pipeline pipeline, PipelineRun run) {
-        if (pipeline.activeKey().isEmpty()) {
-            return RunResult.DISABLED;
-        }
-        return run == null ? RunResult.NO_DATA : run.result();
-    }
-
-    private static RunResult worst(List<RunResult> statuses) {
-        return SEVERITY.stream().filter(statuses::contains).findFirst().orElse(RunResult.NO_DATA);
-    }
-
-    private static String describe(RuntimeException e) {
-        String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
-        return "InfluxDB could not be read: " + (message.length() > 300 ? message.substring(0, 300) : message);
-    }
-
-    private record LatestRuns(Map<Long, PipelineRun> runs, String error) {
+    private record Reading<T>(T value, String error) {
     }
 }

@@ -16,8 +16,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * A unique key issued to a pipeline. Revoking it makes the portal refuse the pipeline's configuration,
- * which stops the pipeline; a revoked key is never reactivated, a new one is issued instead.
+ * A unique key issued to a pipeline. A revoked key is never reactivated; a new one is issued instead.
  */
 @Entity
 @Table(name = "DSO_PIPELINE_KEY")
@@ -54,21 +53,20 @@ public class PipelineKey {
     protected PipelineKey() {
     }
 
-    static PipelineKey issue(Pipeline pipeline) {
-        PipelineKey key = new PipelineKey();
-        key.pipeline = pipeline;
-        key.value = UUID.randomUUID().toString();
-        key.status = KeyStatus.ACTIVE;
-        key.issuedAt = Instant.now();
-        return key;
+    PipelineKey(Pipeline pipeline) {
+        this.pipeline = pipeline;
+        this.value = UUID.randomUUID().toString();
+        this.status = KeyStatus.ACTIVE;
+        this.issuedAt = Instant.now();
     }
 
     void revoke(String reason) {
         status = KeyStatus.REVOKED;
         revokedAt = Instant.now();
-        revokeReason = reason;
+        revokeReason = reason == null ? null : reason.trim();
     }
 
+    /** Records that a pipeline fetched its configuration with this key. */
     public void markUsed() {
         lastUsedAt = Instant.now();
     }

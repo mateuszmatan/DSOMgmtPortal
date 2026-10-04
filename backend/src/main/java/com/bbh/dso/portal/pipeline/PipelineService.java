@@ -10,18 +10,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Creates pipelines and manages their keys. Every key change runs under a row lock on the pipeline, so a
- * pipeline never ends up with two active keys.
+ * Creates pipelines and manages their keys. Key changes run under a row lock on the pipeline, so two
+ * concurrent requests can never leave a pipeline with two active keys.
  */
 @Service
 @Transactional
 public class PipelineService {
-
-    static final String REPLACED_REASON = "Replaced by a new key";
 
     private final PipelineRepository pipelines;
     private final PipelineKeyRepository keys;
@@ -43,14 +42,13 @@ public class PipelineService {
                 .map(PipelineResponse::summary)
                 .collect(Collectors.groupingBy(PipelineResponse::serviceId));
         return product.getServices().stream()
-                .map(s -> new ServicePipelines(s.getId(), s.getName(), s.getDescription(), s.getBuildTool(),
-                        s.getDeployTarget(), byService.getOrDefault(s.getId(), List.of())))
+                .map(service -> ServicePipelines.of(service, byService.getOrDefault(service.getId(), List.of())))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public PipelineResponse get(Long id) {
-        return PipelineResponse.withKeys(findWithService(id));
+        return PipelineResponse.withKeys(find(id));
     }
 
     public PipelineResponse create(Long serviceId, PipelineRequest request) {
@@ -60,45 +58,31 @@ public class PipelineService {
             throw new ConflictException("Service " + service.getName() + " already has a "
                     + request.type().variant() + " pipeline");
         }
-        Pipeline pipeline = new Pipeline(service, request.type());
-        apply(pipeline, request);
-        pipeline.addKey(PipelineKey.issue(pipeline));
-        return PipelineResponse.withKeys(pipelines.saveAndFlush(pipeline));
+        return PipelineResponse.withKeys(pipelines.saveAndFlush(new Pipeline(service, request.type(), request.settings())));
     }
 
     public PipelineResponse update(Long id, PipelineRequest request) {
-        Pipeline pipeline = findWithService(id);
+        Pipeline pipeline = find(id);
         if (request.type() != pipeline.getType()) {
             throw new ConflictException("The type of a pipeline cannot change; add a new pipeline instead");
         }
-        apply(pipeline, request);
+        pipeline.configure(request.settings());
         return PipelineResponse.withKeys(pipelines.saveAndFlush(pipeline));
     }
 
     public void delete(Long id) {
-        pipelines.delete(findWithService(id));
+        pipelines.delete(find(id));
     }
 
-    /**
-     * Invalidates the active key. From then on the portal refuses the pipeline's configuration.
-     */
     public PipelineResponse revokeKey(Long id, String reason) {
         Pipeline pipeline = lock(id);
-        PipelineKey active = pipeline.activeKey()
-                .orElseThrow(() -> new ConflictException("The pipeline has no active key to invalidate"));
-        active.revoke(reason.trim());
+        pipeline.revokeActiveKey(reason);
         return PipelineResponse.withKeys(pipelines.saveAndFlush(pipeline));
     }
 
-    /**
-     * Issues a new key, invalidating the active one if there is one. The Jenkins job must then use the new key.
-     */
     public PipelineResponse issueKey(Long id) {
         Pipeline pipeline = lock(id);
-        pipeline.activeKey().ifPresent(active -> active.revoke(REPLACED_REASON));
-        // The revocation is flushed first so the database never sees two active keys at once.
-        pipelines.saveAndFlush(pipeline);
-        pipeline.addKey(PipelineKey.issue(pipeline));
+        pipeline.issueKey();
         return PipelineResponse.withKeys(pipelines.saveAndFlush(pipeline));
     }
 
@@ -109,33 +93,21 @@ public class PipelineService {
      * @throws KeyRevokedException when the key has been invalidated
      */
     public Pipeline resolveKey(String keyValue) {
-        PipelineKey key = keys.findByValue(keyValue.trim().toLowerCase())
+        PipelineKey key = keys.findByValue(keyValue.trim().toLowerCase(Locale.ROOT))
                 .orElseThrow(() -> new NotFoundException("Unknown DevSecOps pipeline key"));
         if (!key.isActive()) {
-            throw new KeyRevokedException("The DevSecOps pipeline key was invalidated on " + key.getRevokedAt()
-                    + (key.getRevokeReason() == null ? "" : ": " + key.getRevokeReason()));
+            throw new KeyRevokedException(key);
         }
         key.markUsed();
         return key.getPipeline();
     }
 
-    private Pipeline findWithService(Long id) {
+    private Pipeline find(Long id) {
         return pipelines.findWithServiceById(id).orElseThrow(() -> NotFoundException.of("Pipeline", id));
     }
 
     private Pipeline lock(Long id) {
         pipelines.findForUpdate(id).orElseThrow(() -> NotFoundException.of("Pipeline", id));
-        return findWithService(id);
-    }
-
-    private static void apply(Pipeline pipeline, PipelineRequest request) {
-        pipeline.setAgentLabels(request.agentLabels().stream().map(String::trim).distinct()
-                .collect(Collectors.joining(",")));
-        pipeline.setExtendedPipelineJob(request.type() == PipelineType.SECURITY ? trimToNull(request.extendedPipelineJob()) : null);
-        pipeline.setDescription(trimToNull(request.description()));
-    }
-
-    private static String trimToNull(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
+        return find(id);
     }
 }

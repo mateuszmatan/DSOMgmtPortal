@@ -5,7 +5,8 @@ package com.bbh.dso.portal.pipeline;
  */
 public class KeyRevokedException extends RuntimeException {
 
-    public KeyRevokedException(String message) {
-        super(message);
+    public KeyRevokedException(PipelineKey key) {
+        super("The DevSecOps pipeline key was invalidated on " + key.getRevokedAt()
+                + (key.getRevokeReason() == null ? "" : ": " + key.getRevokeReason()));
     }
 }
