@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.catalog;
 
 import com.bbh.itss.dso.portal.common.Text;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EnumType;
@@ -62,6 +63,7 @@ public record TestJob(
     }
 
     /** A job given by its full URL runs on that Jenkins; the library names it after the URL when no name is set. */
+    @JsonIgnore
     public boolean isUrl() {
         return job != null && (job.startsWith("http://") || job.startsWith("https://"));
     }

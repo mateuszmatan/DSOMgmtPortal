@@ -2,11 +2,16 @@ package com.bbh.itss.dso.portal.regression
 
 import com.bbh.itss.dso.portal.support.PortalSpecification
 
+import static com.bbh.itss.dso.portal.support.ApiJson.build
+import static com.bbh.itss.dso.portal.support.ApiJson.fullFlutterService
+import static com.bbh.itss.dso.portal.support.ApiJson.fullMavenService
+import static com.bbh.itss.dso.portal.support.ApiJson.fullOpenShiftService
+import static com.bbh.itss.dso.portal.support.ApiJson.mavenService
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 
 /**
- * The product management API end to end: HTTP, validation, JPA and the database schema created by Flyway.
+ * The product management API end to end: HTTP, validation, JPA and the database schema created by Liquibase.
  */
 class ProductCatalogRegressionSpec extends PortalSpecification {
 
@@ -16,7 +21,9 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
 
         when:
         def created = api.post('/api/products', product(code: code, name: "Product $code", ownerTeam: 'Payments Engineering',
-                services: [service(name: 'gateway'), service(name: 'ledger', build: [tool: 'MAVEN', autoSetup: true])]))
+                services: [service(name: 'gateway'),
+                           mavenService(name: 'ledger', build: build(tool: 'MAVEN', javaPath: null, autoSetup: true,
+                                   command: [tasks: ['clean', 'verify']]))]))
 
         then:
         created.status == 201
@@ -27,8 +34,13 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
             createdAt != null
             services*.name == ['gateway', 'ledger']
             services*.metrics*.influxProject == ["$code-gateway", "$code-ledger"]
-            services[1].build == [tool: 'MAVEN', sourceDir: '.', javaPath: null, autoSetup: true]
-            services[0].scm.goldenFixEnabled == true
+            services[1].build == [tool   : 'MAVEN', sourceDir: '.', javaPath: null, autoSetup: true, buildPath: null,
+                                  command: [tasks: ['clean', 'verify'], flags: [], directory: null, mavenHome: null,
+                                            environment: []]]
+            services[1].delivery.tasks == ['deploy:deploy-file']
+            services[0].goldenFix.enabled == true
+            services[0].goldenFix.minThreatLevel == null
+            services[0].nexusIq.stage == 'build'
         }
 
         and:
@@ -39,6 +51,33 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
             pipelineCount == 0
             ownerTeam == 'Payments Engineering'
         }
+    }
+
+    def "every setting of a service is stored and returned as it was entered"() {
+        given:
+        def code = uniqueCode()
+        def services = [fullMavenService(metrics: [enabled: true, influxProject: "$code-ledger".toString(), influxEnv: 'uat'],
+                                         sonar: fullMavenService().sonar + [projectKey: "$code-ledger".toString()]),
+                        fullOpenShiftService(), fullFlutterService()]
+
+        when:
+        def created = api.post('/api/products', product(code: code, name: "Product $code", services: services))
+
+        then:
+        created.status == 201
+        created.json.services.size() == 3
+        def sections = [services[0].keySet(), ['build', 'deployment', 'openShiftTargets'], ['build', 'deployment', 'flutter']]
+        [created.json.services, services, sections].transpose().each { stored, sent, checked ->
+            checked.each { section -> assert stored[section] == sent[section] }
+        }
+
+        and: 'reading the product back and saving it unchanged keeps every value and the version'
+        def read = api.get("/api/products/${created.json.id}").json
+        read == created.json
+        def saved = api.put("/api/products/${created.json.id}", product(code: code, name: "Product $code",
+                version: read.version, services: read.services))
+        saved.status == 200
+        saved.json.services == read.services
     }
 
     def "an update changes kept services, adds new ones and removes the missing ones"() {
@@ -113,23 +152,25 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         given:
         def code = uniqueCode()
         def other = createProduct(product(code: uniqueCode(), name: "Other ${uniqueCode()}",
-                services: [service(name: 'gui', sonar: [projectKey: "sonar-$code"])]))
+                services: [service(name: 'gui', sonar: [projectKey: "sonar-$code", command: [tasks: ['sonarqube']]])]))
 
         when:
         def response = api.post('/api/products', product(code: code, name: "Product $code", services: [
                 service(name: 'gui', build: [tool: 'GRADLE']),
                 service(name: 'api', deployment: [target: 'OPENSHIFT'], sonar: [projectKey: "sonar-$code"]),
-                service(name: 'batch', appScan: [applicationId: com.bbh.itss.dso.portal.support.Fixtures.APP_ID, dastEnabled: true],
-                        additionalConfig: [yaml: 'influx:\n  token: abc\nunknownKey: 1']),
+                mavenService(name: 'batch', delivery: null,
+                        appScan: [applicationId: com.bbh.itss.dso.portal.support.Fixtures.APP_ID, dastEnabled: true],
+                        scm: [repositoryUrl: 'https://bitbucket.bbh.com/projects/X/repos/batch'],
+                        testJobs: [[stage: 'REGRESSION', type: 'REMOTE', job: 'batch/regression']]),
                 service(name: 'gui', metrics: [influxProject: other.services[0].metrics.influxProject])]))
 
         then:
         response.status == 400
-        response.json.errors*.field == ['services[0].build.javaPath',
+        response.json.errors*.field == ['services[0].build.javaPath', 'services[0].build.command.tasks',
                                         'services[1].deployment.appName', 'services[1].deployment.artifactName',
-                                        'services[1].sonar.projectKey',
-                                        'services[2].appScan.dastTargetUrl', 'services[2].additionalConfig.yaml',
-                                        'services[2].additionalConfig.yaml',
+                                        'services[1].sonar.command.tasks', 'services[1].sonar.projectKey',
+                                        'services[2].appScan.dastTargetUrl', 'services[2].scm.credentialsId',
+                                        'services[2].delivery.tasks', 'services[2].testJobs[0].remoteJenkins',
                                         'services[3].name', 'services[3].metrics.influxProject']
         api.get("/api/products?search=$code").json == []
     }
@@ -142,6 +183,11 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         body << [product(code: 'lower-case'),
                  product(services: [service(build: [tool: 'ANT'])]),
                  product(services: [service(appScan: [applicationId: 'not-a-uuid'])]),
+                 product(services: [service(testJobs: [[stage: 'SMOKE', job: ' ']])]),
+                 product(services: [service(sshTargets: [RD: [host: 'not a host']])]),
+                 product(services: [service(goldenFix: [ecosystems: ['gradle']])]),
+                 product(services: [service(urbanCodeApplications: [[applicationName: 'LEDGER', components: [null]]])]),
+                 product(services: [service(build: build(command: [tasks: ['clean'], environment: ['not a variable']]))]),
                  product(appScan: null),
                  [code: 'X']]
     }

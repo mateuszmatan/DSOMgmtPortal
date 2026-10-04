@@ -14,8 +14,8 @@ import java.util.concurrent.Executors
 
 /**
  * A stand-in for the query API of InfluxDB 2 on a local port. It records every request and answers the Flux
- * queries the portal sends from the runs added with {@link #addRun}, in the CSV shape InfluxDB returns,
- * unless a fixed answer or an error status is set.
+ * queries the portal sends from the runs added with {@link #addRun} and the points added with {@link #addPoint},
+ * in the CSV shape InfluxDB returns, unless a fixed answer or an error status is set.
  */
 class FakeInfluxDb implements AutoCloseable {
 
@@ -30,6 +30,7 @@ class FakeInfluxDb implements AutoCloseable {
     final List<Request> requests = new CopyOnWriteArrayList<>()
 
     private final List<Run> runs = new CopyOnWriteArrayList<>()
+    private final List<Map<String, String>> points = new CopyOnWriteArrayList<>()
     private final HttpServer server
     private final ExecutorService executor = Executors.newFixedThreadPool(16, { Runnable task ->
         Thread thread = new Thread(task, 'fake-influxdb')
@@ -86,8 +87,22 @@ class FakeInfluxDb implements AutoCloseable {
                 leadTimeSeconds: args.leadTimeSeconds as Long ?: 3600)
     }
 
+    /**
+     * Records a point of another measurement of the library, already pivoted to one row of tags and fields, the
+     * way the evidence query returns it. Named arguments: measurement, project, env, time and any tag or field.
+     */
+    void addPoint(Map args) {
+        Map<String, String> row = [_measurement: args.measurement as String, project: args.project as String,
+                                   env         : (args.env ?: 'test') as String,
+                                   _time       : ((args.time ?: Instant.now()) as Instant).toString()]
+        args.findAll { !(it.key in ['measurement', 'project', 'env', 'time']) }
+                .each { name, value -> row[name as String] = value as String }
+        points << row
+    }
+
     void reset() {
         runs.clear()
+        points.clear()
         requests.clear()
         fixedAnswer = null
         status = 200
@@ -120,6 +135,9 @@ class FakeInfluxDb implements AutoCloseable {
     private String answer(String flux) {
         if (flux.startsWith('buckets()')) {
             return ',result,table,name\r\n,_result,0,DORA-metrics\r\n'
+        }
+        if (flux.contains('"security_findings"')) {
+            return evidencePoints(flux)
         }
         if (flux.contains('last(column: "_time")')) {
             return latestRuns(flux)
@@ -156,6 +174,25 @@ class FakeInfluxDb implements AutoCloseable {
             [0, [run.time.toString(), run.project, run.env, run.variant, run.result == 'SUCCESS' ? '0' : '1',
                  run.deployment ? '1' : '0', run.durationSeconds as String, run.leadTimeSeconds as String]]
         })
+    }
+
+    /** The points of the queried projects in the queried time range, each in a table of its own shape. */
+    private String evidencePoints(String flux) {
+        def sets = (flux =~ /set: \[(.*?)]/).collect { it[1].findAll(/"([^"]*)"/) { all, value -> value } as Set }
+        def range = (flux =~ /range\(start: time\(v: "([^"]+)"\), stop: time\(v: "([^"]+)"\)\)/)[0]
+        Instant start = Instant.parse(range[1])
+        Instant stop = Instant.parse(range[2])
+        def selected = points.findAll { point ->
+            Instant at = Instant.parse(point._time)
+            point._measurement in sets[0] && point.project in sets[1] && !at.isBefore(start) && at.isBefore(stop)
+        }
+        selected.withIndex().collect { point, table ->
+            csv(point.keySet() as List, [[table, point.values().collect { csvCell(it) }]])
+        }.join('\r\n')
+    }
+
+    private static String csvCell(String value) {
+        value != null && (value.contains(',') || value.contains('"')) ? '"' + value.replace('"', '""') + '"' : (value ?: '')
     }
 
     private List<Run> selectedRuns(String flux) {

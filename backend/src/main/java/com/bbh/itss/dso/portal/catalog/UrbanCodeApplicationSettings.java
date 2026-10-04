@@ -10,6 +10,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -32,7 +34,8 @@ public record UrbanCodeApplicationSettings(
         applicationName = applicationName == null ? null : applicationName.trim();
         environments = DelimitedListConverter.clean(environments);
         snapshotName = Text.trimToNull(snapshotName);
-        components = components == null ? List.of() : List.copyOf(components);
+        // Copied with any null entry kept, so validation reports it against its index instead of failing here.
+        components = components == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(components));
     }
 
     public Map<String, Object> toConfig() {

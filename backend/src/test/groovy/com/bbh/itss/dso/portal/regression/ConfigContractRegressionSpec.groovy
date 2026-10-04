@@ -1,15 +1,21 @@
 package com.bbh.itss.dso.portal.regression
 
+import com.bbh.itss.dso.portal.support.ApiJson
 import com.bbh.itss.dso.portal.support.PortalSpecification
 
+import static com.bbh.itss.dso.portal.support.ApiJson.build
+import static com.bbh.itss.dso.portal.support.ApiJson.fullFlutterService
+import static com.bbh.itss.dso.portal.support.ApiJson.fullMavenService
+import static com.bbh.itss.dso.portal.support.ApiJson.fullOpenShiftService
+import static com.bbh.itss.dso.portal.support.ApiJson.openShiftTarget
 import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
-import static com.bbh.itss.dso.portal.support.ApiJson.service
 
 /**
- * Pins the config.yaml the portal renders, which the DevSecOps library will read instead of the file in the
- * product's repository. A difference means the contract changed: check it against the library and, when it is
- * intended, regenerate the expected files with {@code -Dregression.updateExpected=true}.
+ * Pins the configuration the portal renders, which the DevSecOps library will read instead of the config.yaml in
+ * the product's repository and its own defaults.yaml: a pipeline's configuration, a product's and the part that
+ * comes from the global settings. A difference means the contract changed: check it against the library and,
+ * when it is intended, regenerate the expected files with {@code -Dregression.updateExpected=true}.
  */
 class ConfigContractRegressionSpec extends PortalSpecification {
 
@@ -19,32 +25,22 @@ class ConfigContractRegressionSpec extends PortalSpecification {
             ownerTeam: 'Payments Engineering', contactEmail: 'payments-eng@bbh.com',
             appScan: [keyId: 'bbh_1c2d3e4f-0000-4abc-9def-123456789abc', secretCredentialsId: 'hcl-app-scan-account'],
             services: [
-                    service(name: 'gateway', description: 'Public payment API',
-                            build: [tool: 'MAVEN', sourceDir: 'gateway', javaPath: '/usr/lib/jvm/java-17-openjdk'],
+                    fullOpenShiftService(name: 'gateway', description: 'Public payment API',
+                            build: build(tool: 'MAVEN', sourceDir: 'gateway', command: [tasks: ['clean', 'verify'], flags: ['-B']]),
                             deployment: [target: 'OPENSHIFT', appName: 'payhub-gateway', artifactName: 'payhub-gateway.jar'],
+                            openShiftTargets: [RD: openShiftTarget('payhub-rd'), QC: openShiftTarget('payhub-qc')],
                             appScan: [applicationId: '3a1b2c3d-1111-4a5b-8c9d-0e1f2a3b4c5d', sastScanName: 'payhub-gateway',
                                       dastEnabled: true, dastTargetUrl: 'https://payhub-uat.testbbh.com', dastPresenceId: 'presence-7'],
-                            sonar: [projectName: 'PayHub Gateway', projectKey: 'payhub-gateway'],
+                            sonar: [projectName: 'PayHub Gateway', projectKey: 'payhub-gateway', command: [tasks: ['sonar:sonar']]],
                             nexusIq: [application: 'payhub-gateway', scanPatterns: ['**/target/*.jar', '**/target/*.war']],
                             scm: [repositoryUrl: 'https://bitbucket.bbh.com/projects/PAY/repos/payhub-gateway',
                                   credentialsId: 'bitbucket-http-credentials'],
                             metrics: [influxProject: 'payhub-gateway', influxEnv: 'uat'],
-                            additionalConfig: [yaml: '''\
-                                tests:
-                                  regression:
-                                    jobs:
-                                      - name: PayHub regression
-                                        type: local
-                                        job: payhub/regression-tests
-                                        timeoutMin: 60
-                                deploy:
-                                  openshift:
-                                    project: payhub-uat
-                                '''.stripIndent()]),
-                    service(name: 'mobile-app', description: 'Flutter mobile application',
-                            build: [tool: 'FLUTTER', sourceDir: 'mobile', autoSetup: true],
-                            scm: [goldenFixEnabled: false],
-                            additionalConfig: [yaml: 'flutter:\n  platform: apk\n'])])
+                            testJobs: [[stage: 'REGRESSION', name: 'PayHub regression', type: 'LOCAL',
+                                        job: 'payhub/regression-tests', timeoutMinutes: 60]]),
+                    fullMavenService(),
+                    fullFlutterService(name: 'mobile-app', description: 'Flutter mobile application',
+                            goldenFix: [enabled: false])])
 
     def "the pipeline and product configs keep the shape the DevSecOps library reads"() {
         given:
@@ -63,10 +59,34 @@ class ConfigContractRegressionSpec extends PortalSpecification {
         matchesExpected('product-config.yaml', productConfig.body)
     }
 
+    def "the global part of the configuration keeps the shape of the library's defaults"() {
+        when:
+        def globalConfig = api.get('/api/settings/config')
+
+        then:
+        globalConfig.status == 200
+        globalConfig.header('Content-Type').startsWith('application/yaml')
+        matchesExpected('global-config.yaml', globalConfig.body)
+    }
+
+    def "the published configuration the library reads from the database is the one the API renders"() {
+        given:
+        def mobile = createProduct(PAYMENTS + [code: uniqueCode('VIEW'), name: "View Payments Hub ${uniqueCode()}",
+                                               services: [PAYMENTS.services[2]]])
+        def full = createPipeline(mobile.services[0].id as long, pipeline(type: 'FULL'))
+
+        when:
+        def published = libraryConfig(full.activeKey.value as String)
+
+        then:
+        published.KEY_STATUS == 'ACTIVE'
+        ApiJson.parse(published.CONFIG_JSON as String) == api.get("/api/pipelines/$full.id/config?format=json").json
+    }
+
     def "the portal shows a pipeline the same config its key gets, without marking the key as used"() {
         given:
         def mobile = createProduct(PAYMENTS + [code: uniqueCode('PREVIEW'), name: 'Preview Payments Hub',
-                                               services: [PAYMENTS.services[1]]])
+                                               services: [PAYMENTS.services[2]]])
         def full = createPipeline(mobile.services[0].id as long, pipeline(type: 'FULL'))
 
         when:

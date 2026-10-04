@@ -45,6 +45,14 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
         yaml.projects.keySet() == ['gui'] as Set
         yaml.projects.gui.influx.project == "$code-gui"
 
+        and: 'the library can read the same configuration from the database view'
+        with(libraryConfig(key)) {
+            KEY_STATUS == 'ACTIVE'
+            REVOKE_REASON == null
+            CONFIG_JSON != null
+            RENDERED_AT != null
+        }
+
         when:
         def revoked = api.post("/api/pipelines/$created.id/keys/revoke", [reason: 'Leaked in a build log'])
         def refused = api.get("/api/dso/config/$key")
@@ -56,6 +64,26 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
         refused.status == 403
         refused.json.title == 'Pipeline key invalidated'
         refused.json.detail.endsWith(': Leaked in a build log')
+
+        and: 'the database view no longer hands out the configuration for that key'
+        with(libraryConfig(key)) {
+            KEY_STATUS == 'REVOKED'
+            REVOKE_REASON == 'Leaked in a build log'
+            CONFIG_JSON == null
+        }
+    }
+
+    def "a pipeline links its Jenkins job given as a URL; a path needs the Jenkins URL of the global settings"() {
+        when:
+        def byUrl = createPipeline(gui, pipeline(jenkinsJob: 'https://jenkins.bbh.com/job/DevSecOps/job/gui-full/',
+                description: 'Nightly full pipeline'))
+        def byPath = createPipeline(gui, pipeline(type: 'SAST', jenkinsJob: "DevSecOps/$code/gui-sast"))
+
+        then:
+        byUrl.jenkinsJobUrl == 'https://jenkins.bbh.com/job/DevSecOps/job/gui-full/'
+        byUrl.description == 'Nightly full pipeline'
+        byPath.jenkinsJob == "DevSecOps/$code/gui-sast"
+        byPath.jenkinsJobUrl == null
     }
 
     def "a new key replaces the old one, which stays refused"() {

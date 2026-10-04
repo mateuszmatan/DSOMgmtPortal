@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.catalog;
 
 import com.bbh.itss.dso.portal.common.Text;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.validation.constraints.Pattern;
@@ -39,6 +40,7 @@ public record SshTarget(
         versionFile = Text.trimToNull(versionFile);
     }
 
+    @JsonIgnore
     public boolean isEmpty() {
         return toConfig().isEmpty();
     }

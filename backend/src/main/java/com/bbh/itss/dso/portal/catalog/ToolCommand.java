@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.catalog;
 
 import com.bbh.itss.dso.portal.common.DelimitedListConverter;
 import com.bbh.itss.dso.portal.common.Text;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;
@@ -56,6 +57,7 @@ public record ToolCommand(
         return new ToolCommand(tasks, flags, null, null, List.of());
     }
 
+    @JsonIgnore
     public boolean isEmpty() {
         return tasks.isEmpty() && flags.isEmpty() && directory == null && mavenHome == null && environment.isEmpty();
     }
