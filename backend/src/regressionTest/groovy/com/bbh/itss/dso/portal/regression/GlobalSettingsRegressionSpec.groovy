@@ -80,6 +80,37 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
         api.get("/api/pipelines/$full.id").json.jenkinsJobUrl == "https://jenkins.bbh.com/job/DevSecOps/job/$code/job/gui-full/"
     }
 
+    def "the global RD and QC deployment values reach every VM service that does not set its own, also after a change"() {
+        given:
+        def code = uniqueCode('SSH')
+        def created = createProduct(product(code: code, name: "Product $code", services: [
+                service(name: 'plain'),
+                service(name: 'own-rd', sshTargets: [RD: [host: 'own-rd.testbbh.com', deployDir: '/opt/own']]),
+                ApiJson.fullOpenShiftService(name: 'cloud', sonar: null, nexusIq: null,
+                        metrics: [influxProject: "$code-cloud".toString(), influxEnv: 'test'])]))
+        def full = createPipeline(created.services[0].id as long, pipeline())
+
+        when:
+        def changed = api.put('/api/settings', original + [deployment: original.deployment + [
+                rdHost: 'rdnew.testbbh.com', qcHost: 'qcnew.testbbh.com', sshUser: 'dsoadm']])
+        def projects = api.get("/api/products/$created.id/config?format=json").json.projects
+        def pipelineConfig = new Yaml().load(api.get("/api/dso/config/$full.activeKey.value").body) as Map
+
+        then:
+        changed.status == 200
+        projects.plain.deploy.vm == [
+                rd: [host        : 'rdnew.testbbh.com', user: 'dsoadm',
+                     deployScript: original.deployment.deployScript, versionFile: original.deployment.versionFile],
+                qc: [host        : 'qcnew.testbbh.com', user: 'dsoadm',
+                     deployScript: original.deployment.deployScript, versionFile: original.deployment.versionFile]]
+        projects['own-rd'].deploy.vm.rd == [host        : 'own-rd.testbbh.com', deployDir: '/opt/own', user: 'dsoadm',
+                                            deployScript: original.deployment.deployScript,
+                                            versionFile : original.deployment.versionFile]
+        projects['own-rd'].deploy.vm.qc.host == 'qcnew.testbbh.com'
+        !projects.cloud.deploy.containsKey('vm')
+        pipelineConfig.projects.plain.deploy.vm == projects.plain.deploy.vm
+    }
+
     def "a service follows the global GoldenFix default unless it sets its own"() {
         given:
         def code = uniqueCode('GOLDEN')

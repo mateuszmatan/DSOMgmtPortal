@@ -43,9 +43,11 @@ class DsoConfigBuilderSpec extends Specification {
         then:
         projects.keySet() as List == ['gui', 'backend-api']
         projects.gui.keySet() as List == ['appId', 'buildTool', 'deployTarget', 'sourceDir', 'javaPath', 'asoc', 'influx',
-                                          'tools', 'dast', 'build']
+                                          'tools', 'dast', 'build', 'deploy']
+        projects.gui.deploy.vm.keySet() as List == ['rd', 'qc']
         projects['backend-api'].appName == 'cert-api'
         projects['backend-api'].buildTool == 'maven'
+        !projects['backend-api'].containsKey('deploy')
         projects['backend-api'].build == [maven: [goals: ['clean', 'verify']]]
     }
 
@@ -77,7 +79,9 @@ class DsoConfigBuilderSpec extends Specification {
         deploy.vm.rd == [user: 'batchadm', deployDir: '/opt/batch', host: 'rdltaapps1.testbbh.com',
                          deployScript: 'scripts/deployment/zero-downtime-deployment.sh',
                          versionFile: 'scripts/deployment/version.properties']
-        !deploy.vm.containsKey('qc')
+        deploy.vm.qc == [host: 'qcltaapps1.testbbh.com', user: 'taadmin',
+                         deployScript: 'scripts/deployment/zero-downtime-deployment.sh',
+                         versionFile: 'scripts/deployment/version.properties']
         deploy.vm.dod.siteName == 'deploy.bbh.com'
         deploy.vm.dod.deployProcess == 'tomcat-app-process'
     }

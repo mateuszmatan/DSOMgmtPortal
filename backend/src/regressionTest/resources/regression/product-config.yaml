@@ -340,5 +340,17 @@ projects:
       - core/model
       subplugins:
       - plugins/camera
+    deploy:
+      vm:
+        rd:
+          host: rdltaapps1.testbbh.com
+          user: taadmin
+          deployScript: scripts/deployment/zero-downtime-deployment.sh
+          versionFile: scripts/deployment/version.properties
+        qc:
+          host: qcltaapps1.testbbh.com
+          user: taadmin
+          deployScript: scripts/deployment/zero-downtime-deployment.sh
+          versionFile: scripts/deployment/version.properties
     flutter:
       platform: apk

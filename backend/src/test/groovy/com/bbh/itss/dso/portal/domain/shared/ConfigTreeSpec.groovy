@@ -120,6 +120,20 @@ class ConfigTreeSpec extends Specification {
         'empty map'  | [:]
     }
 
+    def "a value set only when absent creates its section and never replaces a value that is there"() {
+        given:
+        tree.set('deploy.vm.rd.host', 'own.host')
+
+        when:
+        tree.setIfAbsent('deploy.vm.rd.host', 'default.host')
+                .setIfAbsent('deploy.vm.rd.user', 'taadmin')
+                .setIfAbsent('deploy.vm.qc.host', 'qc.host')
+                .setIfAbsent('deploy.vm.qc.user', null)
+
+        then:
+        tree.toMap() == [deploy: [vm: [rd: [host: 'own.host', user: 'taadmin'], qc: [host: 'qc.host']]]]
+    }
+
     def "a default may be filled into a top-level section and into a section merged from a map"() {
         given:
         tree.merge([tests: [smoke: [enabled: true]]])
