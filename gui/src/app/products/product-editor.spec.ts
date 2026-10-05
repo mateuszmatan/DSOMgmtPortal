@@ -207,6 +207,19 @@ describe('ProductEditor', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/products', 1]);
   });
 
+  it('turns the product code into upper case as it is typed', async () => {
+    await start();
+    const input = page().querySelector<HTMLInputElement>('input[formControlName=code]')!;
+
+    input.value = 'cert';
+    input.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+
+    expect(input.value).toBe('CERT');
+    expect(input.classList).not.toContain('uppercase');
+    expect(editor()['form'].controls.code.valid).toBe(true);
+  });
+
   it('removes a service that was never saved without asking', async () => {
     await start();
     editor()['addService']();

@@ -66,11 +66,11 @@
                 matInput
                 formControlName="code"
                 placeholder="CERT"
-                class="mono uppercase"
+                class="mono"
                 autocomplete="off"
                 maxlength="50"
               />
-              <mat-hint>Upper case, unique</mat-hint>
+              <mat-hint>Upper case as you type, unique</mat-hint>
               <mat-error>{{
                 errorText(form.controls.code, "Start with a letter; use A-Z, 0-9, '-' or '_'")
               }}</mat-error>

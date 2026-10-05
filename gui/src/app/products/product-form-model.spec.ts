@@ -804,6 +804,18 @@ describe('toServiceRequest', () => {
 });
 
 describe('product form', () => {
+  it('upper-cases the product code as it is typed', () => {
+    const form = createProductForm();
+    const values: string[] = [];
+    form.valueChanges.subscribe((value) => values.push(value.code ?? ''));
+
+    form.controls.code.setValue('cert-2');
+
+    expect(form.controls.code.value).toBe('CERT-2');
+    expect(form.controls.code.valid).toBe(true);
+    expect(values).toEqual(['CERT-2']);
+  });
+
   it('round-trips a stored product into the request the API takes', () => {
     const form = createProductForm();
     patchProduct(

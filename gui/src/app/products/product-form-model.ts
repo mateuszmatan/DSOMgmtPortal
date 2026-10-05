@@ -724,7 +724,7 @@ function syncApplicability(form: ServiceForm): void {
 }
 
 export function createProductForm() {
-  return new FormGroup({
+  const form = new FormGroup({
     code: text('', Validators.required, Validators.pattern(PRODUCT_CODE)),
     name: text('', Validators.required, Validators.maxLength(200)),
     description: text('', Validators.maxLength(4000)),
@@ -735,6 +735,17 @@ export function createProductForm() {
       secretCredentialsId: text('', Validators.maxLength(200)),
     }),
     services: new FormArray<ServiceForm>([]),
+  });
+  upperCaseAsTyped(form.controls.code);
+  return form;
+}
+
+function upperCaseAsTyped(control: FormControl<string>): void {
+  control.valueChanges.subscribe((value) => {
+    const upper = value.toUpperCase();
+    if (upper !== value) {
+      control.setValue(upper, { emitEvent: false });
+    }
   });
 }
 
