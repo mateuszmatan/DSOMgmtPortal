@@ -7,7 +7,6 @@ import com.bbh.itss.dso.portal.gui.support.StubResponse
 import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.options.AriaRole
-import com.microsoft.playwright.options.LoadState
 
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 
@@ -116,15 +115,12 @@ class MonitoringSpec extends GuiSpecification {
             assertThat(page.locator('section.card').filter(new Locator.FilterOptions().setHasText('Recent runs')).locator('.card-header .muted'))
                     .hasText("Newest first, within the last ${range - 'd'} days")
         }
-        def refresh = button('Refresh the pipeline metrics', true)
-        page.waitForLoadState(LoadState.NETWORKIDLE)
         assertThat(page.locator('mat-progress-bar.loading')).hasCount(0)
-        assertThat(refresh).isEnabled()
-        refresh.click()
+        button('Refresh the pipeline metrics', true).click()
 
         then:
         assertThat(rangeToggle('180d')).hasAttribute('aria-checked', 'true')
-        api.awaitRequest('GET', '/api/monitoring/pipelines/1', 5).params() == [range: '180d']
+        awaitRequest('GET', '/api/monitoring/pipelines/1', 5).params() == [range: '180d']
         api.requests('GET', '/api/monitoring/pipelines/1')*.params()*.range == ['30d', '7d', '90d', '180d', '180d']
 
         when:

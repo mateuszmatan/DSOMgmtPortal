@@ -42,7 +42,7 @@ class GlobalSettingsSpec extends GuiSpecification {
 
         then:
         assertThat(snackBar()).containsText('DevSecOps Global Settings saved')
-        api.awaitRequest('PUT', '/api/settings').json() == loaded.findAll { it.key != 'updatedAt' }
+        awaitRequest('PUT', '/api/settings').json() == loaded.findAll { it.key != 'updatedAt' }
         assertThat(page.locator('.page-header .meta')).containsText('Version 2')
         ownErrors().isEmpty()
     }
@@ -62,7 +62,7 @@ class GlobalSettingsSpec extends GuiSpecification {
         button('Save settings', true).click()
 
         then:
-        def body = api.awaitRequest('PUT', '/api/settings').json() as Map
+        def body = awaitRequest('PUT', '/api/settings').json() as Map
         body.version == 1
         body.platform.jenkinsUrl == 'https://jenkins2.bbh.com/'
         body.goldenFix.enabled == false
@@ -88,7 +88,7 @@ class GlobalSettingsSpec extends GuiSpecification {
         assertThat(page.locator('.banner.conflict')).containsText('Your changes were not saved, so nothing was overwritten.')
         assertThat(page.locator('.save-bar .save-error')).hasText('Not saved: the settings were changed by someone else.')
         assertThat(button('Save settings', true)).isDisabled()
-        api.awaitRequest('PUT', '/api/settings').json().version == 1
+        awaitRequest('PUT', '/api/settings').json().version == 1
 
         when:
         page.locator('.banner.conflict').getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Reload')).click()
@@ -106,7 +106,7 @@ class GlobalSettingsSpec extends GuiSpecification {
 
         then:
         assertThat(snackBar()).containsText('DevSecOps Global Settings saved')
-        api.awaitRequest('PUT', '/api/settings', 2).json().version == 2
+        awaitRequest('PUT', '/api/settings', 2).json().version == 2
         stored.version == 3
         ownErrors().findAll { !it.contains('409') }.isEmpty()
     }
@@ -175,7 +175,7 @@ class GlobalSettingsSpec extends GuiSpecification {
         then:
         assertThat(dialog().locator('h2')).hasText('Generated global configuration')
         dialog().locator('pre.code').textContent() == StubApi.fixtureText('settings-config.yaml')
-        api.awaitRequest('GET', '/api/settings/config').params() == [format: 'yaml']
+        awaitRequest('GET', '/api/settings/config').params() == [format: 'yaml']
 
         when:
         dialog().getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Close')).click()

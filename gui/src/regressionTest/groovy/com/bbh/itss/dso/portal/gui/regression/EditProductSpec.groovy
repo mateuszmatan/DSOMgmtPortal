@@ -21,7 +21,7 @@ class EditProductSpec extends EditorSpecification {
         page.waitForURL("**/products/$id")
 
         then:
-        def body = api.awaitRequest('PUT', "/api/products/$id").json() as Map
+        def body = awaitRequest('PUT', "/api/products/$id").json() as Map
         body == ApiData.withoutResponseFields(loaded)
         body.version == loaded.version
         (loaded.services as List<Map>).findAll { (it.build as Map).tool != 'FLUTTER' }*.flutter.every { it == ApiData.noFlutterSettings() }
@@ -94,7 +94,7 @@ class EditProductSpec extends EditorSpecification {
 
         then:
         assertThat(dialog()).hasCount(0)
-        api.awaitRequest('PUT', '/api/products/1').json().ownerTeam == 'Platform Security'
+        awaitRequest('PUT', '/api/products/1').json().ownerTeam == 'Platform Security'
         ownErrors().isEmpty()
     }
 
@@ -147,7 +147,7 @@ class EditProductSpec extends EditorSpecification {
         page.waitForURL('**/products/2')
 
         then:
-        def body = api.awaitRequest('PUT', '/api/products/2').json() as Map
+        def body = awaitRequest('PUT', '/api/products/2').json() as Map
         def services = body.services as List<Map>
         def byName = (loaded.services as List<Map>).collectEntries { [(it.name): it] }
         services*.id == [4, 5, null, 6]
@@ -184,7 +184,7 @@ class EditProductSpec extends EditorSpecification {
         page.waitForURL('**/products/1')
 
         then:
-        (api.awaitRequest('PUT', '/api/products/1').json().services as List<Map>).collect { [it.id, it.name] } ==
+        (awaitRequest('PUT', '/api/products/1').json().services as List<Map>).collect { [it.id, it.name] } ==
                 [[1, 'gui'], [null, 'gui-copy'], [2, 'backend-api'], [null, 'worker']]
         assertThat(page.locator('.generated')).containsText('Pipeline keys generated for 2 new services: gui-copy, worker.')
         assertThat(page.locator('.generated')).containsText('Copy each key into the Jenkinsfile of its service.')
@@ -269,7 +269,7 @@ class EditProductSpec extends EditorSpecification {
                    targetBranch : 'develop', cloneUrl: 'ssh://git@bitbucket.org/bbh-technology/cert-scanner-ui.git',
                    reviewers    : ['jsmith', 'akowalski'], apiUrl: 'https://api.bitbucket.org/2.0', workspace: 'bbh-technology',
                    projectKey   : null, repoSlug: 'cert-scanner-ui']
-        def body = api.awaitRequest('PUT', '/api/products/1').json() as Map
+        def body = awaitRequest('PUT', '/api/products/1').json() as Map
         body.services[0].scm == scm
         body == loaded + [services: [(loaded.services as List<Map>)[0] + [scm: scm], (loaded.services as List<Map>)[1]]]
         assertThat(page.locator('.service').first().locator('.repository a'))
@@ -321,7 +321,7 @@ class EditProductSpec extends EditorSpecification {
         page.waitForURL('**/products/2')
 
         then:
-        (api.awaitRequest('PUT', '/api/products/2').json().services as List<Map>).collect { [it.name, it.goldenFix.enabled] } ==
+        (awaitRequest('PUT', '/api/products/2').json().services as List<Map>).collect { [it.name, it.goldenFix.enabled] } ==
                 [['gateway', true], ['ledger', null], ['notifications', null], ['mobile-app', null]]
         ownErrors().isEmpty()
     }
@@ -359,7 +359,7 @@ class EditProductSpec extends EditorSpecification {
         page.waitForURL('**/products/1')
 
         then:
-        def jobs = api.awaitRequest('PUT', '/api/products/1').json().services[0].testJobs as List<Map>
+        def jobs = awaitRequest('PUT', '/api/products/1').json().services[0].testJobs as List<Map>
         jobs*.parameters == [null, null, 'ENV=rd\nSUITE=critical\nTAGS=smoke,api', null]
 
         when:
@@ -398,7 +398,7 @@ class EditProductSpec extends EditorSpecification {
         page.waitForURL('**/products/1')
 
         then:
-        (api.awaitRequest('PUT', '/api/products/1').json().services as List<Map>).collect { [it.id, it.name] } == [[1, 'web'], [2, 'gui']]
+        (awaitRequest('PUT', '/api/products/1').json().services as List<Map>).collect { [it.id, it.name] } == [[1, 'web'], [2, 'gui']]
         ownErrors().isEmpty()
     }
 
@@ -422,7 +422,7 @@ class EditProductSpec extends EditorSpecification {
         page.waitForURL('**/products/1')
 
         then:
-        def appScan = api.awaitRequest('PUT', '/api/products/1').json().services[0].appScan as Map
+        def appScan = awaitRequest('PUT', '/api/products/1').json().services[0].appScan as Map
         appScan.dastEnabled == false
         appScan.dastTargetUrl == null
         appScan.dastScanName == 'cert-scanner-gui-dast'

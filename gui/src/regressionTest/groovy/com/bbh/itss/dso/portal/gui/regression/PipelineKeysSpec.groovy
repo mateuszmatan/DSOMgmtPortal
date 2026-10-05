@@ -154,7 +154,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         then:
         assertThat(keyOf('gui', 'Full')).hasText(value)
         assertThat(snackBar()).containsText('New key issued')
-        api.awaitRequest('POST', '/api/pipelines/1/keys').json() == [:]
+        awaitRequest('POST', '/api/pipelines/1/keys').json() == [:]
         assertThat(stat('Active keys')).hasText('3')
         ownErrors().isEmpty()
     }
@@ -193,7 +193,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
         then:
         assertThat(dialog()).hasCount(0)
-        api.awaitRequest('POST', '/api/pipelines/2/keys/revoke').json() == [reason: 'Key printed in a build log']
+        awaitRequest('POST', '/api/pipelines/2/keys/revoke').json() == [reason: 'Key printed in a build log']
         assertThat(snackBar()).containsText('Key invalidated: the pipeline stops at its next start')
         assertThat(pipelineRow('gui', 'SAST scanning').locator('.key-state')).hasText('Key invalidated')
         assertThat(pipelineRow('gui', 'SAST scanning').locator('.revoked-note'))
@@ -214,7 +214,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         assertThat(dialog().locator('tr.mat-mdc-row').nth(1)).containsText('2c0ca4f4…e713')
         assertThat(dialog().locator('tr.mat-mdc-row').nth(1)).containsText('Invalidated')
         assertThat(dialog().locator('tr.mat-mdc-row').nth(1)).containsText('Key printed in a build log')
-        api.awaitRequest('POST', '/api/pipelines/2/keys').json() == [:]
+        awaitRequest('POST', '/api/pipelines/2/keys').json() == [:]
 
         when:
         dialogButton('Close').click()
@@ -247,7 +247,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         assertThat(snackBar()).containsText('The key store is being upgraded; try again in a minute')
         assertThat(regenerate).isEnabled()
         assertThat(pipelineRow('mobile-app', 'SAST scanning').locator('.key-state')).hasText('Key invalidated')
-        api.awaitRequest('POST', '/api/pipelines/9/keys').json() == [:]
+        awaitRequest('POST', '/api/pipelines/9/keys').json() == [:]
 
         when:
         api.respond('POST', '/api/pipelines/9/keys', regenerated)
@@ -259,7 +259,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         assertThat(pipelineRow('mobile-app', 'SAST scanning').locator('.key-state')).hasText('Key active')
         assertThat(regenerate).hasCount(0)
         assertThat(stat('Invalidated keys')).hasText('0')
-        api.awaitRequest('POST', '/api/pipelines/9/keys', 2).json() == [:]
+        awaitRequest('POST', '/api/pipelines/9/keys', 2).json() == [:]
         api.requests('POST', '/api/pipelines/9/keys/revoke').isEmpty()
 
         when:
@@ -298,7 +298,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
         then:
         assertThat(dialog()).hasCount(0)
-        api.awaitRequest('PUT', '/api/pipelines/1').json() == [type      : 'FULL', agentLabels: ['linux-agent', 'docker'],
+        awaitRequest('PUT', '/api/pipelines/1').json() == [type      : 'FULL', agentLabels: ['linux-agent', 'docker'],
                                                                extendedPipelineJob: null, securityPipelineJob: null,
                                                                jenkinsJob: 'DevSecOps/CERTSCANNER/gui-full', description: 'Main branch delivery']
         assertThat(pipelineRow('gui', 'Full').locator('.pipeline-meta')).containsText('linux-agent, docker')
@@ -326,7 +326,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         then:
         assertThat(serviceCard('backend-api').locator('.no-pipelines')).hasText('No pipeline yet. Add one to give this service a DevSecOps key.')
         assertThat(snackBar()).containsText('Pipeline deleted')
-        api.awaitRequest('DELETE', '/api/pipelines/3') != null
+        awaitRequest('DELETE', '/api/pipelines/3') != null
 
         when:
         button('Delete', true).click()
@@ -340,7 +340,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         page.waitForURL('**/products')
 
         then:
-        api.awaitRequest('DELETE', '/api/products/1') != null
+        awaitRequest('DELETE', '/api/products/1') != null
         assertThat(snackBar()).containsText('CertScanner deleted')
         ownErrors().isEmpty()
     }

@@ -105,7 +105,7 @@ class ApiFailureSpec extends EditorSpecification {
 
         then:
         assertThat(saveError()).hasText('The product was changed by someone else; reload it and try again')
-        api.awaitRequest('PUT', '/api/products/1').json().version == 0
+        awaitRequest('PUT', '/api/products/1').json().version == 0
         page.url().endsWith('/products/1/edit')
     }
 
