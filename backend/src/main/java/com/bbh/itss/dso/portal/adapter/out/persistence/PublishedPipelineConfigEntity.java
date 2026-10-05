@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
@@ -17,14 +16,11 @@ import java.time.Instant;
 public class PublishedPipelineConfigEntity implements Persistable<Long> {
 
     @Id
-    @Column(name = "PIPELINE_ID")
     private Long pipelineId;
 
     @Lob
-    @Column(name = "CONFIG_JSON", nullable = false)
     private String configJson;
 
-    @Column(name = "RENDERED_AT", nullable = false)
     private Instant renderedAt;
 
     @Transient

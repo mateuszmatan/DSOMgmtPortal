@@ -23,30 +23,23 @@ public class PipelineKeyEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ID")
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "PIPELINE_ID", nullable = false)
+    @JoinColumn(name = "PIPELINE_ID")
     private PipelineEntity pipeline;
 
-    @Column(name = "KEY_VALUE", nullable = false, length = 36, updatable = false)
+    @Column(name = "KEY_VALUE", updatable = false)
     private String value;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "STATUS", nullable = false, length = 20)
     private KeyStatus status;
 
-    @Column(name = "ISSUED_AT", nullable = false, updatable = false)
+    @Column(updatable = false)
     private Instant issuedAt;
 
-    @Column(name = "REVOKED_AT")
     private Instant revokedAt;
-
-    @Column(name = "REVOKE_REASON", length = 500)
     private String revokeReason;
-
-    @Column(name = "LAST_USED_AT")
     private Instant lastUsedAt;
 
     protected PipelineKeyEntity() {

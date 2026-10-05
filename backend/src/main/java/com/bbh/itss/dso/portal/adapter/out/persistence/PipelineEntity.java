@@ -10,7 +10,6 @@ import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;
-import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -33,18 +32,16 @@ public class PipelineEntity extends AuditedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ID")
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "SERVICE_ID", nullable = false)
+    @JoinColumn(name = "SERVICE_ID")
     private ServiceEntity service;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "PIPELINE_TYPE", nullable = false, length = 20)
+    @Column(name = "PIPELINE_TYPE")
     private PipelineType type;
 
-    @Embedded
     private PipelineSettingsEmbeddable settings;
 
     @OneToMany(mappedBy = "pipeline", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -86,11 +83,7 @@ public class PipelineEntity extends AuditedEntity {
 
     @Embeddable
     public record PipelineSettingsEmbeddable(
-            @Convert(converter = DelimitedListConverter.Commas.class)
-            @Column(name = "AGENT_LABELS", nullable = false, length = 1000) List<String> agentLabels,
-            @Column(name = "EXTENDED_PIPELINE_JOB", length = 500) String extendedPipelineJob,
-            @Column(name = "SECURITY_PIPELINE_JOB", length = 500) String securityPipelineJob,
-            @Column(name = "JENKINS_JOB", length = 1000) String jenkinsJob,
-            @Column(name = "DESCRIPTION", length = 1000) String description) {
+            @Convert(converter = DelimitedListConverter.Commas.class) List<String> agentLabels,
+            String extendedPipelineJob, String securityPipelineJob, String jenkinsJob, String description) {
     }
 }

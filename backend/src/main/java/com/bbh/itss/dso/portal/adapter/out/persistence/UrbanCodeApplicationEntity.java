@@ -5,7 +5,6 @@ import com.bbh.itss.dso.portal.adapter.out.persistence.ServiceEntity.UrbanCodeCo
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings;
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeComponent;
 import jakarta.persistence.CollectionTable;
-import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
@@ -27,27 +26,19 @@ public class UrbanCodeApplicationEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ID")
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "SERVICE_ID", nullable = false)
+    @JoinColumn(name = "SERVICE_ID")
     private ServiceEntity service;
 
-    @Column(name = "POSITION", nullable = false)
     private int position;
-
-    @Column(name = "APPLICATION_NAME", nullable = false, length = 200)
     private String applicationName;
-
-    @Column(name = "DEPLOY_ORDER")
     private Integer deployOrder;
 
     @Convert(converter = DelimitedListConverter.Commas.class)
-    @Column(name = "ENVIRONMENTS", length = 500)
     private List<String> environments;
 
-    @Column(name = "SNAPSHOT_NAME", length = 200)
     private String snapshotName;
 
     @ElementCollection

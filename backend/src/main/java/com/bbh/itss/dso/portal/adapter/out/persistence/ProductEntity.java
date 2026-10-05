@@ -5,9 +5,7 @@ import com.bbh.itss.dso.portal.domain.catalog.AppScanAccount;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.ProductDetails;
 import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
-import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -15,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.EmbeddedColumnNaming;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,25 +25,15 @@ public class ProductEntity extends AuditedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ID")
     private Long id;
 
-    @Column(name = "CODE", nullable = false, length = 50)
     private String code;
-
-    @Column(name = "NAME", nullable = false, length = 200)
     private String name;
-
-    @Column(name = "DESCRIPTION", length = 4000)
     private String description;
-
-    @Column(name = "OWNER_TEAM", length = 200)
     private String ownerTeam;
-
-    @Column(name = "CONTACT_EMAIL", length = 320)
     private String contactEmail;
 
-    @Embedded
+    @EmbeddedColumnNaming("ASOC_%s")
     private AppScanAccountEmbeddable appScanAccount;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -97,8 +86,6 @@ public class ProductEntity extends AuditedEntity {
     }
 
     @Embeddable
-    public record AppScanAccountEmbeddable(
-            @Column(name = "ASOC_KEY_ID", nullable = false, length = 200) String keyId,
-            @Column(name = "ASOC_SECRET_CREDENTIALS_ID", length = 200) String secretCredentialsId) {
+    public record AppScanAccountEmbeddable(String keyId, String secretCredentialsId) {
     }
 }
