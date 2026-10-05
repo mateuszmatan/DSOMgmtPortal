@@ -170,6 +170,107 @@ describe('ProductDetail', () => {
     );
   });
 
+  it('says why the product could not be read and leads back to the list', async () => {
+    fixture.detectChanges();
+    http
+      .expectOne('/api/products/1')
+      .flush(
+        { title: 'Not Found', detail: 'Product 1 does not exist' },
+        { status: 404, statusText: 'Not Found' },
+      );
+    http.expectOne('/api/products/1/pipelines').flush([]);
+    await fixture.whenStable();
+
+    expect(page().querySelector('.banner')?.textContent).toBe('Product 1 does not exist');
+    expect(
+      page().querySelector<HTMLAnchorElement>('a[href="/products"].mat-mdc-button-base'),
+    ).not.toBeNull();
+    expect(page().querySelector('.breadcrumb')?.textContent).toContain('Product');
+    expect(page().querySelector('h1')).toBeNull();
+  });
+
+  it('shows the product while its pipelines are loading and when they cannot be read', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/products/1').flush(product());
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    expect(page().querySelector('h1')?.textContent).toBe('CertScanner');
+    expect(page().querySelector('mat-progress-bar')).not.toBeNull();
+    expect(page().querySelector('.stats')).toBeNull();
+
+    http
+      .expectOne('/api/products/1/pipelines')
+      .flush({ detail: 'The database is not available' }, { status: 503, statusText: '' });
+    await fixture.whenStable();
+
+    expect(page().querySelector('.banner')?.textContent).toBe('The database is not available');
+    expect(page().querySelector('mat-progress-bar')).toBeNull();
+    expect(page().querySelector('.stats')).toBeNull();
+  });
+
+  it('invites to add services when the product has none', async () => {
+    await load(product({ services: [] }), []);
+
+    expect(page().querySelector('.empty-state h3')?.textContent).toBe('No services yet');
+    expect(page().querySelector<HTMLAnchorElement>('.empty-state a')?.getAttribute('href')).toBe(
+      '/products/1/edit',
+    );
+    expect(stats()).toEqual(['0Services', '0Pipelines', '0Active keys', '0Invalidated keys']);
+  });
+
+  it('says when a service has no pipeline yet', async () => {
+    await load(product(), [servicePipelines({ pipelines: [] })]);
+
+    expect(page().querySelector('.no-pipelines')?.textContent).toContain('No pipeline yet');
+  });
+
+  it('shows the jobs a pipeline starts and links its own job only when Jenkins is known', async () => {
+    await load(product(), [
+      servicePipelines({
+        pipelines: [
+          pipeline({
+            type: 'SECURITY',
+            jenkinsJobUrl: null,
+            extendedPipelineJob: 'DevSecOps/CERT/gui-extended',
+            description: 'Nightly security build',
+          }),
+          pipeline({
+            id: 101,
+            type: 'EXTENDED',
+            jenkinsJob: null,
+            jenkinsJobUrl: null,
+            securityPipelineJob: 'DevSecOps/CERT/gui-security',
+          }),
+        ],
+      }),
+    ]);
+    const meta = (index: number) =>
+      Object.fromEntries(
+        [
+          ...page().querySelectorAll('.pipeline')[index].querySelectorAll('.pipeline-meta > div'),
+        ].map((entry) => [
+          entry.querySelector('dt')?.textContent,
+          entry.querySelector('dd')?.textContent?.trim(),
+        ]),
+      );
+
+    expect(meta(0)).toMatchObject({
+      Job: 'DevSecOps/CERT/gui-full',
+      'Extended pipeline': 'DevSecOps/CERT/gui-extended',
+      Description: 'Nightly security build',
+      'Metrics tags': 'CERT-gui · test',
+    });
+    expect(page().querySelectorAll('.pipeline')[0].querySelector('.pipeline-meta a')).toBeNull();
+    expect(meta(1)).toMatchObject({
+      Job: 'Not set',
+      'Security pipeline': 'DevSecOps/CERT/gui-security',
+    });
+    expect(
+      [...page().querySelectorAll('.pipeline-actions a')].map((link) => link.textContent?.trim()),
+    ).toEqual(['Metrics', 'Metrics']);
+  });
+
   describe('new services', () => {
     const twoServices = () => [
       servicePipelines(),
@@ -528,6 +629,60 @@ describe('ProductDetail', () => {
         .flush({ detail: 'Pipeline 100 is in use' }, { status: 409, statusText: 'Conflict' });
       await fixture.whenStable();
       expect(snack()).toContain('Pipeline 100 is in use');
+    });
+
+    it('reports a product configuration that cannot be rendered', async () => {
+      await load();
+
+      button('config.yaml').click();
+      http
+        .expectOne('/api/products/1/config')
+        .flush(
+          { detail: 'services[0].build.javaPath: must not be blank' },
+          { status: 422, statusText: '' },
+        );
+      await fixture.whenStable();
+
+      expect(open).not.toHaveBeenCalled();
+      expect(snack()).toContain('services[0].build.javaPath: must not be blank');
+    });
+
+    it('stays on the product when it cannot be deleted', async () => {
+      await load();
+      closingWith(true);
+
+      button('Delete').click();
+      http
+        .expectOne({ method: 'DELETE', url: '/api/products/1' })
+        .flush({ detail: 'Product 1 was changed meanwhile' }, { status: 409, statusText: '' });
+      await fixture.whenStable();
+
+      expect(TestBed.inject(Router).navigate).not.toHaveBeenCalled();
+      expect(snack()).toContain('Product 1 was changed meanwhile');
+    });
+
+    it('changes only the pipeline of the service it belongs to', async () => {
+      await load(product({ services: [service(), anotherService()] }), [
+        servicePipelines(),
+        servicePipelines({
+          serviceId: 11,
+          serviceName: 'api',
+          pipelines: [pipeline({ id: 110, serviceId: 11, serviceName: 'api' })],
+        }),
+      ]);
+      closingWith(pipeline({ id: 110, serviceId: 11, serviceName: 'api', activeKey: null }));
+
+      page()
+        .querySelectorAll<HTMLButtonElement>('[aria-label="More actions of the full pipeline"]')[1]
+        .click();
+      await fixture.whenStable();
+      button('Invalidate key', document).click();
+      await fixture.whenStable();
+
+      expect([...page().querySelectorAll('.key-state')].map((state) => state.textContent)).toEqual([
+        'Key active',
+        'Key invalidated',
+      ]);
     });
 
     it('copies the key and says so', async () => {
