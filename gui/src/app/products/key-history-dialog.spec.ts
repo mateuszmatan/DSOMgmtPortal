@@ -39,9 +39,7 @@ describe('KeyHistoryDialog', () => {
 
   const page = () => fixture.nativeElement as HTMLElement;
   const cells = (column: string) =>
-    [...page().querySelectorAll(`td.mat-column-${column}`)].map((cell) =>
-      cell.textContent?.trim(),
-    );
+    [...page().querySelectorAll(`td.mat-column-${column}`)].map((cell) => cell.textContent?.trim());
 
   it('lists every key by its hint and never shows a key value', async () => {
     fixture.detectChanges();

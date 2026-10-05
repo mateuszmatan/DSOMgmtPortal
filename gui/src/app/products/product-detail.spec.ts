@@ -108,7 +108,9 @@ describe('ProductDetail', () => {
     http
       .expectOne('/api/products/1/pipelines')
       .flush([
-        servicePipelines({ pipelines: [{ ...stored, activeKey: { ...stored.activeKey!, value: null } }] }),
+        servicePipelines({
+          pipelines: [{ ...stored, activeKey: { ...stored.activeKey!, value: null } }],
+        }),
       ]);
     await fixture.whenStable();
 

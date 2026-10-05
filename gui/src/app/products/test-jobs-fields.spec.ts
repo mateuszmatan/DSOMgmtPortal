@@ -33,7 +33,9 @@ describe('TestJobsFields', () => {
   const page = () => fixture.nativeElement as HTMLElement;
   const sections = () => [...page().querySelectorAll<HTMLElement>('.list-section')];
   const names = () =>
-    form.controls.testJobs.controls.map((control) => control.controls.name.value || control.controls.job.value);
+    form.controls.testJobs.controls.map(
+      (control) => control.controls.name.value || control.controls.job.value,
+    );
   const button = (root: ParentNode, label: string) =>
     [...root.querySelectorAll<HTMLButtonElement>('button')].find(
       (element) => element.textContent?.trim() === label,
@@ -110,7 +112,10 @@ describe('TestJobsFields', () => {
   });
 
   it('shows the remote Jenkins fields only for a remote job', async () => {
-    await render([job({ name: 'local' }), job({ name: 'remote', type: 'REMOTE', remoteJenkins: 'qa' })]);
+    await render([
+      job({ name: 'local' }),
+      job({ name: 'remote', type: 'REMOTE', remoteJenkins: 'qa' }),
+    ]);
 
     const items = [...page().querySelectorAll('.list-item')];
     expect(items[0].querySelector('[formControlName=remoteJenkins]')).toBeNull();

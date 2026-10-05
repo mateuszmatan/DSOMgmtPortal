@@ -560,7 +560,12 @@ export function pipelineMonitoring(
 }
 
 export function pipelineHealth(overrides: Partial<PipelineHealth> = {}): PipelineHealth {
-  return { pipeline: monitoringPipeline(), status: 'SUCCESS', lastRun: pipelineRun(), ...overrides };
+  return {
+    pipeline: monitoringPipeline(),
+    status: 'SUCCESS',
+    lastRun: pipelineRun(),
+    ...overrides,
+  };
 }
 
 export function productMonitoring(overrides: Partial<ProductMonitoring> = {}): ProductMonitoring {
@@ -592,7 +597,9 @@ export function productHealth(overrides: Partial<ProductHealth> = {}): ProductHe
   };
 }
 
-export function monitoringOverview(overrides: Partial<MonitoringOverview> = {}): MonitoringOverview {
+export function monitoringOverview(
+  overrides: Partial<MonitoringOverview> = {},
+): MonitoringOverview {
   return { products: [productHealth()], metricsError: null, ...overrides };
 }
 
