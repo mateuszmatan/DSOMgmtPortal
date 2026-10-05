@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { GlobalSettings, Service } from '../core/models';
+import { AbstractControl, FormArray, FormGroup } from '@angular/forms';
+import { BuildTool, DeployTarget, GlobalSettings, Service } from '../core/models';
+import { wholeNumber } from '../shared/form-controls';
 import { globalSettings, service } from '../testing/fixtures';
 import { ServiceForm, createServiceForm } from './product-form-model';
 import { ServiceFields } from './service-fields';
@@ -33,6 +35,57 @@ describe('ServiceFields', () => {
     await fixture.whenStable();
   }
 
+  const railLabels = () =>
+    [...page().querySelectorAll('.rail-item span:not(.problem-mark)')].map(
+      (label) => label.textContent?.trim() ?? '',
+    );
+
+  const SELECTS = new Set(['tool', 'target', 'stage', 'type', 'authType', 'platform']);
+
+  function breakEveryField(control: AbstractControl, key = ''): void {
+    if (control instanceof FormGroup || control instanceof FormArray) {
+      Object.entries(control.controls).forEach(([name, child]) => breakEveryField(child, name));
+    } else if (control.enabled && !SELECTS.has(key)) {
+      if (typeof control.value === 'string') {
+        control.setValue('x'.repeat(5001));
+      } else if (control.hasValidator(wholeNumber)) {
+        control.setValue(1.5);
+      }
+    }
+  }
+
+  function everything(tool: BuildTool, target: DeployTarget): Service {
+    const stored = service();
+    return service({
+      build: { ...stored.build, tool },
+      deployment: { ...stored.deployment, target },
+      appScan: { ...stored.appScan, compile: true, dastEnabled: true },
+      goldenFix: { ...stored.goldenFix, minThreatLevel: 7 },
+      testJobs: [
+        ...stored.testJobs,
+        {
+          stage: 'REGRESSION',
+          name: 'remote',
+          type: 'REMOTE',
+          job: 'CERT/regression',
+          timeoutMinutes: 30,
+          parameters: 'ENV=rd',
+          remoteJenkins: 'qa',
+          remoteJenkinsUrl: null,
+          credentialsId: null,
+        },
+      ],
+    });
+  }
+
+  const combinations: [BuildTool, DeployTarget][] = [
+    ['GRADLE', 'VM'],
+    ['MAVEN', 'VM'],
+    ['MAVEN', 'OPENSHIFT'],
+    ['FLUTTER', 'VM'],
+    ['FLUTTER', 'OPENSHIFT'],
+  ];
+
   async function chooseOption(trigger: HTMLElement, label: string) {
     trigger.click();
     await fixture.whenStable();
@@ -42,6 +95,48 @@ describe('ServiceFields', () => {
     option!.click();
     await fixture.whenStable();
   }
+
+  describe('every section', () => {
+    it.each(combinations)('opens each section of a %s service on %s', async (tool, target) => {
+      await render(everything(tool, target));
+
+      for (const label of railLabels()) {
+        await open(label);
+        expect(pane().querySelector('h3')?.textContent).toBe(label);
+      }
+      expect(railLabels()).toContain(target === 'VM' ? 'SSH targets' : 'OpenShift targets');
+      expect(railLabels().includes('Flutter')).toBe(tool === 'FLUTTER');
+    });
+
+    it.each(combinations)('explains every problem of a %s service on %s', async (tool, target) => {
+      await render(everything(tool, target));
+      breakEveryField(form);
+      form.markAllAsTouched();
+      fixture.componentRef.setInput('submitted', true);
+      await fixture.whenStable();
+
+      const marked = [...page().querySelectorAll('.rail-item.problem span:first-of-type')];
+      expect(marked.length).toBeGreaterThan(5);
+      for (const label of railLabels()) {
+        await open(label);
+        const errors = [...pane().querySelectorAll('mat-error')].map((e) => e.textContent?.trim());
+        expect(errors.every((error) => !!error)).toBe(true);
+      }
+    });
+
+    it('works without the global settings and reveals the first section with a problem', async () => {
+      await render(service(), null);
+      for (const label of railLabels()) {
+        await open(label);
+      }
+      expect(fixture.componentInstance.revealFirstProblem()).toBe(false);
+
+      form.controls.sonar.controls.command.controls.tasks.setValue('');
+      expect(fixture.componentInstance.revealFirstProblem()).toBe(true);
+      await fixture.whenStable();
+      expect(page().querySelector('.rail-item.active span')?.textContent).toBe('SonarQube');
+    });
+  });
 
   describe('Build', () => {
     const field = (name: string) =>
