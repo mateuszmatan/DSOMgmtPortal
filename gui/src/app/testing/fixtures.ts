@@ -576,10 +576,7 @@ export function pipelineMonitoring(
     lastRun: pipelineRun(),
     dora: doraSummary(),
     recentRuns: [pipelineRun(), pipelineRun({ build: 41, buildUrl: null, result: 'FAILURE' })],
-    grafana: {
-      dashboardUrl: 'https://grafana.bbh.com/d/dso-dora',
-      panels: [{ id: 1, title: 'Deployments', width: 6, url: 'https://grafana.bbh.com/d-solo/1' }],
-    },
+    grafana: { dashboardUrl: 'https://grafana.bbh.com/d/adzfc54123/pipeline?var-project=CERT-gui' },
     metricsError: null,
     ...overrides,
   };
@@ -635,7 +632,7 @@ export function monitoringStatus(overrides: Partial<MonitoringStatus> = {}): Mon
     influxReachable: true,
     influxError: null,
     grafanaConfigured: true,
-    grafanaUrl: 'https://grafana.bbh.com',
+    grafanaUrl: 'https://grafana.bbh.com/d/adzfc54123/pipeline',
     ...overrides,
   };
 }

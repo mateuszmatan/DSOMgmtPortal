@@ -56,24 +56,14 @@
       </div>
     </header>
 
-    @if (stats(); as s) {
+    @if (stats(); as counts) {
       <div class="stats">
-        <div class="stat">
-          <strong>{{ s.services }}</strong
-          ><span>Services</span>
-        </div>
-        <div class="stat">
-          <strong>{{ s.pipelines }}</strong
-          ><span>Pipelines</span>
-        </div>
-        <div class="stat success">
-          <strong>{{ s.active }}</strong
-          ><span>Active keys</span>
-        </div>
-        <div class="stat" [class.danger]="s.invalidated > 0">
-          <strong>{{ s.invalidated }}</strong
-          ><span>Invalidated keys</span>
-        </div>
+        @for (stat of counts; track stat.label) {
+          <div class="stat" [class]="stat.tone">
+            <strong>{{ stat.value }}</strong
+            ><span>{{ stat.label }}</span>
+          </div>
+        }
       </div>
     }
 

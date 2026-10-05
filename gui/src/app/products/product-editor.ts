@@ -16,8 +16,6 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatExpansionModule } from '@angular/material/expansion';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterLink } from '@angular/router';
@@ -28,8 +26,8 @@ import { BuildTool, DeployTarget, FieldProblem, GlobalSettings, Product } from '
 import { Notifier } from '../core/notifier';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
-import { revalidateAll } from '../shared/form-controls';
-import { errorText } from '../shared/form-errors';
+import { Field, Fields, area, line, mono } from '../shared/fields';
+import { addItem, revalidateAll } from '../shared/form-controls';
 import {
   ServiceForm,
   applyProductProblems,
@@ -43,6 +41,29 @@ import {
 import { GeneratedKeys } from './generated-keys';
 import { ServiceFields } from './service-fields';
 
+const PRODUCT: Field[] = [
+  mono('code', 'Code', '', 3, {
+    placeholder: 'CERT',
+    maxLength: 50,
+    hint: 'Upper case as you type, unique',
+    error: "Start with a letter; use A-Z, 0-9, '-' or '_'",
+  }),
+  line('name', 'Name', '', 5, { placeholder: 'CertScanner' }),
+  line('ownerTeam', 'Owner team', '', 4, { placeholder: 'Security Engineering' }),
+  area('description', 'Description', '', 8, {
+    placeholder: 'What the product does and who uses it',
+  }),
+  line('contactEmail', 'Contact e-mail', '', 4, { placeholder: 'team@bbh.com', type: 'email' }),
+];
+
+const APP_SCAN_ACCOUNT: Field[] = [
+  mono('keyId', 'API key ID', 'asoc.keyId', 6, { placeholder: 'bbh_...' }),
+  mono('secretCredentialsId', 'Secret credentials ID', '', 6, {
+    placeholder: 'hcl-app-scan-account',
+    hint: 'Jenkins credentials holding the key secret',
+  }),
+];
+
 @Component({
   selector: 'dso-product-editor',
   imports: [
@@ -50,10 +71,9 @@ import { ServiceFields } from './service-fields';
     RouterLink,
     MatButtonModule,
     MatExpansionModule,
-    MatFormFieldModule,
-    MatInputModule,
     MatProgressBarModule,
     MatProgressSpinnerModule,
+    Fields,
     ServiceFields,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -94,7 +114,8 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   private readonly serviceFields = viewChildren(ServiceFields);
   private saved = false;
 
-  protected readonly errorText = errorText;
+  protected readonly productFields = PRODUCT;
+  protected readonly appScanFields = APP_SCAN_ACCOUNT;
   protected readonly toolLabels: Record<BuildTool, string> = {
     GRADLE: 'Gradle',
     MAVEN: 'Maven',
@@ -159,7 +180,8 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   }
 
   protected addService(): void {
-    this.form.controls.services.push(
+    addItem(
+      this.form.controls.services,
       createServiceForm(undefined, this.settings()?.serviceDefaults),
     );
     this.expanded.set(this.form.controls.services.length - 1);

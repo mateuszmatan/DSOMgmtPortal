@@ -19,6 +19,7 @@ import {
   OpenShiftTarget,
   Product,
   ProductRequest,
+  REGIONS,
   Region,
   ServiceDefaults,
   ServiceRequest,
@@ -33,6 +34,7 @@ import {
 import {
   HOST_NAME,
   HTTP_URL,
+  Sent,
   applyFieldProblems,
   eachItem,
   fitsColumn,
@@ -49,6 +51,7 @@ import {
   requiredRule,
   requiredWhen,
   revalidateOnChange,
+  sent,
   setEnabled,
   text,
   words,
@@ -190,11 +193,7 @@ export function toTestJob(form: TestJobForm): TestJob {
   const v = form.getRawValue();
   const remote = isRemoteJob(form);
   return {
-    stage: v.stage,
-    name: optional(v.name),
-    type: v.type,
-    job: v.job.trim(),
-    timeoutMinutes: v.timeoutMinutes,
+    ...sent(v),
     parameters: v.parameters.trim() ? v.parameters : null,
     remoteJenkins: remote ? optional(v.remoteJenkins) : null,
     remoteJenkinsUrl: remote ? optional(v.remoteJenkinsUrl) : null,
@@ -249,19 +248,9 @@ export type UrbanCodeApplicationForm = ReturnType<typeof createUrbanCodeApplicat
 function toUrbanCodeApplication(form: UrbanCodeApplicationForm): UrbanCodeApplicationSettings {
   const v = form.getRawValue();
   return {
-    applicationName: v.applicationName.trim(),
-    order: v.order,
+    ...sent(v),
     environments: words(v.environments),
-    snapshotName: optional(v.snapshotName),
-    components: v.components.map((c) => ({
-      componentName: c.componentName.trim(),
-      baseDir: optional(c.baseDir),
-      fileIncludePatterns: optional(c.fileIncludePatterns),
-      fileExcludePatterns: optional(c.fileExcludePatterns),
-      versionPrefix: optional(c.versionPrefix),
-      version: optional(c.version),
-      incrementalVersion: c.incrementalVersion,
-    })),
+    components: v.components.map(sent),
   };
 }
 
@@ -373,43 +362,16 @@ export type GoldenFixOverrides = Omit<GoldenFixPolicy, 'enabled'>;
 
 export function toGoldenFixOverrides(v: GoldenFixValue): GoldenFixOverrides {
   return {
-    onlyDirectDependencies: v.onlyDirectDependencies,
-    minThreatLevel: v.minThreatLevel,
+    ...sent(v),
     ecosystems: [...new Set(v.ecosystems)],
     goldenVersionTypes: lines(v.goldenVersionTypes),
     excludeDirs: lines(v.excludeDirs),
-    verifyEnabled: v.verifyEnabled,
-    verifyMaxAttempts: v.verifyMaxAttempts,
-    verifyTimeoutMinutes: v.verifyTimeoutMinutes,
-    verifyMavenCommand: optional(v.verifyMavenCommand),
-    verifyGradleCommand: optional(v.verifyGradleCommand),
-    verifyNpmCommand: optional(v.verifyNpmCommand),
-    verifyPipCommand: optional(v.verifyPipCommand),
-    verifyPubCommand: optional(v.verifyPubCommand),
-    commitAuthorName: optional(v.commitAuthorName),
-    commitAuthorEmail: optional(v.commitAuthorEmail),
-    timeZone: optional(v.timeZone),
   };
 }
 
-export const NO_GOLDEN_FIX_OVERRIDES: GoldenFixOverrides = {
-  onlyDirectDependencies: null,
-  minThreatLevel: null,
-  ecosystems: [],
-  goldenVersionTypes: [],
-  excludeDirs: [],
-  verifyEnabled: null,
-  verifyMaxAttempts: null,
-  verifyTimeoutMinutes: null,
-  verifyMavenCommand: null,
-  verifyGradleCommand: null,
-  verifyNpmCommand: null,
-  verifyPipCommand: null,
-  verifyPubCommand: null,
-  commitAuthorName: null,
-  commitAuthorEmail: null,
-  timeZone: null,
-};
+export const NO_GOLDEN_FIX_OVERRIDES: GoldenFixOverrides = toGoldenFixOverrides(
+  new FormGroup(goldenFixControls()).getRawValue(),
+);
 
 export function inheritsGoldenFix(policy?: Partial<GoldenFixPolicy> | null): boolean {
   if (!policy) {
@@ -431,8 +393,8 @@ export function createGlobalGoldenFixForm(policy?: Partial<GlobalGoldenFixPolicy
 export type GlobalGoldenFixForm = ReturnType<typeof createGlobalGoldenFixForm>;
 
 export function toGlobalGoldenFixPolicy(form: GlobalGoldenFixForm): GlobalGoldenFixPolicy {
-  const v = form.getRawValue();
-  return { enabled: v.enabled, ...toGoldenFixOverrides(v) };
+  const { enabled, ...overrides } = form.getRawValue();
+  return { enabled, ...toGoldenFixOverrides(overrides) };
 }
 
 export function createServiceGoldenFixForm(policy?: Partial<GoldenFixPolicy> | null) {
@@ -456,11 +418,8 @@ export function createServiceGoldenFixForm(policy?: Partial<GoldenFixPolicy> | n
 export type ServiceGoldenFixForm = ReturnType<typeof createServiceGoldenFixForm>;
 
 export function toServiceGoldenFixPolicy(form: ServiceGoldenFixForm): GoldenFixPolicy {
-  const v = form.getRawValue();
-  return {
-    enabled: v.enabled,
-    ...(v.inherit ? NO_GOLDEN_FIX_OVERRIDES : toGoldenFixOverrides(v)),
-  };
+  const { inherit, enabled, ...overrides } = form.getRawValue();
+  return { enabled, ...(inherit ? NO_GOLDEN_FIX_OVERRIDES : toGoldenFixOverrides(overrides)) };
 }
 
 export function createServiceForm(
@@ -931,47 +890,26 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
     name: v.name.trim(),
     description: optional(v.description),
     build: {
-      tool,
+      ...sent(v.build),
       sourceDir: optional(v.build.sourceDir) ?? '.',
-      javaPath: optional(v.build.javaPath),
-      autoSetup: v.build.autoSetup,
-      buildPath: optional(v.build.buildPath),
       command: command(c.build.controls.command, !flutter),
     },
     unitTests: {
+      ...sent(v.unitTests),
       command: command(c.unitTests.controls.command, !flutter),
-      resultPattern: optional(v.unitTests.resultPattern),
-      rootDir: optional(v.unitTests.rootDir),
-      reportOutDir: optional(v.unitTests.reportOutDir),
-      allowEmptyResults: v.unitTests.allowEmptyResults,
-      coverageReportPath: optional(v.unitTests.coverageReportPath),
     },
     tests: { ...v.tests },
     testJobs: c.testJobs.controls.map(toTestJob),
-    deployment: {
-      target: v.deployment.target,
-      appName: optional(v.deployment.appName),
-      artifactName: optional(v.deployment.artifactName),
-      baseArtifactName: optional(v.deployment.baseArtifactName),
-    },
+    deployment: sent(v.deployment),
     delivery: command(c.delivery, vm && tool === 'MAVEN'),
-    urbanCode: {
-      ...v.urbanCode,
-      siteName: optional(v.urbanCode.siteName),
-      deployProcess: optional(v.urbanCode.deployProcess),
-      deployDescription: optional(v.urbanCode.deployDescription),
-      requestProperties: optional(v.urbanCode.requestProperties),
-    },
+    urbanCode: sent(v.urbanCode),
     urbanCodeApplications: vm ? c.urbanCodeApplications.controls.map(toUrbanCodeApplication) : [],
-    sshTargets: vm ? regionTargets(v.sshTargets, trimTarget) : {},
-    openShiftTargets: vm ? {} : regionTargets(v.openShiftTargets, trimTarget),
+    sshTargets: vm ? regionTargets(v.sshTargets) : {},
+    openShiftTargets: vm ? {} : regionTargets(v.openShiftTargets),
     appScan: {
-      ...v.appScan,
-      applicationId: v.appScan.applicationId.trim(),
-      sastScanName: optional(v.appScan.sastScanName),
+      ...sent(v.appScan),
       includedDirs: lines(v.appScan.includedDirs),
       excludedDirs: lines(v.appScan.excludedDirs),
-      clientPath: optional(v.appScan.clientPath),
       compileCommand: command(
         c.appScan.controls.compileCommand,
         !flutter && passesValidators(c.appScan.controls.compileCommand),
@@ -981,41 +919,20 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
       dastPresenceId: kept(c.appScan.controls.dastPresenceId),
     },
     sonar: {
-      ...v.sonar,
-      projectName: optional(v.sonar.projectName),
-      projectKey: optional(v.sonar.projectKey),
-      installationName: optional(v.sonar.installationName),
-      credentialsId: optional(v.sonar.credentialsId),
-      authTokenCredentialsId: optional(v.sonar.authTokenCredentialsId),
-      badgeToken: optional(v.sonar.badgeToken),
+      ...sent(v.sonar),
       command: command(c.sonar.controls.command, !flutter),
     },
     nexusIq: {
-      application: optional(v.nexusIq.application),
+      ...sent(v.nexusIq),
       scanPatterns: lines(v.nexusIq.scanPatterns),
       stage: optional(v.nexusIq.stage) ?? 'build',
-      failOnNetworkError: v.nexusIq.failOnNetworkError,
-      scaScanName: optional(v.nexusIq.scaScanName),
     },
     scm: {
-      repositoryUrl: optional(v.scm.repositoryUrl),
-      credentialsId: optional(v.scm.credentialsId),
-      authType: v.scm.authType,
-      type: v.scm.type,
-      targetBranch: optional(v.scm.targetBranch),
-      cloneUrl: optional(v.scm.cloneUrl),
+      ...sent(v.scm),
       reviewers: words(v.scm.reviewers),
-      apiUrl: optional(v.scm.apiUrl),
-      workspace: optional(v.scm.workspace),
-      projectKey: optional(v.scm.projectKey),
-      repoSlug: optional(v.scm.repoSlug),
     },
     goldenFix: toServiceGoldenFixPolicy(c.goldenFix),
-    metrics: {
-      enabled: v.metrics.enabled,
-      influxProject: optional(v.metrics.influxProject),
-      influxEnv: optional(v.metrics.influxEnv),
-    },
+    metrics: sent(v.metrics),
     flutter: flutter ? toFlutterSettings(v.flutter) : null,
   };
 }
@@ -1024,43 +941,20 @@ function toFlutterSettings(
   v: ReturnType<ServiceForm['controls']['flutter']['getRawValue']>,
 ): FlutterSettings {
   return {
-    platform: v.platform,
+    ...sent(v),
     modules: lines(v.modules),
     testModules: lines(v.testModules),
     testSubmodules: lines(v.testSubmodules),
     testSubplugins: lines(v.testSubplugins),
-    signingPasswordCredentialsId: optional(v.signingPasswordCredentialsId),
-    prodLicenseCredentialsId: optional(v.prodLicenseCredentialsId),
-    testLicenseCredentialsId: optional(v.testLicenseCredentialsId),
-    deliveryGroup: optional(v.deliveryGroup),
-    deliveryArtifact: optional(v.deliveryArtifact),
-    deliveryPlugin: optional(v.deliveryPlugin),
-    sonarSources: optional(v.sonarSources),
-    sonarTests: optional(v.sonarTests),
-    sonarFlutterPlugin: v.sonarFlutterPlugin,
-    dartAnalyzeCommand: optional(v.dartAnalyzeCommand),
-    sonarScannerVersion: optional(v.sonarScannerVersion),
   };
 }
 
-function trimTarget<T extends object>(value: T): Trimmed<T> {
-  return Object.fromEntries(
-    Object.entries(value).map(([key, item]) => [
-      key,
-      typeof item === 'string' ? optional(item) : item,
-    ]),
-  ) as Trimmed<T>;
-}
-
-type Trimmed<T> = { [K in keyof T]: T[K] extends string ? string | null : T[K] };
-
-function regionTargets<T extends object, R>(
+function regionTargets<T extends object>(
   targets: Record<Region, T>,
-  convert: (target: T) => R,
-): Partial<Record<Region, R>> {
-  const result: Partial<Record<Region, R>> = {};
-  for (const region of ['RD', 'QC'] as Region[]) {
-    const target = convert(targets[region]);
+): Partial<Record<Region, Sent<T>>> {
+  const result: Partial<Record<Region, Sent<T>>> = {};
+  for (const region of REGIONS) {
+    const target = sent(targets[region]);
     if (Object.values(target as object).some((value) => value !== null && value !== false)) {
       result[region] = target;
     }
@@ -1103,51 +997,34 @@ export interface ServiceSection {
   applies?: (tool: BuildTool, target: DeployTarget) => boolean;
 }
 
+const onVm: ServiceSection['applies'] = (_, target) => target === 'VM';
+const onOpenShift: ServiceSection['applies'] = (_, target) => target === 'OPENSHIFT';
+const onFlutter: ServiceSection['applies'] = (tool) => tool === 'FLUTTER';
+
+const section = (
+  id: ServiceSectionId,
+  label: string,
+  icon: string,
+  keys: ServiceControlKey[],
+  applies?: ServiceSection['applies'],
+): ServiceSection => ({ id, label, icon, keys, ...(applies ? { applies } : {}) });
+
 export const SERVICE_SECTIONS: ServiceSection[] = [
-  { id: 'general', label: 'General', icon: 'badge', keys: ['name', 'description'] },
-  { id: 'build', label: 'Build', icon: 'build', keys: ['build'] },
-  { id: 'unitTests', label: 'Unit tests and coverage', icon: 'fact_check', keys: ['unitTests'] },
-  { id: 'testJobs', label: 'Test jobs', icon: 'science', keys: ['tests', 'testJobs'] },
-  {
-    id: 'deployment',
-    label: 'Deployment',
-    icon: 'rocket_launch',
-    keys: ['deployment', 'delivery'],
-  },
-  {
-    id: 'urbanCode',
-    label: 'UrbanCode Deploy',
-    icon: 'hub',
-    keys: ['urbanCode', 'urbanCodeApplications'],
-    applies: (_, target) => target === 'VM',
-  },
-  {
-    id: 'ssh',
-    label: 'SSH targets',
-    icon: 'dns',
-    keys: ['sshTargets'],
-    applies: (_, target) => target === 'VM',
-  },
-  {
-    id: 'openShift',
-    label: 'OpenShift targets',
-    icon: 'cloud',
-    keys: ['openShiftTargets'],
-    applies: (_, target) => target === 'OPENSHIFT',
-  },
-  { id: 'appScan', label: 'AppScan SAST and DAST', icon: 'security', keys: ['appScan'] },
-  { id: 'sonar', label: 'SonarQube', icon: 'analytics', keys: ['sonar'] },
-  { id: 'nexusIq', label: 'Nexus IQ', icon: 'inventory', keys: ['nexusIq'] },
-  { id: 'scm', label: 'Bitbucket', icon: 'merge', keys: ['scm'] },
-  { id: 'goldenFix', label: 'GoldenFix', icon: 'auto_fix_high', keys: ['goldenFix'] },
-  { id: 'metrics', label: 'DORA metrics', icon: 'insights', keys: ['metrics'] },
-  {
-    id: 'flutter',
-    label: 'Flutter',
-    icon: 'phone_iphone',
-    keys: ['flutter'],
-    applies: (tool) => tool === 'FLUTTER',
-  },
+  section('general', 'General', 'badge', ['name', 'description']),
+  section('build', 'Build', 'build', ['build']),
+  section('unitTests', 'Unit tests and coverage', 'fact_check', ['unitTests']),
+  section('testJobs', 'Test jobs', 'science', ['tests', 'testJobs']),
+  section('deployment', 'Deployment', 'rocket_launch', ['deployment', 'delivery']),
+  section('urbanCode', 'UrbanCode Deploy', 'hub', ['urbanCode', 'urbanCodeApplications'], onVm),
+  section('ssh', 'SSH targets', 'dns', ['sshTargets'], onVm),
+  section('openShift', 'OpenShift targets', 'cloud', ['openShiftTargets'], onOpenShift),
+  section('appScan', 'AppScan SAST and DAST', 'security', ['appScan']),
+  section('sonar', 'SonarQube', 'analytics', ['sonar']),
+  section('nexusIq', 'Nexus IQ', 'inventory', ['nexusIq']),
+  section('scm', 'Bitbucket', 'merge', ['scm']),
+  section('goldenFix', 'GoldenFix', 'auto_fix_high', ['goldenFix']),
+  section('metrics', 'DORA metrics', 'insights', ['metrics']),
+  section('flutter', 'Flutter', 'phone_iphone', ['flutter'], onFlutter),
 ];
 
 export function visibleSections(form: ServiceForm): ServiceSection[] {

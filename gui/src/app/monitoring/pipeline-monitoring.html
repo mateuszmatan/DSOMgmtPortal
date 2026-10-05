@@ -62,11 +62,6 @@
             >Jenkins</a
           >
         }
-        @if (d.grafana) {
-          <a mat-flat-button [href]="d.grafana.dashboardUrl" target="_blank" rel="noopener"
-            >Grafana</a
-          >
-        }
       </div>
     </header>
 
@@ -167,23 +162,18 @@
     <section class="card grafana">
       <header class="card-header">
         <h2>Grafana</h2>
-        <span class="muted">Panels of the DevSecOps DORA dashboard for this pipeline's tags</span>
+        @if (d.grafana; as grafana) {
+          <a class="text-link" [href]="grafana.dashboardUrl" target="_blank" rel="noopener"
+            >Open in Grafana</a
+          >
+        }
       </header>
-      @if (d.grafana) {
-        <div class="panels">
-          @for (panel of panels(); track panel.id) {
-            <iframe
-              [src]="panel.url"
-              [title]="panel.title"
-              loading="lazy"
-              [style.grid-column]="'span ' + panel.width"
-            ></iframe>
-          }
-        </div>
+      @if (dashboard(); as url) {
+        <iframe [src]="url" title="DevSecOps pipeline dashboard" loading="lazy"></iframe>
       } @else {
         <div class="banner info">
-          Grafana is not configured. Set <code>GRAFANA_URL</code> to embed the panels of the DORA
-          dashboard here.
+          Grafana is not configured. Set <code>GRAFANA_DASHBOARD_URL</code> to embed the DevSecOps
+          dashboard of this pipeline here.
         </div>
       }
     </section>

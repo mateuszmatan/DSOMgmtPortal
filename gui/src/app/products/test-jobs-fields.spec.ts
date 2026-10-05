@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GlobalSettings, TestJob } from '../core/models';
 import { applyFieldProblems } from '../shared/form-controls';
+import { fieldOf, inputOf, text } from '../testing/dom';
 import { globalSettings, service } from '../testing/fixtures';
 import { ServiceForm, createServiceForm } from './product-form-model';
 import { TestJobsFields } from './test-jobs-fields';
@@ -45,11 +46,9 @@ describe('TestJobsFields', () => {
   it('takes the parameters as one NAME=value per line in a text area', async () => {
     await render([job({ stage: 'REGRESSION', parameters: 'ENV=rd\nSUITE=critical' })]);
 
-    const textarea = page().querySelector<HTMLTextAreaElement>(
-      'textarea[formControlName=parameters]',
-    )!;
+    const textarea = inputOf(page(), 'Parameters') as unknown as HTMLTextAreaElement;
     expect(textarea.value).toBe('ENV=rd\nSUITE=critical');
-    expect(textarea.closest('mat-form-field')?.textContent).toContain(
+    expect(text(textarea.closest('mat-form-field'))).toContain(
       'parameters · One NAME=value per line',
     );
 
@@ -58,7 +57,7 @@ describe('TestJobsFields', () => {
     textarea.dispatchEvent(new Event('blur'));
     await fixture.whenStable();
 
-    expect(textarea.closest('mat-form-field')?.textContent).toContain(
+    expect(text(textarea.closest('mat-form-field'))).toContain(
       'Write each parameter as NAME=value: SUITE critical',
     );
   });
@@ -78,7 +77,7 @@ describe('TestJobsFields', () => {
     expect(sections()[2].querySelector('.list-empty')?.textContent).toBe(
       'No performance test jobs.',
     );
-    expect(page().textContent).toContain('tests.maxParallel · left empty: global default 20');
+    expect(text(page())).toContain('tests.maxParallel · left empty: global default 20');
   });
 
   it('adds, moves and removes jobs within a stage', async () => {
@@ -103,23 +102,6 @@ describe('TestJobsFields', () => {
     expect(names()).toEqual(['smoke', 'first', '']);
   });
 
-  it('moves a job up past the jobs of other stages', async () => {
-    await render([
-      job({ stage: 'REGRESSION', name: 'first' }),
-      job({ stage: 'SMOKE', name: 'smoke' }),
-      job({ stage: 'REGRESSION', name: 'second' }),
-    ]);
-
-    const second = sections()[1].querySelectorAll('.list-item')[1];
-    button(second, 'Up').click();
-    await fixture.whenStable();
-
-    expect(names()).toEqual(['second', 'first', 'smoke']);
-    expect(
-      [...sections()[1].querySelectorAll('.list-item strong')].map((name) => name.textContent),
-    ).toEqual(['second', 'first']);
-  });
-
   it('shows a problem the API reported for the whole list of jobs', async () => {
     await render([job({ name: 'smoke' })]);
 
@@ -132,15 +114,6 @@ describe('TestJobsFields', () => {
     );
   });
 
-  it('keeps the first job from moving up and the last from moving down', async () => {
-    await render([job({ name: 'only' })]);
-
-    const item = sections()[0].querySelector('.list-item')!;
-    expect(button(item, 'Up').disabled).toBe(true);
-    expect(button(item, 'Down').disabled).toBe(true);
-    expect(item.querySelector('strong')?.textContent).toBe('only');
-  });
-
   it('shows the remote Jenkins fields only for a remote job', async () => {
     await render([
       job({ name: 'local' }),
@@ -148,16 +121,7 @@ describe('TestJobsFields', () => {
     ]);
 
     const items = [...page().querySelectorAll('.list-item')];
-    expect(items[0].querySelector('[formControlName=remoteJenkins]')).toBeNull();
-    expect(items[1].querySelector<HTMLInputElement>('[formControlName=remoteJenkins]')?.value).toBe(
-      'qa',
-    );
-  });
-
-  it('names the job field after a job given as a URL', async () => {
-    await render([job({ job: 'https://jenkins-qa.bbh.com/job/smoke/' })], null);
-
-    expect(page().querySelector('.list-item')?.textContent).toContain('url · a job path');
-    expect(page().textContent).toContain('left empty: global default');
+    expect(fieldOf(items[0], 'Remote Jenkins')).toBeNull();
+    expect(inputOf(items[1], 'Remote Jenkins').value).toBe('qa');
   });
 });

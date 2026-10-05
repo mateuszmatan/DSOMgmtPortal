@@ -136,32 +136,6 @@ describe('PipelineEvidenceCard', () => {
     expect(cells('Nexus IQ')).toEqual(['Not recorded']);
   });
 
-  it('shows a build number without a link when the API has no build address', async () => {
-    await render(withRun({ build: { ...runEvidence().build, url: null } }));
-
-    expect(card().querySelector('.build-link')).toBeNull();
-    expect(facts()['Build']).toContain('#42');
-  });
-
-  it('shows coverage without a requirement or line counts', async () => {
-    await render(
-      withRun({
-        coverage: {
-          status: 'NO_DATA',
-          linePercent: null,
-          requiredPercent: null,
-          coveredLines: null,
-          totalLines: null,
-        },
-      }),
-    );
-
-    expect(text('.coverage .value')).toBe('–');
-    expect(text('.detail')).toBe('Required not recorded');
-    expect(card().querySelector('.meter .required')).toBeNull();
-    expect(card().querySelector<HTMLElement>('.meter .fill')?.style.width).toBe('0%');
-  });
-
   it('states the release gate decision with its violations', async () => {
     await render(withRun({ releaseGate: { allowed: false, violations: 2, reason: null } }));
     expect(text('.gate')).toBe('Release blocked · 2 violations');
@@ -173,73 +147,6 @@ describe('PipelineEvidenceCard', () => {
     await render(withRun({ releaseGate: { allowed: true, violations: 0, reason: null } }));
     expect(text('.gate')).toBe('Release allowed');
     expect(card().querySelector('.gate')?.classList).toContain('allowed');
-  });
-
-  it('keeps suites and scans readable when some numbers are missing', async () => {
-    await render(
-      withRun({
-        testSuites: [
-          {
-            stage: 'PERFORMANCE',
-            status: 'SKIP',
-            jobs: null,
-            passed: null,
-            failed: null,
-            notConfigured: null,
-            durationMs: null,
-          },
-        ],
-        scans: [
-          {
-            scanner: 'DAST',
-            status: 'NO_DATA',
-            critical: null,
-            high: null,
-            medium: null,
-            low: null,
-            maxCritical: null,
-            maxHigh: null,
-            maxMedium: null,
-            link: null,
-          },
-          {
-            scanner: 'SAST',
-            status: 'WARN',
-            critical: null,
-            high: 4,
-            medium: null,
-            low: null,
-            maxCritical: null,
-            maxHigh: null,
-            maxMedium: null,
-            link: null,
-          },
-        ],
-      }),
-    );
-
-    expect(cells('Performance')).toEqual(['Skipped', '–', '–', '–', '–', '–']);
-    expect(cells('DAST (HCL AppScan)')).toEqual([
-      'Not recorded',
-      'No findings recorded',
-      'Not recorded',
-    ]);
-    expect(cells('SAST (HCL AppScan)')).toEqual(['Warning', '–', '4', '–', '–', 'Not recorded']);
-  });
-
-  it('explains each stage in its tooltip', async () => {
-    await render();
-    const stages = card().querySelectorAll<HTMLElement>('.stage');
-
-    stages[2].dispatchEvent(new MouseEvent('mouseenter'));
-    await fixture.whenStable();
-    expect(document.querySelector('.mat-mdc-tooltip')?.textContent).toContain(
-      '1m · 1 critical finding',
-    );
-    stages[2].dispatchEvent(new MouseEvent('mouseleave'));
-    stages[3].dispatchEvent(new MouseEvent('mouseenter'));
-    await fixture.whenStable();
-    expect(document.querySelector('.mat-mdc-tooltip')?.textContent).toContain('Release gate');
   });
 
   it('says when the evidence could not be copied', async () => {

@@ -31,15 +31,21 @@ code {
     color: var(--dso-muted);
     font-size: 12px;
   }
+}
 
-  .count {
-    padding: 0 6px;
-    background: var(--dso-neutral-bg);
-    font-family: 'Inter Variable', sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 18px;
-  }
+.index {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  background: var(--dso-info-bg);
+  color: var(--dso-info);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.service-name {
+  font-weight: 600;
 }
 
 mat-accordion {
@@ -68,19 +74,12 @@ mat-panel-title {
   min-width: 240px;
 }
 
-.index {
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  background: var(--dso-info-bg);
-  color: var(--dso-info);
-  font-size: 11px;
-  font-weight: 700;
-}
+.tag {
+  margin-left: 6px;
 
-.service-name {
-  font-weight: 600;
+  &.error {
+    margin-left: 0;
+  }
 }
 
 mat-panel-description {
@@ -91,27 +90,6 @@ mat-panel-description {
 
   .dot {
     color: var(--dso-border);
-  }
-}
-
-.tag {
-  margin-left: 6px;
-  padding: 0 6px;
-  background: var(--dso-neutral-bg);
-  color: var(--dso-neutral);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 18px;
-
-  &.new {
-    background: var(--dso-success-bg);
-    color: var(--dso-success);
-  }
-
-  &.error {
-    margin-left: 0;
-    background: var(--dso-danger-bg);
-    color: var(--dso-danger);
   }
 }
 

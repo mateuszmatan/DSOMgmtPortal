@@ -2,7 +2,13 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { PipelineEvidence, ProductEvidence, ServiceEvidence, StageEvidence } from '../core/models';
+import {
+  PipelineEvidence,
+  ProductEvidence,
+  ServiceEvidence,
+  StageEvidence,
+  pipelineTypeLabel,
+} from '../core/models';
 import { Notifier } from '../core/notifier';
 import { CheckChip } from '../shared/check-chip';
 import { DurationPipe, formatDuration } from '../shared/formatting';
@@ -14,7 +20,6 @@ import {
   formatPercent,
   formatUtc,
   hasFindings,
-  pipelineTypeLabel,
   scanRows,
   suiteRows,
 } from './evidence-text';

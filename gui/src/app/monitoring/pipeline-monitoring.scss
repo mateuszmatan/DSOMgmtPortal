@@ -142,17 +142,12 @@ dd {
   }
 }
 
-.panels {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 8px;
-
-  iframe {
-    width: 100%;
-    height: 220px;
-    border: 1px solid var(--dso-border);
-    background: #fafbfc;
-  }
+.grafana iframe {
+  display: block;
+  width: 100%;
+  height: 640px;
+  border: 1px solid var(--dso-border);
+  background: #fafbfc;
 }
 
 .banner code {
@@ -170,9 +165,5 @@ td.mat-mdc-cell {
 
   .row {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .panels iframe {
-    grid-column: span 12 !important;
   }
 }

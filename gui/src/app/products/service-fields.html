@@ -1,5 +1,5 @@
 @let f = form();
-<div class="service" [formGroup]="f">
+<div class="service">
   <nav class="rail" aria-label="Service settings">
     @for (section of sections(); track section.id) {
       <button
@@ -20,94 +20,21 @@
   </nav>
 
   <div class="pane">
+    <header class="pane-header">
+      <h3>{{ pane().label }}</h3>
+      <p [innerHTML]="pane().note"></p>
+    </header>
     @switch (current()) {
       @case ('general') {
-        <header class="pane-header">
-          <h3>General</h3>
-          <p>The service's entry under <code>projects:</code> in config.yaml.</p>
-        </header>
         <div class="form-fields">
-          <mat-form-field class="span-5">
-            <mat-label>Service name</mat-label>
-            <input matInput formControlName="name" placeholder="backend-api" autocomplete="off" />
-            <mat-hint>Lower case, for example gui or backend-api</mat-hint>
-            <mat-error>{{
-              errorText(f.controls.name, "Use lower case letters, digits, '.', '-' or '_'")
-            }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-7">
-            <mat-label>Description</mat-label>
-            <input
-              matInput
-              formControlName="description"
-              placeholder="REST API and certificate scanner"
-            />
-            <mat-error>{{ errorText(f.controls.description) }}</mat-error>
-          </mat-form-field>
+          <dso-fields [group]="f" [fields]="general" />
         </div>
       }
 
       @case ('build') {
-        <header class="pane-header">
-          <h3>Build</h3>
-          <p>How the service is built, and where the build stage leaves its artifact.</p>
-        </header>
-        <div class="form-fields" formGroupName="build">
-          <mat-form-field class="span-3">
-            <mat-label>Build tool</mat-label>
-            <mat-select formControlName="tool">
-              @for (option of buildTools; track option.value) {
-                <mat-option [value]="option.value">{{ option.label }}</mat-option>
-              }
-            </mat-select>
-            <mat-hint><code>buildTool</code></mat-hint>
-          </mat-form-field>
-          <mat-form-field class="span-3">
-            <mat-label>Source folder</mat-label>
-            <input matInput formControlName="sourceDir" placeholder="." class="mono" />
-            <mat-hint><code>sourceDir</code> · relative to the repository root</mat-hint>
-            <mat-error>{{ errorText(f.controls.build.controls.sourceDir) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-6">
-            <mat-label>JDK path</mat-label>
-            <input
-              matInput
-              formControlName="javaPath"
-              placeholder="/usr/lib/jvm/java-17-openjdk"
-              class="mono"
-            />
-            <mat-hint
-              ><code>javaPath</code> ·
-              {{
-                tool() === 'FLUTTER'
-                  ? 'JAVA_HOME of the Flutter build stages'
-                  : 'JAVA_HOME of the unit tests stage, unless the build tool is set up automatically'
-              }}</mat-hint
-            >
-            <mat-error>{{ errorText(f.controls.build.controls.javaPath) }}</mat-error>
-          </mat-form-field>
-          <mat-checkbox class="span-6" formControlName="autoSetup">
-            Set up the build tool automatically (<code>buildToolAutoSetup</code>)
-          </mat-checkbox>
-          <mat-form-field class="span-6">
-            <mat-label>Artifact path</mat-label>
-            <input
-              matInput
-              formControlName="buildPath"
-              [placeholder]="tool() === 'MAVEN' ? 'target/*.jar' : 'build/libs/*.jar'"
-              class="mono"
-            />
-            <mat-hint
-              ><code>build.buildPath</code> ·
-              {{
-                isVm() && tool() === 'MAVEN'
-                  ? 'the artifact the Nexus snapshot delivery uploads'
-                  : 'what the build produces'
-              }}</mat-hint
-            >
-            <mat-error>{{ errorText(f.controls.build.controls.buildPath) }}</mat-error>
-          </mat-form-field>
-          @if (tool() === 'FLUTTER') {
+        <div class="form-fields">
+          <dso-fields [group]="f.controls.build" [fields]="buildFields()" />
+          @if (flutter()) {
             <p class="note span-12">
               A Flutter build runs no Gradle or Maven command and needs the JDK path, since
               automatic setup cannot pick a JDK for Flutter; its modules and credentials are in the
@@ -127,17 +54,8 @@
       }
 
       @case ('unitTests') {
-        <header class="pane-header">
-          <h3>Unit tests and coverage</h3>
-          <p>
-            The unit tests stage, skipped without a command, and where its coverage report is.
-            @if (defaults(); as d) {
-              BBH policy requires {{ d.scans.coverageMinLine }}% line coverage.
-            }
-          </p>
-        </header>
-        <div class="form-fields" formGroupName="unitTests">
-          @if (tool() !== 'FLUTTER') {
+        <div class="form-fields">
+          @if (!flutter()) {
             <h4 class="sub-heading span-12">Test command</h4>
             <dso-tool-command-fields
               [group]="f.controls.unitTests.controls.command"
@@ -148,103 +66,25 @@
             />
           }
           <h4 class="sub-heading span-12">Results</h4>
-          <mat-form-field class="span-6">
-            <mat-label>Test results</mat-label>
-            <input
-              matInput
-              formControlName="resultPattern"
-              [placeholder]="
-                tool() === 'MAVEN'
-                  ? 'target/surefire-reports/*.xml'
-                  : 'build/test-results/test/*.xml'
-              "
-              class="mono"
-            />
-            <mat-hint><code>tests.unitTests.unitTestResult</code> · JUnit XML files</mat-hint>
-            <mat-error>{{ errorText(f.controls.unitTests.controls.resultPattern) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-3">
-            <mat-label>Root folder</mat-label>
-            <input matInput formControlName="rootDir" class="mono" />
-            <mat-hint><code>tests.unitTests.rootDir</code></mat-hint>
-            <mat-error>{{ errorText(f.controls.unitTests.controls.rootDir) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-3">
-            <mat-label>Report folder</mat-label>
-            <input matInput formControlName="reportOutDir" class="mono" />
-            <mat-hint><code>tests.unitTests.reportOutDir</code></mat-hint>
-            <mat-error>{{ errorText(f.controls.unitTests.controls.reportOutDir) }}</mat-error>
-          </mat-form-field>
-          <mat-checkbox class="span-12" formControlName="allowEmptyResults">
-            Accept a run without test results (<code>tests.unitTests.allowEmptyResults</code>)
-          </mat-checkbox>
-          <mat-form-field class="span-6">
-            <mat-label>Coverage report</mat-label>
-            <input
-              matInput
-              formControlName="coverageReportPath"
-              placeholder="build/reports/jacoco/test/jacocoTestReport.xml"
-              class="mono"
-            />
-            <mat-hint><code>coverage.reportPath</code></mat-hint>
-            <mat-error>{{ errorText(f.controls.unitTests.controls.coverageReportPath) }}</mat-error>
-          </mat-form-field>
+          <dso-fields [group]="f.controls.unitTests" [fields]="unitTestFields()" />
         </div>
       }
 
       @case ('testJobs') {
-        <header class="pane-header">
-          <h3>Test jobs</h3>
-          <p>
-            The Jenkins jobs the smoke, regression and performance stages start and wait for,
-            written to <code>tests.smoke</code>, <code>tests.regression</code> and
-            <code>tests.performance</code>.
-          </p>
-        </header>
         <dso-test-jobs-fields [form]="f" [defaults]="defaults()" />
       }
 
       @case ('deployment') {
-        <header class="pane-header">
-          <h3>Deployment</h3>
-          <p>
-            Where the service is deployed.
-            {{
-              isVm()
-                ? 'Its environments are set under UrbanCode Deploy and SSH targets.'
-                : 'Its environments are set under OpenShift targets.'
-            }}
-          </p>
-        </header>
-        <div class="form-fields" formGroupName="deployment">
+        <div class="form-fields">
           <mat-button-toggle-group
             class="span-12"
-            formControlName="target"
+            [formControl]="f.controls.deployment.controls.target"
             aria-label="Deployment target"
           >
             <mat-button-toggle value="VM">Virtual machine</mat-button-toggle>
             <mat-button-toggle value="OPENSHIFT">OpenShift</mat-button-toggle>
           </mat-button-toggle-group>
-          <mat-form-field class="span-4">
-            <mat-label>Application name</mat-label>
-            <input matInput formControlName="appName" placeholder="cert-scanner-api" />
-            <mat-hint><code>appName</code>{{ isVm() ? '' : ' · required for OpenShift' }}</mat-hint>
-            <mat-error>{{ errorText(f.controls.deployment.controls.appName) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Artifact name</mat-label>
-            <input matInput formControlName="artifactName" placeholder="cert-scanner-api.jar" />
-            <mat-hint
-              ><code>artifactName</code>{{ isVm() ? '' : ' · required for OpenShift' }}</mat-hint
-            >
-            <mat-error>{{ errorText(f.controls.deployment.controls.artifactName) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Built file name</mat-label>
-            <input matInput formControlName="baseArtifactName" placeholder="app-1.0.0.jar" />
-            <mat-hint><code>baseArtifactName</code> · renamed to the artifact name</mat-hint>
-            <mat-error>{{ errorText(f.controls.deployment.controls.baseArtifactName) }}</mat-error>
-          </mat-form-field>
+          <dso-fields [group]="f.controls.deployment" [fields]="deploymentFields()" />
         </div>
         @if (isVm() && tool() === 'MAVEN') {
           <div class="form-fields block">
@@ -264,300 +104,57 @@
       }
 
       @case ('urbanCode') {
-        <header class="pane-header">
-          <h3>UrbanCode Deploy</h3>
-          <p>
-            How the full pipeline deploys the service to the lower test region with UrbanCode Deploy
-            (<code>deploy.vm.dod</code>).
-          </p>
-        </header>
         <dso-urban-code-fields [form]="f" [defaults]="defaults()" />
       }
 
       @case ('ssh') {
-        <header class="pane-header">
-          <h3>SSH targets</h3>
-          <p>
-            The virtual machines the service is deployed to over SSH. A blank value takes the global
-            deployment default; a region without values is not written.
-          </p>
-        </header>
         @for (region of regions; track region) {
-          @let target = f.controls.sshTargets.controls[region];
           <div class="form-fields block">
             <h4 class="sub-heading span-12">
               {{ regionNames[region] }} <code>deploy.vm.{{ region.toLowerCase() }}</code>
             </h4>
-            <mat-form-field class="span-4">
-              <mat-label>Host</mat-label>
-              <input
-                matInput
-                [formControl]="target.controls.host"
-                [placeholder]="sshHost(region) ?? ''"
-                class="mono"
-              />
-              <mat-hint><code>host</code>{{ fallback(sshHost(region)) }}</mat-hint>
-              <mat-error>{{
-                errorText(
-                  target.controls.host,
-                  'Must be a host name such as rdltaapps1.testbbh.com'
-                )
-              }}</mat-error>
-            </mat-form-field>
-            <mat-form-field class="span-3">
-              <mat-label>User</mat-label>
-              <input
-                matInput
-                [formControl]="target.controls.user"
-                [placeholder]="defaults()?.deployment?.sshUser ?? ''"
-                class="mono"
-              />
-              <mat-hint><code>user</code>{{ fallback(defaults()?.deployment?.sshUser) }}</mat-hint>
-              <mat-error>{{ errorText(target.controls.user) }}</mat-error>
-            </mat-form-field>
-            <mat-form-field class="span-5">
-              <mat-label>Deployment folder</mat-label>
-              <input
-                matInput
-                [formControl]="target.controls.deployDir"
-                placeholder="/opt/ta/CertScanner/gui/deployment"
-                class="mono"
-              />
-              <mat-hint><code>deployDir</code></mat-hint>
-              <mat-error>{{ errorText(target.controls.deployDir) }}</mat-error>
-            </mat-form-field>
-            <mat-form-field class="span-6">
-              <mat-label>Deployment script</mat-label>
-              <input
-                matInput
-                [formControl]="target.controls.deployScript"
-                [placeholder]="defaults()?.deployment?.deployScript ?? ''"
-                class="mono"
-              />
-              <mat-hint
-                ><code>deployScript</code
-                >{{ fallback(defaults()?.deployment?.deployScript) }}</mat-hint
-              >
-              <mat-error>{{ errorText(target.controls.deployScript) }}</mat-error>
-            </mat-form-field>
-            <mat-form-field class="span-6">
-              <mat-label>Version file</mat-label>
-              <input
-                matInput
-                [formControl]="target.controls.versionFile"
-                [placeholder]="defaults()?.deployment?.versionFile ?? ''"
-                class="mono"
-              />
-              <mat-hint
-                ><code>versionFile</code
-                >{{ fallback(defaults()?.deployment?.versionFile) }}</mat-hint
-              >
-              <mat-error>{{ errorText(target.controls.versionFile) }}</mat-error>
-            </mat-form-field>
+            <dso-fields
+              [group]="f.controls.sshTargets.controls[region]"
+              [fields]="sshFields(region)"
+            />
           </div>
         }
       }
 
       @case ('openShift') {
-        <header class="pane-header">
-          <h3>OpenShift targets</h3>
-          <p>
-            The OpenShift projects the service is built and deployed in; a region without values is
-            not written.
-          </p>
-        </header>
         <dso-openshift-target-fields [form]="f" />
       }
 
       @case ('appScan') {
-        <header class="pane-header">
-          <h3>AppScan SAST and DAST</h3>
-          <p>
-            The HCL AppScan application: SAST of the sources and, when enabled, DAST of the deployed
-            application. The API key is the product's.
-          </p>
-        </header>
-        <div class="form-fields" formGroupName="appScan">
-          <mat-form-field class="span-6">
-            <mat-label>AppScan application ID</mat-label>
-            <input
-              matInput
-              formControlName="applicationId"
-              placeholder="109f44ac-cc06-4ca0-884e-d944904f7019"
-              class="mono"
-            />
-            <mat-hint><code>appId</code></mat-hint>
-            <mat-error>{{
-              errorText(
-                f.controls.appScan.controls.applicationId,
-                'Must be the application UUID from AppScan on Cloud'
-              )
-            }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-6">
-            <mat-label>SAST scan name</mat-label>
-            <input matInput formControlName="sastScanName" />
-            <mat-hint><code>sast.scanName</code> · left empty: the service name</mat-hint>
-            <mat-error>{{ errorText(f.controls.appScan.controls.sastScanName) }}</mat-error>
-          </mat-form-field>
-
+        @let scan = f.controls.appScan;
+        <div class="form-fields">
+          <dso-fields [group]="scan" [fields]="appScan" />
           <h4 class="sub-heading span-12">Static scan (SAST)</h4>
-          <mat-form-field class="span-6">
-            <mat-label>Included folders</mat-label>
-            <textarea
-              matInput
-              formControlName="includedDirs"
-              rows="2"
-              class="mono"
-              spellcheck="false"
-              placeholder="src/main"
-            ></textarea>
-            <mat-hint><code>includedDirs</code> · one per line, left empty: all</mat-hint>
-            <mat-error>{{ errorText(f.controls.appScan.controls.includedDirs) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-6">
-            <mat-label>Excluded folders</mat-label>
-            <textarea
-              matInput
-              formControlName="excludedDirs"
-              rows="2"
-              class="mono"
-              spellcheck="false"
-              placeholder="src/test"
-            ></textarea>
-            <mat-hint><code>excludedDirs</code> · one per line</mat-hint>
-            <mat-error>{{ errorText(f.controls.appScan.controls.excludedDirs) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-6">
-            <mat-label>AppScan client path</mat-label>
-            <input matInput formControlName="clientPath" class="mono" />
-            <mat-hint><code>appscanPath</code> · left empty: downloaded by the pipeline</mat-hint>
-            <mat-error>{{ errorText(f.controls.appScan.controls.clientPath) }}</mat-error>
-          </mat-form-field>
+          <dso-fields [group]="scan" [fields]="appScanStatic" />
           <span class="span-6"></span>
-          <mat-checkbox class="span-6" formControlName="compile"
-            >Compile before preparing the IRX (<code>asoc.doCompile</code>)</mat-checkbox
-          >
-          <mat-checkbox class="span-6" formControlName="sourceCodeOnly"
-            >Scan source code only (<code>asoc.sourceCodeOnly</code>)</mat-checkbox
-          >
-          <mat-checkbox class="span-6" formControlName="useConfigFile"
-            >Use the repository's AppScan configuration
-            (<code>asoc.useAppScanConfig</code>)</mat-checkbox
-          >
-          <mat-checkbox class="span-6" formControlName="insecureTls"
-            >Accept any TLS certificate (<code>asoc.insecureTls</code>)</mat-checkbox
-          >
-          @if (tool() !== 'FLUTTER' && f.controls.appScan.controls.compile.value) {
+          <dso-fields [group]="scan" [fields]="appScanFlags" />
+          @if (!flutter() && scan.controls.compile.value) {
             <h4 class="sub-heading span-12">Compile command</h4>
             <dso-tool-command-fields
-              [group]="f.controls.appScan.controls.compileCommand"
+              [group]="scan.controls.compileCommand"
               [tool]="tool()"
               path="asoc"
               gradleExample="compileJava"
               mavenExample="compile"
             />
           }
-
           <h4 class="sub-heading span-12">Dynamic scan (DAST)</h4>
-          <mat-checkbox class="span-12" formControlName="dastEnabled"
-            >Run DAST against the deployed application (<code>dast.enabled</code>)</mat-checkbox
-          >
-          @if (f.controls.appScan.controls.dastEnabled.value) {
-            <mat-form-field class="span-6">
-              <mat-label>DAST target URL</mat-label>
-              <input
-                matInput
-                formControlName="dastTargetUrl"
-                placeholder="https://cert-scanner.testbbh.com"
-              />
-              <mat-hint><code>dast.targetUrl</code></mat-hint>
-              <mat-error>{{
-                errorText(f.controls.appScan.controls.dastTargetUrl, 'Must be an http or https URL')
-              }}</mat-error>
-            </mat-form-field>
-            <mat-form-field class="span-3">
-              <mat-label>DAST scan name</mat-label>
-              <input matInput formControlName="dastScanName" />
-              <mat-hint><code>dast.scanName</code></mat-hint>
-              <mat-error>{{ errorText(f.controls.appScan.controls.dastScanName) }}</mat-error>
-            </mat-form-field>
-            <mat-form-field class="span-3">
-              <mat-label>Presence ID</mat-label>
-              <input matInput formControlName="dastPresenceId" class="mono" />
-              <mat-hint><code>dast.presenceId</code> · for internal hosts</mat-hint>
-              <mat-error>{{ errorText(f.controls.appScan.controls.dastPresenceId) }}</mat-error>
-            </mat-form-field>
+          <dso-fields [group]="scan" [fields]="dastEnabled" />
+          @if (scan.controls.dastEnabled.value) {
+            <dso-fields [group]="scan" [fields]="dast" />
           }
         </div>
       }
 
       @case ('sonar') {
-        <header class="pane-header">
-          <h3>SonarQube</h3>
-          <p>
-            The SonarQube project (<code>tools.sonar</code>). Without a project key the scan is
-            skipped.
-          </p>
-        </header>
-        <div class="form-fields" formGroupName="sonar">
-          <mat-form-field class="span-6">
-            <mat-label>Project name</mat-label>
-            <input matInput formControlName="projectName" />
-            <mat-hint><code>tools.sonar.projectName</code></mat-hint>
-            <mat-error>{{ errorText(f.controls.sonar.controls.projectName) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-6">
-            <mat-label>Project key</mat-label>
-            <input matInput formControlName="projectKey" class="mono" />
-            <mat-hint><code>tools.sonar.projectKey</code> · unique across BBH</mat-hint>
-            <mat-error>{{
-              errorText(
-                f.controls.sonar.controls.projectKey,
-                "Letters, digits, '-', '_', '.' and ':' with at least one non-digit"
-              )
-            }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Jenkins installation</mat-label>
-            <input
-              matInput
-              formControlName="installationName"
-              [placeholder]="defaults()?.platform?.sonarInstallationName ?? ''"
-            />
-            <mat-hint
-              ><code>tools.sonar.installationName</code
-              >{{ fallback(defaults()?.platform?.sonarInstallationName) }}</mat-hint
-            >
-            <mat-error>{{ errorText(f.controls.sonar.controls.installationName) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Credentials ID</mat-label>
-            <input matInput formControlName="credentialsId" class="mono" />
-            <mat-hint><code>tools.sonar.credentialsId</code></mat-hint>
-            <mat-error>{{ errorText(f.controls.sonar.controls.credentialsId) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Token credentials ID</mat-label>
-            <input matInput formControlName="authTokenCredentialsId" class="mono" />
-            <mat-hint><code>tools.sonar.authToken</code></mat-hint>
-            <mat-error>{{ errorText(f.controls.sonar.controls.authTokenCredentialsId) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Badge token</mat-label>
-            <input matInput formControlName="badgeToken" class="mono" placeholder="sqb_1a2b3c" />
-            <mat-hint><code>tools.sonar.badgeToken</code></mat-hint>
-            <mat-error>{{
-              errorText(f.controls.sonar.controls.badgeToken, 'Must be a SonarQube badge token')
-            }}</mat-error>
-          </mat-form-field>
-          <mat-checkbox class="span-4" formControlName="addBadges"
-            >Badges in the report (<code>addBadges</code>)</mat-checkbox
-          >
-          <mat-checkbox class="span-4" formControlName="fullBadges"
-            >Every badge (<code>fullBadges</code>)</mat-checkbox
-          >
-          @if (tool() !== 'FLUTTER') {
+        <div class="form-fields">
+          <dso-fields [group]="f.controls.sonar" [fields]="sonarFields()" />
+          @if (!flutter()) {
             <h4 class="sub-heading span-12">Analysis command</h4>
             <dso-tool-command-fields
               [group]="f.controls.sonar.controls.command"
@@ -571,225 +168,26 @@
       }
 
       @case ('nexusIq') {
-        <header class="pane-header">
-          <h3>Nexus IQ</h3>
-          <p>
-            The dependency scan of the built artifacts (<code>tools.nexusIq</code>). The server and
-            its credentials are global settings.
-          </p>
-        </header>
-        <div class="form-fields" formGroupName="nexusIq">
-          <mat-form-field class="span-5">
-            <mat-label>Application</mat-label>
-            <input matInput formControlName="application" class="mono" />
-            <mat-hint><code>tools.nexusIq.application</code> · set with the scan patterns</mat-hint>
-            <mat-error>{{ errorText(f.controls.nexusIq.controls.application) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-3">
-            <mat-label>Stage</mat-label>
-            <input matInput formControlName="stage" placeholder="build" class="mono" />
-            <mat-hint><code>tools.nexusIq.stage</code></mat-hint>
-            <mat-error>{{
-              errorText(
-                f.controls.nexusIq.controls.stage,
-                'A Nexus IQ stage such as build, stage-release or release'
-              )
-            }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>SCA scan name</mat-label>
-            <input matInput formControlName="scaScanName" />
-            <mat-hint><code>sca.scanName</code></mat-hint>
-            <mat-error>{{ errorText(f.controls.nexusIq.controls.scaScanName) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-8">
-            <mat-label>Scan patterns</mat-label>
-            <textarea
-              matInput
-              formControlName="scanPatterns"
-              rows="2"
-              class="mono"
-              spellcheck="false"
-              placeholder="**/build/libs/*.jar"
-            ></textarea>
-            <mat-hint
-              ><code>tools.nexusIq.scanPatterns</code> · one Ant pattern per line, set with the
-              application</mat-hint
-            >
-            <mat-error>{{ errorText(f.controls.nexusIq.controls.scanPatterns) }}</mat-error>
-          </mat-form-field>
-          <mat-checkbox class="span-4" formControlName="failOnNetworkError"
-            >Fail the build on a network error (<code>failOnNetworkError</code>)</mat-checkbox
-          >
+        <div class="form-fields">
+          <dso-fields [group]="f.controls.nexusIq" [fields]="nexusIq" />
         </div>
       }
 
       @case ('scm') {
-        <header class="pane-header">
-          <h3>Bitbucket</h3>
-          <p>
-            The repository GoldenFix raises dependency upgrade pull requests against
-            (<code>scm.bitbucket</code>). Without one GoldenFix lists its fixes in the report only.
-          </p>
-        </header>
-        <div class="form-fields" formGroupName="scm">
-          <mat-form-field class="span-8">
-            <mat-label>Repository URL</mat-label>
-            <input
-              matInput
-              formControlName="repositoryUrl"
-              placeholder="https://bitbucket.bbh.com/projects/TA/repos/cert-scanner"
-            />
-            <mat-hint><code>scm.bitbucket.url</code></mat-hint>
-            <mat-error>{{
-              errorText(f.controls.scm.controls.repositoryUrl, 'Must be an http or https URL')
-            }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Credentials ID</mat-label>
-            <input
-              matInput
-              formControlName="credentialsId"
-              placeholder="bitbucket-http-credentials"
-              class="mono"
-            />
-            <mat-hint><code>scm.bitbucket.credentialsId</code></mat-hint>
-            <mat-error>{{ errorText(f.controls.scm.controls.credentialsId) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Sign-in</mat-label>
-            <mat-select formControlName="authType">
-              <mat-option value="BASIC">User name and password or token</mat-option>
-              <mat-option value="BEARER">HTTP access token</mat-option>
-            </mat-select>
-            <mat-hint><code>scm.bitbucket.authType</code></mat-hint>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Bitbucket</mat-label>
-            <mat-select formControlName="type" canSelectNullableOptions>
-              <mat-option [value]="null">Detected from the URL</mat-option>
-              <mat-option value="SERVER">Data Center</mat-option>
-              <mat-option value="CLOUD">Cloud</mat-option>
-            </mat-select>
-            <mat-hint><code>scm.bitbucket.type</code></mat-hint>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Target branch</mat-label>
-            <input matInput formControlName="targetBranch" placeholder="develop" class="mono" />
-            <mat-hint><code>scm.bitbucket.targetBranch</code></mat-hint>
-            <mat-error>{{ errorText(f.controls.scm.controls.targetBranch) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-6">
-            <mat-label>Clone URL</mat-label>
-            <input
-              matInput
-              formControlName="cloneUrl"
-              placeholder="ssh://git@bitbucket.bbh.com/ta/cert.git"
-            />
-            <mat-hint
-              ><code>scm.bitbucket.cloneUrl</code> · left empty: the repository URL</mat-hint
-            >
-            <mat-error>{{
-              errorText(f.controls.scm.controls.cloneUrl, 'Must be an http, https or ssh URL')
-            }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-6">
-            <mat-label>Reviewers</mat-label>
-            <input
-              matInput
-              formControlName="reviewers"
-              placeholder="jsmith, akowalski"
-              class="mono"
-            />
-            <mat-hint
-              ><code>scm.bitbucket.reviewers</code> · user names, separated by commas</mat-hint
-            >
-            <mat-error>{{ errorText(f.controls.scm.controls.reviewers) }}</mat-error>
-          </mat-form-field>
-
+        <div class="form-fields">
+          <dso-fields [group]="f.controls.scm" [fields]="scm" />
           <h4 class="sub-heading span-12">Repository for GoldenFix pull requests</h4>
           <p class="note span-12">Optional; left empty, they are read from the repository URL.</p>
-          <mat-form-field class="span-6">
-            <mat-label>Bitbucket API URL</mat-label>
-            <input
-              matInput
-              formControlName="apiUrl"
-              placeholder="https://bitbucket.bbh.com"
-              autocomplete="off"
-            />
-            <mat-hint
-              ><code>scm.bitbucket.apiUrl</code> · Data Center base URL or Cloud API</mat-hint
-            >
-            <mat-error>{{
-              errorText(f.controls.scm.controls.apiUrl, 'Must be an http or https URL')
-            }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-6">
-            <mat-label>Workspace</mat-label>
-            <input
-              matInput
-              formControlName="workspace"
-              placeholder="bbh-technology"
-              class="mono"
-              autocomplete="off"
-            />
-            <mat-hint><code>scm.bitbucket.workspace</code> · Bitbucket Cloud</mat-hint>
-            <mat-error>{{
-              errorText(f.controls.scm.controls.workspace, 'No spaces or slashes')
-            }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-6">
-            <mat-label>Project key</mat-label>
-            <input
-              matInput
-              formControlName="projectKey"
-              placeholder="TA"
-              class="mono"
-              autocomplete="off"
-            />
-            <mat-hint><code>scm.bitbucket.projectKey</code> · Data Center</mat-hint>
-            <mat-error>{{
-              errorText(f.controls.scm.controls.projectKey, 'No spaces or slashes')
-            }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-6">
-            <mat-label>Repository slug</mat-label>
-            <input
-              matInput
-              formControlName="repoSlug"
-              placeholder="cert-scanner"
-              class="mono"
-              autocomplete="off"
-            />
-            <mat-hint><code>scm.bitbucket.repoSlug</code> · Cloud and Data Center</mat-hint>
-            <mat-error>{{
-              errorText(f.controls.scm.controls.repoSlug, 'No spaces or slashes')
-            }}</mat-error>
-          </mat-form-field>
+          <dso-fields [group]="f.controls.scm" [fields]="bitbucketRepository" />
         </div>
       }
 
       @case ('goldenFix') {
-        <header class="pane-header">
-          <h3>GoldenFix</h3>
-          <p>
-            Dependency upgrade pull requests for the vulnerable components Nexus IQ finds
-            (<code>goldenFix</code>).
-          </p>
-        </header>
-        <div class="form-fields" formGroupName="goldenFix">
-          <mat-form-field class="span-4">
-            <mat-label>Run GoldenFix</mat-label>
-            <mat-select formControlName="enabled" canSelectNullableOptions>
-              <mat-option [value]="null">Global default</mat-option>
-              <mat-option [value]="true">On</mat-option>
-              <mat-option [value]="false">Off</mat-option>
-            </mat-select>
-            <mat-hint><code>goldenFix.enabled</code>{{ goldenFixDefault() }}</mat-hint>
-          </mat-form-field>
+        <div class="form-fields">
+          <dso-fields [group]="f.controls.goldenFix" [fields]="goldenFixField()" />
           <mat-button-toggle-group
             class="span-8"
-            formControlName="inherit"
+            [formControl]="f.controls.goldenFix.controls.inherit"
             aria-label="GoldenFix policy"
           >
             <mat-button-toggle [value]="true">Inherit the global settings</mat-button-toggle>
@@ -807,203 +205,22 @@
       }
 
       @case ('metrics') {
-        <header class="pane-header">
-          <h3>DORA metrics</h3>
-          <p>The InfluxDB tags the pipelines write under; monitoring reads them back.</p>
-        </header>
-        <div class="form-fields" formGroupName="metrics">
-          <mat-checkbox class="span-12" formControlName="enabled"
-            >Write pipeline metrics to InfluxDB (<code>influx.enabled</code>)</mat-checkbox
-          >
-          <mat-form-field class="span-8">
-            <mat-label>Project tag</mat-label>
-            <input
-              matInput
-              formControlName="influxProject"
-              [placeholder]="defaultProject()"
-              class="mono"
-            />
-            <mat-hint><code>influx.project</code> · left empty: {{ defaultProject() }}</mat-hint>
-            <mat-error>{{
-              errorText(
-                f.controls.metrics.controls.influxProject,
-                "Letters, digits, '.', '-' and '_'"
-              )
-            }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Environment tag</mat-label>
-            <input matInput formControlName="influxEnv" class="mono" />
-            <mat-hint><code>influx.env</code></mat-hint>
-            <mat-error>{{
-              errorText(f.controls.metrics.controls.influxEnv, "Letters, digits, '.', '-' and '_'")
-            }}</mat-error>
-          </mat-form-field>
+        <div class="form-fields">
+          <dso-fields [group]="f.controls.metrics" [fields]="metricsFields()" />
         </div>
       }
 
       @case ('flutter') {
-        <header class="pane-header">
-          <h3>Flutter</h3>
-          <p>
-            What a Flutter build needs besides the common settings; written only for Flutter
-            services.
-          </p>
-        </header>
-        <div class="form-fields" formGroupName="flutter">
-          <mat-form-field class="span-4">
-            <mat-label>Platform</mat-label>
-            <mat-select formControlName="platform" canSelectNullableOptions>
-              <mat-option [value]="null">Library default</mat-option>
-              @for (platform of flutterPlatforms; track platform) {
-                <mat-option [value]="platform">{{ platform.toLowerCase() }}</mat-option>
-              }
-            </mat-select>
-            <mat-hint><code>flutter.platform</code></mat-hint>
-          </mat-form-field>
-          <mat-form-field class="span-8">
-            <mat-label>Modules</mat-label>
-            <textarea
-              matInput
-              formControlName="modules"
-              rows="2"
-              class="mono"
-              spellcheck="false"
-            ></textarea>
-            <mat-hint
-              ><code>tools.flutter.flutterModules</code> · one per line, at least one</mat-hint
-            >
-            <mat-error>{{ errorText(f.controls.flutter.controls.modules) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Tested modules</mat-label>
-            <textarea
-              matInput
-              formControlName="testModules"
-              rows="2"
-              class="mono"
-              spellcheck="false"
-            ></textarea>
-            <mat-hint><code>tests.modules</code> · at least one</mat-hint>
-            <mat-error>{{ errorText(f.controls.flutter.controls.testModules) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Tested submodules</mat-label>
-            <textarea
-              matInput
-              formControlName="testSubmodules"
-              rows="2"
-              class="mono"
-              spellcheck="false"
-            ></textarea>
-            <mat-hint><code>tests.submodules</code></mat-hint>
-            <mat-error>{{ errorText(f.controls.flutter.controls.testSubmodules) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Tested subplugins</mat-label>
-            <textarea
-              matInput
-              formControlName="testSubplugins"
-              rows="2"
-              class="mono"
-              spellcheck="false"
-            ></textarea>
-            <mat-hint><code>tests.subplugins</code></mat-hint>
-            <mat-error>{{ errorText(f.controls.flutter.controls.testSubplugins) }}</mat-error>
-          </mat-form-field>
-
+        @let flutterGroup = f.controls.flutter;
+        <div class="form-fields">
+          <dso-fields [group]="flutterGroup" [fields]="flutterPlatformField()" />
+          <dso-fields [group]="flutterGroup" [fields]="flutterModules" />
           <h4 class="sub-heading span-12">Credentials <code>build.credentialsId</code></h4>
-          <mat-form-field class="span-4">
-            <mat-label>Signing password</mat-label>
-            <input matInput formControlName="signingPasswordCredentialsId" class="mono" />
-            <mat-hint>Jenkins credentials ID, first entry</mat-hint>
-            <mat-error>{{
-              errorText(f.controls.flutter.controls.signingPasswordCredentialsId)
-            }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Production licence</mat-label>
-            <input matInput formControlName="prodLicenseCredentialsId" class="mono" />
-            <mat-hint>Second entry</mat-hint>
-            <mat-error>{{
-              errorText(f.controls.flutter.controls.prodLicenseCredentialsId)
-            }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Test licence</mat-label>
-            <input matInput formControlName="testLicenseCredentialsId" class="mono" />
-            <mat-hint>Third entry</mat-hint>
-            <mat-error>{{
-              errorText(f.controls.flutter.controls.testLicenseCredentialsId)
-            }}</mat-error>
-          </mat-form-field>
-
+          <dso-fields [group]="flutterGroup" [fields]="flutterCredentials" />
           <h4 class="sub-heading span-12">Delivery</h4>
-          <mat-form-field class="span-4">
-            <mat-label>Group</mat-label>
-            <input
-              matInput
-              formControlName="deliveryGroup"
-              placeholder="com.bbh.payhub"
-              class="mono"
-            />
-            <mat-hint
-              ><code>delivery.group</code
-              >{{ isVm() ? ' · required on virtual machines' : '' }}</mat-hint
-            >
-            <mat-error>{{ errorText(f.controls.flutter.controls.deliveryGroup) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Artifact</mat-label>
-            <input matInput formControlName="deliveryArtifact" class="mono" />
-            <mat-hint><code>delivery.artifact</code></mat-hint>
-            <mat-error>{{ errorText(f.controls.flutter.controls.deliveryArtifact) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Maven plugin</mat-label>
-            <input matInput formControlName="deliveryPlugin" class="mono" />
-            <mat-hint><code>delivery.plugin</code></mat-hint>
-            <mat-error>{{ errorText(f.controls.flutter.controls.deliveryPlugin) }}</mat-error>
-          </mat-form-field>
-
+          <dso-fields [group]="flutterGroup" [fields]="flutterDelivery()" />
           <h4 class="sub-heading span-12">SonarQube analysis of Dart code</h4>
-          <mat-form-field class="span-4">
-            <mat-label>Sources</mat-label>
-            <input matInput formControlName="sonarSources" placeholder="lib" class="mono" />
-            <mat-hint><code>tools.sonar.sources</code></mat-hint>
-            <mat-error>{{ errorText(f.controls.flutter.controls.sonarSources) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>Tests</mat-label>
-            <input matInput formControlName="sonarTests" placeholder="test" class="mono" />
-            <mat-hint><code>tools.sonar.tests</code></mat-hint>
-            <mat-error>{{ errorText(f.controls.flutter.controls.sonarTests) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-4">
-            <mat-label>SonarScanner version</mat-label>
-            <input
-              matInput
-              formControlName="sonarScannerVersion"
-              placeholder="5.0.1.3006"
-              class="mono"
-            />
-            <mat-hint><code>tools.sonar.sonarScannerVersion</code></mat-hint>
-            <mat-error>{{
-              errorText(
-                f.controls.flutter.controls.sonarScannerVersion,
-                'Must be a version such as 5.0.1.3006'
-              )
-            }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="span-8">
-            <mat-label>Dart analyze command</mat-label>
-            <input matInput formControlName="dartAnalyzeCommand" class="mono" />
-            <mat-hint><code>tools.sonar.dartAnalyzeCommand</code></mat-hint>
-            <mat-error>{{ errorText(f.controls.flutter.controls.dartAnalyzeCommand) }}</mat-error>
-          </mat-form-field>
-          <mat-checkbox class="span-4" formControlName="sonarFlutterPlugin"
-            >Flutter plugin (<code>tools.sonar.flutterPlugin</code>)</mat-checkbox
-          >
+          <dso-fields [group]="flutterGroup" [fields]="flutterSonar" />
         </div>
       }
     }

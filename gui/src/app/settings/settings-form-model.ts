@@ -18,6 +18,7 @@ import {
   optional,
   requireWhile,
   requiredRule,
+  sent,
   text,
 } from '../shared/form-controls';
 
@@ -139,74 +140,22 @@ export function toSettingsRequest(
   version: number | null,
 ): GlobalSettingsRequest {
   const v = form.getRawValue();
-  const number = (value: number | null) => value as number;
   const limits = Object.fromEntries(
-    SCANNERS.map((scanner) => [
-      scanner,
-      {
-        maxCritical: number(v.limits[scanner].maxCritical),
-        maxHigh: number(v.limits[scanner].maxHigh),
-        maxMedium: number(v.limits[scanner].maxMedium),
-      },
-    ]),
+    SCANNERS.map((scanner) => [scanner, sent(v.limits[scanner])]),
   ) as Record<Scanner, SeverityLimits>;
   return {
     version,
-    platform: {
-      jenkinsUrl: optional(v.platform.jenkinsUrl),
-      jenkinsLibrary: v.platform.jenkinsLibrary.trim(),
-      asocUrl: v.platform.asocUrl.trim(),
-      appScanClientLinuxUrl: v.platform.appScanClientLinuxUrl.trim(),
-      appScanClientWindowsUrl: v.platform.appScanClientWindowsUrl.trim(),
-      proxyHost: optional(v.platform.proxyHost),
-      proxyPort: v.platform.proxyPort,
-      proxyUser: optional(v.platform.proxyUser),
-      oisHost: optional(v.platform.oisHost),
-      sonarServerUrl: v.platform.sonarServerUrl.trim(),
-      sonarInstallationName: v.platform.sonarInstallationName.trim(),
-      nexusIqServerUrl: v.platform.nexusIqServerUrl.trim(),
-      nexusIqCredentialsId: v.platform.nexusIqCredentialsId.trim(),
-      nexusSnapshotRepositoryUrl: optional(v.platform.nexusSnapshotRepositoryUrl),
-      nexusSnapshotRepositoryId: optional(v.platform.nexusSnapshotRepositoryId),
-      influxWriteUrl: optional(v.platform.influxWriteUrl),
-      influxCredentialsId: optional(v.platform.influxCredentialsId),
-      iosBuildAgent: optional(v.platform.iosBuildAgent),
-    },
-    deployment: {
-      urbanCodeSiteName: v.deployment.urbanCodeSiteName.trim(),
-      urbanCodeDeployProcess: v.deployment.urbanCodeDeployProcess.trim(),
-      rdHost: v.deployment.rdHost.trim(),
-      qcHost: v.deployment.qcHost.trim(),
-      sshUser: v.deployment.sshUser.trim(),
-      deployScript: v.deployment.deployScript.trim(),
-      versionFile: v.deployment.versionFile.trim(),
-    },
+    platform: sent(v.platform),
+    deployment: sent(v.deployment),
     limits,
-    scans: {
-      coverageMinLine: number(v.scans.coverageMinLine),
-      sastPrepareTimeoutMinutes: number(v.scans.sastPrepareTimeoutMinutes),
-      sastPollTimeoutMinutes: number(v.scans.sastPollTimeoutMinutes),
-      sastPollIntervalSeconds: number(v.scans.sastPollIntervalSeconds),
-      scaEnabled: v.scans.scaEnabled,
-      scaPollTimeoutMinutes: number(v.scans.scaPollTimeoutMinutes),
-      scaPollIntervalSeconds: number(v.scans.scaPollIntervalSeconds),
-      dastPollTimeoutMinutes: number(v.scans.dastPollTimeoutMinutes),
-      dastPollIntervalSeconds: number(v.scans.dastPollIntervalSeconds),
-      dastReportTimeoutMinutes: number(v.scans.dastReportTimeoutMinutes),
-      dastReportIntervalSeconds: number(v.scans.dastReportIntervalSeconds),
-      sonarWaitForQualityGate: v.scans.sonarWaitForQualityGate,
-      sonarQualityGateTimeoutMinutes: number(v.scans.sonarQualityGateTimeoutMinutes),
-    },
+    scans: sent(v.scans),
     releaseGate: {
+      ...sent(v.releaseGate),
       scanners: SCANNERS.filter((scanner) => v.releaseGate.scanners.includes(scanner)),
-      requireCoverage: v.releaseGate.requireCoverage,
-      stateFile: v.releaseGate.stateFile.trim(),
     },
     serviceDefaults: {
-      buildTool: v.serviceDefaults.buildTool,
-      deployTarget: v.serviceDefaults.deployTarget,
+      ...sent(v.serviceDefaults),
       sourceDir: optional(v.serviceDefaults.sourceDir) ?? '.',
-      testsMaxParallel: number(v.serviceDefaults.testsMaxParallel),
     },
     goldenFix: toGlobalGoldenFixPolicy(form.controls.goldenFix),
   };

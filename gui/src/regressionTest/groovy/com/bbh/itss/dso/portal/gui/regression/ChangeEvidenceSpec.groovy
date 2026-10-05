@@ -56,7 +56,7 @@ class ChangeEvidenceSpec extends GuiSpecification {
         header('CertScanner').click()
 
         when:
-        card('CertScanner', 'gui', 'Full').getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Copy for ServiceNow')).click()
+        buttonIn(card('CertScanner', 'gui', 'Full'), 'Copy for ServiceNow', false).click()
 
         then:
         assertThat(snackBar()).containsText('Evidence copied for ServiceNow')
@@ -96,7 +96,7 @@ class ChangeEvidenceSpec extends GuiSpecification {
 
         when:
         api.respond('GET', '/api/evidence/products/2', StubApi.fixture('evidence-product-2.json'))
-        panel('Payments Hub').getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Try again')).click()
+        buttonIn(panel('Payments Hub'), 'Try again', false).click()
 
         then:
         assertThat(panel('Payments Hub').locator('.service h3')).hasText(['gateway', 'ledger', 'notifications', 'mobile-app'] as String[])
@@ -115,7 +115,7 @@ class ChangeEvidenceSpec extends GuiSpecification {
 
         when:
         header('CertScanner').click()
-        card('CertScanner', 'backend-api', 'Full').getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Copy for ServiceNow')).click()
+        buttonIn(card('CertScanner', 'backend-api', 'Full'), 'Copy for ServiceNow', false).click()
 
         then:
         assertThat(panel('CertScanner').locator('.banner')).containsText('The run metrics cannot be read, so the runs show as not recorded: InfluxDB is not reachable')

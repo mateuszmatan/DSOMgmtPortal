@@ -79,7 +79,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         open('/products/1')
 
         when:
-        serviceCard('gui').getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Add pipeline')).click()
+        buttonIn(serviceCard('gui'), 'Add pipeline', false).click()
         dialog().getByRole(AriaRole.COMBOBOX, new Locator.GetByRoleOptions().setName('Pipeline type')).click()
 
         then:

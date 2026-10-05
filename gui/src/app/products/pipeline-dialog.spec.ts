@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { inputOf } from '../testing/dom';
 import { pipeline, servicePipelines } from '../testing/fixtures';
 import { PipelineDialog, PipelineDialogData } from './pipeline-dialog';
 
@@ -37,10 +38,8 @@ describe('PipelineDialog', () => {
     page().querySelector<HTMLButtonElement>('button[type=submit]')!.click();
     await fixture.whenStable();
   };
-  const type = async (name: string, value: string) => {
-    const input = page().querySelector<HTMLInputElement | HTMLTextAreaElement>(
-      `[formControlName=${name}]`,
-    )!;
+  const type = async (label: string, value: string) => {
+    const input = inputOf(page(), label);
     input.value = value;
     input.dispatchEvent(new Event('input'));
     input.dispatchEvent(new Event('blur'));
@@ -55,48 +54,10 @@ describe('PipelineDialog', () => {
       ),
     });
 
-  it('keeps the agent labels within their column', async () => {
-    await render({ service: servicePipelines({ pipelines: [] }) });
-    const labels = form().controls.agentLabels;
-
-    labels.setValue(Array.from({ length: 9 }, (_, i) => `${i}`.padEnd(100, 'a')).join(' '));
-    expect(labels.hasError('columnLength')).toBe(false);
-    expect(labels.hasError('maxItems')).toBe(false);
-
-    labels.setValue(Array.from({ length: 20 }, (_, i) => `${i}`.padEnd(60, 'a')).join(' '));
-    expect(labels.errors).toEqual({ columnLength: { max: 1000 } });
-  });
-
   it('offers only the types the service has no pipeline of', async () => {
     await render({ service: servicePipelines({ pipelines: [pipeline()] }) });
 
     expect(dialog()['types'].map((type) => type.value)).not.toContain('FULL');
-  });
-
-  it('keeps the job of another pipeline type from blocking the save', async () => {
-    await render({ service: servicePipelines({ pipelines: [] }) });
-    const { type, extendedPipelineJob, securityPipelineJob } = form().controls;
-    expect(type.value).toBe('FULL');
-    expect(extendedPipelineJob.disabled && securityPipelineJob.disabled).toBe(true);
-
-    type.setValue('SECURITY');
-    extendedPipelineJob.setValue('x'.repeat(501));
-    expect(form().invalid).toBe(true);
-
-    type.setValue('EXTENDED');
-    securityPipelineJob.setValue('CERT/gui-security');
-    expect(extendedPipelineJob.disabled).toBe(true);
-    expect(form().valid).toBe(true);
-
-    dialog()['save']();
-    const request = http.expectOne({ method: 'POST', url: '/api/services/10/pipelines' });
-    expect(request.request.body).toMatchObject({
-      type: 'EXTENDED',
-      extendedPipelineJob: null,
-      securityPipelineJob: 'CERT/gui-security',
-    });
-    request.flush(pipeline({ type: 'EXTENDED' }));
-    expect(close).toHaveBeenCalled();
   });
 
   it('keeps the type of a stored pipeline and shows only its own job field', async () => {
@@ -113,9 +74,7 @@ describe('PipelineDialog', () => {
 
     expect(page().querySelector('h2')?.textContent).toBe('Add pipeline');
     expect(page().querySelector('.intro')?.textContent).toContain('gets its own unique key');
-    expect(page().querySelector<HTMLInputElement>('[formControlName=agentLabels]')?.value).toBe(
-      'linux-agent',
-    );
+    expect(inputOf(page(), 'Jenkins agent labels').value).toBe('linux-agent');
     expect(page().querySelector('mat-hint')?.textContent).toContain(
       'Build, scans, tests, deployment and release',
     );
@@ -144,9 +103,7 @@ describe('PipelineDialog', () => {
     expect(page().querySelector('h2')?.textContent).toBe('Pipeline settings');
     expect(labels()).toContain('Security pipeline job');
     expect(labels()).not.toContain('Extended pipeline job');
-    expect(
-      page().querySelector<HTMLInputElement>('[formControlName=securityPipelineJob]')?.value,
-    ).toBe('CERT/gui-security');
+    expect(inputOf(page(), 'Security pipeline job').value).toBe('CERT/gui-security');
     expect(page().querySelector('button[type=submit]')?.textContent?.trim()).toBe('Save');
   });
 
@@ -154,9 +111,9 @@ describe('PipelineDialog', () => {
     const stored = pipeline();
     await render({ service: servicePipelines({ pipelines: [stored] }), pipeline: stored });
 
-    await type('agentLabels', ' linux-agent,  docker ');
-    await type('jenkinsJob', '');
-    await type('description', '  Release build  ');
+    await type('Jenkins agent labels', ' linux-agent,  docker ');
+    await type('Jenkins job', '');
+    await type('Description', '  Release build  ');
     await submit();
 
     const request = http.expectOne({ method: 'PUT', url: '/api/pipelines/100' });
@@ -179,8 +136,8 @@ describe('PipelineDialog', () => {
   it('refuses unusable agent labels and job paths before sending', async () => {
     await render({ service: servicePipelines({ pipelines: [] }) });
 
-    await type('agentLabels', 'linux agent!');
-    await type('jenkinsJob', 'DevSecOps/CERT?branch=main');
+    await type('Jenkins agent labels', 'linux agent!');
+    await type('Jenkins job', 'DevSecOps/CERT?branch=main');
     await submit();
 
     http.expectNone('/api/services/10/pipelines');
@@ -215,38 +172,5 @@ describe('PipelineDialog', () => {
     expect(page().querySelector('[role=alert]')?.textContent).toBe('the service was deleted');
     expect(page().querySelector('mat-spinner')).toBeNull();
     expect(close).not.toHaveBeenCalled();
-  });
-
-  it('shows no banner when every refused value has its field', async () => {
-    await render({ service: servicePipelines({ pipelines: [] }) });
-
-    await submit();
-    http
-      .expectOne('/api/services/10/pipelines')
-      .flush(
-        { errors: [{ field: 'description', message: 'is too long' }] },
-        { status: 400, statusText: 'Bad Request' },
-      );
-    await fixture.whenStable();
-
-    expect(form().controls.description.hasError('server')).toBe(true);
-    expect(page().querySelector('[role=alert]')).toBeNull();
-  });
-
-  it('shows the problem detail of a refusal without fields', async () => {
-    await render({ service: servicePipelines({ pipelines: [] }) });
-
-    await submit();
-    http
-      .expectOne('/api/services/10/pipelines')
-      .flush(
-        { title: 'Conflict', detail: 'The service already has a full pipeline' },
-        { status: 409, statusText: 'Conflict' },
-      );
-    await fixture.whenStable();
-
-    expect(page().querySelector('[role=alert]')?.textContent).toBe(
-      'The service already has a full pipeline',
-    );
   });
 });

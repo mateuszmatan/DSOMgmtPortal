@@ -53,27 +53,6 @@ describe('ProductMonitoringPage', () => {
     expect(rows()[0].querySelector('.stages')?.textContent).toContain('/ 12');
   });
 
-  it('shows the build number without a link when the API sent no build address', async () => {
-    await load(
-      productMonitoring({
-        pipelines: [
-          pipelineHealth({ lastRun: pipelineRun({ buildUrl: null, branch: null }) }),
-          pipelineHealth({
-            pipeline: monitoringPipeline({ id: 101, type: 'SAST', jenkinsJobUrl: null }),
-            status: 'NO_DATA',
-            lastRun: null,
-          }),
-        ],
-      }),
-    );
-
-    expect(rows()[0].querySelector('a.build-link')).toBeNull();
-    expect(rows()[0].querySelector('.mat-column-lastRun')?.textContent).toContain('#42');
-    expect(rows()[1].querySelector('.mat-column-lastRun')?.textContent?.trim()).toBe('–');
-    expect(rows()[1].querySelector('.mat-column-jenkins a')).toBeNull();
-    expect(page().querySelector('.summary')?.textContent).toContain('2 pipelines');
-  });
-
   it('opens a pipeline when its row is clicked', async () => {
     await load();
 

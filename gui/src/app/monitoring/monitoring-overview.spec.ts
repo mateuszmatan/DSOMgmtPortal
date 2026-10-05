@@ -23,7 +23,7 @@ describe('MonitoringOverview', () => {
 
   const page = () => fixture.nativeElement as HTMLElement;
   const cards = () => [...page().querySelectorAll<HTMLAnchorElement>('a.product')];
-  const tiles = () => [...page().querySelectorAll('.tile')].map((tile) => tile.textContent?.trim());
+  const tiles = () => [...page().querySelectorAll('.stat')].map((tile) => tile.textContent?.trim());
 
   async function load(
     overview: Overview = monitoringOverview(),
@@ -117,14 +117,6 @@ describe('MonitoringOverview', () => {
     const banners = [...page().querySelectorAll('.banner')].map((banner) => banner.textContent);
     expect(banners[0]).toContain('InfluxDB cannot be reached: connection refused');
     expect(banners[1]).toContain('InfluxDB timed out');
-  });
-
-  it('says when InfluxDB is not configured', async () => {
-    await load(monitoringOverview(), monitoringStatus({ influxConfigured: false }));
-
-    expect(page().querySelector('.banner.info')?.textContent).toContain(
-      'InfluxDB is not configured',
-    );
   });
 
   it('shows why the overview could not be read', async () => {

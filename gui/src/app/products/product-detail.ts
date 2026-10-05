@@ -11,7 +11,14 @@ import { Router, RouterLink } from '@angular/router';
 import { catchError, filter, finalize, of, switchMap, tap } from 'rxjs';
 import { PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
-import { PIPELINE_TYPES, Pipeline, PipelineType, Product, ServicePipelines } from '../core/models';
+import {
+  PIPELINE_TYPES,
+  Pipeline,
+  PipelineType,
+  Product,
+  ServicePipelines,
+  pipelineTypeLabel,
+} from '../core/models';
 import { Notifier } from '../core/notifier';
 import { bitbucketRepositoryUrl } from '../shared/bitbucket';
 import { CodeDialog, CodeDialogData } from '../shared/code-dialog';
@@ -71,12 +78,13 @@ export class ProductDetail {
     }
     const pipelines = this.services.value().flatMap((service) => service.pipelines);
     const active = pipelines.filter((pipeline) => pipeline.activeKey !== null).length;
-    return {
-      services: this.services.value().length,
-      pipelines: pipelines.length,
-      active,
-      invalidated: pipelines.length - active,
-    };
+    const invalidated = pipelines.length - active;
+    return [
+      { label: 'Services', value: this.services.value().length, tone: '' },
+      { label: 'Pipelines', value: pipelines.length, tone: '' },
+      { label: 'Active keys', value: active, tone: 'success' },
+      { label: 'Invalidated keys', value: invalidated, tone: invalidated ? 'danger' : '' },
+    ];
   });
 
   private readonly repositories = computed(
@@ -100,9 +108,7 @@ export class ProductDetail {
   });
   protected readonly errorMessage = errorMessage;
 
-  protected typeLabel(type: PipelineType): string {
-    return PIPELINE_TYPES.find((option) => option.value === type)?.label ?? type;
-  }
+  protected readonly typeLabel = pipelineTypeLabel;
 
   protected typeName(type: PipelineType): string {
     const label = this.typeLabel(type);
@@ -272,7 +278,9 @@ export class ProductDetail {
   }
 
   protected deleteProduct(product: Product): void {
-    const pipelines = this.stats()?.pipelines ?? 0;
+    const pipelines = this.services.hasValue()
+      ? this.services.value().flatMap((service) => service.pipelines).length
+      : 0;
     this.confirm({
       title: `Delete ${product.name}?`,
       message:

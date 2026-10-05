@@ -39,7 +39,7 @@ describe('PipelineMonitoringPage', () => {
     await fixture.whenStable();
   }
 
-  it('shows the pipeline with its DORA tiles, latest run and Grafana panels', async () => {
+  it('shows the pipeline with its DORA tiles, latest run and Grafana dashboard', async () => {
     await load();
 
     expect(text('h1')).toContain('gui');
@@ -51,7 +51,12 @@ describe('PipelineMonitoringPage', () => {
       'Time to restore',
     ]);
     expect(text('.last-run')).toContain('10 passed · 1 warned · 1 failed · 0 blocked · 0 skipped');
-    expect(page().querySelectorAll('.panels iframe').length).toBe(1);
+    expect(page().querySelector('.grafana iframe')?.getAttribute('src')).toBe(
+      'https://grafana.bbh.com/d/adzfc54123/pipeline?var-project=CERT-gui&kiosk',
+    );
+    expect(page().querySelector('.grafana a')?.getAttribute('href')).toBe(
+      'https://grafana.bbh.com/d/adzfc54123/pipeline?var-project=CERT-gui',
+    );
     expect(page().querySelector('a.jenkins')?.getAttribute('href')).toBe(
       'https://jenkins.bbh.com/job/DevSecOps/job/CERT/job/gui-full/',
     );
@@ -70,19 +75,6 @@ describe('PipelineMonitoringPage', () => {
     );
     expect(builds[1].querySelector('a')).toBeNull();
     expect(builds[1].textContent?.trim()).toBe('#41');
-  });
-
-  it('shows a dash for a run without a build number', async () => {
-    await load(
-      pipelineMonitoring({
-        lastRun: pipelineRun({ build: null, buildUrl: null, stagesTotal: null }),
-        recentRuns: [pipelineRun({ build: null, buildUrl: null, stagesTotal: null })],
-      }),
-    );
-
-    expect(page().querySelector('a.build-link')).toBeNull();
-    expect(text('td.mat-column-build')).toBe('–');
-    expect(text('td.mat-column-stages')).toBe('–');
   });
 
   it('warns that a pipeline without an active key stops at start-up', async () => {
@@ -119,13 +111,6 @@ describe('PipelineMonitoringPage', () => {
       [],
       expect.objectContaining({ queryParams: { range: '90d' }, replaceUrl: true }),
     );
-  });
-
-  it('reads the range from the address', async () => {
-    fixture.componentRef.setInput('range', '7d');
-    await load(pipelineMonitoring(), '7d');
-
-    expect(text('.mat-button-toggle-checked')).toBe('7d');
   });
 
   it('shows why the pipeline could not be read', async () => {

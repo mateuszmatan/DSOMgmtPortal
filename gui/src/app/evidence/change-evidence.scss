@@ -2,6 +2,13 @@
   width: 240px;
 }
 
+.name {
+  font-family: var(--dso-serif);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--dso-navy);
+}
+
 mat-accordion {
   display: block;
 }
@@ -22,20 +29,6 @@ mat-panel-title {
   gap: 10px;
   flex: 0 0 auto;
   min-width: 280px;
-}
-
-.code {
-  padding: 0 6px;
-  background: var(--dso-neutral-bg);
-  font-size: 11px;
-  line-height: 18px;
-}
-
-.name {
-  font-family: var(--dso-serif);
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--dso-navy);
 }
 
 mat-panel-description {

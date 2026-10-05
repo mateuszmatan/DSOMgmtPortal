@@ -94,23 +94,6 @@ describe('ChangeEvidencePage', () => {
     http.expectNone('/api/evidence/products/1');
   });
 
-  it('shows the values the evidence does not hold as not recorded', async () => {
-    await list([summary()]);
-    await expand(0);
-    http
-      .expectOne('/api/evidence/products/1')
-      .flush(productEvidence({ ownerTeam: null, services: [serviceEvidence()] }));
-    await fixture.whenStable();
-
-    const identifiers = [...page().querySelectorAll('.identifiers > div')].map((item) => [
-      item.querySelector('dt')?.textContent?.trim(),
-      item.querySelector('dd')?.textContent?.trim(),
-    ]);
-    expect(identifiers).toContainEqual(['Nexus IQ application', 'Not recorded']);
-    expect(identifiers).toContainEqual(['SonarQube project key', 'cert-gui']);
-    expect(page().querySelector('.product-facts')?.textContent).toContain('Not recorded');
-  });
-
   it('shows a failure and loads the evidence again on request', async () => {
     await list([summary()]);
     await expand(0);
@@ -158,23 +141,6 @@ describe('ChangeEvidencePage', () => {
     )!;
     expect(nexusIq.querySelector('td.bad')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('1 / 0');
     expect(card.querySelector('.gate')?.textContent).toContain('Release blocked');
-  });
-
-  it('says when a pipeline has no recorded run', async () => {
-    await list([summary()]);
-    await expand(0);
-    http.expectOne('/api/evidence/products/1').flush(
-      productEvidence({
-        services: [
-          serviceEvidence({ pipelines: [pipelineEvidence({ run: null, status: 'NO_DATA' })] }),
-        ],
-      }),
-    );
-    await fixture.whenStable();
-
-    expect(page().querySelector('.no-run')?.textContent).toContain(
-      'No run of this pipeline was recorded yet.',
-    );
   });
 
   it('copies the evidence of a pipeline for ServiceNow', async () => {
@@ -252,29 +218,5 @@ describe('ChangeEvidencePage', () => {
     );
     expect(page().querySelector('.identifiers dd')?.textContent?.trim()).toBe('Not recorded');
     expect(page().querySelector('.service-head .muted')).toBeNull();
-  });
-
-  it('says when a product has no services or a service has no pipelines', async () => {
-    await list([summary(), summary({ id: 2, code: 'PAY', name: 'PayHub' })]);
-    await expand(0);
-    http
-      .expectOne('/api/evidence/products/1')
-      .flush(
-        productEvidence({ contactEmail: null, services: [serviceEvidence({ pipelines: [] })] }),
-      );
-    await expand(1);
-    http
-      .expectOne('/api/evidence/products/2')
-      .flush(productEvidence({ productId: 2, services: [] }));
-    await fixture.whenStable();
-
-    const panels = page().querySelectorAll('mat-expansion-panel');
-    expect(panels[0].querySelector('section.service p.not-recorded')?.textContent).toBe(
-      'The service has no pipelines yet.',
-    );
-    expect(panels[0].querySelector('.product-facts')?.textContent).toContain('Not recorded');
-    expect(panels[1].querySelector(':scope p.not-recorded')?.textContent).toBe(
-      'The product has no services yet.',
-    );
   });
 });

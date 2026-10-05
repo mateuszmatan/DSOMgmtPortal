@@ -13,11 +13,11 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MonitoringApi } from '../core/api';
 import { errorMessage } from '../core/errors';
-import { DoraSummary, PIPELINE_TYPES, PipelineMonitoring, PipelineType } from '../core/models';
+import { DoraSummary, PipelineMonitoring, pipelineTypeLabel } from '../core/models';
 import { DoraLevelBadge } from '../shared/dora-level';
 import { DurationPipe, RelativeTimePipe, formatDuration } from '../shared/formatting';
 import { StatusChip } from '../shared/status-chip';
@@ -86,16 +86,10 @@ export class PipelineMonitoringPage {
     return dora ? doraTiles(dora) : [];
   });
 
-  protected readonly panels = computed<
-    { id: number; title: string; width: number; url: SafeResourceUrl }[]
-  >(() =>
-    (this.data()?.grafana?.panels ?? [])
-      .filter((panel) => /^https?:\/\//.test(panel.url))
-      .map((panel) => ({
-        ...panel,
-        url: this.sanitizer.bypassSecurityTrustResourceUrl(panel.url),
-      })),
-  );
+  protected readonly dashboard = computed(() => {
+    const url = this.data()?.grafana?.dashboardUrl;
+    return url ? this.sanitizer.bypassSecurityTrustResourceUrl(`${url}&kiosk`) : null;
+  });
 
   protected readonly runColumns = [
     'time',
@@ -108,9 +102,7 @@ export class PipelineMonitoringPage {
   ];
   protected readonly errorMessage = errorMessage;
 
-  protected typeLabel(type: PipelineType): string {
-    return PIPELINE_TYPES.find((option) => option.value === type)?.label ?? type;
-  }
+  protected readonly typeLabel = pipelineTypeLabel;
 
   protected selectRange(range: string): void {
     this.router.navigate([], { relativeTo: this.route, queryParams: { range }, replaceUrl: true });
