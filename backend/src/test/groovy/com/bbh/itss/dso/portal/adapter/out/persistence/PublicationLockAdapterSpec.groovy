@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
         'spring.datasource.url=jdbc:h2:mem:publication-lock;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa'])
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import([PublicationLockAdapter, GlobalSettingsPersistenceAdapter, GlobalSettingsMapper])
+@Import([PublicationLockAdapter, GlobalSettingsPersistenceAdapter])
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class PublicationLockAdapterSpec extends Specification {
 

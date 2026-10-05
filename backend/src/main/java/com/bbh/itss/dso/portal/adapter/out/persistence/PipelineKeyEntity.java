@@ -1,6 +1,8 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
+import com.bbh.itss.dso.portal.adapter.RecordMapper;
 import com.bbh.itss.dso.portal.domain.pipeline.KeyStatus;
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineKey;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -66,31 +68,7 @@ public class PipelineKeyEntity {
         return id;
     }
 
-    PipelineEntity pipeline() {
-        return pipeline;
-    }
-
-    String value() {
-        return value;
-    }
-
-    KeyStatus status() {
-        return status;
-    }
-
-    Instant issuedAt() {
-        return issuedAt;
-    }
-
-    Instant revokedAt() {
-        return revokedAt;
-    }
-
-    String revokeReason() {
-        return revokeReason;
-    }
-
-    Instant lastUsedAt() {
-        return lastUsedAt;
+    PipelineKey toDomain() {
+        return RecordMapper.map(PipelineKey.class, this);
     }
 }

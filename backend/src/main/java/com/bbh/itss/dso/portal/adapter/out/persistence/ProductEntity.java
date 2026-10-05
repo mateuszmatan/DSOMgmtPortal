@@ -1,7 +1,12 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
+import com.bbh.itss.dso.portal.adapter.RecordMapper;
+import com.bbh.itss.dso.portal.domain.catalog.AppScanAccount;
+import com.bbh.itss.dso.portal.domain.catalog.Product;
+import com.bbh.itss.dso.portal.domain.catalog.ProductDetails;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -53,38 +58,24 @@ public class ProductEntity extends AuditedEntity {
         return id;
     }
 
-    String code() {
-        return code;
-    }
-
     String name() {
         return name;
     }
 
-    String description() {
-        return description;
+    Product toDomain() {
+        return Product.restore(id, RecordMapper.map(ProductDetails.class, this),
+                RecordMapper.map(appScanAccount, AppScanAccount.class),
+                services.stream().map(ServiceEntity::toDomain).toList(), getVersion(), getCreatedAt(), getUpdatedAt());
     }
 
-    String ownerTeam() {
-        return ownerTeam;
-    }
-
-    String contactEmail() {
-        return contactEmail;
-    }
-
-    AppScanAccountEmbeddable appScanAccount() {
-        return appScanAccount;
-    }
-
-    void details(String code, String name, String description, String ownerTeam, String contactEmail,
-                 AppScanAccountEmbeddable appScanAccount) {
-        this.code = code;
-        this.name = name;
-        this.description = description;
-        this.ownerTeam = ownerTeam;
-        this.contactEmail = contactEmail;
-        this.appScanAccount = appScanAccount;
+    void apply(Product product) {
+        ProductDetails details = product.details();
+        code = details.code();
+        name = details.name();
+        description = details.description();
+        ownerTeam = details.ownerTeam();
+        contactEmail = details.contactEmail();
+        appScanAccount = RecordMapper.map(product.appScanAccount(), AppScanAccountEmbeddable.class);
     }
 
     List<ServiceEntity> services() {
@@ -103,5 +94,11 @@ public class ProductEntity extends AuditedEntity {
 
     void removeService(ServiceEntity service) {
         services.remove(service);
+    }
+
+    @Embeddable
+    public record AppScanAccountEmbeddable(
+            @Column(name = "ASOC_KEY_ID", nullable = false, length = 200) String keyId,
+            @Column(name = "ASOC_SECRET_CREDENTIALS_ID", length = 200) String secretCredentialsId) {
     }
 }

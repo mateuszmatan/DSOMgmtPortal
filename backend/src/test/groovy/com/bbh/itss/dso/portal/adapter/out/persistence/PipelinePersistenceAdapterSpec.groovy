@@ -33,7 +33,7 @@ import static com.bbh.itss.dso.portal.support.Fixtures.settings
         'spring.datasource.url=jdbc:h2:mem:pipeline-adapter;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa'])
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import([PipelinePersistenceAdapter, PipelineMapper, ProductPersistenceAdapter, ProductMapper])
+@Import([PipelinePersistenceAdapter, ProductPersistenceAdapter])
 class PipelinePersistenceAdapterSpec extends Specification {
 
     static final Instant ISSUED = Instant.parse('2026-10-01T08:00:00Z')

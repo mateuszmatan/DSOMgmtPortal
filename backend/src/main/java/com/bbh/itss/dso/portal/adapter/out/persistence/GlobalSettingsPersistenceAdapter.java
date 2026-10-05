@@ -11,16 +11,13 @@ import java.util.Optional;
 class GlobalSettingsPersistenceAdapter implements GlobalSettingsRepositoryPort {
 
     private final GlobalSettingsJpaRepository repository;
-    private final GlobalSettingsMapper mapper;
-
-    GlobalSettingsPersistenceAdapter(GlobalSettingsJpaRepository repository, GlobalSettingsMapper mapper) {
+    GlobalSettingsPersistenceAdapter(GlobalSettingsJpaRepository repository) {
         this.repository = repository;
-        this.mapper = mapper;
     }
 
     @Override
     public Optional<GlobalSettings> load() {
-        return repository.findById(GlobalSettingsEntity.ID).map(mapper::toDomain);
+        return repository.findById(GlobalSettingsEntity.ID).map(GlobalSettingsEntity::toDomain);
     }
 
     @Override
@@ -29,7 +26,7 @@ class GlobalSettingsPersistenceAdapter implements GlobalSettingsRepositoryPort {
         if (!entity.isNew() && entity.getVersion() != settings.version()) {
             throw ConflictException.staleVersion();
         }
-        mapper.copy(settings.values(), entity);
-        return mapper.toDomain(repository.saveAndFlush(entity));
+        entity.apply(settings.values());
+        return repository.saveAndFlush(entity).toDomain();
     }
 }

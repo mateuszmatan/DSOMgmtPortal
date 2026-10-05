@@ -1,6 +1,9 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
+import com.bbh.itss.dso.portal.adapter.RecordMapper;
+import com.bbh.itss.dso.portal.adapter.out.persistence.ServiceEntity.UrbanCodeComponentEmbeddable;
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings;
+import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeComponent;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -62,19 +65,12 @@ public class UrbanCodeApplicationEntity {
         this.deployOrder = settings.order();
         this.environments = settings.environments();
         this.snapshotName = settings.snapshotName();
-        settings.components().forEach(component -> components.add(UrbanCodeComponentEmbeddable.of(component)));
+        settings.components()
+                .forEach(component -> components.add(RecordMapper.map(component, UrbanCodeComponentEmbeddable.class)));
     }
 
     UrbanCodeApplicationSettings toDomain() {
         return new UrbanCodeApplicationSettings(applicationName, deployOrder, environments, snapshotName,
-                components.stream().map(UrbanCodeComponentEmbeddable::toDomain).toList());
-    }
-
-    ServiceEntity service() {
-        return service;
-    }
-
-    int position() {
-        return position;
+                components.stream().map(component -> RecordMapper.map(component, UrbanCodeComponent.class)).toList());
     }
 }

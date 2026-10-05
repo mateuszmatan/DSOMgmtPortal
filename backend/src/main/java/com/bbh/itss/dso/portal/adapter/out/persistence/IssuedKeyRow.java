@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
+import com.bbh.itss.dso.portal.adapter.RecordMapper;
 import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey;
 import com.bbh.itss.dso.portal.domain.pipeline.KeyStatus;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineKey;
@@ -10,7 +11,6 @@ record IssuedKeyRow(Long pipelineId, Long id, String value, KeyStatus status, In
                     String revokeReason, Instant lastUsedAt) {
 
     IssuedKey toDomain() {
-        return new IssuedKey(pipelineId,
-                new PipelineKey(id, value, status, issuedAt, revokedAt, revokeReason, lastUsedAt));
+        return new IssuedKey(pipelineId, RecordMapper.map(PipelineKey.class, this));
     }
 }

@@ -21,7 +21,7 @@ import static com.bbh.itss.dso.portal.domain.settings.Scanner.SCA
         'spring.datasource.url=jdbc:h2:mem:settings-adapter;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa'])
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import([GlobalSettingsPersistenceAdapter, GlobalSettingsMapper])
+@Import(GlobalSettingsPersistenceAdapter)
 class GlobalSettingsPersistenceAdapterSpec extends Specification {
 
     @Subject
