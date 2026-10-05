@@ -1,7 +1,7 @@
 package com.bbh.itss.dso.portal.catalog;
 
-import com.bbh.itss.dso.portal.common.AuditedEntity;
-import com.bbh.itss.dso.portal.common.Text;
+import com.bbh.itss.dso.portal.adapter.out.persistence.AuditedEntity;
+import com.bbh.itss.dso.portal.domain.shared.Text;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;

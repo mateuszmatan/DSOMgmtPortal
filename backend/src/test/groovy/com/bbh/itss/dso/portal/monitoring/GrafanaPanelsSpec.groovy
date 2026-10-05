@@ -1,5 +1,7 @@
 package com.bbh.itss.dso.portal.monitoring
 
+import com.bbh.itss.dso.portal.adapter.out.grafana.GrafanaProperties
+import com.bbh.itss.dso.portal.adapter.out.influx.InfluxProperties
 import spock.lang.Specification
 
 class GrafanaPanelsSpec extends Specification {

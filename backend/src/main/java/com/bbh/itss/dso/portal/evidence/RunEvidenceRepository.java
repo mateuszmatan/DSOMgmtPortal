@@ -1,7 +1,7 @@
 package com.bbh.itss.dso.portal.evidence;
 
-import com.bbh.itss.dso.portal.monitoring.InfluxProperties;
-import com.bbh.itss.dso.portal.monitoring.InfluxQueryClient;
+import com.bbh.itss.dso.portal.adapter.out.influx.InfluxProperties;
+import com.bbh.itss.dso.portal.adapter.out.influx.InfluxQueryClient;
 import com.bbh.itss.dso.portal.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.monitoring.PipelineRun;
 import org.springframework.stereotype.Component;
@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static com.bbh.itss.dso.portal.monitoring.InfluxQueryClient.literal;
+import static com.bbh.itss.dso.portal.adapter.out.influx.InfluxQueryClient.literal;
 
 @Component
 public class RunEvidenceRepository {

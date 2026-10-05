@@ -1,15 +1,16 @@
 package com.bbh.itss.dso.portal.dsoconfig
 
-import com.bbh.itss.dso.portal.catalog.BuildTool
-import com.bbh.itss.dso.portal.catalog.DeployTarget
+import com.bbh.itss.dso.portal.application.settings.port.out.GlobalSettingsRepositoryPort
 import com.bbh.itss.dso.portal.catalog.NexusIqSettings
-import com.bbh.itss.dso.portal.catalog.Region
 import com.bbh.itss.dso.portal.catalog.SonarSettings
 import com.bbh.itss.dso.portal.catalog.SshTarget
 import com.bbh.itss.dso.portal.catalog.UrbanCodeApplicationSettings
 import com.bbh.itss.dso.portal.catalog.UrbanCodeComponent
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool
+import com.bbh.itss.dso.portal.domain.catalog.DeployTarget
+import com.bbh.itss.dso.portal.domain.catalog.Region
+import com.bbh.itss.dso.portal.domain.settings.MissingGlobalSettingsException
 import com.bbh.itss.dso.portal.pipeline.PipelineType
-import com.bbh.itss.dso.portal.settings.GlobalSettingsService
 import org.yaml.snakeyaml.Yaml
 import spock.lang.Specification
 import spock.lang.Subject
@@ -17,15 +18,15 @@ import spock.lang.Subject
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.command
 import static com.bbh.itss.dso.portal.support.Fixtures.deployment
-import static com.bbh.itss.dso.portal.support.Fixtures.globalSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.service
+import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
 
 class DsoConfigBuilderSpec extends Specification {
 
-    def settings = Stub(GlobalSettingsService) {
-        values() >> globalSettings { it.withPlatform(it.platform().withJenkinsUrl('https://jenkins.test')) }
+    def settings = Stub(GlobalSettingsRepositoryPort) {
+        load() >> Optional.of(storedSettings('https://jenkins.test'))
     }
 
     @Subject
@@ -136,6 +137,18 @@ class DsoConfigBuilderSpec extends Specification {
         config.defaults.keySet() as List == ['buildTool', 'deployTarget', 'sourceDir', 'coverage', 'tools', 'sast', 'sca',
                                              'dast', 'tests', 'releaseGate', 'goldenFix']
         config.defaults.tools.nexusIq == [maxCritical: 0, maxHigh: 0, maxMedium: 0]
+    }
+
+    def "rendering without stored global settings is an error of the start-up"() {
+        given:
+        def empty = new DsoConfigBuilder(Stub(GlobalSettingsRepositoryPort) { load() >> Optional.empty() })
+
+        when:
+        empty.globalConfig()
+
+        then:
+        def e = thrown(MissingGlobalSettingsException)
+        e.message == 'The global settings are missing; the portal creates them at start-up'
     }
 
     def "the YAML uses block style and reads back to the same config"() {

@@ -1,14 +1,11 @@
 package com.bbh.itss.dso.portal.dsoconfig;
 
+import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase;
 import com.bbh.itss.dso.portal.catalog.ProductChanged;
-import com.bbh.itss.dso.portal.common.Timestamps;
+import com.bbh.itss.dso.portal.domain.shared.Timestamps;
 import com.bbh.itss.dso.portal.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.pipeline.PipelineChanged;
 import com.bbh.itss.dso.portal.pipeline.PipelineRepository;
-import com.bbh.itss.dso.portal.settings.GlobalSettingsChanged;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,9 +16,7 @@ import java.util.List;
 
 @Component
 @Transactional
-public class PipelineConfigPublisher {
-
-    private static final Logger log = LoggerFactory.getLogger(PipelineConfigPublisher.class);
+public class PipelineConfigPublisher implements PublishPipelineConfigsUseCase {
 
     private final PipelineRepository pipelines;
     private final PublishedPipelineConfigRepository published;
@@ -38,27 +33,37 @@ public class PipelineConfigPublisher {
 
     @EventListener
     public void onPipelineChanged(PipelineChanged event) {
-        pipelines.findWithServiceById(event.pipelineId()).ifPresent(pipeline -> publish(pipeline, Timestamps.now()));
+        pipelineChanged(event.pipelineId());
     }
 
     @EventListener
     public void onProductChanged(ProductChanged event) {
-        publishAll(pipelines.findByProductId(event.productId()));
+        productChanged(event.productId());
     }
 
-    @EventListener
-    public void onGlobalSettingsChanged(GlobalSettingsChanged event) {
-        publishAll(pipelines.findAllWithService());
+    @Override
+    public void pipelineChanged(long pipelineId) {
+        pipelines.findWithServiceById(pipelineId).ifPresent(pipeline -> publish(pipeline, Timestamps.now()));
     }
 
-    @EventListener(ApplicationReadyEvent.class)
-    public void onStartup() {
+    @Override
+    public void productChanged(long productId) {
+        publishEach(pipelines.findByProductId(productId));
+    }
+
+    @Override
+    public void settingsChanged() {
+        publishAll();
+    }
+
+    @Override
+    public int publishAll() {
         List<Pipeline> all = pipelines.findAllWithService();
-        publishAll(all);
-        log.info("Published the configuration of {} pipelines", all.size());
+        publishEach(all);
+        return all.size();
     }
 
-    private void publishAll(List<Pipeline> pipelinesToPublish) {
+    private void publishEach(List<Pipeline> pipelinesToPublish) {
         Instant now = Timestamps.now();
         pipelinesToPublish.forEach(pipeline -> publish(pipeline, now));
     }

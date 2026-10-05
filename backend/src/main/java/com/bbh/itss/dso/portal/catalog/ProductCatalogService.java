@@ -1,8 +1,8 @@
 package com.bbh.itss.dso.portal.catalog;
 
-import com.bbh.itss.dso.portal.common.ConflictException;
-import com.bbh.itss.dso.portal.common.NotFoundException;
-import com.bbh.itss.dso.portal.common.ValidationProblems;
+import com.bbh.itss.dso.portal.domain.shared.ConflictException;
+import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;

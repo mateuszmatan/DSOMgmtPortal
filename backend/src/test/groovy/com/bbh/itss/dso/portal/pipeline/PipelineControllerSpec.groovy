@@ -1,7 +1,7 @@
 package com.bbh.itss.dso.portal.pipeline
 
-import com.bbh.itss.dso.portal.common.ApiExceptionHandler
-import com.bbh.itss.dso.portal.common.ConflictException
+import com.bbh.itss.dso.portal.adapter.in.web.ApiExceptionHandler
+import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.setup.MockMvcBuilders

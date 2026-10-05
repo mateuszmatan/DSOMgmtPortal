@@ -1,14 +1,14 @@
 package com.bbh.itss.dso.portal.demo;
 
+import com.bbh.itss.dso.portal.adapter.in.web.GoldenFixPolicyDto;
+import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
+import com.bbh.itss.dso.portal.application.settings.port.in.UpdateGlobalSettingsCommand;
 import com.bbh.itss.dso.portal.catalog.AppScanAccount;
 import com.bbh.itss.dso.portal.catalog.AppScanSettings;
 import com.bbh.itss.dso.portal.catalog.BuildSettings;
-import com.bbh.itss.dso.portal.catalog.BuildTool;
-import com.bbh.itss.dso.portal.catalog.DeployTarget;
 import com.bbh.itss.dso.portal.catalog.DeploymentSettings;
 import com.bbh.itss.dso.portal.catalog.FlutterPlatform;
 import com.bbh.itss.dso.portal.catalog.FlutterSettings;
-import com.bbh.itss.dso.portal.catalog.GoldenFixPolicy;
 import com.bbh.itss.dso.portal.catalog.MetricsSettings;
 import com.bbh.itss.dso.portal.catalog.NexusIqSettings;
 import com.bbh.itss.dso.portal.catalog.OpenShiftTarget;
@@ -16,7 +16,6 @@ import com.bbh.itss.dso.portal.catalog.ProductCatalogService;
 import com.bbh.itss.dso.portal.catalog.ProductRepository;
 import com.bbh.itss.dso.portal.catalog.ProductRequest;
 import com.bbh.itss.dso.portal.catalog.ProductResponse;
-import com.bbh.itss.dso.portal.catalog.Region;
 import com.bbh.itss.dso.portal.catalog.ScmSettings;
 import com.bbh.itss.dso.portal.catalog.ServiceRequest;
 import com.bbh.itss.dso.portal.catalog.ServiceResponse;
@@ -31,12 +30,15 @@ import com.bbh.itss.dso.portal.catalog.UnitTestSettings;
 import com.bbh.itss.dso.portal.catalog.UrbanCodeApplicationSettings;
 import com.bbh.itss.dso.portal.catalog.UrbanCodeComponent;
 import com.bbh.itss.dso.portal.catalog.UrbanCodeSettings;
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
+import com.bbh.itss.dso.portal.domain.catalog.DeployTarget;
+import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy;
+import com.bbh.itss.dso.portal.domain.catalog.Region;
+import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues;
 import com.bbh.itss.dso.portal.pipeline.PipelineRequest;
 import com.bbh.itss.dso.portal.pipeline.PipelineResponse;
 import com.bbh.itss.dso.portal.pipeline.PipelineService;
 import com.bbh.itss.dso.portal.pipeline.PipelineType;
-import com.bbh.itss.dso.portal.settings.GlobalSettingsService;
-import com.bbh.itss.dso.portal.settings.GlobalSettingsValues;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -61,10 +63,10 @@ public class DemoDataLoader implements ApplicationRunner {
     private final ProductRepository products;
     private final ProductCatalogService catalog;
     private final PipelineService pipelines;
-    private final GlobalSettingsService settings;
+    private final ManageGlobalSettingsUseCase settings;
 
     public DemoDataLoader(ProductRepository products, ProductCatalogService catalog, PipelineService pipelines,
-                          GlobalSettingsService settings) {
+                          ManageGlobalSettingsUseCase settings) {
         this.products = products;
         this.catalog = catalog;
         this.pipelines = pipelines;
@@ -76,9 +78,10 @@ public class DemoDataLoader implements ApplicationRunner {
         if (products.count() > 0) {
             return;
         }
-        GlobalSettingsValues global = settings.values();
+        GlobalSettingsValues global = settings.current().values();
         if (global.platform().jenkinsUrl() == null) {
-            settings.update(null, global.withPlatform(global.platform().withJenkinsUrl(DEMO_JENKINS_URL)));
+            settings.update(UpdateGlobalSettingsCommand.unversioned(
+                    global.withPlatform(global.platform().withJenkinsUrl(DEMO_JENKINS_URL))));
         }
 
         ProductResponse certScanner = catalog.create(new ProductRequest("CERTSCANNER", "CertScanner",
@@ -138,7 +141,7 @@ public class DemoDataLoader implements ApplicationRunner {
                 SonarSettings.of(title, sonarKey, ToolCommand.of(List.of("sonarqube"), List.of())),
                 NexusIqSettings.of(sonarKey, List.of("**/build/libs/*.jar")),
                 ScmSettings.of(BITBUCKET.formatted(bitbucketProject, repo), "bitbucket-http-credentials"),
-                GoldenFixPolicy.INHERITED,
+                GoldenFixPolicyDto.from(GoldenFixPolicy.INHERITED),
                 new MetricsSettings(true, null, "test"),
                 null);
     }
@@ -169,7 +172,7 @@ public class DemoDataLoader implements ApplicationRunner {
                 SonarSettings.of(title, sonarKey, ToolCommand.of(List.of("sonar:sonar"), List.of())),
                 NexusIqSettings.of(sonarKey, List.of("**/target/*.jar")),
                 ScmSettings.of(BITBUCKET.formatted(bitbucketProject, repo), "bitbucket-http-credentials"),
-                GoldenFixPolicy.INHERITED,
+                GoldenFixPolicyDto.from(GoldenFixPolicy.INHERITED),
                 new MetricsSettings(true, null, "test"),
                 null);
     }
@@ -185,7 +188,7 @@ public class DemoDataLoader implements ApplicationRunner {
                 null,
                 null,
                 ScmSettings.of(BITBUCKET.formatted(bitbucketProject, repo), "bitbucket-http-credentials"),
-                GoldenFixPolicy.inherit(false),
+                GoldenFixPolicyDto.from(GoldenFixPolicy.inherit(false)),
                 new MetricsSettings(true, null, "test"),
                 new FlutterSettings(FlutterPlatform.APK, List.of("core", "payments"), List.of("core", "payments"),
                         List.of("core", "payments"), List.of("secure_storage"), "payhub-mobile-signing-password",

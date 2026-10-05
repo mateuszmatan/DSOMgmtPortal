@@ -1,11 +1,10 @@
 package com.bbh.itss.dso.portal.dsoconfig
 
+import com.bbh.itss.dso.portal.application.settings.port.out.GlobalSettingsRepositoryPort
 import com.bbh.itss.dso.portal.catalog.ProductChanged
 import com.bbh.itss.dso.portal.pipeline.PipelineChanged
 import com.bbh.itss.dso.portal.pipeline.PipelineRepository
 import com.bbh.itss.dso.portal.pipeline.PipelineType
-import com.bbh.itss.dso.portal.settings.GlobalSettingsChanged
-import com.bbh.itss.dso.portal.settings.GlobalSettingsService
 import spock.lang.Specification
 import spock.lang.Subject
 import tools.jackson.databind.json.JsonMapper
@@ -13,10 +12,10 @@ import tools.jackson.databind.json.JsonMapper
 import java.time.Instant
 
 import static com.bbh.itss.dso.portal.support.ApiJson.parse
-import static com.bbh.itss.dso.portal.support.Fixtures.globalSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.service
+import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
 
 class PipelineConfigPublisherSpec extends Specification {
 
@@ -24,8 +23,8 @@ class PipelineConfigPublisherSpec extends Specification {
 
     PipelineRepository pipelines = Mock()
     PublishedPipelineConfigRepository published = Mock()
-    GlobalSettingsService settings = Stub() {
-        values() >> globalSettings()
+    GlobalSettingsRepositoryPort settings = Stub() {
+        load() >> Optional.of(storedSettings())
     }
     def builder = new DsoConfigBuilder(settings)
     def json = JsonMapper.builder().build()
@@ -132,6 +131,21 @@ class PipelineConfigPublisherSpec extends Specification {
         parse(saved[2].configJson).projects.keySet() as List == ['backend-api']
     }
 
+    def "a pipeline or product changed through the port is published like the announced change"() {
+        given:
+        published.findById(_) >> Optional.empty()
+
+        when:
+        publisher.pipelineChanged(101L)
+        publisher.productChanged(2L)
+
+        then:
+        1 * pipelines.findWithServiceById(101L) >> Optional.of(guiSecurity)
+        1 * pipelines.findByProductId(2L) >> [apiFull]
+        1 * published.save({ it.pipelineId == 101L })
+        1 * published.save({ it.pipelineId == 102L })
+    }
+
     def "changed global settings publish every pipeline, writing only what changed"() {
         given:
         def unchanged = stored(100L, json.writeValueAsString(builder.pipelineConfig(guiFull)))
@@ -141,7 +155,7 @@ class PipelineConfigPublisherSpec extends Specification {
         published.findById(102L) >> Optional.empty()
 
         when:
-        publisher.onGlobalSettingsChanged(new GlobalSettingsChanged())
+        publisher.settingsChanged()
 
         then:
         1 * pipelines.findAllWithService() >> [guiFull, guiSecurity, apiFull]
@@ -152,24 +166,26 @@ class PipelineConfigPublisherSpec extends Specification {
         parse(outdated.configJson).pipeline.type == 'security'
     }
 
-    def "every pipeline is published again at start-up"() {
+    def "publishing everything renders every pipeline and counts them"() {
         given:
         published.findById(_) >> Optional.empty()
 
         when:
-        publisher.onStartup()
+        def count = publisher.publishAll()
 
         then:
+        count == 2
         1 * pipelines.findAllWithService() >> [guiFull, apiFull]
         1 * published.save({ it.pipelineId == 100L })
         1 * published.save({ it.pipelineId == 102L })
     }
 
-    def "a portal without pipelines publishes nothing at start-up"() {
+    def "a portal without pipelines publishes nothing"() {
         when:
-        publisher.onStartup()
+        def count = publisher.publishAll()
 
         then:
+        count == 0
         1 * pipelines.findAllWithService() >> []
         0 * published._
     }

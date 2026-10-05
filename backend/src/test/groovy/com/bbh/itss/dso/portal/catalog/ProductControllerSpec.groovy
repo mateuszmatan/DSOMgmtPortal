@@ -1,15 +1,17 @@
 package com.bbh.itss.dso.portal.catalog
 
-import com.bbh.itss.dso.portal.common.ApiExceptionHandler
-import com.bbh.itss.dso.portal.common.ConflictException
-import com.bbh.itss.dso.portal.common.NotFoundException
+import com.bbh.itss.dso.portal.adapter.in.web.ApiExceptionHandler
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool
+import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
+import com.bbh.itss.dso.portal.domain.shared.ConflictException
+import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import spock.lang.Specification
 
-import static com.bbh.itss.dso.portal.catalog.Region.QC
-import static com.bbh.itss.dso.portal.catalog.Region.RD
+import static com.bbh.itss.dso.portal.domain.catalog.Region.QC
+import static com.bbh.itss.dso.portal.domain.catalog.Region.RD
 import static com.bbh.itss.dso.portal.support.ApiJson.APP_ID
 import static com.bbh.itss.dso.portal.support.ApiJson.parse
 import static com.bbh.itss.dso.portal.support.ApiJson.product as productJson
@@ -195,7 +197,7 @@ class ProductControllerSpec extends Specification {
                              (QC): new SshTarget('qcltaapps1.testbbh.com', null, null, null, null)]
             openShiftTargets() == [(RD): new OpenShiftTarget('cert-build', null, null, null, null, null, null, null, null,
                     'cert-rd', null, null, true, null, null, null, null, null, null)]
-            goldenFix() == new GoldenFixPolicy(false, null, 8, ['maven', 'npm'], [], [], null, null, null, null,
+            goldenFix().toDomain() == new GoldenFixPolicy(false, null, 8, ['maven', 'npm'], [], [], null, null, null, null,
                     './gradlew check', null, null, null, null, null, null)
             flutter() == new FlutterSettings(FlutterPlatform.APK, ['app'], [], [], [], 'sign', 'prod', 'test', null, null,
                     null, null, null, false, null, null)

@@ -1,6 +1,6 @@
 package com.bbh.itss.dso.portal.catalog;
 
-import com.bbh.itss.dso.portal.common.Text;
+import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;

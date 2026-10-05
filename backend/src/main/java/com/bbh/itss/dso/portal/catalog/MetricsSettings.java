@@ -1,6 +1,8 @@
 package com.bbh.itss.dso.portal.catalog;
 
-import com.bbh.itss.dso.portal.common.Text;
+import com.bbh.itss.dso.portal.domain.shared.ConfigSection;
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import com.bbh.itss.dso.portal.domain.shared.Text;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;

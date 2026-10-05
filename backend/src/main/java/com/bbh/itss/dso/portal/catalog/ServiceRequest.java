@@ -1,5 +1,7 @@
 package com.bbh.itss.dso.portal.catalog;
 
+import com.bbh.itss.dso.portal.adapter.in.web.GoldenFixPolicyDto;
+import com.bbh.itss.dso.portal.domain.catalog.Region;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -29,13 +31,13 @@ public record ServiceRequest(
         @Valid SonarSettings sonar,
         @Valid NexusIqSettings nexusIq,
         @Valid ScmSettings scm,
-        @Valid GoldenFixPolicy goldenFix,
+        @Valid GoldenFixPolicyDto goldenFix,
         @Valid MetricsSettings metrics,
         @Valid FlutterSettings flutter) {
 
     ServiceSettings settings() {
         return new ServiceSettings(build, unitTests, tests, testJobs, deployment, delivery, urbanCode,
-                urbanCodeApplications, sshTargets, openShiftTargets, appScan, sonar, nexusIq, scm, goldenFix, metrics,
-                flutter);
+                urbanCodeApplications, sshTargets, openShiftTargets, appScan, sonar, nexusIq, scm,
+                goldenFix == null ? null : goldenFix.toDomain(), metrics, flutter);
     }
 }

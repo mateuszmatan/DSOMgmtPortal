@@ -1,7 +1,7 @@
 package com.bbh.itss.dso.portal.dsoconfig;
 
 import com.bbh.itss.dso.portal.catalog.ProductRepository;
-import com.bbh.itss.dso.portal.common.NotFoundException;
+import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 import com.bbh.itss.dso.portal.pipeline.KeyRevokedException;
 import com.bbh.itss.dso.portal.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.pipeline.PipelineService;

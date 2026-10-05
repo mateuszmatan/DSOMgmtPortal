@@ -1,11 +1,11 @@
 package com.bbh.itss.dso.portal.dsoconfig
 
+import com.bbh.itss.dso.portal.application.settings.port.out.GlobalSettingsRepositoryPort
+import com.bbh.itss.dso.portal.adapter.in.web.ApiExceptionHandler
 import com.bbh.itss.dso.portal.catalog.ProductRepository
-import com.bbh.itss.dso.portal.common.ApiExceptionHandler
-import com.bbh.itss.dso.portal.common.NotFoundException
+import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import com.bbh.itss.dso.portal.pipeline.KeyRevokedException
 import com.bbh.itss.dso.portal.pipeline.PipelineService
-import com.bbh.itss.dso.portal.settings.GlobalSettingsService
 import org.spockframework.mock.EmptyOrDummyResponse
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
@@ -13,10 +13,10 @@ import org.yaml.snakeyaml.Yaml
 import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.support.ApiJson.parse
-import static com.bbh.itss.dso.portal.support.Fixtures.globalSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.service
+import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 
 class DsoConfigControllerSpec extends Specification {
@@ -25,8 +25,8 @@ class DsoConfigControllerSpec extends Specification {
 
     PipelineService pipelines = Mock()
     ProductRepository products = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
-    GlobalSettingsService settings = Stub() {
-        values() >> globalSettings()
+    GlobalSettingsRepositoryPort settings = Stub() {
+        load() >> Optional.of(storedSettings())
     }
     MockMvc mvc = MockMvcBuilders
             .standaloneSetup(new DsoConfigController(pipelines, products, new DsoConfigBuilder(settings)))

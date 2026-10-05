@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.catalog;
 
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.validation.constraints.Max;

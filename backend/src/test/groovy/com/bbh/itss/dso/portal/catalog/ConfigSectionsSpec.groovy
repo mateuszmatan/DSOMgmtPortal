@@ -1,6 +1,10 @@
 package com.bbh.itss.dso.portal.catalog
 
-import com.bbh.itss.dso.portal.common.ValidationProblems
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool
+import com.bbh.itss.dso.portal.domain.catalog.DeployTarget
+import com.bbh.itss.dso.portal.domain.shared.ConfigSection
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import jakarta.validation.Validation
 import jakarta.validation.Validator
 import spock.lang.Shared
@@ -10,11 +14,11 @@ import static com.bbh.itss.dso.portal.catalog.BitbucketAuthType.BASIC
 import static com.bbh.itss.dso.portal.catalog.BitbucketAuthType.BEARER
 import static com.bbh.itss.dso.portal.catalog.BitbucketType.CLOUD
 import static com.bbh.itss.dso.portal.catalog.BitbucketType.SERVER
-import static com.bbh.itss.dso.portal.catalog.BuildTool.FLUTTER
-import static com.bbh.itss.dso.portal.catalog.BuildTool.GRADLE
-import static com.bbh.itss.dso.portal.catalog.BuildTool.MAVEN
-import static com.bbh.itss.dso.portal.catalog.DeployTarget.OPENSHIFT
-import static com.bbh.itss.dso.portal.catalog.DeployTarget.VM
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
+import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT
+import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM
 
 class ConfigSectionsSpec extends Specification {
 

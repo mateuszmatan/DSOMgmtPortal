@@ -1,8 +1,8 @@
 package com.bbh.itss.dso.portal.pipeline;
 
+import com.bbh.itss.dso.portal.adapter.out.persistence.AuditedEntity;
 import com.bbh.itss.dso.portal.catalog.ServiceDefinition;
-import com.bbh.itss.dso.portal.common.AuditedEntity;
-import com.bbh.itss.dso.portal.common.ConflictException;
+import com.bbh.itss.dso.portal.domain.shared.ConflictException;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;

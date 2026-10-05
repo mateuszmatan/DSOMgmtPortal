@@ -1,27 +1,28 @@
 package com.bbh.itss.dso.portal.demo
 
+import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
+import com.bbh.itss.dso.portal.application.settings.port.in.UpdateGlobalSettingsCommand
 import com.bbh.itss.dso.portal.catalog.ProductCatalogService
 import com.bbh.itss.dso.portal.catalog.ProductRepository
 import com.bbh.itss.dso.portal.catalog.ProductRequest
 import com.bbh.itss.dso.portal.catalog.ProductResponse
 import com.bbh.itss.dso.portal.catalog.ServiceResponse
-import com.bbh.itss.dso.portal.common.ValidationProblems
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import com.bbh.itss.dso.portal.pipeline.PipelineRequest
 import com.bbh.itss.dso.portal.pipeline.PipelineResponse
 import com.bbh.itss.dso.portal.pipeline.PipelineService
 import com.bbh.itss.dso.portal.pipeline.PipelineType
-import com.bbh.itss.dso.portal.settings.GlobalSettingsService
 import spock.lang.Specification
 import spock.lang.Subject
 
-import static com.bbh.itss.dso.portal.support.Fixtures.globalSettings
+import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
 
 class DemoDataLoaderSpec extends Specification {
 
     ProductRepository products = Mock()
     ProductCatalogService catalog = Mock()
     PipelineService pipelines = Mock()
-    GlobalSettingsService settings = Mock()
+    ManageGlobalSettingsUseCase settings = Mock()
 
     @Subject
     def loader = new DemoDataLoader(products, catalog, pipelines, settings)
@@ -44,7 +45,7 @@ class DemoDataLoaderSpec extends Specification {
         long serviceIds = 0
         long pipelineIds = 0
         products.count() >> 0
-        settings.values() >> globalSettings()
+        settings.current() >> storedSettings()
         catalog.create(_) >> { ProductRequest request ->
             created << request
             new ProductResponse(created.size() as Long, request.code(), request.name(), null, null, null, request.appScan(), 0,
@@ -66,7 +67,9 @@ class DemoDataLoaderSpec extends Specification {
         loader.run(null)
 
         then:
-        1 * settings.update(null, { it.platform().jenkinsUrl() == 'https://jenkins.bbh.com' })
+        1 * settings.update({ UpdateGlobalSettingsCommand command ->
+            command.expectedVersion() == null && command.values().platform().jenkinsUrl() == 'https://jenkins.bbh.com'
+        })
         1 * pipelines.revokeKey(9L, 'Mobile app moved to the new mobile platform pipeline')
         created*.code() == ['CERTSCANNER', 'PAYHUB']
         created*.services()*.size() == [2, 4]
@@ -82,7 +85,7 @@ class DemoDataLoaderSpec extends Specification {
     def "a Jenkins already set in the global settings is kept"() {
         given:
         products.count() >> 0
-        settings.values() >> globalSettings { it.withPlatform(it.platform().withJenkinsUrl('https://jenkins.test')) }
+        settings.current() >> storedSettings('https://jenkins.test')
         catalog.create(_) >> { ProductRequest request ->
             new ProductResponse(1L, request.code(), request.name(), null, null, null, request.appScan(), 0, null, null,
                     request.services().collect { new ServiceResponse(1L, it.name(), null, it.build(), null, null, null,

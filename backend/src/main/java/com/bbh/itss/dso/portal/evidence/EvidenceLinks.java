@@ -1,6 +1,6 @@
 package com.bbh.itss.dso.portal.evidence;
 
-import com.bbh.itss.dso.portal.common.Text;
+import com.bbh.itss.dso.portal.domain.shared.Text;
 import org.springframework.web.util.UriUtils;
 
 import java.nio.charset.StandardCharsets;

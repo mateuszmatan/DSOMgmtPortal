@@ -1,7 +1,9 @@
 package com.bbh.itss.dso.portal.catalog;
 
-import com.bbh.itss.dso.portal.common.DelimitedListConverter;
-import com.bbh.itss.dso.portal.common.Text;
+import com.bbh.itss.dso.portal.adapter.out.persistence.DelimitedListConverter;
+import com.bbh.itss.dso.portal.domain.shared.ConfigSection;
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import com.bbh.itss.dso.portal.domain.shared.Text;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;
@@ -37,7 +39,7 @@ public record NexusIqSettings(
 
     public NexusIqSettings {
         application = Text.trimToNull(application);
-        scanPatterns = DelimitedListConverter.clean(scanPatterns);
+        scanPatterns = Text.clean(scanPatterns);
         stage = Text.orDefault(stage, DEFAULT_STAGE);
         failOnNetworkError = Boolean.TRUE.equals(failOnNetworkError);
         scaScanName = Text.trimToNull(scaScanName);

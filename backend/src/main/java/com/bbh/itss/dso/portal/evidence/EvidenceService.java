@@ -1,9 +1,11 @@
 package com.bbh.itss.dso.portal.evidence;
 
+import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
 import com.bbh.itss.dso.portal.catalog.Product;
 import com.bbh.itss.dso.portal.catalog.ProductRepository;
 import com.bbh.itss.dso.portal.catalog.ServiceDefinition;
-import com.bbh.itss.dso.portal.common.NotFoundException;
+import com.bbh.itss.dso.portal.domain.settings.PlatformSettings;
+import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 import com.bbh.itss.dso.portal.evidence.EvidenceDtos.BuildEvidence;
 import com.bbh.itss.dso.portal.evidence.EvidenceDtos.PipelineEvidence;
 import com.bbh.itss.dso.portal.evidence.EvidenceDtos.ProductEvidence;
@@ -16,8 +18,6 @@ import com.bbh.itss.dso.portal.monitoring.RunResult;
 import com.bbh.itss.dso.portal.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.pipeline.PipelineRepository;
 import com.bbh.itss.dso.portal.pipeline.PipelineSettings;
-import com.bbh.itss.dso.portal.settings.GlobalSettingsService;
-import com.bbh.itss.dso.portal.settings.PlatformSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -38,10 +38,10 @@ public class EvidenceService {
     private final PipelineRepository pipelines;
     private final PipelineMetricsRepository runs;
     private final RunEvidenceRepository evidence;
-    private final GlobalSettingsService settings;
+    private final ManageGlobalSettingsUseCase settings;
 
     public EvidenceService(ProductRepository products, PipelineRepository pipelines, PipelineMetricsRepository runs,
-                           RunEvidenceRepository evidence, GlobalSettingsService settings) {
+                           RunEvidenceRepository evidence, ManageGlobalSettingsUseCase settings) {
         this.products = products;
         this.pipelines = pipelines;
         this.runs = runs;
@@ -71,7 +71,7 @@ public class EvidenceService {
             }
         }
 
-        PlatformSettings platform = settings.values().platform();
+        PlatformSettings platform = settings.current().platform();
         Map<MetricsTag, PipelineRun> latestRuns = latest;
         Map<MetricsTag, RunPoints> runPoints = points;
         List<ServiceEvidence> services = product.getServices().stream()

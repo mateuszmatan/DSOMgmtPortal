@@ -1,5 +1,7 @@
 package com.bbh.itss.dso.portal.monitoring
 
+import com.bbh.itss.dso.portal.adapter.out.influx.InfluxProperties
+import com.bbh.itss.dso.portal.adapter.out.influx.InfluxQueryClient
 import spock.lang.Specification
 import spock.lang.Subject
 

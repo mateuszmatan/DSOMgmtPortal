@@ -1,10 +1,10 @@
 package com.bbh.itss.dso.portal.pipeline
 
+import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.catalog.ProductRepository
 import com.bbh.itss.dso.portal.catalog.ServiceDefinitionRepository
-import com.bbh.itss.dso.portal.common.ConflictException
-import com.bbh.itss.dso.portal.common.NotFoundException
-import com.bbh.itss.dso.portal.settings.GlobalSettingsService
+import com.bbh.itss.dso.portal.domain.shared.ConflictException
+import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import org.spockframework.mock.EmptyOrDummyResponse
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
@@ -13,6 +13,7 @@ import spock.lang.Subject
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.service
+import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.withId
 
 class PipelineServiceSpec extends Specification {
@@ -21,8 +22,8 @@ class PipelineServiceSpec extends Specification {
     PipelineKeyRepository keys = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
     ServiceDefinitionRepository services = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
     ProductRepository products = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
-    GlobalSettingsService settings = Stub() {
-        jenkinsUrl() >> 'https://jenkins.test'
+    ManageGlobalSettingsUseCase settings = Stub() {
+        current() >> storedSettings('https://jenkins.test')
     }
     ApplicationEventPublisher events = Mock()
 

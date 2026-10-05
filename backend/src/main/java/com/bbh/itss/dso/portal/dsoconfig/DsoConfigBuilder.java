@@ -1,13 +1,15 @@
 package com.bbh.itss.dso.portal.dsoconfig;
 
-import com.bbh.itss.dso.portal.catalog.ConfigTree;
+import com.bbh.itss.dso.portal.application.settings.port.out.GlobalSettingsRepositoryPort;
 import com.bbh.itss.dso.portal.catalog.Product;
 import com.bbh.itss.dso.portal.catalog.ServiceDefinition;
+import com.bbh.itss.dso.portal.domain.settings.GlobalSettings;
+import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues;
+import com.bbh.itss.dso.portal.domain.settings.MissingGlobalSettingsException;
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.pipeline.PipelineSettings;
 import com.bbh.itss.dso.portal.pipeline.PipelineType;
-import com.bbh.itss.dso.portal.settings.GlobalSettingsService;
-import com.bbh.itss.dso.portal.settings.GlobalSettingsValues;
 import org.springframework.stereotype.Component;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -26,21 +28,21 @@ public class DsoConfigBuilder {
             "coverage", "tools", "sast", "sca", "dast", "build", "delivery", "scm", "goldenFix", "tests", "deploy",
             "flutter");
 
-    private final GlobalSettingsService settings;
+    private final GlobalSettingsRepositoryPort settings;
 
-    public DsoConfigBuilder(GlobalSettingsService settings) {
+    public DsoConfigBuilder(GlobalSettingsRepositoryPort settings) {
         this.settings = settings;
     }
 
     public Map<String, Object> productConfig(Product product) {
-        GlobalSettingsValues global = settings.values();
+        GlobalSettingsValues global = globalSettings();
         Map<String, Object> projects = new LinkedHashMap<>();
         product.getServices().forEach(service -> projects.put(service.getName(), serviceTree(service, global).toMap(KEY_ORDER)));
         return Map.of("projects", projects);
     }
 
     public Map<String, Object> pipelineConfig(Pipeline pipeline) {
-        GlobalSettingsValues global = settings.values();
+        GlobalSettingsValues global = globalSettings();
         ServiceDefinition service = pipeline.getService();
         PipelineSettings pipelineSettings = pipeline.getSettings();
         ConfigTree serviceTree = serviceTree(service, global);
@@ -67,7 +69,7 @@ public class DsoConfigBuilder {
     }
 
     public Map<String, Object> globalConfig() {
-        GlobalSettingsValues global = settings.values();
+        GlobalSettingsValues global = globalSettings();
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("platform", global.platform().toConfig());
         root.put("defaults", global.defaultsConfig());
@@ -82,6 +84,10 @@ public class DsoConfigBuilder {
         options.setPrettyFlow(true);
         options.setWidth(160);
         return new Yaml(new Representer(options), options).dump(config);
+    }
+
+    private GlobalSettingsValues globalSettings() {
+        return settings.load().map(GlobalSettings::values).orElseThrow(MissingGlobalSettingsException::new);
     }
 
     private static ConfigTree serviceTree(ServiceDefinition service, GlobalSettingsValues global) {

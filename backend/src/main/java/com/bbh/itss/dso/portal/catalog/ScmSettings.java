@@ -1,8 +1,10 @@
 package com.bbh.itss.dso.portal.catalog;
 
-import com.bbh.itss.dso.portal.common.DelimitedListConverter;
-import com.bbh.itss.dso.portal.common.Text;
-import com.bbh.itss.dso.portal.common.ValidationProblems;
+import com.bbh.itss.dso.portal.adapter.out.persistence.DelimitedListConverter;
+import com.bbh.itss.dso.portal.domain.shared.ConfigSection;
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import com.bbh.itss.dso.portal.domain.shared.Text;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;
@@ -49,7 +51,7 @@ public record ScmSettings(
         authType = authType == null ? BitbucketAuthType.BASIC : authType;
         targetBranch = Text.trimToNull(targetBranch);
         cloneUrl = Text.trimToNull(cloneUrl);
-        reviewers = DelimitedListConverter.clean(reviewers);
+        reviewers = Text.clean(reviewers);
     }
 
     public static ScmSettings of(String repositoryUrl, String credentialsId) {

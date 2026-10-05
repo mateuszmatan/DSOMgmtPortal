@@ -1,7 +1,10 @@
 package com.bbh.itss.dso.portal.catalog;
 
-import com.bbh.itss.dso.portal.common.AuditedEntity;
-import com.bbh.itss.dso.portal.common.Text;
+import com.bbh.itss.dso.portal.adapter.out.persistence.AuditedEntity;
+import com.bbh.itss.dso.portal.adapter.out.persistence.GoldenFixPolicyEmbeddable;
+import com.bbh.itss.dso.portal.domain.catalog.Region;
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import com.bbh.itss.dso.portal.domain.shared.Text;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
@@ -107,7 +110,7 @@ public class ServiceDefinition extends AuditedEntity {
     private ScmSettings scm;
 
     @Embedded
-    private GoldenFixPolicy goldenFix;
+    private GoldenFixPolicyEmbeddable goldenFix;
 
     @Embedded
     private MetricsSettings metrics;
@@ -141,7 +144,7 @@ public class ServiceDefinition extends AuditedEntity {
         this.sonar = settings.sonar();
         this.nexusIq = settings.nexusIq();
         this.scm = settings.scm();
-        this.goldenFix = settings.goldenFix();
+        this.goldenFix = GoldenFixPolicyEmbeddable.of(settings.goldenFix());
         this.metrics = settings.metrics().withDefaultProject(product.getCode(), this.name);
         this.flutter = settings.flutter();
     }
@@ -149,7 +152,8 @@ public class ServiceDefinition extends AuditedEntity {
     public ServiceSettings settings() {
         return new ServiceSettings(build, unitTests, tests, List.copyOf(testJobs), deployment, delivery, urbanCode,
                 urbanCodeApplications.stream().map(UrbanCodeApplication::settings).toList(), Map.copyOf(sshTargets),
-                Map.copyOf(openShiftTargets), appScan, sonar, nexusIq, scm, goldenFix, metrics, flutter);
+                Map.copyOf(openShiftTargets), appScan, sonar, nexusIq, scm,
+                goldenFix == null ? null : goldenFix.toDomain(), metrics, flutter);
     }
 
     public void writeTo(ConfigTree config) {

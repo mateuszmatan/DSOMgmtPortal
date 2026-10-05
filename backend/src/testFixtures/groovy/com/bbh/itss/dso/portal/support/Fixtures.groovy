@@ -1,20 +1,17 @@
 package com.bbh.itss.dso.portal.support
 
+import com.bbh.itss.dso.portal.adapter.in.web.GoldenFixPolicyDto
 import com.bbh.itss.dso.portal.catalog.AppScanAccount
 import com.bbh.itss.dso.portal.catalog.AppScanSettings
 import com.bbh.itss.dso.portal.catalog.BuildSettings
-import com.bbh.itss.dso.portal.catalog.BuildTool
-import com.bbh.itss.dso.portal.catalog.DeployTarget
 import com.bbh.itss.dso.portal.catalog.DeploymentSettings
 import com.bbh.itss.dso.portal.catalog.FlutterSettings
-import com.bbh.itss.dso.portal.catalog.GoldenFixPolicy
 import com.bbh.itss.dso.portal.catalog.MetricsSettings
 import com.bbh.itss.dso.portal.catalog.NexusIqSettings
 import com.bbh.itss.dso.portal.catalog.OpenShiftTarget
 import com.bbh.itss.dso.portal.catalog.Product
 import com.bbh.itss.dso.portal.catalog.ProductDetails
 import com.bbh.itss.dso.portal.catalog.ProductRequest
-import com.bbh.itss.dso.portal.catalog.Region
 import com.bbh.itss.dso.portal.catalog.ScmSettings
 import com.bbh.itss.dso.portal.catalog.ServiceDefinition
 import com.bbh.itss.dso.portal.catalog.ServiceRequest
@@ -27,11 +24,18 @@ import com.bbh.itss.dso.portal.catalog.ToolCommand
 import com.bbh.itss.dso.portal.catalog.UnitTestSettings
 import com.bbh.itss.dso.portal.catalog.UrbanCodeApplicationSettings
 import com.bbh.itss.dso.portal.catalog.UrbanCodeSettings
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool
+import com.bbh.itss.dso.portal.domain.catalog.DeployTarget
+import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
+import com.bbh.itss.dso.portal.domain.catalog.Region
+import com.bbh.itss.dso.portal.domain.settings.GlobalSettings
+import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues
 import com.bbh.itss.dso.portal.pipeline.Pipeline
 import com.bbh.itss.dso.portal.pipeline.PipelineSettings
 import com.bbh.itss.dso.portal.pipeline.PipelineType
-import com.bbh.itss.dso.portal.settings.GlobalSettingsValues
 import org.springframework.test.util.ReflectionTestUtils
+
+import java.time.Instant
 
 final class Fixtures {
 
@@ -87,7 +91,7 @@ final class Fixtures {
         new ServiceRequest(args.id as Long, args.name as String ?: 'gui', args.description as String, s.build(),
                 s.unitTests(), s.tests(), s.testJobs(), s.deployment(), s.delivery(), s.urbanCode(),
                 s.urbanCodeApplications(), s.sshTargets(), s.openShiftTargets(), s.appScan(), s.sonar(), s.nexusIq(),
-                s.scm(), s.goldenFix(), s.metrics(), s.flutter())
+                s.scm(), GoldenFixPolicyDto.from(s.goldenFix()), s.metrics(), s.flutter())
     }
 
     static ProductRequest productRequest(Map args = [:]) {
@@ -134,6 +138,14 @@ final class Fixtures {
 
     static GlobalSettingsValues globalSettings(Closure<GlobalSettingsValues> change = { it }) {
         change(GlobalSettingsValues.bbhDefaults())
+    }
+
+    static GlobalSettings storedSettings(Closure<GlobalSettingsValues> change = { it }) {
+        new GlobalSettings(globalSettings(change), 1, Instant.parse('2026-10-04T12:00:00Z'))
+    }
+
+    static GlobalSettings storedSettings(String jenkinsUrl) {
+        storedSettings { it.withPlatform(it.platform().withJenkinsUrl(jenkinsUrl)) }
     }
 
     static <T> T withId(T entity, Long id) {

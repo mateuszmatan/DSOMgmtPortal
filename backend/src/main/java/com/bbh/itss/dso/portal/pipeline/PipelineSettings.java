@@ -1,7 +1,7 @@
 package com.bbh.itss.dso.portal.pipeline;
 
-import com.bbh.itss.dso.portal.common.DelimitedListConverter;
-import com.bbh.itss.dso.portal.common.Text;
+import com.bbh.itss.dso.portal.adapter.out.persistence.DelimitedListConverter;
+import com.bbh.itss.dso.portal.domain.shared.Text;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;
@@ -27,7 +27,7 @@ public record PipelineSettings(
         String description) {
 
     public PipelineSettings {
-        agentLabels = DelimitedListConverter.clean(agentLabels);
+        agentLabels = Text.clean(agentLabels);
         extendedPipelineJob = Text.trimToNull(extendedPipelineJob);
         securityPipelineJob = Text.trimToNull(securityPipelineJob);
         jenkinsJob = Text.trimToNull(jenkinsJob);

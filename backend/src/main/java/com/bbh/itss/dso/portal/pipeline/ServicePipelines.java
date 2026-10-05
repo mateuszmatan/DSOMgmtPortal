@@ -1,8 +1,8 @@
 package com.bbh.itss.dso.portal.pipeline;
 
-import com.bbh.itss.dso.portal.catalog.BuildTool;
-import com.bbh.itss.dso.portal.catalog.DeployTarget;
 import com.bbh.itss.dso.portal.catalog.ServiceDefinition;
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
+import com.bbh.itss.dso.portal.domain.catalog.DeployTarget;
 
 import java.util.List;
 

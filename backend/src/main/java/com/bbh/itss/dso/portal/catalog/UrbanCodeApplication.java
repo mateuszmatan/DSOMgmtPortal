@@ -1,6 +1,6 @@
 package com.bbh.itss.dso.portal.catalog;
 
-import com.bbh.itss.dso.portal.common.DelimitedListConverter;
+import com.bbh.itss.dso.portal.adapter.out.persistence.DelimitedListConverter;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;

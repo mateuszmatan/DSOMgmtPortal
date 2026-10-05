@@ -1,8 +1,9 @@
 package com.bbh.itss.dso.portal.catalog;
 
-import com.bbh.itss.dso.portal.common.DelimitedListConverter;
-import com.bbh.itss.dso.portal.common.Text;
-import com.bbh.itss.dso.portal.common.ValidationProblems;
+import com.bbh.itss.dso.portal.adapter.out.persistence.DelimitedListConverter;
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import com.bbh.itss.dso.portal.domain.shared.Text;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;
@@ -70,10 +71,10 @@ public record FlutterSettings(
             null, null, null, null, null, null, null, false, null, null);
 
     public FlutterSettings {
-        modules = DelimitedListConverter.clean(modules);
-        testModules = DelimitedListConverter.clean(testModules);
-        testSubmodules = DelimitedListConverter.clean(testSubmodules);
-        testSubplugins = DelimitedListConverter.clean(testSubplugins);
+        modules = Text.clean(modules);
+        testModules = Text.clean(testModules);
+        testSubmodules = Text.clean(testSubmodules);
+        testSubplugins = Text.clean(testSubplugins);
         signingPasswordCredentialsId = Text.trimToNull(signingPasswordCredentialsId);
         prodLicenseCredentialsId = Text.trimToNull(prodLicenseCredentialsId);
         testLicenseCredentialsId = Text.trimToNull(testLicenseCredentialsId);

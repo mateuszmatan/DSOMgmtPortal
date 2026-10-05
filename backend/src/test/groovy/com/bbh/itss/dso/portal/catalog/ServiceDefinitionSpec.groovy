@@ -1,10 +1,15 @@
 package com.bbh.itss.dso.portal.catalog
 
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool
+import com.bbh.itss.dso.portal.domain.catalog.DeployTarget
+import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
+import com.bbh.itss.dso.portal.domain.catalog.Region
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree
 import org.springframework.test.util.ReflectionTestUtils
 import spock.lang.Specification
 
-import static com.bbh.itss.dso.portal.catalog.Region.QC
-import static com.bbh.itss.dso.portal.catalog.Region.RD
+import static com.bbh.itss.dso.portal.domain.catalog.Region.QC
+import static com.bbh.itss.dso.portal.domain.catalog.Region.RD
 import static com.bbh.itss.dso.portal.support.Fixtures.appScan
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.command

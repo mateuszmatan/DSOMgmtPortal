@@ -1,9 +1,12 @@
 package com.bbh.itss.dso.portal.catalog
 
+import com.bbh.itss.dso.portal.adapter.in.web.GoldenFixPolicyDto
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool
+import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
 import spock.lang.Specification
 
-import static com.bbh.itss.dso.portal.catalog.Region.QC
-import static com.bbh.itss.dso.portal.catalog.Region.RD
+import static com.bbh.itss.dso.portal.domain.catalog.Region.QC
+import static com.bbh.itss.dso.portal.domain.catalog.Region.RD
 import static com.bbh.itss.dso.portal.support.Fixtures.appScan
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.command
@@ -24,7 +27,8 @@ class ServiceMappingSpec extends Specification {
 
         then:
         SECTIONS.size() == 17
-        SECTIONS.findAll { settings."$it"() != request."$it"() } == []
+        SECTIONS.findAll { it != 'goldenFix' && settings."$it"() != request."$it"() } == []
+        settings.goldenFix() == request.goldenFix().toDomain()
         settings.sshTargets() == [(RD): request.sshTargets()[RD], (QC): request.sshTargets()[QC]]
         settings.openShiftTargets().keySet() == [QC] as Set
     }
@@ -50,10 +54,11 @@ class ServiceMappingSpec extends Specification {
         response.id() == 12L
         response.name() == 'gui'
         response.description() == 'Angular front end'
-        SECTIONS.findAll { response."$it"() != service.settings()."$it"() } == []
+        SECTIONS.findAll { it != 'goldenFix' && response."$it"() != service.settings()."$it"() } == []
         response.testJobs() == request.testJobs()
         response.urbanCodeApplications() == request.urbanCodeApplications()
         response.goldenFix() == request.goldenFix()
+        response.goldenFix().toDomain() == service.settings().goldenFix()
         response.flutter() == request.flutter()
     }
 
@@ -81,7 +86,7 @@ class ServiceMappingSpec extends Specification {
                 SonarSettings.of('Cert', 'cert-gui', command(['sonar:sonar'])),
                 NexusIqSettings.of('cert', ['**/*.war']),
                 ScmSettings.of('https://bitbucket.bbh.com/scm/ta/cert.git', 'bb-creds'),
-                GoldenFixPolicy.inherit(false),
+                GoldenFixPolicyDto.from(GoldenFixPolicy.inherit(false)),
                 new MetricsSettings(false, 'cert-gui', 'qc'),
                 new FlutterSettings(FlutterPlatform.WEB, ['app'], [], [], [], 's', 'p', 't', null, null, null, null, null, true,
                         null, null))

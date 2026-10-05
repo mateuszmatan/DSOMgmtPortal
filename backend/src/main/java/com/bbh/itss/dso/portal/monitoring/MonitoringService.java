@@ -1,9 +1,10 @@
 package com.bbh.itss.dso.portal.monitoring;
 
+import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
 import com.bbh.itss.dso.portal.catalog.Product;
 import com.bbh.itss.dso.portal.catalog.ProductRepository;
-import com.bbh.itss.dso.portal.common.InvalidRequestException;
-import com.bbh.itss.dso.portal.common.NotFoundException;
+import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException;
+import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.MonitoringStatus;
 import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.Overview;
 import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.PipelineHealth;
@@ -13,7 +14,6 @@ import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.ProductMonitoring;
 import com.bbh.itss.dso.portal.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.pipeline.PipelineRepository;
 import com.bbh.itss.dso.portal.pipeline.PipelineResponse;
-import com.bbh.itss.dso.portal.settings.GlobalSettingsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -43,12 +43,12 @@ public class MonitoringService {
     private final PipelineRepository pipelines;
     private final PipelineMetricsRepository metrics;
     private final GrafanaPanels grafana;
-    private final GlobalSettingsService settings;
+    private final ManageGlobalSettingsUseCase settings;
     private final Clock clock;
 
     public MonitoringService(ProductRepository products, PipelineRepository pipelines,
-                             PipelineMetricsRepository metrics, GrafanaPanels grafana, GlobalSettingsService settings,
-                             Clock clock) {
+                             PipelineMetricsRepository metrics, GrafanaPanels grafana,
+                             ManageGlobalSettingsUseCase settings, Clock clock) {
         this.products = products;
         this.pipelines = pipelines;
         this.metrics = metrics;
@@ -84,7 +84,7 @@ public class MonitoringService {
         Product product = products.findById(productId).orElseThrow(() -> NotFoundException.of("Product", productId));
         List<Pipeline> productPipelines = pipelines.findByProductId(productId);
         Reading<Map<MetricsTag, PipelineRun>> latest = latestRuns(productPipelines);
-        String jenkinsUrl = settings.jenkinsUrl();
+        String jenkinsUrl = settings.current().jenkinsUrl();
         List<PipelineHealth> health = productPipelines.stream()
                 .map(pipeline -> {
                     PipelineRun run = latest.value().get(MetricsTag.of(pipeline));
@@ -113,7 +113,7 @@ public class MonitoringService {
         }
         DoraSummary dora = DoraCalculator.summarize(points.value() == null ? List.of() : points.value(), days,
                 Instant.now(clock));
-        return new PipelineMonitoring(PipelineResponse.withKeys(pipeline, settings.jenkinsUrl()),
+        return new PipelineMonitoring(PipelineResponse.withKeys(pipeline, settings.current().jenkinsUrl()),
                 RunResult.of(pipeline, last), last, dora, runs, grafana.links(tag, days), points.error());
     }
 

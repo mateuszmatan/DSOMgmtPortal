@@ -1,7 +1,9 @@
 package com.bbh.itss.dso.portal.catalog;
 
-import com.bbh.itss.dso.portal.common.DelimitedListConverter;
-import com.bbh.itss.dso.portal.common.Text;
+import com.bbh.itss.dso.portal.adapter.out.persistence.DelimitedListConverter;
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -39,11 +41,11 @@ public record ToolCommand(
     public static final ToolCommand NONE = new ToolCommand(List.of(), List.of(), null, null, List.of());
 
     public ToolCommand {
-        tasks = DelimitedListConverter.trimmed(tasks);
-        flags = DelimitedListConverter.trimmed(flags);
+        tasks = Text.trimmed(tasks);
+        flags = Text.trimmed(flags);
         directory = Text.trimToNull(directory);
         mavenHome = Text.trimToNull(mavenHome);
-        environment = DelimitedListConverter.trimmed(environment);
+        environment = Text.trimmed(environment);
     }
 
     public static ToolCommand of(List<String> tasks, List<String> flags) {

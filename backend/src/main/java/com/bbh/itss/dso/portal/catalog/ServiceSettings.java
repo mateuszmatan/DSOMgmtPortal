@@ -1,6 +1,11 @@
 package com.bbh.itss.dso.portal.catalog;
 
-import com.bbh.itss.dso.portal.common.ValidationProblems;
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
+import com.bbh.itss.dso.portal.domain.catalog.DeployTarget;
+import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy;
+import com.bbh.itss.dso.portal.domain.catalog.Region;
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.Collections;
 import java.util.EnumMap;

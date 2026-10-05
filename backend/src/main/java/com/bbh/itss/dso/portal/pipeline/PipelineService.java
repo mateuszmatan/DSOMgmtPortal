@@ -1,12 +1,12 @@
 package com.bbh.itss.dso.portal.pipeline;
 
+import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
 import com.bbh.itss.dso.portal.catalog.Product;
 import com.bbh.itss.dso.portal.catalog.ProductRepository;
 import com.bbh.itss.dso.portal.catalog.ServiceDefinition;
 import com.bbh.itss.dso.portal.catalog.ServiceDefinitionRepository;
-import com.bbh.itss.dso.portal.common.ConflictException;
-import com.bbh.itss.dso.portal.common.NotFoundException;
-import com.bbh.itss.dso.portal.settings.GlobalSettingsService;
+import com.bbh.itss.dso.portal.domain.shared.ConflictException;
+import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,12 +24,12 @@ public class PipelineService {
     private final PipelineKeyRepository keys;
     private final ServiceDefinitionRepository services;
     private final ProductRepository products;
-    private final GlobalSettingsService settings;
+    private final ManageGlobalSettingsUseCase settings;
     private final ApplicationEventPublisher events;
 
     public PipelineService(PipelineRepository pipelines, PipelineKeyRepository keys,
                            ServiceDefinitionRepository services, ProductRepository products,
-                           GlobalSettingsService settings, ApplicationEventPublisher events) {
+                           ManageGlobalSettingsUseCase settings, ApplicationEventPublisher events) {
         this.pipelines = pipelines;
         this.keys = keys;
         this.services = services;
@@ -41,7 +41,7 @@ public class PipelineService {
     @Transactional(readOnly = true)
     public List<ServicePipelines> listForProduct(Long productId) {
         Product product = products.findById(productId).orElseThrow(() -> NotFoundException.of("Product", productId));
-        String jenkinsUrl = settings.jenkinsUrl();
+        String jenkinsUrl = settings.current().jenkinsUrl();
         Map<Long, List<PipelineResponse>> byService = pipelines.findByProductId(productId).stream()
                 .map(pipeline -> PipelineResponse.summary(pipeline, jenkinsUrl))
                 .collect(Collectors.groupingBy(PipelineResponse::serviceId));
@@ -111,7 +111,7 @@ public class PipelineService {
     }
 
     private PipelineResponse withKeys(Pipeline pipeline) {
-        return PipelineResponse.withKeys(pipeline, settings.jenkinsUrl());
+        return PipelineResponse.withKeys(pipeline, settings.current().jenkinsUrl());
     }
 
     private Pipeline find(Long id) {

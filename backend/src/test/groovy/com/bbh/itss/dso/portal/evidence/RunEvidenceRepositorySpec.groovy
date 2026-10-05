@@ -2,8 +2,8 @@ package com.bbh.itss.dso.portal.evidence
 
 import com.bbh.itss.dso.portal.evidence.EvidenceDtos.CoverageEvidence
 import com.bbh.itss.dso.portal.evidence.EvidenceDtos.ReleaseGateEvidence
-import com.bbh.itss.dso.portal.monitoring.InfluxProperties
-import com.bbh.itss.dso.portal.monitoring.InfluxQueryClient
+import com.bbh.itss.dso.portal.adapter.out.influx.InfluxProperties
+import com.bbh.itss.dso.portal.adapter.out.influx.InfluxQueryClient
 import com.bbh.itss.dso.portal.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.monitoring.PipelineRun
 import com.bbh.itss.dso.portal.monitoring.RunResult

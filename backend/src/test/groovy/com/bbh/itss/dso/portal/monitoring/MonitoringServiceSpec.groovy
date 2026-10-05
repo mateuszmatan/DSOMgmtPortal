@@ -1,12 +1,12 @@
 package com.bbh.itss.dso.portal.monitoring
 
+import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.catalog.ProductRepository
-import com.bbh.itss.dso.portal.common.InvalidRequestException
-import com.bbh.itss.dso.portal.common.NotFoundException
+import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
+import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.GrafanaLinks
 import com.bbh.itss.dso.portal.pipeline.PipelineRepository
 import com.bbh.itss.dso.portal.pipeline.PipelineType
-import com.bbh.itss.dso.portal.settings.GlobalSettingsService
 import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
 import spock.lang.Subject
@@ -23,6 +23,7 @@ import static com.bbh.itss.dso.portal.monitoring.RunResult.UNSTABLE
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.service
+import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
 
 class MonitoringServiceSpec extends Specification {
 
@@ -32,8 +33,8 @@ class MonitoringServiceSpec extends Specification {
     PipelineRepository pipelines = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
     PipelineMetricsRepository metrics = Mock()
     GrafanaPanels grafana = Mock()
-    GlobalSettingsService settings = Stub() {
-        jenkinsUrl() >> 'https://jenkins.test'
+    ManageGlobalSettingsUseCase settings = Stub() {
+        current() >> storedSettings('https://jenkins.test')
     }
 
     @Subject

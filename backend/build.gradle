@@ -97,6 +97,10 @@ testing {
         }
 
         test {
+            dependencies {
+                implementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
+                implementation libs.archunit.junit5
+            }
             targets.configureEach {
                 testTask.configure {
                     finalizedBy tasks.named('jacocoTestReport')

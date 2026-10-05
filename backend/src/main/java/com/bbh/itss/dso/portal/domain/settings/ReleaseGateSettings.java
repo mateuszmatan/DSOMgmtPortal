@@ -1,0 +1,26 @@
+package com.bbh.itss.dso.portal.domain.settings;
+
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import com.bbh.itss.dso.portal.domain.shared.Text;
+
+import java.util.Comparator;
+import java.util.List;
+
+public record ReleaseGateSettings(List<Scanner> scanners, Boolean requireCoverage, String stateFile) {
+
+    public ReleaseGateSettings {
+        scanners = normalize(scanners);
+        stateFile = Text.trimToNull(stateFile);
+    }
+
+    public static List<Scanner> normalize(List<Scanner> scanners) {
+        return scanners == null ? List.of()
+                : scanners.stream().distinct().sorted(Comparator.nullsLast(Comparator.naturalOrder())).toList();
+    }
+
+    public void writeTo(ConfigTree defaults) {
+        defaults.set("releaseGate.scanners", scanners.stream().map(Scanner::gateKey).toList())
+                .set("releaseGate.requireCoverage", requireCoverage)
+                .set("releaseGate.stateFile", stateFile);
+    }
+}

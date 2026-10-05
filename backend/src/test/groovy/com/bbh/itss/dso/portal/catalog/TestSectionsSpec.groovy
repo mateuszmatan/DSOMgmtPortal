@@ -1,19 +1,21 @@
 package com.bbh.itss.dso.portal.catalog
 
-import com.bbh.itss.dso.portal.common.ValidationProblems
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import jakarta.validation.Validation
 import jakarta.validation.Validator
 import spock.lang.Shared
 import spock.lang.Specification
 
-import static com.bbh.itss.dso.portal.catalog.BuildTool.FLUTTER
-import static com.bbh.itss.dso.portal.catalog.BuildTool.GRADLE
-import static com.bbh.itss.dso.portal.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.catalog.TestJobType.LOCAL
 import static com.bbh.itss.dso.portal.catalog.TestJobType.REMOTE
 import static com.bbh.itss.dso.portal.catalog.TestStage.PERFORMANCE
 import static com.bbh.itss.dso.portal.catalog.TestStage.REGRESSION
 import static com.bbh.itss.dso.portal.catalog.TestStage.SMOKE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 
 class TestSectionsSpec extends Specification {
 

@@ -1,5 +1,8 @@
 package com.bbh.itss.dso.portal.catalog;
 
+import com.bbh.itss.dso.portal.adapter.in.web.GoldenFixPolicyDto;
+import com.bbh.itss.dso.portal.domain.catalog.Region;
+
 import java.util.List;
 import java.util.Map;
 
@@ -21,7 +24,7 @@ public record ServiceResponse(
         SonarSettings sonar,
         NexusIqSettings nexusIq,
         ScmSettings scm,
-        GoldenFixPolicy goldenFix,
+        GoldenFixPolicyDto goldenFix,
         MetricsSettings metrics,
         FlutterSettings flutter) {
 
@@ -30,6 +33,6 @@ public record ServiceResponse(
         return new ServiceResponse(service.getId(), service.getName(), service.getDescription(), s.build(),
                 s.unitTests(), s.tests(), s.testJobs(), s.deployment(), s.delivery(), s.urbanCode(),
                 s.urbanCodeApplications(), s.sshTargets(), s.openShiftTargets(), s.appScan(), s.sonar(), s.nexusIq(),
-                s.scm(), s.goldenFix(), s.metrics(), s.flutter());
+                s.scm(), GoldenFixPolicyDto.from(s.goldenFix()), s.metrics(), s.flutter());
     }
 }

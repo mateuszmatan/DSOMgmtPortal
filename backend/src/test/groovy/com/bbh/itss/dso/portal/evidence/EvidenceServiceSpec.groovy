@@ -1,11 +1,13 @@
 package com.bbh.itss.dso.portal.evidence
 
+import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.catalog.NexusIqSettings
 import com.bbh.itss.dso.portal.catalog.ProductRepository
 import com.bbh.itss.dso.portal.catalog.ScmSettings
 import com.bbh.itss.dso.portal.catalog.SonarSettings
 import com.bbh.itss.dso.portal.catalog.TestStage
-import com.bbh.itss.dso.portal.common.NotFoundException
+import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues
+import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import com.bbh.itss.dso.portal.evidence.EvidenceDtos.BuildEvidence
 import com.bbh.itss.dso.portal.evidence.EvidenceDtos.CoverageEvidence
 import com.bbh.itss.dso.portal.evidence.EvidenceDtos.PipelineEvidence
@@ -19,8 +21,6 @@ import com.bbh.itss.dso.portal.monitoring.PipelineRun
 import com.bbh.itss.dso.portal.monitoring.RunResult
 import com.bbh.itss.dso.portal.pipeline.PipelineRepository
 import com.bbh.itss.dso.portal.pipeline.PipelineType
-import com.bbh.itss.dso.portal.settings.GlobalSettingsService
-import com.bbh.itss.dso.portal.settings.GlobalSettingsValues
 import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
 import spock.lang.Subject
@@ -31,10 +31,10 @@ import static com.bbh.itss.dso.portal.evidence.RunPointsSpec.row
 import static com.bbh.itss.dso.portal.support.Fixtures.APP_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.command
 import static com.bbh.itss.dso.portal.support.Fixtures.deployment
-import static com.bbh.itss.dso.portal.support.Fixtures.globalSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.service
+import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
 
 class EvidenceServiceSpec extends Specification {
 
@@ -46,8 +46,8 @@ class EvidenceServiceSpec extends Specification {
     PipelineRepository pipelines = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
     PipelineMetricsRepository runs = Mock()
     RunEvidenceRepository evidence = Mock()
-    GlobalSettingsService settings = Stub() {
-        values() >> globalSettings { it.withPlatform(it.platform().withJenkinsUrl('https://jenkins.test')) }
+    ManageGlobalSettingsUseCase settings = Stub() {
+        current() >> storedSettings('https://jenkins.test')
     }
 
     @Subject

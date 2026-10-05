@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.monitoring;
 
+import com.bbh.itss.dso.portal.adapter.out.grafana.GrafanaProperties;
 import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.GrafanaLinks;
 import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.GrafanaPanel;
 import org.springframework.stereotype.Component;

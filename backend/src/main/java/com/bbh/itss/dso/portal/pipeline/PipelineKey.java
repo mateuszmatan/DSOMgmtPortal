@@ -1,6 +1,6 @@
 package com.bbh.itss.dso.portal.pipeline;
 
-import com.bbh.itss.dso.portal.common.Timestamps;
+import com.bbh.itss.dso.portal.domain.shared.Timestamps;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

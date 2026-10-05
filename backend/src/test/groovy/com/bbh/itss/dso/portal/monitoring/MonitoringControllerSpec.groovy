@@ -1,7 +1,7 @@
 package com.bbh.itss.dso.portal.monitoring
 
-import com.bbh.itss.dso.portal.common.ApiExceptionHandler
-import com.bbh.itss.dso.portal.common.InvalidRequestException
+import com.bbh.itss.dso.portal.adapter.in.web.ApiExceptionHandler
+import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.MonitoringStatus
 import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.Overview
 import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.PipelineMonitoring

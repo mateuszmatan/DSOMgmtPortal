@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.catalog
 
-import com.bbh.itss.dso.portal.common.ValidationProblems
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import jakarta.validation.Validation
 import jakarta.validation.Validator
 import spock.lang.Shared

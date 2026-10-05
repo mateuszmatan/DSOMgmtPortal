@@ -1,7 +1,7 @@
 package com.bbh.itss.dso.portal.pipeline
 
 import com.bbh.itss.dso.portal.catalog.MetricsSettings
-import com.bbh.itss.dso.portal.common.ConflictException
+import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline

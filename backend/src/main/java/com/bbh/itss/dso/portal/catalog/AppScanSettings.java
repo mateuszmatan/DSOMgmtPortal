@@ -1,8 +1,10 @@
 package com.bbh.itss.dso.portal.catalog;
 
-import com.bbh.itss.dso.portal.common.DelimitedListConverter;
-import com.bbh.itss.dso.portal.common.Text;
-import com.bbh.itss.dso.portal.common.ValidationProblems;
+import com.bbh.itss.dso.portal.adapter.out.persistence.DelimitedListConverter;
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import com.bbh.itss.dso.portal.domain.shared.Text;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -75,8 +77,8 @@ public record AppScanSettings(
     public AppScanSettings {
         applicationId = applicationId == null ? null : applicationId.trim().toLowerCase(Locale.ROOT);
         sastScanName = Text.trimToNull(sastScanName);
-        includedDirs = DelimitedListConverter.clean(includedDirs);
-        excludedDirs = DelimitedListConverter.clean(excludedDirs);
+        includedDirs = Text.clean(includedDirs);
+        excludedDirs = Text.clean(excludedDirs);
         compile = !Boolean.FALSE.equals(compile);
         sourceCodeOnly = Boolean.TRUE.equals(sourceCodeOnly);
         useConfigFile = Boolean.TRUE.equals(useConfigFile);

@@ -1,7 +1,7 @@
 package com.bbh.itss.dso.portal.catalog;
 
-import com.bbh.itss.dso.portal.common.DelimitedListConverter;
-import com.bbh.itss.dso.portal.common.Text;
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import com.bbh.itss.dso.portal.domain.shared.Text;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -25,7 +25,7 @@ public record UrbanCodeApplicationSettings(
 
     public UrbanCodeApplicationSettings {
         applicationName = applicationName == null ? null : applicationName.trim();
-        environments = DelimitedListConverter.clean(environments);
+        environments = Text.clean(environments);
         snapshotName = Text.trimToNull(snapshotName);
         components = components == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(components));
     }

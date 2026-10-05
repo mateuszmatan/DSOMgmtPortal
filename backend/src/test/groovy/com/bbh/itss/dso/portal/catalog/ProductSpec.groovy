@@ -1,5 +1,9 @@
 package com.bbh.itss.dso.portal.catalog
 
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool
+import com.bbh.itss.dso.portal.domain.catalog.DeployTarget
+import com.bbh.itss.dso.portal.domain.catalog.Region
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree
 import org.springframework.test.util.ReflectionTestUtils
 import spock.lang.Specification
 
