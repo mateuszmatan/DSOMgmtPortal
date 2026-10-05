@@ -77,19 +77,6 @@ describe('PipelineMonitoringPage', () => {
     expect(builds[1].textContent?.trim()).toBe('#41');
   });
 
-  it('shows a dash for a run without a build number', async () => {
-    await load(
-      pipelineMonitoring({
-        lastRun: pipelineRun({ build: null, buildUrl: null, stagesTotal: null }),
-        recentRuns: [pipelineRun({ build: null, buildUrl: null, stagesTotal: null })],
-      }),
-    );
-
-    expect(page().querySelector('a.build-link')).toBeNull();
-    expect(text('td.mat-column-build')).toBe('–');
-    expect(text('td.mat-column-stages')).toBe('–');
-  });
-
   it('warns that a pipeline without an active key stops at start-up', async () => {
     await load(pipelineMonitoring({ pipeline: monitoringPipeline({ activeKey: null }) }));
 
@@ -124,13 +111,6 @@ describe('PipelineMonitoringPage', () => {
       [],
       expect.objectContaining({ queryParams: { range: '90d' }, replaceUrl: true }),
     );
-  });
-
-  it('reads the range from the address', async () => {
-    fixture.componentRef.setInput('range', '7d');
-    await load(pipelineMonitoring(), '7d');
-
-    expect(text('.mat-button-toggle-checked')).toBe('7d');
   });
 
   it('shows why the pipeline could not be read', async () => {

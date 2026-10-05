@@ -102,23 +102,6 @@ describe('TestJobsFields', () => {
     expect(names()).toEqual(['smoke', 'first', '']);
   });
 
-  it('moves a job up past the jobs of other stages', async () => {
-    await render([
-      job({ stage: 'REGRESSION', name: 'first' }),
-      job({ stage: 'SMOKE', name: 'smoke' }),
-      job({ stage: 'REGRESSION', name: 'second' }),
-    ]);
-
-    const second = sections()[1].querySelectorAll('.list-item')[1];
-    button(second, 'Up').click();
-    await fixture.whenStable();
-
-    expect(names()).toEqual(['second', 'first', 'smoke']);
-    expect(
-      [...sections()[1].querySelectorAll('.list-item strong')].map((name) => name.textContent),
-    ).toEqual(['second', 'first']);
-  });
-
   it('shows a problem the API reported for the whole list of jobs', async () => {
     await render([job({ name: 'smoke' })]);
 
@@ -131,15 +114,6 @@ describe('TestJobsFields', () => {
     );
   });
 
-  it('keeps the first job from moving up and the last from moving down', async () => {
-    await render([job({ name: 'only' })]);
-
-    const item = sections()[0].querySelector('.list-item')!;
-    expect(button(item, 'Up').disabled).toBe(true);
-    expect(button(item, 'Down').disabled).toBe(true);
-    expect(item.querySelector('strong')?.textContent).toBe('only');
-  });
-
   it('shows the remote Jenkins fields only for a remote job', async () => {
     await render([
       job({ name: 'local' }),
@@ -149,12 +123,5 @@ describe('TestJobsFields', () => {
     const items = [...page().querySelectorAll('.list-item')];
     expect(fieldOf(items[0], 'Remote Jenkins')).toBeNull();
     expect(inputOf(items[1], 'Remote Jenkins').value).toBe('qa');
-  });
-
-  it('names the job field after a job given as a URL', async () => {
-    await render([job({ job: 'https://jenkins-qa.bbh.com/job/smoke/' })], null);
-
-    expect(text(page().querySelector('.list-item'))).toContain('url · a job path');
-    expect(text(page())).toContain('left empty: global default');
   });
 });

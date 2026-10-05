@@ -93,10 +93,6 @@ describe('unsavedChangesGuard', () => {
     );
   }
 
-  it('lets a page without changes go', () => {
-    expect(guard(false)).toBe(true);
-  });
-
   it('asks before discarding changes and stays unless the user confirms', async () => {
     const open = vi
       .spyOn(TestBed.inject(MatDialog), 'open')

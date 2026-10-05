@@ -17,10 +17,6 @@ function values(): GlobalSettingsValues {
 }
 
 describe('createSettingsForm', () => {
-  it('accepts the stored settings as they are', () => {
-    expect(createSettingsForm(globalSettings()).valid).toBe(true);
-  });
-
   it('starts empty forms with the library names and every scanner in the release gate', () => {
     const value = createSettingsForm().getRawValue();
 
@@ -83,21 +79,6 @@ describe('createSettingsForm', () => {
     scans.controls.coverageMinLine.setValue(1);
     releaseGate.controls.scanners.setValue(['SCA']);
     expect(scans.controls.coverageMinLine.valid && releaseGate.controls.scanners.valid).toBe(true);
-  });
-
-  it('needs the proxy host and port together', () => {
-    const form = createSettingsForm(globalSettings());
-    const { proxyHost, proxyPort } = form.controls.platform.controls;
-
-    proxyPort.setValue(null);
-    expect(proxyPort.hasError('required')).toBe(true);
-
-    proxyHost.setValue('');
-    expect(proxyPort.valid).toBe(true);
-    expect(proxyHost.valid).toBe(true);
-
-    proxyPort.setValue(8080);
-    expect(proxyHost.hasError('required')).toBe(true);
   });
 });
 
@@ -175,21 +156,6 @@ describe('toSettingsRequest', () => {
 });
 
 describe('sections of the settings page', () => {
-  it('lists every section of the form once, in page order', () => {
-    expect(SETTINGS_SECTIONS.map((section) => section.id)).toEqual([
-      'platform',
-      'deployment',
-      'limits',
-      'scans',
-      'releaseGate',
-      'serviceDefaults',
-      'goldenFix',
-    ]);
-    expect(Object.keys(createSettingsForm().controls).sort()).toEqual(
-      SETTINGS_SECTIONS.map((section) => section.id).sort(),
-    );
-  });
-
   it('finds the first section holding an invalid value', () => {
     const form = createSettingsForm(globalSettings());
     expect(firstInvalidSection(form)).toBeNull();

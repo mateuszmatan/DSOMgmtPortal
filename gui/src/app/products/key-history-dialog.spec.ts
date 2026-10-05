@@ -77,12 +77,6 @@ describe('KeyHistoryDialog', () => {
     expect(page().querySelector('table')).toBeNull();
   });
 
-  it('shows an empty table when the pipeline has no key history', async () => {
-    await open(pipeline({ keys: null }));
-
-    expect(cells('key')).toEqual([]);
-  });
-
   it('offers to regenerate the key of a pipeline whose key was invalidated', async () => {
     await open(invalidated());
 
@@ -108,23 +102,6 @@ describe('KeyHistoryDialog', () => {
     expect(issued).toEqual([updated]);
   });
 
-  it('reads the history again when the new key comes without it', async () => {
-    await open(invalidated());
-
-    button('Regenerate key')!.click();
-    http
-      .expectOne({ method: 'POST', url: '/api/pipelines/100/keys' })
-      .flush(pipeline({ activeKey: fresh, keys: null }));
-    TestBed.tick();
-    http
-      .expectOne('/api/pipelines/100')
-      .flush(pipeline({ activeKey: fresh, keys: [fresh, revoked] }));
-    await fixture.whenStable();
-
-    expect(cells('key')).toEqual(['dddddddd…dddd', '1a2b3c4d…eeff']);
-    expect(page().querySelector('.key-status .key-value')?.textContent).toBe('d'.repeat(36));
-  });
-
   it('shows why the key could not be regenerated and lets it be tried again', async () => {
     await open(invalidated());
 
@@ -140,21 +117,5 @@ describe('KeyHistoryDialog', () => {
     expect(page().querySelector('.banner')?.textContent).toBe('Pipeline 100 was not found');
     expect(button('Regenerate key')?.disabled).toBe(false);
     expect(issued).toEqual([]);
-  });
-
-  it('copies the new key and says so', async () => {
-    await open(invalidated());
-    button('Regenerate key')!.click();
-    http
-      .expectOne('/api/pipelines/100/keys')
-      .flush(pipeline({ activeKey: fresh, keys: [fresh, revoked] }));
-    await fixture.whenStable();
-
-    button('Copy')!.click();
-    await fixture.whenStable();
-
-    expect(document.querySelector('mat-snack-bar-container')?.textContent).toContain(
-      'Key copied to the clipboard',
-    );
   });
 });

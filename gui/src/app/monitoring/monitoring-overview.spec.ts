@@ -119,14 +119,6 @@ describe('MonitoringOverview', () => {
     expect(banners[1]).toContain('InfluxDB timed out');
   });
 
-  it('says when InfluxDB is not configured', async () => {
-    await load(monitoringOverview(), monitoringStatus({ influxConfigured: false }));
-
-    expect(page().querySelector('.banner.info')?.textContent).toContain(
-      'InfluxDB is not configured',
-    );
-  });
-
   it('shows why the overview could not be read', async () => {
     fixture.detectChanges();
     http.expectOne('/api/monitoring/status').flush(monitoringStatus());

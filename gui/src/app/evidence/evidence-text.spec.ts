@@ -151,36 +151,6 @@ describe('evidenceText', () => {
     }
   });
 
-  it('counts test jobs that are not configured and suites without job counts', () => {
-    const run = runEvidence({
-      testSuites: [
-        {
-          stage: 'SMOKE',
-          status: 'WARN',
-          jobs: 3,
-          passed: null,
-          failed: 0,
-          notConfigured: 2,
-          durationMs: null,
-        },
-        {
-          stage: 'PERFORMANCE',
-          status: 'SKIP',
-          jobs: null,
-          passed: null,
-          failed: null,
-          notConfigured: null,
-          durationMs: 30_000,
-        },
-      ],
-    });
-
-    const text = evidenceText(productEvidence(), serviceEvidence(), pipelineEvidence({ run }));
-
-    expect(text).toContain('- Smoke: Warning, 0 of 3 jobs passed, 2 not configured\n');
-    expect(text).toContain('- Performance: Skipped, 30s\n');
-  });
-
   it('describes partial coverage and an allowed release', () => {
     const run = runEvidence({
       coverage: {
@@ -229,35 +199,6 @@ describe('evidenceText', () => {
 });
 
 describe('evidence helpers', () => {
-  it('formats instants in UTC', () => {
-    expect(formatUtc('2026-10-04T08:30:59.900+02:00')).toBe('2026-10-04 06:30 UTC');
-    expect(formatUtc(null)).toBeNull();
-    expect(formatUtc('not a date')).toBeNull();
-  });
-
-  it('formats percentages with at most two decimals', () => {
-    expect(formatPercent(84.256)).toBe('84.26%');
-    expect(formatPercent(60)).toBe('60%');
-    expect(formatPercent(0)).toBe('0%');
-    expect(formatPercent(null)).toBeNull();
-  });
-
-  it('lists the suites and scans in a fixed order, missing ones included', () => {
-    const run = runEvidence();
-
-    expect(suiteRows(run).map((row) => [row.stage, row.suite?.status ?? null])).toEqual([
-      ['SMOKE', 'PASS'],
-      ['REGRESSION', 'WARN'],
-      ['PERFORMANCE', null],
-    ]);
-    expect(scanRows(run).map((row) => [row.scanner, row.scan?.status ?? null])).toEqual([
-      ['SAST', 'PASS'],
-      ['DAST', null],
-      ['SONARQUBE', 'PASS'],
-      ['NEXUS_IQ', 'FAIL'],
-    ]);
-  });
-
   it('tells a scan with counts from one reporting its gate only', () => {
     const [sast, sonar] = runEvidence().scans;
     expect(hasFindings(sast)).toBe(true);

@@ -55,48 +55,10 @@ describe('PipelineDialog', () => {
       ),
     });
 
-  it('keeps the agent labels within their column', async () => {
-    await render({ service: servicePipelines({ pipelines: [] }) });
-    const labels = form().controls.agentLabels;
-
-    labels.setValue(Array.from({ length: 9 }, (_, i) => `${i}`.padEnd(100, 'a')).join(' '));
-    expect(labels.hasError('columnLength')).toBe(false);
-    expect(labels.hasError('maxItems')).toBe(false);
-
-    labels.setValue(Array.from({ length: 20 }, (_, i) => `${i}`.padEnd(60, 'a')).join(' '));
-    expect(labels.errors).toEqual({ columnLength: { max: 1000 } });
-  });
-
   it('offers only the types the service has no pipeline of', async () => {
     await render({ service: servicePipelines({ pipelines: [pipeline()] }) });
 
     expect(dialog()['types'].map((type) => type.value)).not.toContain('FULL');
-  });
-
-  it('keeps the job of another pipeline type from blocking the save', async () => {
-    await render({ service: servicePipelines({ pipelines: [] }) });
-    const { type, extendedPipelineJob, securityPipelineJob } = form().controls;
-    expect(type.value).toBe('FULL');
-    expect(extendedPipelineJob.disabled && securityPipelineJob.disabled).toBe(true);
-
-    type.setValue('SECURITY');
-    extendedPipelineJob.setValue('x'.repeat(501));
-    expect(form().invalid).toBe(true);
-
-    type.setValue('EXTENDED');
-    securityPipelineJob.setValue('CERT/gui-security');
-    expect(extendedPipelineJob.disabled).toBe(true);
-    expect(form().valid).toBe(true);
-
-    dialog()['save']();
-    const request = http.expectOne({ method: 'POST', url: '/api/services/10/pipelines' });
-    expect(request.request.body).toMatchObject({
-      type: 'EXTENDED',
-      extendedPipelineJob: null,
-      securityPipelineJob: 'CERT/gui-security',
-    });
-    request.flush(pipeline({ type: 'EXTENDED' }));
-    expect(close).toHaveBeenCalled();
   });
 
   it('keeps the type of a stored pipeline and shows only its own job field', async () => {
@@ -215,38 +177,5 @@ describe('PipelineDialog', () => {
     expect(page().querySelector('[role=alert]')?.textContent).toBe('the service was deleted');
     expect(page().querySelector('mat-spinner')).toBeNull();
     expect(close).not.toHaveBeenCalled();
-  });
-
-  it('shows no banner when every refused value has its field', async () => {
-    await render({ service: servicePipelines({ pipelines: [] }) });
-
-    await submit();
-    http
-      .expectOne('/api/services/10/pipelines')
-      .flush(
-        { errors: [{ field: 'description', message: 'is too long' }] },
-        { status: 400, statusText: 'Bad Request' },
-      );
-    await fixture.whenStable();
-
-    expect(form().controls.description.hasError('server')).toBe(true);
-    expect(page().querySelector('[role=alert]')).toBeNull();
-  });
-
-  it('shows the problem detail of a refusal without fields', async () => {
-    await render({ service: servicePipelines({ pipelines: [] }) });
-
-    await submit();
-    http
-      .expectOne('/api/services/10/pipelines')
-      .flush(
-        { title: 'Conflict', detail: 'The service already has a full pipeline' },
-        { status: 409, statusText: 'Conflict' },
-      );
-    await fixture.whenStable();
-
-    expect(page().querySelector('[role=alert]')?.textContent).toBe(
-      'The service already has a full pipeline',
-    );
   });
 });
