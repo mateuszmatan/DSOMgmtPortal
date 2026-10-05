@@ -88,3 +88,11 @@ Fields that do not apply are disabled, so they never block a save without showin
 off, the AppScan compile command while compiling is off, the Maven home of a Gradle build, the remote Jenkins fields of
 a test job that runs on this Jenkins, and the job of the other pipeline type in the pipeline dialog. A hidden value is
 kept and sent only while it is valid.
+
+## Values unique within a product
+
+Like the backend, the product editor wants each service name, SonarQube project key and metrics project with its
+environment (the project defaults to `{code}-{name}`) used once within the product, compared without case. The later
+service gets the error, with the backend's message, and it clears as soon as either service changes. A problem the
+API reports for one of these fields stays on the field only until anything in the product changes, so fixing the
+conflict on the other service is enough to save again.

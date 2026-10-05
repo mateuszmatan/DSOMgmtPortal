@@ -33,6 +33,7 @@ import {
 import {
   HOST_NAME,
   HTTP_URL,
+  applyFieldProblems,
   eachItem,
   fitsColumn,
   flag,
@@ -487,7 +488,12 @@ export function createServiceForm(
 
   const form = new FormGroup({
     id: new FormControl<number | null>(s?.id ?? null),
-    name: text(s?.name, Validators.required, Validators.pattern(SERVICE_NAME)),
+    name: text(
+      s?.name,
+      Validators.required,
+      Validators.pattern(SERVICE_NAME),
+      uniqueInProduct(serviceName, SAME_NAME),
+    ),
     description: text(s?.description, max(2000)),
     build: new FormGroup({
       tool: new FormControl<BuildTool>(s?.build?.tool ?? defaults?.buildTool ?? 'GRADLE', {
@@ -564,7 +570,12 @@ export function createServiceForm(
     }),
     sonar: new FormGroup({
       projectName: text(s?.sonar?.projectName, max(200)),
-      projectKey: text(s?.sonar?.projectKey, Validators.pattern(SONAR_KEY), max(400)),
+      projectKey: text(
+        s?.sonar?.projectKey,
+        Validators.pattern(SONAR_KEY),
+        max(400),
+        uniqueInProduct(sonarKey, SAME_SONAR_KEY),
+      ),
       installationName: text(s?.sonar?.installationName, max(200)),
       credentialsId: text(s?.sonar?.credentialsId, max(200)),
       authTokenCredentialsId: text(s?.sonar?.authTokenCredentialsId, max(200)),
@@ -608,7 +619,12 @@ export function createServiceForm(
     goldenFix: createServiceGoldenFixForm(s?.goldenFix),
     metrics: new FormGroup({
       enabled: flag(s?.metrics?.enabled, true),
-      influxProject: text(s?.metrics?.influxProject, Validators.pattern(METRICS_TAG), max(200)),
+      influxProject: text(
+        s?.metrics?.influxProject,
+        Validators.pattern(METRICS_TAG),
+        max(200),
+        uniqueInProduct(metricsTag, SAME_METRICS_TAG),
+      ),
       influxEnv: text(s?.metrics?.influxEnv ?? 'test', Validators.pattern(METRICS_TAG), max(50)),
     }),
     flutter: new FormGroup({
@@ -765,6 +781,70 @@ function kept(control: FormControl<string>): string | null {
   return passesValidators(control) ? optional(control.value) : null;
 }
 
+export const SAME_NAME = 'another service of this product already uses this name';
+export const SAME_SONAR_KEY = 'another service of this product uses this key';
+export const SAME_METRICS_TAG =
+  'another service of this product writes metrics under the same project and environment';
+export const PRODUCT_WIDE_FIELD =
+  /^services\[\d+]\.(name|sonar\.projectKey|metrics\.influxProject)$/;
+
+type ServiceKey = (service: AbstractControl, code: string) => string | null;
+
+const valueAt = (service: AbstractControl, path: string) =>
+  String(service.get(path)?.value ?? '').trim();
+
+const serviceName: ServiceKey = (service) => valueAt(service, 'name').toLowerCase() || null;
+
+const sonarKey: ServiceKey = (service) =>
+  valueAt(service, 'sonar.projectKey').toLowerCase() || null;
+
+const metricsTag: ServiceKey = (service, code) => {
+  const project =
+    valueAt(service, 'metrics.influxProject') || `${code.trim()}-${valueAt(service, 'name')}`;
+  const env = valueAt(service, 'metrics.influxEnv') || 'test';
+  return `${project}|${env}`.toLowerCase();
+};
+
+function uniqueInProduct(key: ServiceKey, message: string): ValidatorFn {
+  return (control) => {
+    const service = serviceAround(control);
+    const services = service?.parent;
+    if (!service || !(services instanceof FormArray)) {
+      return null;
+    }
+    const code = String(services.parent?.get('code')?.value ?? '');
+    const own = key(service, code);
+    const earlier = services.controls.slice(0, services.controls.indexOf(service));
+    return own !== null && earlier.some((other) => key(other, code) === own)
+      ? { rule: message }
+      : null;
+  };
+}
+
+function serviceAround(control: AbstractControl): AbstractControl | null {
+  let current = control.parent;
+  while (current?.parent && !(current.parent instanceof FormArray)) {
+    current = current.parent;
+  }
+  return current?.parent instanceof FormArray ? current : null;
+}
+
+function revalidateUniqueValues(form: ProductForm): void {
+  form.controls.services.controls.forEach((service) =>
+    [
+      service.controls.name,
+      service.controls.sonar.controls.projectKey,
+      service.controls.metrics.controls.influxProject,
+    ].forEach((control) => control.updateValueAndValidity({ emitEvent: false })),
+  );
+}
+
+export function applyProductProblems(form: ProductForm, problems: FieldProblem[]): FieldProblem[] {
+  return applyFieldProblems(form, problems, (field) =>
+    PRODUCT_WIDE_FIELD.test(field) ? form : null,
+  );
+}
+
 export function createProductForm() {
   const form = new FormGroup({
     code: text('', Validators.required, Validators.pattern(PRODUCT_CODE)),
@@ -779,6 +859,7 @@ export function createProductForm() {
     services: new FormArray<ServiceForm>([]),
   });
   upperCaseAsTyped(form.controls.code);
+  form.valueChanges.subscribe(() => revalidateUniqueValues(form));
   return form;
 }
 

@@ -32,7 +32,7 @@ import { revalidateAll } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import {
   ServiceForm,
-  applyFieldProblems,
+  applyProductProblems,
   createProductForm,
   createServiceForm,
   duplicateService,
@@ -258,7 +258,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       this.saveError.set(errorMessage(error));
       return;
     }
-    this.unmatchedProblems.set(applyFieldProblems(this.form, problems));
+    this.unmatchedProblems.set(applyProductProblems(this.form, problems));
     this.saveError.set('The portal did not accept some values. They are marked below.');
     this.revealProblem(firstServiceWithProblem(problems));
   }

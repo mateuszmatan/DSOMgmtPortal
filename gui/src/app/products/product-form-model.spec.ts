@@ -1,9 +1,15 @@
 import { FormGroup } from '@angular/forms';
+import { revalidateAll } from '../shared/form-controls';
 import { ServiceDefaults } from '../core/models';
-import { command, product, service } from '../testing/fixtures';
+import { anotherService, command, product, service } from '../testing/fixtures';
 import {
   NO_COMMAND,
   OPENSHIFT_RD_REQUIRED,
+  PRODUCT_WIDE_FIELD,
+  SAME_METRICS_TAG,
+  SAME_NAME,
+  SAME_SONAR_KEY,
+  applyProductProblems,
   REMOTE_JENKINS_MESSAGE,
   SERVICE_SECTIONS,
   applyFieldProblems,
@@ -883,6 +889,92 @@ describe('toServiceRequest', () => {
   });
 });
 
+describe('values unique within a product', () => {
+  function twoServices() {
+    const form = createProductForm();
+    patchProduct(form, product({ services: [service(), anotherService({ name: 'api' })] }));
+    return { form, first: form.controls.services.at(0), second: form.controls.services.at(1) };
+  }
+
+  it('flags a name another service already uses on the later service only', () => {
+    const { form, first, second } = twoServices();
+    first.controls.metrics.controls.influxProject.setValue('');
+    expect(form.valid).toBe(true);
+
+    second.controls.name.setValue('gui');
+
+    expect(second.controls.name.errors).toEqual({ rule: SAME_NAME });
+    expect(second.controls.metrics.controls.influxProject.errors).toEqual({
+      rule: SAME_METRICS_TAG,
+    });
+    expect(first.controls.name.valid).toBe(true);
+
+    first.controls.name.setValue('web');
+
+    expect(second.controls.name.valid).toBe(true);
+    expect(second.controls.metrics.controls.influxProject.valid).toBe(true);
+    expect(form.valid).toBe(true);
+  });
+
+  it('flags a SonarQube key another service already uses, ignoring case', () => {
+    const { first, second } = twoServices();
+
+    second.controls.sonar.controls.projectKey.setValue(
+      first.controls.sonar.controls.projectKey.value.toUpperCase(),
+    );
+    expect(second.controls.sonar.controls.projectKey.errors).toEqual({ rule: SAME_SONAR_KEY });
+
+    first.controls.sonar.controls.projectKey.setValue('');
+    expect(second.controls.sonar.controls.projectKey.valid).toBe(true);
+  });
+
+  it('compares the metrics project, defaulting to code-name, together with the environment', () => {
+    const { form, first, second } = twoServices();
+    first.controls.metrics.controls.influxProject.setValue('');
+    const project = second.controls.metrics.controls.influxProject;
+
+    project.setValue('cert-gui');
+    expect(project.errors).toEqual({ rule: SAME_METRICS_TAG });
+
+    second.controls.metrics.controls.influxEnv.setValue('prod');
+    expect(project.valid).toBe(true);
+
+    second.controls.metrics.controls.influxEnv.setValue('');
+    expect(project.hasError('rule')).toBe(true);
+
+    form.controls.code.setValue('PAY');
+    expect(project.valid).toBe(true);
+  });
+
+  it('clears a product-wide problem of the API once anything in the product changes', () => {
+    const { form, first, second } = twoServices();
+
+    const unmatched = applyProductProblems(form, [
+      { field: 'services[1].name', message: SAME_NAME },
+      { field: 'services[1].build.javaPath', message: 'is not a JDK' },
+      { field: 'appScanAccount', message: 'is unknown' },
+    ]);
+
+    expect(unmatched).toEqual([{ field: 'appScanAccount', message: 'is unknown' }]);
+    expect(second.controls.name.errors).toEqual({ server: SAME_NAME });
+    expect(second.controls.build.controls.javaPath.errors).toEqual({ server: 'is not a JDK' });
+
+    first.controls.name.setValue('web');
+    revalidateAll(form);
+
+    expect(second.controls.name.valid).toBe(true);
+    expect(second.controls.build.controls.javaPath.errors).toEqual({ server: 'is not a JDK' });
+    expect(PRODUCT_WIDE_FIELD.test('services[3].metrics.influxProject')).toBe(true);
+    expect(PRODUCT_WIDE_FIELD.test('services[3].metrics.influxEnv')).toBe(false);
+  });
+
+  it('checks nothing for a service outside a product', () => {
+    const form = createServiceForm(service());
+    form.controls.name.setValue('gui');
+    expect(form.controls.name.valid).toBe(true);
+  });
+});
+
 describe('product form', () => {
   it('upper-cases the product code as it is typed', () => {
     const form = createProductForm();
@@ -898,10 +990,7 @@ describe('product form', () => {
 
   it('round-trips a stored product into the request the API takes', () => {
     const form = createProductForm();
-    patchProduct(
-      form,
-      product({ services: [service(), service({ id: 11, name: 'backend-api' })] }),
-    );
+    patchProduct(form, product({ services: [service(), anotherService({ name: 'backend-api' })] }));
 
     const request = toProductRequest(form, 3);
 
@@ -921,7 +1010,7 @@ describe('product form', () => {
 
   it('replaces the services of an earlier product when patched again', () => {
     const form = createProductForm();
-    patchProduct(form, product({ services: [service(), service({ id: 11, name: 'api' })] }));
+    patchProduct(form, product({ services: [service(), anotherService({ name: 'api' })] }));
     patchProduct(
       form,
       product({ description: null, services: [service({ id: 12, name: 'worker' })] }),
@@ -949,7 +1038,7 @@ describe('product form', () => {
 describe('field problems reported by the API', () => {
   function formWithServices() {
     const form = createProductForm();
-    patchProduct(form, product({ services: [service(), service({ id: 11, name: 'api' })] }));
+    patchProduct(form, product({ services: [service(), anotherService({ name: 'api' })] }));
     return form;
   }
 

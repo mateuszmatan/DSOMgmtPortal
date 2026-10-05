@@ -194,6 +194,17 @@ export function service(overrides: Partial<Service> = {}): Service {
   };
 }
 
+export function anotherService(overrides: Partial<Service> = {}): Service {
+  const stored = service();
+  return service({
+    id: 11,
+    name: 'api',
+    sonar: { ...stored.sonar, projectKey: 'cert-api' },
+    metrics: { ...stored.metrics, influxProject: null },
+    ...overrides,
+  });
+}
+
 export function product(overrides: Partial<Product> = {}): Product {
   return {
     id: 1,
