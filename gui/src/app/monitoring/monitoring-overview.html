@@ -16,9 +16,9 @@
     [metricsError]="overview.hasValue() ? overview.value().metricsError : null"
   />
 
-  <div class="tiles">
+  <div class="stats">
     @for (tile of tiles(); track tile.label) {
-      <div class="tile" [class]="tile.tone">
+      <div class="stat" [class]="tile.tone">
         <strong>{{ tile.value }}</strong
         ><span>{{ tile.label }}</span>
       </div>

@@ -20,22 +20,18 @@
   </nav>
 
   <div class="pane">
+    <header class="pane-header">
+      <h3>{{ pane().label }}</h3>
+      <p [innerHTML]="pane().note"></p>
+    </header>
     @switch (current()) {
       @case ('general') {
-        <header class="pane-header">
-          <h3>General</h3>
-          <p>The service's entry under <code>projects:</code> in config.yaml.</p>
-        </header>
         <div class="form-fields">
           <dso-fields [group]="f" [fields]="general" />
         </div>
       }
 
       @case ('build') {
-        <header class="pane-header">
-          <h3>Build</h3>
-          <p>How the service is built, and where the build stage leaves its artifact.</p>
-        </header>
         <div class="form-fields">
           <dso-fields [group]="f.controls.build" [fields]="buildFields()" />
           @if (flutter()) {
@@ -58,15 +54,6 @@
       }
 
       @case ('unitTests') {
-        <header class="pane-header">
-          <h3>Unit tests and coverage</h3>
-          <p>
-            The unit tests stage, skipped without a command, and where its coverage report is.
-            @if (defaults(); as d) {
-              BBH policy requires {{ d.scans.coverageMinLine }}% line coverage.
-            }
-          </p>
-        </header>
         <div class="form-fields">
           @if (!flutter()) {
             <h4 class="sub-heading span-12">Test command</h4>
@@ -84,29 +71,10 @@
       }
 
       @case ('testJobs') {
-        <header class="pane-header">
-          <h3>Test jobs</h3>
-          <p>
-            The Jenkins jobs the smoke, regression and performance stages start and wait for,
-            written to <code>tests.smoke</code>, <code>tests.regression</code> and
-            <code>tests.performance</code>.
-          </p>
-        </header>
         <dso-test-jobs-fields [form]="f" [defaults]="defaults()" />
       }
 
       @case ('deployment') {
-        <header class="pane-header">
-          <h3>Deployment</h3>
-          <p>
-            Where the service is deployed.
-            {{
-              isVm()
-                ? 'Its environments are set under UrbanCode Deploy and SSH targets.'
-                : 'Its environments are set under OpenShift targets.'
-            }}
-          </p>
-        </header>
         <div class="form-fields">
           <mat-button-toggle-group
             class="span-12"
@@ -136,24 +104,10 @@
       }
 
       @case ('urbanCode') {
-        <header class="pane-header">
-          <h3>UrbanCode Deploy</h3>
-          <p>
-            How the full pipeline deploys the service to the lower test region with UrbanCode Deploy
-            (<code>deploy.vm.dod</code>).
-          </p>
-        </header>
         <dso-urban-code-fields [form]="f" [defaults]="defaults()" />
       }
 
       @case ('ssh') {
-        <header class="pane-header">
-          <h3>SSH targets</h3>
-          <p>
-            The virtual machines the service is deployed to over SSH. A blank value takes the global
-            deployment default; a region without values is not written.
-          </p>
-        </header>
         @for (region of regions; track region) {
           <div class="form-fields block">
             <h4 class="sub-heading span-12">
@@ -168,24 +122,10 @@
       }
 
       @case ('openShift') {
-        <header class="pane-header">
-          <h3>OpenShift targets</h3>
-          <p>
-            The OpenShift projects the service is built and deployed in; a region without values is
-            not written.
-          </p>
-        </header>
         <dso-openshift-target-fields [form]="f" />
       }
 
       @case ('appScan') {
-        <header class="pane-header">
-          <h3>AppScan SAST and DAST</h3>
-          <p>
-            The HCL AppScan application: SAST of the sources and, when enabled, DAST of the deployed
-            application. The API key is the product's.
-          </p>
-        </header>
         @let scan = f.controls.appScan;
         <div class="form-fields">
           <dso-fields [group]="scan" [fields]="appScan" />
@@ -212,13 +152,6 @@
       }
 
       @case ('sonar') {
-        <header class="pane-header">
-          <h3>SonarQube</h3>
-          <p>
-            The SonarQube project (<code>tools.sonar</code>). Without a project key the scan is
-            skipped.
-          </p>
-        </header>
         <div class="form-fields">
           <dso-fields [group]="f.controls.sonar" [fields]="sonarFields()" />
           @if (!flutter()) {
@@ -235,26 +168,12 @@
       }
 
       @case ('nexusIq') {
-        <header class="pane-header">
-          <h3>Nexus IQ</h3>
-          <p>
-            The dependency scan of the built artifacts (<code>tools.nexusIq</code>). The server and
-            its credentials are global settings.
-          </p>
-        </header>
         <div class="form-fields">
           <dso-fields [group]="f.controls.nexusIq" [fields]="nexusIq" />
         </div>
       }
 
       @case ('scm') {
-        <header class="pane-header">
-          <h3>Bitbucket</h3>
-          <p>
-            The repository GoldenFix raises dependency upgrade pull requests against
-            (<code>scm.bitbucket</code>). Without one GoldenFix lists its fixes in the report only.
-          </p>
-        </header>
         <div class="form-fields">
           <dso-fields [group]="f.controls.scm" [fields]="scm" />
           <h4 class="sub-heading span-12">Repository for GoldenFix pull requests</h4>
@@ -264,13 +183,6 @@
       }
 
       @case ('goldenFix') {
-        <header class="pane-header">
-          <h3>GoldenFix</h3>
-          <p>
-            Dependency upgrade pull requests for the vulnerable components Nexus IQ finds
-            (<code>goldenFix</code>).
-          </p>
-        </header>
         <div class="form-fields">
           <dso-fields [group]="f.controls.goldenFix" [fields]="goldenFixField()" />
           <mat-button-toggle-group
@@ -293,23 +205,12 @@
       }
 
       @case ('metrics') {
-        <header class="pane-header">
-          <h3>DORA metrics</h3>
-          <p>The InfluxDB tags the pipelines write under; monitoring reads them back.</p>
-        </header>
         <div class="form-fields">
           <dso-fields [group]="f.controls.metrics" [fields]="metricsFields()" />
         </div>
       }
 
       @case ('flutter') {
-        <header class="pane-header">
-          <h3>Flutter</h3>
-          <p>
-            What a Flutter build needs besides the common settings; written only for Flutter
-            services.
-          </p>
-        </header>
         @let flutterGroup = f.controls.flutter;
         <div class="form-fields">
           <dso-fields [group]="flutterGroup" [fields]="flutterPlatformField()" />

@@ -23,7 +23,7 @@ describe('MonitoringOverview', () => {
 
   const page = () => fixture.nativeElement as HTMLElement;
   const cards = () => [...page().querySelectorAll<HTMLAnchorElement>('a.product')];
-  const tiles = () => [...page().querySelectorAll('.tile')].map((tile) => tile.textContent?.trim());
+  const tiles = () => [...page().querySelectorAll('.stat')].map((tile) => tile.textContent?.trim());
 
   async function load(
     overview: Overview = monitoringOverview(),

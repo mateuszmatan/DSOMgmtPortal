@@ -997,51 +997,34 @@ export interface ServiceSection {
   applies?: (tool: BuildTool, target: DeployTarget) => boolean;
 }
 
+const onVm: ServiceSection['applies'] = (_, target) => target === 'VM';
+const onOpenShift: ServiceSection['applies'] = (_, target) => target === 'OPENSHIFT';
+const onFlutter: ServiceSection['applies'] = (tool) => tool === 'FLUTTER';
+
+const section = (
+  id: ServiceSectionId,
+  label: string,
+  icon: string,
+  keys: ServiceControlKey[],
+  applies?: ServiceSection['applies'],
+): ServiceSection => ({ id, label, icon, keys, ...(applies ? { applies } : {}) });
+
 export const SERVICE_SECTIONS: ServiceSection[] = [
-  { id: 'general', label: 'General', icon: 'badge', keys: ['name', 'description'] },
-  { id: 'build', label: 'Build', icon: 'build', keys: ['build'] },
-  { id: 'unitTests', label: 'Unit tests and coverage', icon: 'fact_check', keys: ['unitTests'] },
-  { id: 'testJobs', label: 'Test jobs', icon: 'science', keys: ['tests', 'testJobs'] },
-  {
-    id: 'deployment',
-    label: 'Deployment',
-    icon: 'rocket_launch',
-    keys: ['deployment', 'delivery'],
-  },
-  {
-    id: 'urbanCode',
-    label: 'UrbanCode Deploy',
-    icon: 'hub',
-    keys: ['urbanCode', 'urbanCodeApplications'],
-    applies: (_, target) => target === 'VM',
-  },
-  {
-    id: 'ssh',
-    label: 'SSH targets',
-    icon: 'dns',
-    keys: ['sshTargets'],
-    applies: (_, target) => target === 'VM',
-  },
-  {
-    id: 'openShift',
-    label: 'OpenShift targets',
-    icon: 'cloud',
-    keys: ['openShiftTargets'],
-    applies: (_, target) => target === 'OPENSHIFT',
-  },
-  { id: 'appScan', label: 'AppScan SAST and DAST', icon: 'security', keys: ['appScan'] },
-  { id: 'sonar', label: 'SonarQube', icon: 'analytics', keys: ['sonar'] },
-  { id: 'nexusIq', label: 'Nexus IQ', icon: 'inventory', keys: ['nexusIq'] },
-  { id: 'scm', label: 'Bitbucket', icon: 'merge', keys: ['scm'] },
-  { id: 'goldenFix', label: 'GoldenFix', icon: 'auto_fix_high', keys: ['goldenFix'] },
-  { id: 'metrics', label: 'DORA metrics', icon: 'insights', keys: ['metrics'] },
-  {
-    id: 'flutter',
-    label: 'Flutter',
-    icon: 'phone_iphone',
-    keys: ['flutter'],
-    applies: (tool) => tool === 'FLUTTER',
-  },
+  section('general', 'General', 'badge', ['name', 'description']),
+  section('build', 'Build', 'build', ['build']),
+  section('unitTests', 'Unit tests and coverage', 'fact_check', ['unitTests']),
+  section('testJobs', 'Test jobs', 'science', ['tests', 'testJobs']),
+  section('deployment', 'Deployment', 'rocket_launch', ['deployment', 'delivery']),
+  section('urbanCode', 'UrbanCode Deploy', 'hub', ['urbanCode', 'urbanCodeApplications'], onVm),
+  section('ssh', 'SSH targets', 'dns', ['sshTargets'], onVm),
+  section('openShift', 'OpenShift targets', 'cloud', ['openShiftTargets'], onOpenShift),
+  section('appScan', 'AppScan SAST and DAST', 'security', ['appScan']),
+  section('sonar', 'SonarQube', 'analytics', ['sonar']),
+  section('nexusIq', 'Nexus IQ', 'inventory', ['nexusIq']),
+  section('scm', 'Bitbucket', 'merge', ['scm']),
+  section('goldenFix', 'GoldenFix', 'auto_fix_high', ['goldenFix']),
+  section('metrics', 'DORA metrics', 'insights', ['metrics']),
+  section('flutter', 'Flutter', 'phone_iphone', ['flutter'], onFlutter),
 ];
 
 export function visibleSections(form: ServiceForm): ServiceSection[] {

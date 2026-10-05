@@ -9,6 +9,7 @@ import {
   GRADLE_MAVEN_FLUTTER,
   area,
   check,
+  chips,
   choice,
   count,
   fallback,
@@ -33,6 +34,31 @@ import { UrbanCodeFields } from './urban-code-fields';
 const REGION_NAMES: Record<Region, string> = {
   RD: 'RD, the lower test region',
   QC: 'QC, the higher test region',
+};
+
+const NOTES: Record<ServiceSectionId, string> = {
+  general: "The service's entry under `projects:` in config.yaml.",
+  build: 'How the service is built, and where the build stage leaves its artifact.',
+  unitTests: 'The unit tests stage, skipped without a command, and where its coverage report is.',
+  testJobs:
+    'The Jenkins jobs the smoke, regression and performance stages start and wait for, written to `tests.smoke`, `tests.regression` and `tests.performance`.',
+  deployment: 'Where the service is deployed.',
+  urbanCode:
+    'How the full pipeline deploys the service to the lower test region with UrbanCode Deploy (`deploy.vm.dod`).',
+  ssh: 'The virtual machines the service is deployed to over SSH. A blank value takes the global deployment default; a region without values is not written.',
+  openShift:
+    'The OpenShift projects the service is built and deployed in; a region without values is not written.',
+  appScan:
+    "The HCL AppScan application: SAST of the sources and, when enabled, DAST of the deployed application. The API key is the product's.",
+  sonar: 'The SonarQube project (`tools.sonar`). Without a project key the scan is skipped.',
+  nexusIq:
+    'The dependency scan of the built artifacts (`tools.nexusIq`). The server and its credentials are global settings.',
+  scm: 'The repository GoldenFix raises dependency upgrade pull requests against (`scm.bitbucket`). Without one GoldenFix lists its fixes in the report only.',
+  goldenFix:
+    'Dependency upgrade pull requests for the vulnerable components Nexus IQ finds (`goldenFix`).',
+  metrics: 'The InfluxDB tags the pipelines write under; monitoring reads them back.',
+  flutter:
+    'What a Flutter build needs besides the common settings; written only for Flutter services.',
 };
 
 const GENERAL: Field[] = [
@@ -280,6 +306,19 @@ export class ServiceFields {
   protected current(): ServiceSectionId {
     const id = this.selected();
     return visibleSections(this.form()).some((section) => section.id === id) ? id : 'general';
+  }
+
+  protected pane(): { label: string; note: string } {
+    const id = this.current();
+    const section = this.sections().find((candidate) => candidate.id === id);
+    const coverage = this.defaults()?.scans.coverageMinLine;
+    const extra: Partial<Record<ServiceSectionId, string>> = {
+      unitTests: coverage === undefined ? '' : ` BBH policy requires ${coverage}% line coverage.`,
+      deployment: this.isVm()
+        ? ' Its environments are set under UrbanCode Deploy and SSH targets.'
+        : ' Its environments are set under OpenShift targets.',
+    };
+    return { label: section?.label ?? '', note: chips(NOTES[id] + (extra[id] ?? '')) };
   }
 
   protected select(id: ServiceSectionId): void {

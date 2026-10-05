@@ -71,12 +71,13 @@ export class ProductDetail {
     }
     const pipelines = this.services.value().flatMap((service) => service.pipelines);
     const active = pipelines.filter((pipeline) => pipeline.activeKey !== null).length;
-    return {
-      services: this.services.value().length,
-      pipelines: pipelines.length,
-      active,
-      invalidated: pipelines.length - active,
-    };
+    const invalidated = pipelines.length - active;
+    return [
+      { label: 'Services', value: this.services.value().length, tone: '' },
+      { label: 'Pipelines', value: pipelines.length, tone: '' },
+      { label: 'Active keys', value: active, tone: 'success' },
+      { label: 'Invalidated keys', value: invalidated, tone: invalidated ? 'danger' : '' },
+    ];
   });
 
   private readonly repositories = computed(
@@ -272,7 +273,9 @@ export class ProductDetail {
   }
 
   protected deleteProduct(product: Product): void {
-    const pipelines = this.stats()?.pipelines ?? 0;
+    const pipelines = this.services.hasValue()
+      ? this.services.value().flatMap((service) => service.pipelines).length
+      : 0;
     this.confirm({
       title: `Delete ${product.name}?`,
       message:
