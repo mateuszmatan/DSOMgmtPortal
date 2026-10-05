@@ -11,7 +11,6 @@ import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import org.springframework.http.MediaType
 import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import spock.lang.Specification
 
 import java.time.Instant
@@ -29,9 +28,7 @@ class GlobalSettingsControllerSpec extends Specification {
     ManageGlobalSettingsUseCase settings = Mock() {
         current() >> current
     }
-    MockMvc mvc = MockMvcBuilders.standaloneSetup(new GlobalSettingsController(settings))
-            .setControllerAdvice(new ApiExceptionHandler())
-            .build()
+    MockMvc mvc = WebMvc.of(new GlobalSettingsController(settings))
 
     def "the settings are read with their version"() {
         when:

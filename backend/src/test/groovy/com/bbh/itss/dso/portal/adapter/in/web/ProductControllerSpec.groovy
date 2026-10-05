@@ -26,7 +26,6 @@ import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import spock.lang.Specification
 
 import java.time.Instant
@@ -53,9 +52,7 @@ class ProductControllerSpec extends Specification {
 
     QueryProductsUseCase queries = Mock()
     ManageProductsUseCase products = Mock()
-    MockMvc mvc = MockMvcBuilders.standaloneSetup(new ProductController(queries, products))
-            .setControllerAdvice(new ApiExceptionHandler())
-            .build()
+    MockMvc mvc = WebMvc.of(new ProductController(queries, products))
 
     def "lists the products matching the search"() {
         given:

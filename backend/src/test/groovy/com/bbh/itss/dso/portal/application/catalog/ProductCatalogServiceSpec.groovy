@@ -1,7 +1,6 @@
 package com.bbh.itss.dso.portal.application.catalog
 
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductCommand
-import com.bbh.itss.dso.portal.application.catalog.port.in.ServiceCommand
 import com.bbh.itss.dso.portal.application.catalog.port.out.PipelineCountsPort
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductSummary
@@ -10,6 +9,7 @@ import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelinesUseCa
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.ProductDirectory
 import com.bbh.itss.dso.portal.domain.catalog.Service
+import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
 import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
 import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
@@ -304,14 +304,14 @@ class ProductCatalogServiceSpec extends Specification {
         new ProductSummary(id, code, name, description, ownerTeam, CHANGED)
     }
 
-    private static ServiceCommand service(Map args) {
-        new ServiceCommand(args.id as Long, args.name as String, args.description as String,
+    private static ServiceDraft service(Map args) {
+        new ServiceDraft(args.id as Long, args.name as String, args.description as String,
                 args.settings ?: settings())
     }
 
     private static ProductCommand command(Map args = [:]) {
         new ProductCommand(args.version as Long, details(args), account(),
-                args.services as List<ServiceCommand> ?: [service(name: 'gui')])
+                args.services as List<ServiceDraft> ?: [service(name: 'gui')])
     }
 
     private static Product stored(long id, Product product, List<Long> serviceIds = []) {

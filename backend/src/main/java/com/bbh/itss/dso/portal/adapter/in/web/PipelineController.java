@@ -3,6 +3,10 @@ package com.bbh.itss.dso.portal.adapter.in.web;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelineKeysUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelinesUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.QueryPipelinesUseCase;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.ServicePipelinesView;
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
+import com.bbh.itss.dso.portal.domain.catalog.DeployTarget;
+import com.bbh.itss.dso.portal.domain.catalog.Service;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -34,7 +38,7 @@ public class PipelineController {
 
     @GetMapping("/products/{productId}/pipelines")
     public List<ServicePipelinesResponse> listForProduct(@PathVariable long productId) {
-        return queries.listForProduct(productId).stream().map(ServicePipelinesResponse::from).toList();
+        return queries.listForProduct(productId).stream().map(ServicePipelinesResponse::of).toList();
     }
 
     @PostMapping("/services/{serviceId}/pipelines")
@@ -67,5 +71,16 @@ public class PipelineController {
     @PostMapping("/pipelines/{id}/keys")
     public PipelineResponse issueKey(@PathVariable long id) {
         return PipelineResponse.withKeys(keys.issueKey(id));
+    }
+
+    public record ServicePipelinesResponse(Long serviceId, String serviceName, String description, BuildTool buildTool,
+                                           DeployTarget deployTarget, List<PipelineResponse> pipelines) {
+
+        static ServicePipelinesResponse of(ServicePipelinesView view) {
+            Service service = view.service();
+            return new ServicePipelinesResponse(service.id(), service.name(), service.description(),
+                    service.settings().build().tool(), service.settings().deployment().target(),
+                    view.pipelines().stream().map(PipelineResponse::summary).toList());
+        }
     }
 }

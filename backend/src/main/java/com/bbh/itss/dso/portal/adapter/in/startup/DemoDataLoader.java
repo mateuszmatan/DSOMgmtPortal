@@ -3,7 +3,6 @@ package com.bbh.itss.dso.portal.adapter.in.startup;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ManageProductsUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductCommand;
 import com.bbh.itss.dso.portal.application.catalog.port.in.QueryProductsUseCase;
-import com.bbh.itss.dso.portal.application.catalog.port.in.ServiceCommand;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelineKeysUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelinesUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineCommand;
@@ -28,6 +27,7 @@ import com.bbh.itss.dso.portal.domain.catalog.ProductDetails;
 import com.bbh.itss.dso.portal.domain.catalog.Region;
 import com.bbh.itss.dso.portal.domain.catalog.ScmSettings;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
+import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft;
 import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings;
 import com.bbh.itss.dso.portal.domain.catalog.SonarSettings;
 import com.bbh.itss.dso.portal.domain.catalog.SshTarget;
@@ -129,10 +129,10 @@ public class DemoDataLoader implements ApplicationRunner {
         log.info("Created demo data: {} and {}", certScanner.name(), payments.name());
     }
 
-    private static ServiceCommand gradleVm(String name, String description, String appScanId, String sonarKey,
+    private static ServiceDraft gradleVm(String name, String description, String appScanId, String sonarKey,
                                            String bitbucketProject, String repo, String deployDir, boolean dast) {
         String title = sonarKey.toUpperCase();
-        return new ServiceCommand(null, name, description, new ServiceSettings(
+        return new ServiceDraft(null, name, description, new ServiceSettings(
                 new BuildSettings(BuildTool.GRADLE, ".", JDK_17, false, "build/libs/*.jar",
                         ToolCommand.of(List.of("clean", "build", "bootJar"), List.of("--refresh-dependencies"))),
                 new UnitTestSettings(ToolCommand.of(List.of("test", "jacocoTestReport"), List.of()),
@@ -156,11 +156,11 @@ public class DemoDataLoader implements ApplicationRunner {
                 null));
     }
 
-    private static ServiceCommand mavenOpenShift(String name, String description, String appScanId, String sonarKey,
+    private static ServiceDraft mavenOpenShift(String name, String description, String appScanId, String sonarKey,
                                                  String bitbucketProject, String repo, String namespace) {
         String title = sonarKey.toUpperCase();
         String image = "docker-qc.tools.bbh.com/" + namespace + "/" + name;
-        return new ServiceCommand(null, name, description, new ServiceSettings(
+        return new ServiceDraft(null, name, description, new ServiceSettings(
                 new BuildSettings(BuildTool.MAVEN, ".", JDK_17, false, "target/*.jar",
                         new ToolCommand(List.of("clean", "verify"), List.of("-B", "-U"), null, null,
                                 List.of("MAVEN_OPTS=-Xms512m -Xmx1g"))),
@@ -187,9 +187,9 @@ public class DemoDataLoader implements ApplicationRunner {
                 null));
     }
 
-    private static ServiceCommand flutter(String name, String description, String appScanId, String bitbucketProject,
+    private static ServiceDraft flutter(String name, String description, String appScanId, String bitbucketProject,
                                           String repo) {
-        return new ServiceCommand(null, name, description, new ServiceSettings(
+        return new ServiceDraft(null, name, description, new ServiceSettings(
                 new BuildSettings(BuildTool.FLUTTER, ".", JDK_17, false, null, null),
                 null, null, List.of(),
                 new DeploymentSettings(DeployTarget.VM, null, null, null),

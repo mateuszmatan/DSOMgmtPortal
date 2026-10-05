@@ -60,7 +60,7 @@ public class ProductCatalogService implements ManageProductsUseCase, QueryProduc
     @Override
     public Product create(ProductCommand command) {
         publisher.lockConfigurations();
-        Product saved = saved(Product.create(command.details(), command.appScan(), command.drafts(), products));
+        Product saved = saved(Product.create(command.details(), command.appScan(), command.services(), products));
         return withPipelinesForNewServices(saved, Collections.emptySet());
     }
 
@@ -69,7 +69,7 @@ public class ProductCatalogService implements ManageProductsUseCase, QueryProduc
         publisher.lockConfigurations();
         Product product = find(id);
         Set<Long> known = new HashSet<>(serviceIds(product));
-        product.update(command.version(), command.details(), command.appScan(), command.drafts(), products);
+        product.update(command.version(), command.details(), command.appScan(), command.services(), products);
         return withPipelinesForNewServices(saved(product), known);
     }
 

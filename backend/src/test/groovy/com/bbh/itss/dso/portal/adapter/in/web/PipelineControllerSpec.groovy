@@ -10,7 +10,6 @@ import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.support.ApiJson.parse
@@ -29,9 +28,7 @@ class PipelineControllerSpec extends Specification {
     QueryPipelinesUseCase queries = Mock()
     ManagePipelinesUseCase pipelines = Mock()
     ManagePipelineKeysUseCase keys = Mock()
-    MockMvc mvc = MockMvcBuilders.standaloneSetup(new PipelineController(queries, pipelines, keys))
-            .setControllerAdvice(new ApiExceptionHandler())
-            .build()
+    MockMvc mvc = WebMvc.of(new PipelineController(queries, pipelines, keys))
 
     def certScanner = product(id: 1, services: [[name: 'gui', id: 10]])
     def view = PipelineView.of(certScanner, pipeline(id: 100), null)

@@ -22,7 +22,6 @@ import com.bbh.itss.dso.portal.domain.monitoring.RunResult
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import spock.lang.Specification
 
 import java.time.Instant
@@ -41,9 +40,7 @@ class EvidenceControllerSpec extends Specification {
     static final String BUILD = 'https://jenkins.test/job/gui-full/42/'
 
     QueryEvidenceUseCase evidence = Mock()
-    MockMvc mvc = MockMvcBuilders.standaloneSetup(new EvidenceController(evidence))
-            .setControllerAdvice(new ApiExceptionHandler())
-            .build()
+    MockMvc mvc = WebMvc.of(new EvidenceController(evidence))
 
     Product certScanner = product(id: 1L, code: 'CERT', name: 'CertScanner', ownerTeam: 'TA',
             contactEmail: 'ta@bbh.com', services: [[name: 'gui', id: 10L, description: 'Angular GUI',

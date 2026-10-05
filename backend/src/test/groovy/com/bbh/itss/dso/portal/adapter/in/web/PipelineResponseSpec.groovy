@@ -112,7 +112,7 @@ class PipelineResponseSpec extends Specification {
         def view = PipelineView.of(certScanner, pipeline(id: 100), null)
 
         when:
-        def response = ServicePipelinesResponse.from(new ServicePipelinesView(certScanner.services()[0], [view]))
+        def response = PipelineController.ServicePipelinesResponse.of(new ServicePipelinesView(certScanner.services()[0], [view]))
 
         then:
         response.serviceId() == 10

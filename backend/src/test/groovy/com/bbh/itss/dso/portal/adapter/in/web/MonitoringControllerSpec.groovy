@@ -16,7 +16,6 @@ import com.bbh.itss.dso.portal.domain.monitoring.RunResult
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import spock.lang.Specification
 
 import java.time.Instant
@@ -31,9 +30,7 @@ class MonitoringControllerSpec extends Specification {
     static final Instant FINISHED = Instant.parse('2026-10-04T09:00:00Z')
 
     MonitorPipelinesUseCase monitoring = Mock()
-    MockMvc mvc = MockMvcBuilders.standaloneSetup(new MonitoringController(monitoring))
-            .setControllerAdvice(new ApiExceptionHandler())
-            .build()
+    MockMvc mvc = WebMvc.of(new MonitoringController(monitoring))
 
     Product certScanner = product(id: 1L, code: 'CERT', name: 'CertScanner', description: 'Scans certificates',
             ownerTeam: 'TA', services: [[name: 'gui', id: 10L], [name: 'backend-api', id: 11L]])

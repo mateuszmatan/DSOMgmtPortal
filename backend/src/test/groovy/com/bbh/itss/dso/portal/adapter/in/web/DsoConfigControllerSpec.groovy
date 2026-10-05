@@ -7,7 +7,6 @@ import com.bbh.itss.dso.portal.domain.dsoconfig.DsoConfigBuilder
 import com.bbh.itss.dso.portal.domain.pipeline.KeyRevokedException
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import org.yaml.snakeyaml.Yaml
 import spock.lang.Specification
 
@@ -24,10 +23,7 @@ class DsoConfigControllerSpec extends Specification {
 
     ReadPipelineConfigUseCase library = Mock()
     RenderConfigUseCase configs = Mock()
-    MockMvc mvc = MockMvcBuilders
-            .standaloneSetup(new DsoConfigController(library, configs))
-            .setControllerAdvice(new ApiExceptionHandler())
-            .build()
+    MockMvc mvc = WebMvc.of(new DsoConfigController(library, configs))
 
     def builder = new DsoConfigBuilder(storedSettings().values())
     Product certScanner = product(id: 1L, services: [[name: 'gui', id: 10L], [name: 'backend-api', id: 11L]])

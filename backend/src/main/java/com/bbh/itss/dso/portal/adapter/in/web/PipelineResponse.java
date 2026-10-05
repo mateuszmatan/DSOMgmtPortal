@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
+import com.bbh.itss.dso.portal.domain.pipeline.KeyStatus;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineKey;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings;
@@ -55,5 +56,22 @@ public record PipelineResponse(
                 settings.jenkinsJob(), view.jenkinsJobUrl(), settings.description(), pipeline.isEnabled(),
                 pipeline.activeKey().map(activeKey).orElse(null), view.influxProjectTag(), view.influxEnv(),
                 pipeline.createdAt(), pipeline.updatedAt(), keys);
+    }
+
+    public record KeyResponse(Long id, String value, String hint, KeyStatus status, Instant issuedAt, Instant revokedAt,
+                              String revokeReason, Instant lastUsedAt) {
+
+        static KeyResponse from(PipelineKey key) {
+            return of(key, key.isActive() ? key.value() : null);
+        }
+
+        static KeyResponse masked(PipelineKey key) {
+            return of(key, null);
+        }
+
+        private static KeyResponse of(PipelineKey key, String value) {
+            return new KeyResponse(key.id(), value, key.hint(), key.status(), key.issuedAt(), key.revokedAt(),
+                    key.revokeReason(), key.lastUsedAt());
+        }
     }
 }

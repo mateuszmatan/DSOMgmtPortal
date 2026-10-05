@@ -4,7 +4,6 @@ import com.bbh.itss.dso.portal.application.catalog.port.in.ManageProductsUseCase
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductCommand
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductSummaryView
 import com.bbh.itss.dso.portal.application.catalog.port.in.QueryProductsUseCase
-import com.bbh.itss.dso.portal.application.catalog.port.in.ServiceCommand
 import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelineKeysUseCase
 import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelinesUseCase
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineCommand
@@ -15,6 +14,7 @@ import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettings
 import com.bbh.itss.dso.portal.application.settings.port.in.UpdateGlobalSettingsCommand
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.Service
+import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
@@ -110,7 +110,7 @@ class DemoDataLoaderSpec extends Specification {
 
     private Product stored(ProductCommand command) {
         created << command
-        List<Service> services = command.services().withIndex().collect { ServiceCommand service, int order ->
+        List<Service> services = command.services().withIndex().collect { ServiceDraft service, int order ->
             new Service(++serviceIds, service.name(), service.description(), order, service.settings())
         }
         Product product = Product.restore(created.size() as Long, command.details(), command.appScan(), services, 0,
@@ -149,7 +149,7 @@ class DemoDataLoaderSpec extends Specification {
                 command.settings(), [], 0, null, null), null)
     }
 
-    private static List<String> validProblems(ServiceCommand service) {
+    private static List<String> validProblems(ServiceDraft service) {
         def problems = new ValidationProblems()
         service.settings().validate(problems)
         problems.list()*.field
