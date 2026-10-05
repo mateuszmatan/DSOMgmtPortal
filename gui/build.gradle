@@ -21,7 +21,7 @@ node {
     npmInstallCommand = 'ci'
 }
 
-def guiSources = files('src', 'public', 'angular.json', 'tsconfig.json', 'tsconfig.app.json', 'tsconfig.spec.json',
+def guiSources = files(fileTree('src') { exclude 'smokeTest/**', 'regressionTest/**', 'performanceTest/**', 'testFixtures/**' }, 'public', 'angular.json', 'tsconfig.json', 'tsconfig.app.json', 'tsconfig.spec.json',
         'package.json', 'package-lock.json')
 
 def distDir = layout.buildDirectory.dir('dist/browser')

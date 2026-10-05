@@ -2,9 +2,7 @@ package com.bbh.itss.dso.portal.gui.smoke
 
 import com.bbh.itss.dso.portal.gui.support.GuiSpecification
 import com.bbh.itss.dso.portal.gui.support.StubApi
-import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
-import com.microsoft.playwright.options.AriaRole
 import spock.lang.IgnoreIf
 
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
@@ -193,19 +191,5 @@ class GuiSmokeSpec extends GuiSpecification {
 
     boolean productSaved() {
         !api.requests('PUT', '/api/products/1').isEmpty()
-    }
-
-    Locator button(String name) {
-        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName(name))
-    }
-
-    def menuLink(String label) {
-        page.locator('nav.menu').getByRole(AriaRole.LINK, new Locator.GetByRoleOptions().setName(label).setExact(true))
-    }
-
-    List<String> ownErrors() {
-        def origin = baseUrl()
-        consoleErrors.findAll { !it.contains('localhost:3000') && !it.contains('grafana') } +
-                failedRequests.findAll { it.contains(origin) }
     }
 }
