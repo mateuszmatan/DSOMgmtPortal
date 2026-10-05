@@ -34,6 +34,7 @@ class FakeInfluxDb implements AutoCloseable {
     })
     private volatile String fixedAnswer
     private volatile int status = 200
+    private volatile Closure queryListener
 
     private FakeInfluxDb() {
         server = HttpServer.create(new InetSocketAddress(InetAddress.loopbackAddress, 0), 0)
@@ -66,6 +67,10 @@ class FakeInfluxDb implements AutoCloseable {
         this.status = status
     }
 
+    void onQuery(Closure listener) {
+        queryListener = listener
+    }
+
     void addRun(Map args) {
         String result = args.result ?: 'SUCCESS'
         runs << new Run(project: args.project, env: args.env ?: 'test', variant: args.variant ?: 'full',
@@ -91,6 +96,7 @@ class FakeInfluxDb implements AutoCloseable {
         requests.clear()
         fixedAnswer = null
         status = 200
+        queryListener = null
     }
 
     @Override
@@ -101,6 +107,7 @@ class FakeInfluxDb implements AutoCloseable {
 
     private void handle(HttpExchange exchange) {
         try {
+            queryListener?.call()
             Map body = new JsonSlurper().parse(exchange.requestBody) as Map
             requests << new Request(method: exchange.requestMethod, path: exchange.requestURI.path,
                     query: exchange.requestURI.query, authorization: exchange.requestHeaders.getFirst('Authorization'),

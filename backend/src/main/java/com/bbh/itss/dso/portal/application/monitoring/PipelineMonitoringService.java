@@ -85,7 +85,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         MetricsReading<Map<MetricsTag, PipelineRun>> latest = latestRuns(productPipelines);
         List<PipelineHealth> health = productPipelines.stream()
                 .map(view -> {
-                    PipelineRun run = latest.value().get(tag(view));
+                    PipelineRun run = latest.value().get(view.metricsTag());
                     return new PipelineHealth(view, RunResult.of(view.pipeline(), run), run);
                 })
                 .toList();
@@ -99,7 +99,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         int days = MonitoringRange.parse(range).days();
         PipelineView view = targets.ofPipeline(pipelineId).pipeline();
         Pipeline pipeline = view.pipeline();
-        MetricsTag tag = tag(view);
+        MetricsTag tag = view.metricsTag();
 
         MetricsReading<List<PipelineRun>> recent = MetricsReading.of(() -> runs.recentRuns(tag, days, RECENT_RUNS),
                 List.of());
@@ -122,7 +122,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
     }
 
     private MetricsReading<Map<MetricsTag, PipelineRun>> latestRuns(List<PipelineView> views) {
-        Set<MetricsTag> tags = views.stream().map(PipelineMonitoringService::tag).collect(Collectors.toSet());
+        Set<MetricsTag> tags = views.stream().map(PipelineView::metricsTag).collect(Collectors.toSet());
         return MetricsReading.of(() -> runs.latestRuns(tags), Map.of());
     }
 
@@ -131,7 +131,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         Map<RunResult, Integer> counts = new EnumMap<>(RunResult.class);
         Instant lastRunAt = null;
         for (PipelineView view : productPipelines) {
-            PipelineRun run = latest.get(tag(view));
+            PipelineRun run = latest.get(view.metricsTag());
             counts.merge(RunResult.of(view.pipeline(), run), 1, Integer::sum);
             if (run != null && (lastRunAt == null || run.time().isAfter(lastRunAt))) {
                 lastRunAt = run.time();
@@ -139,9 +139,5 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         }
         return new ProductHealth(product, productPipelines.size(), RunResult.worst(counts.keySet()), counts,
                 lastRunAt);
-    }
-
-    private static MetricsTag tag(PipelineView view) {
-        return MetricsTag.of(view.service(), view.pipeline());
     }
 }

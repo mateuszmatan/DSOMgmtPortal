@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.regression
 
 import com.bbh.itss.dso.portal.support.PortalSpecification
+import com.zaxxer.hikari.HikariDataSource
 
 import java.time.Duration
 import java.time.Instant
@@ -144,6 +145,23 @@ class MonitoringRegressionSpec extends PortalSpecification {
         details.status == 'NO_DATA'
         details.metricsError.startsWith('InfluxDB could not be read')
         details.grafana.dashboardUrl.startsWith(PIPELINE_DASHBOARD)
+    }
+
+    def "InfluxDB is queried while the portal holds no database connection"() {
+        given:
+        def pool = (jdbc.dataSource as HikariDataSource).hikariPoolMXBean
+        List<Integer> busy = [].asSynchronized()
+        influx.onQuery { busy << pool.activeConnections }
+
+        when:
+        def answers = ['/api/monitoring/status', '/api/monitoring/products', "/api/monitoring/products/$monitored.id",
+                       "/api/monitoring/pipelines/$guiFull.id", "/api/evidence/products/$monitored.id"]
+                .collect { api.get(it as String).status }
+
+        then:
+        answers.every { it == 200 }
+        busy.size() >= 7
+        busy.every { it == 0 }
     }
 
     def "a range that is not a number of days is refused"() {

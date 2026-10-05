@@ -1,8 +1,8 @@
 package com.bbh.itss.dso.portal.application.pipeline.port.in;
 
-import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
+import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 
@@ -30,15 +30,7 @@ public record PipelineView(Product product, Service service, Pipeline pipeline, 
         return run == null ? null : run.buildUrl(jenkinsUrl, pipeline.settings().jenkinsJob());
     }
 
-    public String influxProjectTag() {
-        return pipeline.type().influxProjectTag(metrics().influxProject());
-    }
-
-    public String influxEnv() {
-        return metrics().influxEnv();
-    }
-
-    private MetricsSettings metrics() {
-        return service.settings().metrics();
+    public MetricsTag metricsTag() {
+        return MetricsTag.of(service, pipeline);
     }
 }

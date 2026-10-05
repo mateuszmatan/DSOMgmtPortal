@@ -4,6 +4,7 @@ import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPor
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
+import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey
 import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator
 import com.bbh.itss.dso.portal.domain.pipeline.KeyRevokedException
@@ -61,7 +62,7 @@ class PipelineServiceSpec extends Specification {
         list[1].pipelines() == []
         [view.product().code(), view.service().name(), view.pipeline().keys().size(), view.jenkinsUrl()] ==
                 ['CERT', 'gui', 2, 'https://jenkins.test']
-        [view.influxProjectTag(), view.influxEnv()] == ['CERT-gui', 'test']
+        view.metricsTag() == new MetricsTag('CERT-gui', 'test')
     }
 
     def "#action finds no #missing"() {

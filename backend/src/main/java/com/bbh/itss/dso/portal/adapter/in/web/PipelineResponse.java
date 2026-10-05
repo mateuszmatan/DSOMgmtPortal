@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
+import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.domain.pipeline.KeyStatus;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineKey;
@@ -34,11 +35,12 @@ public record PipelineResponse(Long id, Long productId, String productCode, Stri
                                        List<KeyResponse> keys) {
         Pipeline pipeline = view.pipeline();
         PipelineSettings settings = pipeline.settings();
+        MetricsTag tag = view.metricsTag();
         return new PipelineResponse(pipeline.id(), view.product().id(), view.product().code(), view.product().name(),
                 view.service().id(), view.service().name(), pipeline.type(), pipeline.type().entryPoint(),
                 settings.agentLabels(), settings.extendedPipelineJob(), settings.securityPipelineJob(),
                 settings.jenkinsJob(), view.jenkinsJobUrl(), settings.description(), pipeline.isEnabled(),
-                pipeline.activeKey().map(activeKey).orElse(null), view.influxProjectTag(), view.influxEnv(),
+                pipeline.activeKey().map(activeKey).orElse(null), tag.project(), tag.env(),
                 pipeline.createdAt(), pipeline.updatedAt(), keys);
     }
 
