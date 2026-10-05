@@ -25,7 +25,7 @@ class RunEvidenceSpec extends Specification {
     static final String SONAR = 'https://tools.bbh.com/sonar/dashboard?id=cert-gui'
     static final String NEXUS_IQ_URL = 'https://tools.bbh.com/IQ/'
 
-    def links = EvidenceLinks.of('https://jenkins.test/job/gui/', 42L, 'https://bbh.cloud.appscan.com', 'app-1',
+    def links = EvidenceLinks.of('https://jenkins.test/job/gui/42/', 'https://bbh.cloud.appscan.com', 'app-1',
             'https://tools.bbh.com/sonar', 'cert-gui', 'https://tools.bbh.com/IQ')
 
     def "the evidence of a run is empty without points and the measurements read are the library's"() {
@@ -252,7 +252,7 @@ class RunEvidenceSpec extends Specification {
 
     def "without links the scans link nowhere"() {
         given:
-        def none = EvidenceLinks.of(null, null, null, null, null, null, null)
+        def none = EvidenceLinks.of(null, null, null, null, null, null)
 
         expect:
         new RunEvidence([]).scans('gui', none)*.link() == [null, null, null, null]

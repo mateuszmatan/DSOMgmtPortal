@@ -60,4 +60,21 @@ abstract class PortalSpecification extends Specification {
         assert response.status == 201: response
         response.json as Map
     }
+
+    Map pipelineFor(long serviceId, Map settings = ApiJson.pipeline()) {
+        Map started = pipelineOfService(serviceId, (settings.type ?: 'FULL') as String)
+        if (!started) {
+            return createPipeline(serviceId, settings)
+        }
+        def response = api.put("/api/pipelines/$started.id", settings)
+        assert response.status == 200: response
+        response.json as Map
+    }
+
+    Map pipelineOfService(long serviceId, String type = 'FULL') {
+        Long productId = jdbc.queryForObject('SELECT PRODUCT_ID FROM DSO_SERVICE WHERE ID = ?', Long, serviceId)
+        api.get("/api/products/$productId/pipelines").json
+                .collectMany { it.pipelines }
+                .find { it.serviceId == serviceId && it.type == type } as Map
+    }
 }

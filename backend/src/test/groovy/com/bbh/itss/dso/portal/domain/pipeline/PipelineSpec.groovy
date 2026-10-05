@@ -1,12 +1,11 @@
 package com.bbh.itss.dso.portal.domain.pipeline
 
 import com.bbh.itss.dso.portal.domain.shared.ConflictException
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException
+import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import spock.lang.Specification
 
 import java.time.Instant
 
-import static com.bbh.itss.dso.portal.support.Fixtures.KEY
 import static com.bbh.itss.dso.portal.support.Fixtures.activeKey
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.pipelineSettings
@@ -94,42 +93,6 @@ class PipelineSpec extends Specification {
         pipeline.keys()[1].revokedAt() == revokedKey().revokedAt()
     }
 
-    def "the active key, given in any case and with spaces, authorizes the pipeline and records its use"() {
-        given:
-        def pipeline = pipeline(keys: [activeKey(), revokedKey()])
-
-        when:
-        def used = pipeline.authorize(" ${KEY.toUpperCase()} ", LATER)
-
-        then:
-        used == activeKey(lastUsedAt: LATER)
-        pipeline.keys() == [used, revokedKey()]
-    }
-
-    def "an unknown key authorizes nothing"() {
-        when:
-        pipeline().authorize(value, LATER)
-
-        then:
-        def e = thrown(NotFoundException)
-        e.message == 'Unknown DevSecOps pipeline key'
-
-        where:
-        value << ['6ba7b811-9dad-41d1-80b4-00c04fd430c8', ' ', null]
-    }
-
-    def "a revoked key is refused with the time and the reason it was invalidated"() {
-        given:
-        def revoked = revokedKey(reason: 'Service retired')
-
-        when:
-        pipeline(keys: [activeKey(), revoked]).authorize(revoked.value(), LATER)
-
-        then:
-        def e = thrown(KeyRevokedException)
-        e.message == "The DevSecOps pipeline key was invalidated on ${revoked.revokedAt()}: Service retired"
-    }
-
     def "a key revoked without a reason is refused without one"() {
         given:
         def revoked = revokedKey(reason: null)
@@ -185,6 +148,28 @@ class PipelineSpec extends Specification {
         then:
         pipeline.settings() == new PipelineSettings(['windows'], 'CERT/ext', null, 'CERT/gui', 'nightly')
         pipeline.keys() == keys
+    }
+
+    def "agent labels that do not fit their column are refused when a pipeline is created or reconfigured"() {
+        given:
+        def labels = (1..20).collect { "agent-$it-${'x' * 50}".toString() }
+        def tooMany = new PipelineSettings(labels, null, null, null, null)
+        def existing = pipeline()
+
+        when:
+        Pipeline.create(GUI, PipelineType.FULL, tooMany, generator, NOW)
+
+        then:
+        def created = thrown(InvalidRequestException)
+        created.problems*.field() == ['agentLabels']
+
+        when:
+        existing.reconfigure(existing.type(), tooMany)
+
+        then:
+        def reconfigured = thrown(InvalidRequestException)
+        reconfigured.problems*.message() == ['is too long: all entries together may take at most 1000 bytes']
+        existing.settings() != tooMany
     }
 
     def "the type of a pipeline cannot change"() {

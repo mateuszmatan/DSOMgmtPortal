@@ -4,6 +4,7 @@ import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.in.QueryProductsUseCase;
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.ReadPipelineConfigUseCase;
+import com.bbh.itss.dso.portal.application.dsoconfig.port.in.ReadPublishedConfigUseCase;
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.RenderConfigUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelineKeysUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
@@ -17,13 +18,16 @@ import java.util.Map;
 public class PipelineConfigService implements ReadPipelineConfigUseCase, RenderConfigUseCase {
 
     private final ManagePipelineKeysUseCase keys;
+    private final ReadPublishedConfigUseCase published;
     private final QueryPipelinesUseCase pipelines;
     private final QueryProductsUseCase products;
     private final ManageGlobalSettingsUseCase settings;
 
-    public PipelineConfigService(ManagePipelineKeysUseCase keys, QueryPipelinesUseCase pipelines,
-                                 QueryProductsUseCase products, ManageGlobalSettingsUseCase settings) {
+    public PipelineConfigService(ManagePipelineKeysUseCase keys, ReadPublishedConfigUseCase published,
+                                 QueryPipelinesUseCase pipelines, QueryProductsUseCase products,
+                                 ManageGlobalSettingsUseCase settings) {
         this.keys = keys;
+        this.published = published;
         this.pipelines = pipelines;
         this.products = products;
         this.settings = settings;
@@ -31,7 +35,8 @@ public class PipelineConfigService implements ReadPipelineConfigUseCase, RenderC
 
     @Override
     public Map<String, Object> readByKey(String key) {
-        return config(keys.resolveKey(key));
+        long pipelineId = keys.authorizeKey(key);
+        return published.currentConfig(pipelineId).orElseGet(() -> config(pipelines.get(pipelineId)));
     }
 
     @Override

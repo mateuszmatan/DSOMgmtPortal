@@ -14,6 +14,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager
 import org.springframework.context.annotation.Import
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.jdbc.core.JdbcTemplate
 import spock.lang.Specification
 import spock.lang.Subject
@@ -161,18 +162,26 @@ class PipelinePersistenceAdapterSpec extends Specification {
         loaded.keys()[0].revokedAt() == REISSUED
     }
 
-    def "a pipeline is found by any of its keys"() {
+    def "any key of a pipeline is found with the pipeline it was issued for"() {
         given:
         def stored = adapter.save(Pipeline.create(ref(cert, 0), FULL, pipelineSettings(), generator, ISSUED))
         def pipeline = adapter.load(stored.id()).get()
         pipeline.issueKey(generator, REISSUED)
-        adapter.save(pipeline)
+        def saved = adapter.save(pipeline)
         entities.clear()
 
-        expect:
-        adapter.findByKey('key-1').get().id() == stored.id()
-        adapter.findByKey('key-2').get().id() == stored.id()
-        adapter.findByKey('key-3').empty
+        when:
+        def replaced = adapter.findKey('key-1').get()
+        def active = adapter.findKey('key-2').get()
+
+        then:
+        replaced.pipelineId() == stored.id()
+        replaced.key() == saved.keys()[1]
+        replaced.key().status() == KeyStatus.REVOKED
+        active.pipelineId() == stored.id()
+        active.key() == saved.keys()[0]
+        active.key().status() == KeyStatus.ACTIVE
+        adapter.findKey('key-3').empty
         adapter.load(999_999L).empty
         adapter.loadForUpdate(999_999L).empty
     }
@@ -186,15 +195,53 @@ class PipelinePersistenceAdapterSpec extends Specification {
         def (active, revoked) = saved.keys()*.id()
 
         when:
-        adapter.recordKeyUse(active, USED)
-        adapter.recordKeyUse(revoked, USED)
+        def recordedActive = adapter.recordKeyUse(active, USED)
+        def recordedRevoked = adapter.recordKeyUse(revoked, USED)
+        def recordedMissing = adapter.recordKeyUse(999_999L, USED)
         entities.clear()
         def loaded = adapter.load(stored.id()).get()
 
         then:
+        recordedActive
+        !recordedRevoked
+        !recordedMissing
         loaded.keys()*.lastUsedAt() == [USED, null]
         loaded.keys()*.status() == [KeyStatus.ACTIVE, KeyStatus.REVOKED]
         loaded.version() == saved.version()
+    }
+
+    def "a pipeline never holds a second active key"() {
+        given:
+        def stored = adapter.save(Pipeline.create(ref(cert, 0), FULL, pipelineSettings(), generator, ISSUED))
+        entities.flush()
+
+        when:
+        jdbc.update("""INSERT INTO DSO_PIPELINE_KEY (PIPELINE_ID, KEY_VALUE, STATUS, ISSUED_AT)
+                       VALUES (?, 'key-second', 'ACTIVE', CURRENT_TIMESTAMP)""", stored.id())
+
+        then:
+        thrown(DataIntegrityViolationException)
+    }
+
+    def "a pipeline keeps any number of revoked keys beside its active key"() {
+        given:
+        def stored = adapter.save(Pipeline.create(ref(cert, 0), FULL, pipelineSettings(), generator, ISSUED))
+        def pipeline = adapter.load(stored.id()).get()
+        pipeline.issueKey(generator, REISSUED)
+        pipeline.issueKey(generator, USED)
+        adapter.save(pipeline)
+        pipeline = adapter.load(stored.id()).get()
+        pipeline.revokeActiveKey('Service retired', USED)
+        adapter.save(pipeline)
+        pipeline = adapter.load(stored.id()).get()
+        pipeline.issueKey(generator, USED)
+        adapter.save(pipeline)
+        entities.clear()
+
+        expect:
+        adapter.load(stored.id()).get().keys()*.status().countBy { it } ==
+                [(KeyStatus.ACTIVE): 1, (KeyStatus.REVOKED): 3]
+        jdbc.queryForObject("SELECT COUNT(*) FROM DSO_PIPELINE_KEY WHERE STATUS = 'ACTIVE'", Integer) == 1
     }
 
     def "pipelines are listed per product and overall in service and type order"() {

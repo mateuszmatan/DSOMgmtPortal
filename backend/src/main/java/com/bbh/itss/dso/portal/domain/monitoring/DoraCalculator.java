@@ -27,14 +27,16 @@ public final class DoraCalculator {
         int deployments = (int) points.stream().filter(DoraPoint::deployment).count();
         Double perWeek = rangeDays > 0 ? deployments * 7.0 / rangeDays : null;
 
-        List<Long> leadTimes = points.stream().map(DoraPoint::leadTimeSeconds).filter(s -> s > 0).sorted().toList();
+        List<DoraPoint> deployed = points.stream().filter(DoraPoint::deployment).toList();
+        List<Long> leadTimes = deployed.stream().map(DoraPoint::leadTimeSeconds).filter(s -> s > 0).sorted().toList();
         Long leadMedian = median(leadTimes);
 
-        Double cfr = runs == 0 ? null : 100.0 * points.stream().filter(DoraPoint::changeFailure).count() / runs;
+        Double cfr = deployments == 0 ? null
+                : 100.0 * deployed.stream().filter(DoraPoint::changeFailure).count() / deployments;
 
         List<Long> restoreTimes = new ArrayList<>();
         Instant failingSince = null;
-        for (DoraPoint point : points) {
+        for (DoraPoint point : deployed) {
             if (point.changeFailure()) {
                 if (failingSince == null) {
                     failingSince = point.time();

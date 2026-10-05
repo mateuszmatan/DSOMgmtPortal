@@ -46,11 +46,13 @@ public record PipelineKey(
         return status == KeyStatus.ACTIVE;
     }
 
-    PipelineKey revoke(String reason, Instant now) {
-        return new PipelineKey(id, value, KeyStatus.REVOKED, issuedAt, now, reason, lastUsedAt);
+    public void requireActive() {
+        if (!isActive()) {
+            throw new KeyRevokedException(this);
+        }
     }
 
-    PipelineKey usedAt(Instant now) {
-        return new PipelineKey(id, value, status, issuedAt, revokedAt, revokeReason, now);
+    PipelineKey revoke(String reason, Instant now) {
+        return new PipelineKey(id, value, KeyStatus.REVOKED, issuedAt, now, reason, lastUsedAt);
     }
 }

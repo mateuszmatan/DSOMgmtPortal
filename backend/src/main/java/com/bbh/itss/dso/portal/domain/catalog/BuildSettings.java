@@ -35,13 +35,25 @@ public record BuildSettings(
 
     @Override
     public void validate(ValidationProblems problems) {
-        if (tool != BuildTool.FLUTTER && javaPath == null && !autoSetup) {
+        if (tool == BuildTool.FLUTTER) {
+            validateFlutter(problems);
+        } else if (javaPath == null && !autoSetup) {
             problems.add("javaPath", "set the JDK path or enable automatic build tool setup, the unit tests stage needs one of them");
         }
         if (tool != BuildTool.FLUTTER && command.tasks().isEmpty()) {
             problems.add("command.tasks", tool == BuildTool.MAVEN
                     ? "add the Maven goals of the build, for example clean verify"
                     : "add the Gradle tasks of the build, for example clean build");
+        }
+        command.validate(problems.at("command"));
+    }
+
+    private void validateFlutter(ValidationProblems problems) {
+        if (javaPath == null) {
+            problems.add("javaPath", "is required for Flutter: the build and unit test stages set JAVA_HOME from it");
+        }
+        if (autoSetup) {
+            problems.add("autoSetup", "must be off for Flutter: the automatic build tool setup cannot prepare a Flutter build");
         }
     }
 }

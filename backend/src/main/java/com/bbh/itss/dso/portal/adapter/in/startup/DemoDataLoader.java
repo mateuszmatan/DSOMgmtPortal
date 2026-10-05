@@ -8,6 +8,7 @@ import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelineKeysUs
 import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelinesUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineCommand;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.QueryPipelinesUseCase;
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
 import com.bbh.itss.dso.portal.application.settings.port.in.UpdateGlobalSettingsCommand;
 import com.bbh.itss.dso.portal.domain.catalog.AppScanAccount;
@@ -51,6 +52,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Component
 @ConditionalOnBooleanProperty("dso.demo-data")
@@ -66,14 +68,17 @@ public class DemoDataLoader implements ApplicationRunner {
     private final QueryProductsUseCase products;
     private final ManageProductsUseCase catalog;
     private final ManagePipelinesUseCase pipelines;
+    private final QueryPipelinesUseCase pipelineQueries;
     private final ManagePipelineKeysUseCase keys;
     private final ManageGlobalSettingsUseCase settings;
 
     public DemoDataLoader(QueryProductsUseCase products, ManageProductsUseCase catalog, ManagePipelinesUseCase pipelines,
-                          ManagePipelineKeysUseCase keys, ManageGlobalSettingsUseCase settings) {
+                          QueryPipelinesUseCase pipelineQueries, ManagePipelineKeysUseCase keys,
+                          ManageGlobalSettingsUseCase settings) {
         this.products = products;
         this.catalog = catalog;
         this.pipelines = pipelines;
+        this.pipelineQueries = pipelineQueries;
         this.keys = keys;
         this.settings = settings;
     }
@@ -185,7 +190,7 @@ public class DemoDataLoader implements ApplicationRunner {
     private static ServiceCommand flutter(String name, String description, String appScanId, String bitbucketProject,
                                           String repo) {
         return new ServiceCommand(null, name, description, new ServiceSettings(
-                new BuildSettings(BuildTool.FLUTTER, ".", null, false, null, null),
+                new BuildSettings(BuildTool.FLUTTER, ".", JDK_17, false, null, null),
                 null, null, List.of(),
                 new DeploymentSettings(DeployTarget.VM, null, null, null),
                 null, null, null, null, null,
@@ -227,7 +232,19 @@ public class DemoDataLoader implements ApplicationRunner {
         String folder = "DevSecOps/" + product.code() + "/";
         String extendedJob = type == PipelineType.SECURITY ? folder + serviceName + "-extended" : null;
         String securityJob = type == PipelineType.EXTENDED ? folder + serviceName + "-security" : null;
-        return pipelines.create(service.id(), new PipelineCommand(type, new PipelineSettings(List.of("linux-agent"),
-                extendedJob, securityJob, folder + serviceName + "-" + type.variant(), null)));
+        PipelineCommand command = new PipelineCommand(type, new PipelineSettings(
+                List.of(PipelineSettings.DEFAULT_AGENT_LABEL), extendedJob, securityJob,
+                folder + serviceName + "-" + type.variant(), null));
+        return started(product, service, type)
+                .map(started -> pipelines.update(started.pipeline().id(), command))
+                .orElseGet(() -> pipelines.create(service.id(), command));
+    }
+
+    private Optional<PipelineView> started(Product product, Service service, PipelineType type) {
+        return pipelineQueries.listForProduct(product.id()).stream()
+                .filter(view -> view.service().id().equals(service.id()))
+                .flatMap(view -> view.pipelines().stream())
+                .filter(view -> view.pipeline().type() == type)
+                .findFirst();
     }
 }

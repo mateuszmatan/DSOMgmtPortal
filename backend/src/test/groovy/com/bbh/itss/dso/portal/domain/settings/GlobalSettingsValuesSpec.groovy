@@ -124,6 +124,63 @@ class GlobalSettingsValuesSpec extends Specification {
                 new FieldProblem('goldenFix.goldenVersionTypes', 'add at least one remediation type')]
     }
 
+    def "the release gate checks at least one scanner and the line coverage minimum is at least 1"() {
+        given:
+        def scans = bbh.scans()
+        def values = new GlobalSettingsValues(bbh.platform(), bbh.deployment(), bbh.limits(),
+                new ScanSettings(coverage, scans.sastPrepareTimeoutMinutes(), scans.sastPollTimeoutMinutes(),
+                        scans.sastPollIntervalSeconds(), scans.scaEnabled(), scans.scaPollTimeoutMinutes(),
+                        scans.scaPollIntervalSeconds(), scans.dastPollTimeoutMinutes(), scans.dastPollIntervalSeconds(),
+                        scans.dastReportTimeoutMinutes(), scans.dastReportIntervalSeconds(),
+                        scans.sonarWaitForQualityGate(), scans.sonarQualityGateTimeoutMinutes()),
+                new ReleaseGateSettings(scanners, true, 'release-gate.json'), bbh.serviceDefaults(), bbh.goldenFix())
+        def problems = new ValidationProblems()
+
+        when:
+        values.validate(problems)
+
+        then:
+        problems.list()*.field == fields
+
+        where:
+        coverage | scanners || fields
+        0        | []       || ['scans.coverageMinLine', 'releaseGate.scanners']
+        1        | [SAST]   || []
+        null     | [DAST]   || []
+    }
+
+    def "the reasons of the release gate and coverage rules name what the library would do instead"() {
+        given:
+        def problems = new ValidationProblems()
+
+        when:
+        new ReleaseGateSettings([], false, null).validate(problems)
+        new ScanSettings(0, null, null, null, null, null, null, null, null, null, null, null, null).validate(problems)
+
+        then:
+        problems.list()*.message == ['select at least one scanner: without any the library gates on all four',
+                                     'must be at least 1: the library replaces 0 with 60; turn off the coverage requirement of the release gate instead']
+    }
+
+    def "GoldenFix lists of the global policy must fit their columns"() {
+        given:
+        def policy = bbh.goldenFix()
+        def tooLong = (1..15).collect { "folder-$it/${'x' * 150}".toString() }
+        def values = new GlobalSettingsValues(bbh.platform(), bbh.deployment(), bbh.limits(), bbh.scans(),
+                bbh.releaseGate(), bbh.serviceDefaults(), new GoldenFixPolicy(policy.enabled(),
+                policy.onlyDirectDependencies(), policy.minThreatLevel(), policy.ecosystems(),
+                policy.goldenVersionTypes(), tooLong, policy.verifyEnabled(), policy.verifyMaxAttempts(),
+                policy.verifyTimeoutMinutes(), null, null, null, null, null, policy.commitAuthorName(),
+                policy.commitAuthorEmail(), null))
+        def problems = new ValidationProblems()
+
+        when:
+        values.validate(problems)
+
+        then:
+        problems.list()*.field == ['goldenFix.excludeDirs']
+    }
+
     def "the library defaults are rendered in the shape and key order of its defaults.yaml"() {
         when:
         def defaults = bbh.defaultsConfig()

@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
+import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
 
@@ -13,6 +14,7 @@ public record PipelineRunResponse(
         Long durationSeconds,
         String commit,
         String job,
+        String buildUrl,
         Long stagesTotal,
         Long passed,
         Long warned,
@@ -20,9 +22,10 @@ public record PipelineRunResponse(
         Long blocked,
         Long skipped) {
 
-    static PipelineRunResponse from(PipelineRun run) {
+    static PipelineRunResponse from(PipelineRun run, PipelineView view) {
         return DtoMapping.mapped(run, found -> new PipelineRunResponse(found.time(), found.result(), found.branch(),
-                found.build(), found.durationSeconds(), found.commit(), found.job(), found.stagesTotal(),
-                found.passed(), found.warned(), found.failed(), found.blocked(), found.skipped()));
+                found.build(), found.durationSeconds(), found.commit(), found.job(), view.buildUrl(found),
+                found.stagesTotal(), found.passed(), found.warned(), found.failed(), found.blocked(),
+                found.skipped()));
     }
 }

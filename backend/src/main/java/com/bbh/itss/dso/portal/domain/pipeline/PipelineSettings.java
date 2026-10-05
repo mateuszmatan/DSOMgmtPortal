@@ -1,7 +1,9 @@
 package com.bbh.itss.dso.portal.domain.pipeline;
 
+import com.bbh.itss.dso.portal.domain.shared.StoredList;
 import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.UriEncoding;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.Arrays;
 import java.util.List;
@@ -14,12 +16,22 @@ public record PipelineSettings(
         String jenkinsJob,
         String description) {
 
+    public static final String DEFAULT_AGENT_LABEL = "linux-agent";
+
     public PipelineSettings {
         agentLabels = Text.clean(agentLabels);
         extendedPipelineJob = Text.trimToNull(extendedPipelineJob);
         securityPipelineJob = Text.trimToNull(securityPipelineJob);
         jenkinsJob = Text.trimToNull(jenkinsJob);
         description = Text.trimToNull(description);
+    }
+
+    public static PipelineSettings forNewService() {
+        return new PipelineSettings(List.of(DEFAULT_AGENT_LABEL), null, null, null, null);
+    }
+
+    public void validate(ValidationProblems problems) {
+        StoredList.COMMAS_1000.check(problems, "agentLabels", agentLabels);
     }
 
     public PipelineSettings forType(PipelineType type) {

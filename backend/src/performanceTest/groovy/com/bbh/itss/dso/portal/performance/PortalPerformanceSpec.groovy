@@ -39,7 +39,7 @@ class PortalPerformanceSpec extends PortalSpecification {
     def cleanupSpec() {
         REPORT.parentFile.mkdirs()
         REPORT.text = "# Portal performance\n\n$PRODUCTS products with $SERVICES services each, " +
-                "${PRODUCTS * SERVICES} pipelines, limits scaled by $FACTOR.\n\n" +
+                "${2 * PRODUCTS * SERVICES} pipelines, limits scaled by $FACTOR.\n\n" +
                 LatencyStats.header() + '\n' + results*.toRow().join('\n') + '\n'
         println REPORT.text
     }
@@ -61,13 +61,18 @@ class PortalPerformanceSpec extends PortalSpecification {
         products.size() == PRODUCTS
     }
 
-    def "a pipeline is created for every service"() {
+    def "a second pipeline is created for every service that already started with one"() {
         given:
         def serviceIds = products.collectMany { it.services*.id }
+        products.each { product ->
+            api.get("/api/products/$product.id/pipelines").json.each { service ->
+                pipelines.addAll(service.pipelines as List<Map>)
+            }
+        }
 
         when:
         def stats = LatencyStats.measure('Create a pipeline', calls: serviceIds.size(), threads: 8, warmUp: false) { int i ->
-            def response = api.post("/api/services/${serviceIds[i]}/pipelines", [type: 'FULL', agentLabels: ['linux-agent']])
+            def response = api.post("/api/services/${serviceIds[i]}/pipelines", [type: 'SAST', agentLabels: ['linux-agent']])
             if (response.status == 201) {
                 pipelines << (response.json as Map)
             }
@@ -76,7 +81,9 @@ class PortalPerformanceSpec extends PortalSpecification {
 
         then:
         within(stats, 500)
-        pipelines.size() == PRODUCTS * SERVICES
+        pipelines.size() == 2 * PRODUCTS * SERVICES
+        pipelines.count { it.type == 'FULL' } == PRODUCTS * SERVICES
+        pipelines.every { it.activeKey.value != null }
     }
 
     def "the product list and a product's details stay fast"() {

@@ -30,4 +30,14 @@ class PublishedConfigSpec extends Specification {
         null | RENDERED
         '{}' | null
     }
+
+    def "a published configuration was rendered since every moment up to its own time"() {
+        given:
+        def config = new PublishedConfig(100L, '{}', RENDERED)
+
+        expect:
+        config.renderedSince(RENDERED.minusNanos(1000))
+        config.renderedSince(RENDERED)
+        !config.renderedSince(RENDERED.plusNanos(1000))
+    }
 }

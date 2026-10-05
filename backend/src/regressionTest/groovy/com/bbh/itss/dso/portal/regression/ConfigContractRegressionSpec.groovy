@@ -40,7 +40,7 @@ class ConfigContractRegressionSpec extends PortalSpecification {
     def "the pipeline and product configs keep the shape the DevSecOps library reads"() {
         given:
         def payments = createProduct(PAYMENTS)
-        def security = createPipeline(payments.services[0].id as long, pipeline(type: 'SECURITY',
+        def security = pipelineFor(payments.services[0].id as long, pipeline(type: 'SECURITY',
                 agentLabels: ['linux-agent', 'docker'], extendedPipelineJob: 'PAYHUB/gateway-extended'))
 
         when:
@@ -67,7 +67,7 @@ class ConfigContractRegressionSpec extends PortalSpecification {
                                                         repoSlug     : 'payhub-mobile']),
                            service(name: 'plain', scm: [repositoryUrl: 'https://bitbucket.bbh.com/projects/PAY/repos/plain',
                                                         credentialsId: 'bitbucket-http-credentials'])]))
-        def server = createPipeline(created.services[0].id as long, pipeline(type: 'FULL'))
+        def server = pipelineFor(created.services[0].id as long, pipeline(type: 'FULL'))
 
         when:
         def projects = api.get("/api/products/$created.id/config?format=json").json.projects
@@ -116,7 +116,7 @@ class ConfigContractRegressionSpec extends PortalSpecification {
         given:
         def mobile = createProduct(PAYMENTS + [code: uniqueCode('VIEW'), name: "View Payments Hub ${uniqueCode()}",
                                                services: [PAYMENTS.services[2]]])
-        def full = createPipeline(mobile.services[0].id as long, pipeline(type: 'FULL'))
+        def full = pipelineFor(mobile.services[0].id as long, pipeline(type: 'FULL'))
 
         when:
         def published = libraryConfig(full.activeKey.value as String)
@@ -130,7 +130,7 @@ class ConfigContractRegressionSpec extends PortalSpecification {
         given:
         def mobile = createProduct(PAYMENTS + [code: uniqueCode('PREVIEW'), name: 'Preview Payments Hub',
                                                services: [PAYMENTS.services[2]]])
-        def full = createPipeline(mobile.services[0].id as long, pipeline(type: 'FULL'))
+        def full = pipelineFor(mobile.services[0].id as long, pipeline(type: 'FULL'))
 
         when:
         def preview = api.get("/api/pipelines/$full.id/config")
@@ -143,6 +143,43 @@ class ConfigContractRegressionSpec extends PortalSpecification {
         and:
         preview.body == api.get("/api/dso/config/$full.activeKey.value").body
         api.get("/api/pipelines/$full.id").json.activeKey.lastUsedAt != null
+    }
+
+    def "a pipeline's key gets byte for byte the configuration the portal previews, also right after a change (#kind, #format)"() {
+        given:
+        String code = uniqueCode('KEYED')
+        Map services = [vm       : fullMavenService(sonar: fullMavenService().sonar + [projectKey: code.toLowerCase()],
+                                                    metrics: [enabled: true, influxProject: code.toLowerCase(), influxEnv: 'uat']),
+                        openshift: fullOpenShiftService(),
+                        flutter  : fullFlutterService()]
+        def created = createProduct(product(code: code, name: "Keyed $code", services: [services[kind]]))
+        def full = pipelineFor(created.services[0].id as long, pipeline(type: 'FULL'))
+        String byKey = "/api/dso/config/$full.activeKey.value?format=$format"
+        String preview = "/api/pipelines/$full.id/config?format=$format"
+
+        when:
+        def fetched = api.get(byKey)
+        def previewed = api.get(preview)
+
+        then:
+        fetched.status == 200
+        fetched.header('Content-Type') == previewed.header('Content-Type')
+        fetched.body == previewed.body
+
+        when:
+        def read = api.get("/api/products/$created.id").json
+        def changed = api.put("/api/products/$created.id", product(code: read.code, name: read.name,
+                version: read.version, services: [read.services[0] + [build: read.services[0].build + [sourceDir: 'moved-dir']]]))
+        def refetched = api.get(byKey)
+
+        then:
+        changed.status == 200
+        refetched.body == api.get(preview).body
+        refetched.body != fetched.body
+        refetched.body.contains('moved-dir')
+
+        where:
+        [kind, format] << [['vm', 'openshift', 'flutter'], ['yaml', 'json']].combinations()
     }
 
     private static boolean matchesExpected(String name, String actual) {

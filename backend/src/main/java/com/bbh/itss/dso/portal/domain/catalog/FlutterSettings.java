@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import com.bbh.itss.dso.portal.domain.shared.StoredList;
 import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
@@ -67,7 +68,33 @@ public record FlutterSettings(
         }
     }
 
-    public void validate(ValidationProblems problems) {
+    public void validate(ValidationProblems problems, DeployTarget target) {
+        if (modules.isEmpty()) {
+            problems.add("modules", "add at least one module: the build stage prepares each of them");
+        }
+        if (testModules.isEmpty()) {
+            problems.add("testModules", "add at least one test module: the unit tests stage runs them");
+        }
+        StoredList.LINES_1000.check(problems, "modules", modules);
+        StoredList.LINES_1000.check(problems, "testModules", testModules);
+        StoredList.LINES_1000.check(problems, "testSubmodules", testSubmodules);
+        StoredList.LINES_1000.check(problems, "testSubplugins", testSubplugins);
+        validateCredentials(problems);
+        if (target == DeployTarget.VM) {
+            String delivery = "is required for Flutter on VMs: the Nexus delivery uploads the build under it";
+            if (deliveryGroup == null) {
+                problems.add("deliveryGroup", delivery);
+            }
+            if (deliveryArtifact == null) {
+                problems.add("deliveryArtifact", delivery);
+            }
+            if (deliveryPlugin == null) {
+                problems.add("deliveryPlugin", delivery);
+            }
+        }
+    }
+
+    private void validateCredentials(ValidationProblems problems) {
         String message = "is required: the Flutter build stage reads this Jenkins credential";
         if (signingPasswordCredentialsId == null) {
             problems.add("signingPasswordCredentialsId", message);

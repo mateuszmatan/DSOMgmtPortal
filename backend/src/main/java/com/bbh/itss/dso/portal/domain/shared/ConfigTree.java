@@ -22,6 +22,10 @@ public class ConfigTree {
         return this;
     }
 
+    public ConfigTree setIfAbsent(String path, Object value) {
+        return get(path) == null ? set(path, value) : this;
+    }
+
     @SuppressWarnings("unchecked")
     public ConfigTree fillIn(String sectionPath, String key, Object value) {
         if (!isEmpty(value) && get(sectionPath) instanceof Map<?, ?> section && !section.containsKey(key)) {

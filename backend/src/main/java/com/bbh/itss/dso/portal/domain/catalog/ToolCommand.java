@@ -1,7 +1,9 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import com.bbh.itss.dso.portal.domain.shared.StoredList;
 import com.bbh.itss.dso.portal.domain.shared.Text;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -45,6 +47,12 @@ public record ToolCommand(
                     .set(path + ".maven.mvnPath", mavenHome)
                     .set(path + ".maven.env", environmentMap());
         }
+    }
+
+    public void validate(ValidationProblems problems) {
+        StoredList.LINES_1000.check(problems, "tasks", tasks);
+        StoredList.LINES_2000.check(problems, "flags", flags);
+        StoredList.LINES_4000.check(problems, "environment", environment);
     }
 
     public Map<String, String> environmentMap() {

@@ -61,4 +61,23 @@ class PipelineKeySpec extends Specification {
         '  '                                      || ''
         null                                      || ''
     }
+
+    def "only an active key passes the check for an active key"() {
+        given:
+        def active = new PipelineKey(1L, 'k', KeyStatus.ACTIVE, ISSUED, null, null, null)
+        def revoked = new PipelineKey(2L, 'r', KeyStatus.REVOKED, ISSUED, REVOKED, 'leaked', null)
+
+        when:
+        active.requireActive()
+
+        then:
+        noExceptionThrown()
+
+        when:
+        revoked.requireActive()
+
+        then:
+        def e = thrown(KeyRevokedException)
+        e.message == "The DevSecOps pipeline key was invalidated on $REVOKED: leaked"
+    }
 }

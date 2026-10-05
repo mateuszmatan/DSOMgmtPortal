@@ -42,5 +42,6 @@ public record UnitTestSettings(
                     ? "add the Maven goals of the unit tests, for example test jacoco:report"
                     : "add the Gradle tasks of the unit tests, for example test jacocoTestReport");
         }
+        command.validate(problems.at("command"));
     }
 }

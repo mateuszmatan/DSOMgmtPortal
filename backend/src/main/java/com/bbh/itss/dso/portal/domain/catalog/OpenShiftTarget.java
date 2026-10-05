@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.Text;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.Map;
 
@@ -46,6 +47,25 @@ public record OpenShiftTarget(
         deploymentRepoUrl = Text.trimToNull(deploymentRepoUrl);
         deploymentRepoBranch = Text.trimToNull(deploymentRepoBranch);
         deploymentRepoCredentialsId = Text.trimToNull(deploymentRepoCredentialsId);
+    }
+
+    public static final OpenShiftTarget NONE = new OpenShiftTarget(null, null, null, null, null, null, null, null, null,
+            null, null, null, false, null, null, null, null, null, null);
+
+    public void validateImageBuild(ValidationProblems problems) {
+        String message = "is required for OpenShift: the Nexus snapshot delivery builds the image in the RD project";
+        require(problems, "projectBuild", projectBuild, message);
+        require(problems, "buildConfigPath", buildConfigPath, message);
+        require(problems, "dockerFilePath", dockerFilePath, message);
+        require(problems, "buildContext", buildContext, message);
+        require(problems, "dockerRepoPush", dockerRepoPush, message);
+        require(problems, "nexusAuthFile", nexusAuthFile, message);
+    }
+
+    private static void require(ValidationProblems problems, String field, String value, String message) {
+        if (value == null) {
+            problems.add(field, message);
+        }
     }
 
     public boolean isEmpty() {

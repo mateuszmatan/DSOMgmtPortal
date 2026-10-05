@@ -70,7 +70,7 @@ public final class DsoConfigBuilder {
         ConfigTree tree = new ConfigTree();
         global.platform().writeProjectDefaults(tree);
         product.writeConfig(service, tree);
-        global.deployment().fillIn(tree);
+        global.deployment().fillIn(tree, service.settings().deployment().target());
         return tree;
     }
 }

@@ -2,11 +2,13 @@ package com.bbh.itss.dso.portal.adapter.out.persistence;
 
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort;
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductSummary;
+import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
 import com.bbh.itss.dso.portal.domain.shared.ConflictException;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -57,16 +59,36 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
     public Product save(Product product) {
         ProductEntity entity = product.id() == null ? new ProductEntity() : existing(product);
         mapper.copy(product, entity);
-        Set<Long> kept = product.serviceIds();
-        entity.services().stream().filter(service -> !kept.contains(service.getId())).forEach(entity::removeService);
         if (product.id() != null) {
+            entity.touch();
+            Set<Long> kept = product.serviceIds();
+            entity.services().stream().filter(service -> !kept.contains(service.getId())).forEach(entity::removeService);
+            products.flush();
+            updateKeptServices(product, entity);
+        }
+        product.services().stream().filter(service -> service.id() == null)
+                .forEach(service -> mapper.copy(service, entity.addService()));
+        return mapper.toDomain(products.saveAndFlush(entity));
+    }
+
+    private void updateKeptServices(Product product, ProductEntity entity) {
+        Map<ServiceEntity, Service> kept = new LinkedHashMap<>();
+        product.services().stream().filter(service -> service.id() != null)
+                .forEach(service -> kept.put(entity.service(service.id()).orElseThrow(), service));
+        List<ServiceEntity> moving = kept.entrySet().stream()
+                .filter(entry -> movesUniqueValues(entry.getValue(), entry.getKey())).map(Map.Entry::getKey).toList();
+        if (!moving.isEmpty()) {
+            moving.forEach(ServiceEntity::releaseUniqueValues);
             products.flush();
         }
-        for (Service service : product.services()) {
-            ServiceEntity target = service.id() == null ? entity.addService() : entity.service(service.id()).orElseThrow();
-            mapper.copy(service, target);
-        }
-        return mapper.toDomain(products.saveAndFlush(entity));
+        kept.forEach((target, service) -> mapper.copy(service, target));
+        products.flush();
+    }
+
+    private static boolean movesUniqueValues(Service service, ServiceEntity target) {
+        MetricsSettings metrics = service.settings().metrics();
+        return target.holdsOtherUniqueValuesThan(service.name(), service.settings().sonar().projectKey(),
+                metrics.influxProject(), metrics.influxEnv());
     }
 
     @Override

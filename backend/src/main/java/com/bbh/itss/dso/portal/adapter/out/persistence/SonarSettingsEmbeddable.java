@@ -34,6 +34,11 @@ public record SonarSettingsEmbeddable(
                 sonar.fullBadges(), ToolCommandEmbeddable.of(sonar.command()));
     }
 
+    SonarSettingsEmbeddable withProjectKey(String key) {
+        return new SonarSettingsEmbeddable(projectName, key, installationName, credentialsId, authTokenCredentialsId,
+                badgeToken, addBadges, fullBadges, command);
+    }
+
     SonarSettings toDomain() {
         return new SonarSettings(projectName, projectKey, installationName, credentialsId, authTokenCredentialsId,
                 badgeToken, addBadges, fullBadges, ToolCommandEmbeddable.toDomain(command));

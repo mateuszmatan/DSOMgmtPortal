@@ -74,17 +74,55 @@ class FlutterSettingsSpec extends Specification {
                 [flutter: [platform: 'apk'], tools: [sonar: [sources: 'lib']]]
     }
 
-    def "the Flutter build stage needs all three credentials"() {
+    def "the Flutter build stage needs its modules, a test module and all three credentials"() {
         given:
         def problems = new ValidationProblems()
 
         when:
-        FlutterSettings.NONE.validate(problems.at('flutter'))
+        FlutterSettings.NONE.validate(problems.at('flutter'), DeployTarget.OPENSHIFT)
 
         then:
-        problems.list()*.field == ['flutter.signingPasswordCredentialsId', 'flutter.prodLicenseCredentialsId',
-                                   'flutter.testLicenseCredentialsId']
-        problems.list()*.message.unique() == ['is required: the Flutter build stage reads this Jenkins credential']
+        problems.list()*.field == ['flutter.modules', 'flutter.testModules', 'flutter.signingPasswordCredentialsId',
+                                   'flutter.prodLicenseCredentialsId', 'flutter.testLicenseCredentialsId']
+        problems.list()*.message == ['add at least one module: the build stage prepares each of them',
+                                     'add at least one test module: the unit tests stage runs them'] +
+                ['is required: the Flutter build stage reads this Jenkins credential'] * 3
+    }
+
+    def "a Flutter build delivered to VMs needs the Nexus coordinates of its delivery"() {
+        given:
+        def problems = new ValidationProblems()
+        def withoutDelivery = new FlutterSettings(APK, ['app'], ['app'], [], [], 'sign', 'prod', 'test', group, artifact,
+                plugin, null, null, false, null, null)
+
+        when:
+        withoutDelivery.validate(problems, target)
+
+        then:
+        problems.list()*.field == missing
+        problems.list()*.message.every { it == 'is required for Flutter on VMs: the Nexus delivery uploads the build under it' }
+
+        where:
+        target                 | group     | artifact | plugin   || missing
+        DeployTarget.VM        | null      | null     | null     || ['deliveryGroup', 'deliveryArtifact', 'deliveryPlugin']
+        DeployTarget.VM        | 'com.bbh' | ' '      | 'plugin' || ['deliveryArtifact']
+        DeployTarget.VM        | 'com.bbh' | 'app'    | 'plugin' || []
+        DeployTarget.OPENSHIFT | null      | null     | null     || []
+    }
+
+    def "module lists that do not fit their column are refused"() {
+        given:
+        def problems = new ValidationProblems()
+        def tooMany = (1..30).collect { "modules/feature-$it/${'x' * 25}".toString() }
+        def settings = new FlutterSettings(APK, tooMany, tooMany, tooMany, ['ok'], 'sign', 'prod', 'test', null, null,
+                null, null, null, false, null, null)
+
+        when:
+        settings.validate(problems, DeployTarget.OPENSHIFT)
+
+        then:
+        problems.list()*.field == ['modules', 'testModules', 'testSubmodules']
+        problems.list()*.message.unique() == ['is too long: all entries together may take at most 1000 bytes']
     }
 
     def "missing credential #missing is reported"() {
@@ -92,7 +130,7 @@ class FlutterSettingsSpec extends Specification {
         def problems = new ValidationProblems()
 
         when:
-        settings.validate(problems)
+        settings.validate(problems, DeployTarget.VM)
 
         then:
         problems.list()*.field == missing
@@ -111,7 +149,8 @@ class FlutterSettingsSpec extends Specification {
     }
 
     private static FlutterSettings credentials(String signing, String prod, String test) {
-        new FlutterSettings(null, [], [], [], [], signing, prod, test, null, null, null, null, null, false, null, null)
+        new FlutterSettings(null, ['app'], ['app'], [], [], signing, prod, test, 'com.bbh', 'app', 'plugin', null, null,
+                false, null, null)
     }
 
     private static Map written(FlutterSettings settings) {

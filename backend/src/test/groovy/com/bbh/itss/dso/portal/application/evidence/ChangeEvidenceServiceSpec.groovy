@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.application.evidence
 
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort
 import com.bbh.itss.dso.portal.application.evidence.port.out.RunEvidencePort
+import com.bbh.itss.dso.portal.application.monitoring.MonitoringTargetsService
 import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
@@ -56,8 +57,10 @@ class ChangeEvidenceServiceSpec extends Specification {
         current() >> storedSettings('https://jenkins.test')
     }
 
+    def targets = new MonitoringTargetsService(products, pipelines, settings)
+
     @Subject
-    def evidenceService = new ChangeEvidenceService(products, pipelines, settings, runs, evidence)
+    def evidenceService = new ChangeEvidenceService(targets, runs, evidence)
 
     Product certScanner = product(id: 1L, code: 'CERT', name: 'CertScanner', services: [
             [name: 'gui', id: 10L,
@@ -195,7 +198,7 @@ class ChangeEvidenceServiceSpec extends Specification {
         result.services()[0].pipelines() == []
     }
 
-    def "a failure reading the evidence drops the runs already read"() {
+    def "a failure reading the evidence keeps the runs already read and reports the reason"() {
         given:
         runs.latestRuns(_) >> [(guiTag): guiRun]
 
@@ -207,6 +210,23 @@ class ChangeEvidenceServiceSpec extends Specification {
             throw new MetricsUnavailableException("InfluxDB could not be read: Text 'yesterday' could not be parsed")
         }
         result.metricsError() == "InfluxDB could not be read: Text 'yesterday' could not be parsed"
+        result.services()[0].pipelines()[0].status() == RunResult.SUCCESS
+        with(result.services()[0].pipelines()[0].run()) {
+            build().number() == 42L
+            build().url() == GUI_JOB + '42/'
+            coverage().status() == CheckStatus.NO_DATA
+            stages() == []
+        }
+    }
+
+    def "a failure reading the latest runs leaves no run at all"() {
+        when:
+        def result = evidenceService.product(1L)
+
+        then:
+        1 * runs.latestRuns(_) >> { throw new MetricsUnavailableException(NOT_CONFIGURED) }
+        0 * evidence.evidenceOf(_)
+        result.metricsError() == NOT_CONFIGURED
         result.services()[0].pipelines()[0].run() == null
         result.services()[0].pipelines()[0].status() == RunResult.NO_DATA
     }
@@ -251,11 +271,13 @@ class ChangeEvidenceServiceSpec extends Specification {
 
         where:
         pipelineJob                        | runJob                             | jenkinsUrl             || jobUrl                             | buildUrl
-        'DevSecOps/CERT/gui-full'          | 'DevSecOps/CERT/other'             | 'https://jenkins.test' || GUI_JOB                            | GUI_JOB + '42/'
+        'DevSecOps/CERT/gui-full'          | 'DevSecOps/CERT/app/develop'       | 'https://jenkins.test' || GUI_JOB                            | 'https://jenkins.test/job/DevSecOps/job/CERT/job/app/job/develop/42/'
         null                               | 'DevSecOps/CERT/gui-full'          | 'https://jenkins.test' || null                               | GUI_JOB + '42/'
         null                               | 'https://jenkins.bbh.com/job/gui/' | null                   || null                               | 'https://jenkins.bbh.com/job/gui/42/'
-        'https://jenkins.bbh.com/job/own/' | 'DevSecOps/CERT/gui-full'          | null                   || 'https://jenkins.bbh.com/job/own/' | 'https://jenkins.bbh.com/job/own/42/'
+        'https://jenkins.bbh.com/job/own/' | null                               | null                   || 'https://jenkins.bbh.com/job/own/' | 'https://jenkins.bbh.com/job/own/42/'
+        'DevSecOps/CERT/gui-full'          | null                               | 'https://jenkins.test' || GUI_JOB                            | GUI_JOB + '42/'
         null                               | 'DevSecOps/CERT/gui-full'          | null                   || null                               | null
+        'https://jenkins.bbh.com/job/own/' | 'DevSecOps/CERT/app/develop'       | null                   || 'https://jenkins.bbh.com/job/own/' | 'https://jenkins.bbh.com/job/own/42/'
         null                               | null                               | 'https://jenkins.test' || null                               | null
     }
 

@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.adapter.out.persistence;
 
 import com.bbh.itss.dso.portal.application.catalog.port.out.PipelineCountsPort;
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort;
+import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import com.bbh.itss.dso.portal.domain.shared.ConflictException;
@@ -40,8 +41,8 @@ class PipelinePersistenceAdapter implements PipelineRepositoryPort, PipelineCoun
     }
 
     @Override
-    public Optional<Pipeline> findByKey(String keyValue) {
-        return keys.findPipelineIdByValue(keyValue).flatMap(this::load);
+    public Optional<IssuedKey> findKey(String keyValue) {
+        return keys.findIssuedKey(keyValue).map(IssuedKeyRow::toDomain);
     }
 
     @Override
@@ -76,8 +77,8 @@ class PipelinePersistenceAdapter implements PipelineRepositoryPort, PipelineCoun
     }
 
     @Override
-    public void recordKeyUse(long keyId, Instant usedAt) {
-        keys.recordUse(keyId, usedAt);
+    public boolean recordKeyUse(long keyId, Instant usedAt) {
+        return keys.recordUse(keyId, usedAt) == 1;
     }
 
     @Override

@@ -14,9 +14,12 @@ import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryP
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
+import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey;
 import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineKey;
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings;
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import com.bbh.itss.dso.portal.domain.pipeline.ServiceRef;
 import com.bbh.itss.dso.portal.domain.shared.ConflictException;
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
@@ -70,6 +73,7 @@ public class PipelineService implements ManagePipelinesUseCase, ManagePipelineKe
 
     @Override
     public PipelineView create(long serviceId, PipelineCommand command) {
+        publisher.lockConfigurations();
         Product product = products.findByServiceId(serviceId)
                 .orElseThrow(() -> NotFoundException.of("Service", serviceId));
         Service service = product.service(serviceId).orElseThrow(() -> NotFoundException.of("Service", serviceId));
@@ -77,15 +81,36 @@ public class PipelineService implements ManagePipelinesUseCase, ManagePipelineKe
             throw new ConflictException("Service " + service.name() + " already has a " + command.type().variant()
                     + " pipeline");
         }
-        Pipeline created = Pipeline.create(new ServiceRef(product.id(), serviceId), command.type(), command.settings(),
-                keys, now());
-        Pipeline saved = pipelines.save(created);
+        return PipelineView.of(product, create(product, serviceId, command.type(), command.settings()), jenkinsUrl());
+    }
+
+    @Override
+    public List<PipelineView> createForNewServices(long productId, List<Long> serviceIds) {
+        if (serviceIds.isEmpty()) {
+            return List.of();
+        }
+        publisher.lockConfigurations();
+        Product product = products.load(productId).orElseThrow(() -> NotFoundException.of("Product", productId));
+        String jenkinsUrl = jenkinsUrl();
+        return serviceIds.stream()
+                .map(serviceId -> product.service(serviceId)
+                        .orElseThrow(() -> NotFoundException.of("Service", serviceId)))
+                .filter(service -> !pipelines.existsForService(service.id(), PipelineType.FULL))
+                .map(service -> PipelineView.of(product, create(product, service.id(), PipelineType.FULL,
+                        PipelineSettings.forNewService()), jenkinsUrl))
+                .toList();
+    }
+
+    private Pipeline create(Product product, long serviceId, PipelineType type, PipelineSettings settings) {
+        Pipeline saved = pipelines.save(Pipeline.create(new ServiceRef(product.id(), serviceId), type, settings,
+                keys, now()));
         publisher.pipelineChanged(saved.id());
-        return PipelineView.of(product, saved, jenkinsUrl());
+        return saved;
     }
 
     @Override
     public PipelineView update(long id, PipelineCommand command) {
+        publisher.lockConfigurations();
         Pipeline pipeline = find(id);
         pipeline.reconfigure(command.type(), command.settings());
         Pipeline saved = pipelines.save(pipeline);
@@ -95,6 +120,7 @@ public class PipelineService implements ManagePipelinesUseCase, ManagePipelineKe
 
     @Override
     public void delete(long id) {
+        publisher.lockConfigurations();
         find(id);
         pipelines.delete(id);
     }
@@ -114,13 +140,18 @@ public class PipelineService implements ManagePipelinesUseCase, ManagePipelineKe
     }
 
     @Override
-    public PipelineView resolveKey(String keyValue) {
-        Pipeline pipeline = pipelines.findByKey(PipelineKey.normalize(keyValue))
-                .orElseThrow(() -> new NotFoundException(Pipeline.UNKNOWN_KEY));
-        Instant now = now();
-        PipelineKey used = pipeline.authorize(keyValue, now);
-        pipelines.recordKeyUse(used.id(), now);
-        return view(pipeline);
+    public long authorizeKey(String keyValue) {
+        String value = PipelineKey.normalize(keyValue);
+        IssuedKey issued = issuedKey(value);
+        long pipelineId = issued.authorize();
+        if (!pipelines.recordKeyUse(issued.key().id(), now())) {
+            issuedKey(value).authorize();
+        }
+        return pipelineId;
+    }
+
+    private IssuedKey issuedKey(String value) {
+        return pipelines.findKey(value).orElseThrow(() -> new NotFoundException(Pipeline.UNKNOWN_KEY));
     }
 
     private PipelineView view(Pipeline pipeline) {

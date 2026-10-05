@@ -9,11 +9,16 @@ import com.bbh.itss.dso.portal.application.catalog.port.in.QueryProductsUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.out.PipelineCountsPort;
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort;
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelinesUseCase;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
+import com.bbh.itss.dso.portal.domain.catalog.Service;
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @UseCase
 public class ProductCatalogService implements ManageProductsUseCase, QueryProductsUseCase {
@@ -21,12 +26,14 @@ public class ProductCatalogService implements ManageProductsUseCase, QueryProduc
     private final ProductRepositoryPort products;
     private final PipelineCountsPort pipelineCounts;
     private final PublishPipelineConfigsUseCase publisher;
+    private final ManagePipelinesUseCase pipelines;
 
     public ProductCatalogService(ProductRepositoryPort products, PipelineCountsPort pipelineCounts,
-                                 PublishPipelineConfigsUseCase publisher) {
+                                 PublishPipelineConfigsUseCase publisher, ManagePipelinesUseCase pipelines) {
         this.products = products;
         this.pipelineCounts = pipelineCounts;
         this.publisher = publisher;
+        this.pipelines = pipelines;
     }
 
     @Override
@@ -52,20 +59,36 @@ public class ProductCatalogService implements ManageProductsUseCase, QueryProduc
 
     @Override
     public Product create(ProductCommand command) {
-        return saved(Product.create(command.details(), command.appScan(), command.drafts(), products));
+        publisher.lockConfigurations();
+        Product saved = saved(Product.create(command.details(), command.appScan(), command.drafts(), products));
+        return withPipelinesForNewServices(saved, Collections.emptySet());
     }
 
     @Override
     public Product update(long id, ProductCommand command) {
+        publisher.lockConfigurations();
         Product product = find(id);
+        Set<Long> known = new HashSet<>(serviceIds(product));
         product.update(command.version(), command.details(), command.appScan(), command.drafts(), products);
-        return saved(product);
+        return withPipelinesForNewServices(saved(product), known);
     }
 
     @Override
     public void delete(long id) {
+        publisher.lockConfigurations();
         find(id);
         products.delete(id);
+    }
+
+    private Product withPipelinesForNewServices(Product saved, Set<Long> known) {
+        pipelines.createForNewServices(saved.id(), serviceIds(saved).stream()
+                .filter(serviceId -> !known.contains(serviceId))
+                .toList());
+        return saved;
+    }
+
+    private static List<Long> serviceIds(Product product) {
+        return product.services().stream().map(Service::id).toList();
     }
 
     private Product saved(Product product) {

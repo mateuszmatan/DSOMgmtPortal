@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.Text;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.Map;
 
@@ -22,6 +23,15 @@ public record UrbanCodeComponent(
         versionPrefix = Text.trimToNull(versionPrefix);
         version = Text.trimToNull(version);
         incrementalVersion = !Boolean.FALSE.equals(incrementalVersion);
+    }
+
+    public void validate(ValidationProblems problems) {
+        if (baseDir == null) {
+            problems.add("baseDir", "is required: the deployment uploads the component's files from this folder");
+        }
+        if (fileIncludePatterns == null) {
+            problems.add("fileIncludePatterns", "is required: the deployment uploads the files matching these patterns");
+        }
     }
 
     public Map<String, Object> toConfig() {

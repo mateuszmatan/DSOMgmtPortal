@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.Text;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -20,6 +21,15 @@ public record UrbanCodeApplicationSettings(
         environments = Text.clean(environments);
         snapshotName = Text.trimToNull(snapshotName);
         components = components == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(components));
+    }
+
+    public void validate(ValidationProblems problems) {
+        if (components.isEmpty()) {
+            problems.add("components", "add at least one component: the deployment uploads the components of the application");
+        }
+        for (int i = 0; i < components.size(); i++) {
+            components.get(i).validate(problems.at("components[" + i + "]"));
+        }
     }
 
     public Map<String, Object> toConfig() {

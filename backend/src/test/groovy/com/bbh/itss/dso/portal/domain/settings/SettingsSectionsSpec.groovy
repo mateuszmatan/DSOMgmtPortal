@@ -108,15 +108,57 @@ class SettingsSectionsSpec extends Specification {
         tree.toMap() == [releaseGate: [requireCoverage: true, stateFile: 'release-gate.json']]
     }
 
-    def "deployment defaults add nothing to a service without VM deployment sections"() {
+    def "deployment defaults add nothing to a service deployed to OpenShift"() {
         given:
         def tree = new ConfigTree().set('deployTarget', 'openshift')
 
         when:
-        deployment.fillIn(tree)
+        deployment.fillIn(tree, DeployTarget.OPENSHIFT)
 
         then:
         tree.toMap() == [deployTarget: 'openshift']
+    }
+
+    def "a VM service without SSH values of its own deploys to the global RD and QC hosts"() {
+        given:
+        def tree = new ConfigTree().set('deployTarget', 'vm')
+
+        when:
+        deployment.fillIn(tree, DeployTarget.VM)
+
+        then:
+        tree.toMap() == [deployTarget: 'vm',
+                         deploy      : [vm: [rd: [host        : 'rdltaapps1.testbbh.com', user: 'taadmin',
+                                                  deployScript: 'scripts/deployment/zero-downtime-deployment.sh',
+                                                  versionFile : 'scripts/deployment/version.properties'],
+                                             qc: [host        : 'qcltaapps1.testbbh.com', user: 'taadmin',
+                                                  deployScript: 'scripts/deployment/zero-downtime-deployment.sh',
+                                                  versionFile : 'scripts/deployment/version.properties']]]]
+    }
+
+    def "a changed global host reaches every VM service that does not set its own"() {
+        given:
+        def moved = new DeploymentDefaults('BBH', 'process', 'rdnew.testbbh.com', 'qcnew.testbbh.com', 'dsoadm',
+                null, null)
+        def tree = new ConfigTree().set('deploy.vm.qc.host', 'own-qc.testbbh.com')
+
+        when:
+        moved.fillIn(tree, DeployTarget.VM)
+
+        then:
+        tree.get('deploy.vm') == [qc: [host: 'own-qc.testbbh.com', user: 'dsoadm'],
+                                  rd: [host: 'rdnew.testbbh.com', user: 'dsoadm']]
+    }
+
+    def "a VM region gets no section when neither the service nor the global settings have a value"() {
+        given:
+        def tree = new ConfigTree()
+
+        when:
+        new DeploymentDefaults(null, null, null, null, null, null, null).fillIn(tree, DeployTarget.VM)
+
+        then:
+        tree.toMap() == [:]
     }
 
     def "deployment defaults complete the sections a service configured and keep its own values"() {
@@ -127,28 +169,29 @@ class SettingsSectionsSpec extends Specification {
                 .set('deploy.vm.rd.deployDir', '/opt/batch')
 
         when:
-        deployment.fillIn(tree)
+        deployment.fillIn(tree, DeployTarget.VM)
 
         then:
-        tree.toMap() == [deploy: [vm: [dod: [siteName: 'own-site', deployProcess: 'tomcat-app-process'],
-                                       rd : [user        : 'batchadm', deployDir: '/opt/batch',
-                                             host        : 'rdltaapps1.testbbh.com',
-                                             deployScript: 'scripts/deployment/zero-downtime-deployment.sh',
-                                             versionFile : 'scripts/deployment/version.properties']]]]
+        tree.get('deploy.vm.dod') == [siteName: 'own-site', deployProcess: 'tomcat-app-process']
+        tree.get('deploy.vm.rd') == [user        : 'batchadm', deployDir: '/opt/batch',
+                                     host        : 'rdltaapps1.testbbh.com',
+                                     deployScript: 'scripts/deployment/zero-downtime-deployment.sh',
+                                     versionFile : 'scripts/deployment/version.properties']
+        tree.get('deploy.vm.rd').keySet() as List == ['user', 'deployDir', 'host', 'deployScript', 'versionFile']
     }
 
-    def "the QC section gets the QC host"() {
+    def "the QC section gets the QC host and no UrbanCode section is made up"() {
         given:
         def tree = new ConfigTree().set('deploy.vm.qc.deployDir', '/opt/app')
 
         when:
-        deployment.fillIn(tree)
+        deployment.fillIn(tree, DeployTarget.VM)
 
         then:
         tree.get('deploy.vm.qc') == [deployDir   : '/opt/app', host: 'qcltaapps1.testbbh.com', user: 'taadmin',
                                      deployScript: 'scripts/deployment/zero-downtime-deployment.sh',
                                      versionFile : 'scripts/deployment/version.properties']
-        tree.get('deploy.vm.rd') == null
+        tree.get('deploy.vm.rd.host') == 'rdltaapps1.testbbh.com'
         tree.get('deploy.vm.dod') == null
     }
 

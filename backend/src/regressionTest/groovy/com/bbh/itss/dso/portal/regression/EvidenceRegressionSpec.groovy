@@ -27,12 +27,12 @@ class EvidenceRegressionSpec extends PortalSpecification {
                 contactEmail: 'treasury@bbh.com', services: [
                 service(name: 'gui', description: 'Treasury web client', deployment: [target: 'VM', artifactName: 'gui.war'],
                         sonar: [projectKey: "$code-gui".toString(), command: [tasks: ['sonarqube']]],
-                        nexusIq: [application: "$code-gui".toString()],
+                        nexusIq: [application: "$code-gui".toString(), scanPatterns: ['**/build/libs/*.war']],
                         scm: [repositoryUrl: 'https://bitbucket.bbh.com/projects/TRE/repos/gui',
                               credentialsId: 'bitbucket-http-credentials']),
                 service(name: 'batch')]))
-        guiFull = createPipeline(evidenced.services[0].id as long, pipeline(jenkinsJob: JOB))
-        guiSast = createPipeline(evidenced.services[0].id as long, pipeline(type: 'SAST'))
+        guiFull = pipelineFor(evidenced.services[0].id as long, pipeline(jenkinsJob: JOB))
+        guiSast = pipelineFor(evidenced.services[0].id as long, pipeline(type: 'SAST'))
         api.post("/api/pipelines/$guiSast.id/keys/revoke", [reason: 'SAST runs inside the full pipeline'])
 
         finished = Instant.now().minus(Duration.ofHours(1))
@@ -79,7 +79,9 @@ class EvidenceRegressionSpec extends PortalSpecification {
         evidence.ownerTeam == 'Treasury Apps'
         evidence.contactEmail == 'treasury@bbh.com'
         evidence.services*.name == ['gui', 'batch']
-        evidence.services[1].pipelines == []
+        evidence.services[1].pipelines*.type == ['FULL']
+        evidence.services[1].pipelines*.status == ['NO_DATA']
+        evidence.services[1].pipelines[0].run == null
 
         def gui = "$code-gui"
         with(evidence.services[0]) {
@@ -134,6 +136,35 @@ class EvidenceRegressionSpec extends PortalSpecification {
 
         and: 'one query reads the evidence of all the product pipelines'
         influx.requests.count { it.body.query.contains('"security_findings"') } == 1
+    }
+
+    def "the build links follow the job that recorded the run, not the job the pipeline was given"() {
+        given:
+        def settings = api.get('/api/settings').json as Map
+        assert api.put('/api/settings', settings + [platform: settings.platform +
+                [jenkinsUrl: 'https://jenkins.bbh.com/']]).status == 200
+        def branchJob = "DevSecOps/$code/gui/develop"
+        influx.reset()
+        influx.addRun(project: "$code-gui", time: finished, result: 'SUCCESS', build: 57, job: branchJob)
+
+        when:
+        def full = api.get("/api/evidence/products/$evidenced.id").json.services[0].pipelines[0]
+        def monitored = api.get("/api/monitoring/pipelines/$guiFull.id").json
+
+        then: 'the multibranch build of the branch job, not build 57 of the configured project'
+        String build = "https://jenkins.bbh.com/job/DevSecOps/job/$code/job/gui/job/develop/57/"
+        full.jenkinsJobUrl == JOB
+        full.run.build.job == branchJob
+        full.run.build.url == build
+        full.run.build.reportUrl == build + 'Pipeline_20Report/'
+        full.run.build.testReportUrl == build + 'testReport/'
+        full.run.build.artifactsUrl == build + 'artifact/'
+        monitored.lastRun.buildUrl == build
+        monitored.recentRuns*.buildUrl == [build]
+
+        cleanup:
+        def current = api.get('/api/settings').json
+        api.put('/api/settings', settings + [version: current.version])
     }
 
     def "a run that recorded nothing besides its result still links its build"() {

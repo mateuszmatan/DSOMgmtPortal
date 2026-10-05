@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.out.grafana;
 
+import com.bbh.itss.dso.portal.adapter.out.influx.InfluxProperties;
 import com.bbh.itss.dso.portal.application.monitoring.port.out.DashboardLinksPort;
 import com.bbh.itss.dso.portal.domain.monitoring.DashboardLinks;
 import com.bbh.itss.dso.portal.domain.monitoring.DashboardPanel;
@@ -18,9 +19,11 @@ import java.util.Optional;
 class GrafanaDashboardLinksAdapter implements DashboardLinksPort {
 
     private final GrafanaProperties grafana;
+    private final InfluxProperties influx;
 
-    GrafanaDashboardLinksAdapter(GrafanaProperties grafana) {
+    GrafanaDashboardLinksAdapter(GrafanaProperties grafana, InfluxProperties influx) {
         this.grafana = grafana;
+        this.influx = influx;
     }
 
     @Override
@@ -39,6 +42,10 @@ class GrafanaDashboardLinksAdapter implements DashboardLinksPort {
         query.put("orgId", String.valueOf(grafana.orgId()));
         query.put("var-project", tag.project());
         query.put("var-env", tag.env());
+        query.put("var-bucket", influx.bucket());
+        if (grafana.datasourceUid() != null) {
+            query.put("var-datasource", grafana.datasourceUid());
+        }
         query.put("from", "now-" + rangeDays + "d");
         query.put("to", "now");
         query.put("theme", grafana.theme());
