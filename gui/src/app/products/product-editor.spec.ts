@@ -9,6 +9,7 @@ import {
   service,
   servicePipelines,
 } from '../testing/fixtures';
+import { GeneratedKeys } from './generated-keys';
 import { ProductEditor } from './product-editor';
 
 describe('ProductEditor', () => {
@@ -127,6 +128,7 @@ describe('ProductEditor', () => {
 
     expect(router.navigate).toHaveBeenCalledWith(['/products', 5]);
     expect(editor().hasUnsavedChanges()).toBe(false);
+    expect(TestBed.inject(GeneratedKeys).take(5)).toEqual(['gui']);
   });
 
   it('marks the fields the API refused and lists the problems without a field', async () => {
@@ -268,6 +270,45 @@ describe('ProductEditor', () => {
     request.flush(product());
     await fixture.whenStable();
     expect(router.navigate).toHaveBeenCalledWith(['/products', 1]);
+    expect(TestBed.inject(GeneratedKeys).take(1)).toEqual([]);
+  });
+
+  it('tells the product page which services were added, so it can announce their keys', async () => {
+    fixture.componentRef.setInput('id', '1');
+    await fixture.whenStable();
+    http.expectOne('/api/products/1').flush(product());
+    http.expectOne('/api/products/1/pipelines').flush([servicePipelines()]);
+    http.expectOne('/api/settings').flush(globalSettings());
+    await fixture.whenStable();
+
+    editor()['duplicate'](0);
+    await submit();
+
+    const request = http.expectOne({ method: 'PUT', url: '/api/products/1' });
+    expect(request.request.body.services.map((s: { id: number | null }) => s.id)).toEqual([
+      10,
+      null,
+    ]);
+    request.flush(product({ services: [service(), service({ id: 12, name: 'gui-copy' })] }));
+    await fixture.whenStable();
+
+    expect(TestBed.inject(GeneratedKeys).take(1)).toEqual(['gui-copy']);
+  });
+
+  it('announces no keys when the save fails', async () => {
+    await start();
+    fillValidProduct();
+    await submit();
+
+    http
+      .expectOne({ method: 'POST', url: '/api/products' })
+      .flush({ detail: 'The database is not available' }, { status: 503, statusText: '' });
+    await fixture.whenStable();
+
+    expect(page().querySelector('.save-error')?.textContent).toContain(
+      'The database is not available',
+    );
+    expect(TestBed.inject(GeneratedKeys).take(5)).toEqual([]);
   });
 
   it('turns the product code into upper case as it is typed', async () => {

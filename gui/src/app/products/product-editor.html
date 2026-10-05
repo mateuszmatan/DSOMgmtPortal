@@ -19,8 +19,8 @@
       } @else if (!id()) {
         <h1>Add product</h1>
         <p>
-          Describe the product and define its services. Each service can then get its own DevSecOps
-          pipelines.
+          Describe the product and define its services. Saving gives each new service a full
+          DevSecOps pipeline with its key.
         </p>
       } @else {
         <h1>Edit product</h1>
@@ -154,8 +154,8 @@
               Services <span class="count">{{ services().length }}</span>
             </h2>
             <p>
-              Each service is one entry under <code>projects:</code> in config.yaml and can get its
-              own pipelines.
+              Each service is one entry under <code>projects:</code> in config.yaml. Saving gives a
+              new service its full pipeline and key.
             </p>
           </div>
           <button mat-stroked-button type="button" (click)="addService()">Add service</button>

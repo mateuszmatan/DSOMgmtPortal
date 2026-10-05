@@ -77,6 +77,15 @@
       </div>
     }
 
+    @if (generated().length) {
+      <div class="banner info generated" role="status">
+        <span class="generated-text"
+          >{{ generatedNotice() }} Copy each key into the Jenkinsfile of its service.</span
+        >
+        <button type="button" class="text-link" (click)="dismissGenerated()">Dismiss</button>
+      </div>
+    }
+
     @if (services.error(); as error) {
       <div class="banner">{{ errorMessage(error) }}</div>
     } @else if (services.hasValue()) {
@@ -99,6 +108,9 @@
                 <span class="tag">{{
                   service.deployTarget === 'VM' ? 'Virtual machine' : 'OpenShift'
                 }}</span>
+                @if (generated().includes(service.serviceName)) {
+                  <span class="tag new">New</span>
+                }
                 @if (service.description) {
                   <span class="muted service-description">{{ service.description }}</span>
                 }
@@ -140,6 +152,17 @@
                     <span class="key-state active">Key active</span>
                   } @else {
                     <span class="key-state invalid">Key invalidated</span>
+                    <button
+                      type="button"
+                      class="text-link"
+                      (click)="regenerateKey(pipeline)"
+                      [disabled]="regenerating().has(pipeline.id)"
+                      [attr.aria-label]="
+                        'Regenerate key of the ' + typeName(pipeline.type) + ' pipeline'
+                      "
+                    >
+                      {{ regenerating().has(pipeline.id) ? 'Regenerating…' : 'Regenerate key' }}
+                    </button>
                   }
                 </div>
                 <dl class="pipeline-meta">
@@ -209,7 +232,7 @@
                           (revealed().has(pipeline.id)
                             ? 'Hide the key of the '
                             : 'Show the key of the ') +
-                          typeLabel(pipeline.type).toLowerCase() +
+                          typeName(pipeline.type) +
                           ' pipeline'
                         "
                       >
@@ -221,9 +244,7 @@
                         [cdkCopyToClipboard]="value"
                         (cdkCopyToClipboardCopied)="copied()"
                         [attr.aria-label]="
-                          'Copy the key of the ' +
-                          typeLabel(pipeline.type).toLowerCase() +
-                          ' pipeline'
+                          'Copy the key of the ' + typeName(pipeline.type) + ' pipeline'
                         "
                       >
                         Copy
@@ -238,7 +259,7 @@
                   </div>
                 } @else {
                   <p class="revoked-note">
-                    The pipeline is refused its configuration. Issue a new key to enable it again.
+                    The pipeline is refused its configuration until its key is regenerated.
                   </p>
                 }
               </div>
@@ -253,9 +274,7 @@
                 <button
                   mat-button
                   [matMenuTriggerFor]="pipelineMenu"
-                  [attr.aria-label]="
-                    'More actions of the ' + typeLabel(pipeline.type).toLowerCase() + ' pipeline'
-                  "
+                  [attr.aria-label]="'More actions of the ' + typeName(pipeline.type) + ' pipeline'"
                 >
                   More
                 </button>
@@ -265,12 +284,18 @@
                   <button mat-menu-item (click)="editPipeline(service, pipeline)">Settings</button>
                   <mat-divider />
                   @if (pipeline.activeKey) {
-                    <button mat-menu-item (click)="issueKey(pipeline)">Replace key</button>
+                    <button mat-menu-item (click)="replaceKey(pipeline)">Replace key</button>
                     <button mat-menu-item class="danger" (click)="revokeKey(pipeline)">
                       Invalidate key
                     </button>
                   } @else {
-                    <button mat-menu-item (click)="issueKey(pipeline)">Issue new key</button>
+                    <button
+                      mat-menu-item
+                      (click)="regenerateKey(pipeline)"
+                      [disabled]="regenerating().has(pipeline.id)"
+                    >
+                      Regenerate key
+                    </button>
                   }
                   <button mat-menu-item class="danger" (click)="deletePipeline(pipeline)">
                     Delete pipeline

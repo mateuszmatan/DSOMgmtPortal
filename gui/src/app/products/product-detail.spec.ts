@@ -7,7 +7,16 @@ import { of } from 'rxjs';
 import { Pipeline, Product } from '../core/models';
 import { CodeDialog } from '../shared/code-dialog';
 import { ConfirmDialog } from '../shared/confirm-dialog';
-import { globalSettings, pipeline, product, service, servicePipelines } from '../testing/fixtures';
+import {
+  anotherService,
+  globalSettings,
+  pipeline,
+  product,
+  revokedKey,
+  service,
+  servicePipelines,
+} from '../testing/fixtures';
+import { GeneratedKeys } from './generated-keys';
 import { KeyHistoryDialog } from './key-history-dialog';
 import { PipelineDialog } from './pipeline-dialog';
 import { ProductDetail } from './product-detail';
@@ -31,12 +40,33 @@ describe('ProductDetail', () => {
 
   const page = () => fixture.nativeElement as HTMLElement;
 
-  async function load(stored: Product = product()) {
+  async function load(stored: Product = product(), services = [servicePipelines()]) {
     fixture.detectChanges();
     http.expectOne('/api/products/1').flush(stored);
-    http.expectOne('/api/products/1/pipelines').flush([servicePipelines()]);
+    http.expectOne('/api/products/1/pipelines').flush(services);
     await fixture.whenStable();
   }
+
+  const invalidated = () =>
+    servicePipelines({ pipelines: [pipeline({ activeKey: null, keys: [revokedKey()] })] });
+  const regenerated = () =>
+    pipeline({
+      activeKey: {
+        ...pipeline().activeKey!,
+        id: 1001,
+        value: 'c'.repeat(36),
+        hint: 'cccccccc…cccc',
+      },
+    });
+  const stats = () => [...page().querySelectorAll('.stat')].map((stat) => stat.textContent?.trim());
+  const textButton = (label: string) =>
+    [...page().querySelectorAll<HTMLButtonElement>('button.text-link')].find(
+      (element) => element.textContent?.trim() === label,
+    );
+  const snackText = () =>
+    [...document.querySelectorAll('mat-snack-bar-container')]
+      .map((container) => container.textContent)
+      .join(' ');
 
   function withScm(scm: Partial<Product['services'][number]['scm']>): Product {
     const stored = service();
@@ -140,6 +170,178 @@ describe('ProductDetail', () => {
     );
   });
 
+  describe('new services', () => {
+    const twoServices = () => [
+      servicePipelines(),
+      servicePipelines({
+        serviceId: 11,
+        serviceName: 'api',
+        pipelines: [pipeline({ id: 110, serviceId: 11, serviceName: 'api' })],
+      }),
+    ];
+
+    it('announces the key generated for the new service and shows it', async () => {
+      TestBed.inject(GeneratedKeys).record(1, ['gui']);
+      await load();
+
+      const notice = page().querySelector('.generated');
+      expect(notice?.getAttribute('role')).toBe('status');
+      expect(notice?.textContent).toContain('Pipeline key generated for the new service gui.');
+      expect(page().querySelector('.service-title .tag.new')?.textContent).toBe('New');
+      expect(page().querySelector('.key-value')?.textContent?.trim()).toBe(
+        pipeline().activeKey!.value,
+      );
+    });
+
+    it('counts the services that got a key and leaves the others alone', async () => {
+      TestBed.inject(GeneratedKeys).record(1, ['gui', 'api', 'deleted-meanwhile']);
+      await load(product({ services: [service(), anotherService()] }), twoServices());
+
+      expect(page().querySelector('.generated')?.textContent).toContain(
+        'Pipeline keys generated for 2 new services: gui, api.',
+      );
+      expect(page().querySelectorAll('.tag.new').length).toBe(2);
+    });
+
+    it('says nothing about a new service the API gave no active key', async () => {
+      TestBed.inject(GeneratedKeys).record(1, ['gui']);
+      await load(product(), [invalidated()]);
+
+      expect(page().querySelector('.generated')).toBeNull();
+      expect(page().querySelector('.tag.new')).toBeNull();
+    });
+
+    it('hides the notice when dismissed and does not show it again', async () => {
+      TestBed.inject(GeneratedKeys).record(1, ['gui']);
+      await load();
+
+      textButton('Dismiss')!.click();
+      await fixture.whenStable();
+
+      expect(page().querySelector('.generated')).toBeNull();
+      expect(TestBed.inject(GeneratedKeys).take(1)).toEqual([]);
+    });
+
+    it('shows no notice for a product opened from the list', async () => {
+      await load();
+
+      expect(page().querySelector('.generated')).toBeNull();
+      expect(page().querySelector('.key-value')?.textContent?.trim()).toBe('6f1c2d3e…9abc');
+    });
+  });
+
+  describe('invalidated keys', () => {
+    it('offers a visible Regenerate key text button next to the key status', async () => {
+      await load(product(), [invalidated()]);
+
+      const regenerate = textButton('Regenerate key')!;
+      expect(regenerate.previousElementSibling?.textContent).toBe('Key invalidated');
+      expect(regenerate.getAttribute('aria-label')).toBe('Regenerate key of the full pipeline');
+      expect(page().querySelector('.revoked-note')?.textContent).toContain(
+        'until its key is regenerated',
+      );
+      expect(page().querySelector('mat-icon')).toBeNull();
+      expect(stats()).toContain('1Invalidated keys');
+    });
+
+    it('keeps the acronym of a SAST scanning pipeline in the names of its buttons', async () => {
+      await load(product(), [
+        servicePipelines({ pipelines: [pipeline({ type: 'SAST', activeKey: null })] }),
+      ]);
+
+      expect(textButton('Regenerate key')?.getAttribute('aria-label')).toBe(
+        'Regenerate key of the SAST scanning pipeline',
+      );
+      expect(
+        page().querySelector('[aria-label="More actions of the SAST scanning pipeline"]'),
+      ).not.toBeNull();
+    });
+
+    it('regenerates the key without asking and shows the new one', async () => {
+      await load(product(), [invalidated()]);
+      const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
+
+      textButton('Regenerate key')!.click();
+      await fixture.whenStable();
+      expect(textButton('Regenerating…')?.disabled).toBe(true);
+      const request = http.expectOne({ method: 'POST', url: '/api/pipelines/100/keys' });
+      expect(request.request.body).toEqual({});
+      request.flush(regenerated());
+      await fixture.whenStable();
+
+      expect(open).not.toHaveBeenCalled();
+      expect(page().querySelector('.key-value')?.textContent?.trim()).toBe('c'.repeat(36));
+      expect(page().querySelector('.key-state')?.textContent).toBe('Key active');
+      expect(textButton('Regenerate key')).toBeUndefined();
+      expect(stats()).toEqual(['1Services', '1Pipelines', '1Active keys', '0Invalidated keys']);
+      expect(snackText()).toContain(
+        'Full pipeline of gui has a new key: pass it in the Jenkinsfile',
+      );
+    });
+
+    it('reports a failed regeneration and lets it be tried again', async () => {
+      await load(product(), [invalidated()]);
+
+      textButton('Regenerate key')!.click();
+      http
+        .expectOne('/api/pipelines/100/keys')
+        .flush(
+          { title: 'Conflict', detail: 'Pipeline 100 was changed meanwhile' },
+          { status: 409, statusText: 'Conflict' },
+        );
+      await fixture.whenStable();
+
+      expect(snackText()).toContain('Pipeline 100 was changed meanwhile');
+      expect(textButton('Regenerate key')?.disabled).toBe(false);
+      expect(page().querySelector('.key-state')?.textContent).toBe('Key invalidated');
+    });
+
+    it('regenerates the key from the More menu too', async () => {
+      await load(product(), [invalidated()]);
+
+      page()
+        .querySelector<HTMLButtonElement>('[aria-label="More actions of the full pipeline"]')!
+        .click();
+      await fixture.whenStable();
+      [...document.querySelectorAll<HTMLButtonElement>('.mat-mdc-menu-item')]
+        .find((item) => item.textContent?.trim() === 'Regenerate key')!
+        .click();
+      http.expectOne({ method: 'POST', url: '/api/pipelines/100/keys' }).flush(regenerated());
+      await fixture.whenStable();
+
+      expect(page().querySelector('.key-value')?.textContent?.trim()).toBe('c'.repeat(36));
+    });
+
+    it('shows a key regenerated in the key history on the page', async () => {
+      await load(product(), [invalidated()]);
+
+      page()
+        .querySelector<HTMLButtonElement>('[aria-label="More actions of the full pipeline"]')!
+        .click();
+      await fixture.whenStable();
+      [...document.querySelectorAll<HTMLButtonElement>('.mat-mdc-menu-item')]
+        .find((item) => item.textContent?.trim() === 'Key history')!
+        .click();
+      TestBed.tick();
+      http
+        .expectOne('/api/pipelines/100')
+        .flush(pipeline({ activeKey: null, keys: [revokedKey()] }));
+      await fixture.whenStable();
+      const dialog = document.querySelector<HTMLElement>('dso-key-history-dialog')!;
+      [...dialog.querySelectorAll<HTMLButtonElement>('button')]
+        .find((element) => element.textContent?.trim() === 'Regenerate key')!
+        .click();
+      http
+        .expectOne({ method: 'POST', url: '/api/pipelines/100/keys' })
+        .flush({ ...regenerated(), keys: [regenerated().activeKey!, revokedKey()] });
+      await fixture.whenStable();
+
+      expect(dialog.querySelector('.key-status .key-value')?.textContent).toBe('c'.repeat(36));
+      expect(page().querySelector('.key-value')?.textContent?.trim()).toBe('c'.repeat(36));
+      expect(stats()).toContain('1Active keys');
+    });
+  });
+
   describe('actions', () => {
     const spyOnOpen = () => vi.spyOn(TestBed.inject(MatDialog), 'open');
     let open: ReturnType<typeof spyOnOpen>;
@@ -203,6 +405,10 @@ describe('ProductDetail', () => {
 
     it('opens the key history', async () => {
       await load();
+      open.mockReturnValueOnce({
+        afterClosed: () => of(undefined),
+        componentInstance: { keyIssued: { subscribe: vi.fn() } },
+      } as unknown as MatDialogRef<unknown>);
 
       await menu('Key history');
 
@@ -234,23 +440,18 @@ describe('ProductDetail', () => {
       expect(snack()).toContain('New key issued');
     });
 
-    it('issues a key to a pipeline without one and reports a failure', async () => {
-      fixture.detectChanges();
-      http.expectOne('/api/products/1').flush(product());
-      http
-        .expectOne('/api/products/1/pipelines')
-        .flush([servicePipelines({ pipelines: [pipeline({ activeKey: null })] })]);
-      await fixture.whenStable();
+    it('reports a key that could not be replaced', async () => {
+      await load();
       closingWith(true);
 
-      await menu('Issue new key');
-      expect(opened().data).toMatchObject({ title: 'Issue a new key?', danger: false });
+      await menu('Replace key');
       http
         .expectOne('/api/pipelines/100/keys')
         .flush({ detail: 'Pipeline 100 was not found' }, { status: 404, statusText: 'Not Found' });
       await fixture.whenStable();
 
       expect(snack()).toContain('Pipeline 100 was not found');
+      expect(page().querySelector('.key-value')?.textContent?.trim()).toBe('6f1c2d3e…9abc');
     });
 
     it('does nothing when a confirmation is cancelled', async () => {
