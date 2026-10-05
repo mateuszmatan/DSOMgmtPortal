@@ -196,7 +196,7 @@ export interface ScmSettings {
 }
 
 export interface GoldenFixPolicy {
-  enabled: boolean;
+  enabled: boolean | null;
   onlyDirectDependencies: boolean | null;
   minThreatLevel: number | null;
   ecosystems: string[];
@@ -213,6 +213,10 @@ export interface GoldenFixPolicy {
   commitAuthorName: string | null;
   commitAuthorEmail: string | null;
   timeZone: string | null;
+}
+
+export interface GlobalGoldenFixPolicy extends GoldenFixPolicy {
+  enabled: boolean;
 }
 
 export interface MetricsSettings {
@@ -425,7 +429,7 @@ export interface GlobalSettingsValues {
   scans: ScanSettings;
   releaseGate: ReleaseGateSettings;
   serviceDefaults: ServiceDefaults;
-  goldenFix: GoldenFixPolicy;
+  goldenFix: GlobalGoldenFixPolicy;
 }
 
 export interface GlobalSettings extends GlobalSettingsValues {

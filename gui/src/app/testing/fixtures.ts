@@ -153,7 +153,7 @@ export function service(overrides: Partial<Service> = {}): Service {
       repoSlug: null,
     },
     goldenFix: {
-      enabled: true,
+      enabled: null,
       onlyDirectDependencies: null,
       minThreatLevel: null,
       ecosystems: [],

@@ -143,8 +143,6 @@ projects:
         url: https://bitbucket.bbh.com/projects/TA/repos/cert-scanner
         credentialsId: bitbucket-http-credentials
         authType: basic
-    goldenFix:
-      enabled: true
     tests:
       unitTests:
         maven:

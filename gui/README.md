@@ -54,3 +54,10 @@ Every run carries the `buildUrl` the backend builds from the job that recorded t
 a multibranch job links to that branch) and falls back to the pipeline's configured Jenkins job. The monitoring pages
 link each build number to that address and show the number without a link when it is `null`. The change evidence
 uses the build, report, test and artifact links the API sends.
+
+## GoldenFix switch of a service
+
+"Run GoldenFix" in the GoldenFix section of a service is a select with Global default, On and Off. Global default
+sends `goldenFix.enabled: null`, so the service follows "GoldenFix runs by default" of the Global Settings, and is
+where every new service starts. Selects whose first option means "not set" (Global default, Library default,
+Detected from the URL, Global value) show that option for a `null` value.

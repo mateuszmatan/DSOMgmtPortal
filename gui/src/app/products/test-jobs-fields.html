@@ -102,7 +102,7 @@
           </mat-form-field>
           <mat-form-field class="span-3">
             <mat-label>Runs on</mat-label>
-            <mat-select formControlName="type">
+            <mat-select formControlName="type" canSelectNullableOptions>
               <mat-option [value]="null">Library default</mat-option>
               <mat-option value="LOCAL">This Jenkins</mat-option>
               <mat-option value="REMOTE">Another Jenkins</mat-option>

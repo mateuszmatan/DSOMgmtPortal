@@ -653,7 +653,7 @@
           </mat-form-field>
           <mat-form-field class="span-4">
             <mat-label>Bitbucket</mat-label>
-            <mat-select formControlName="type">
+            <mat-select formControlName="type" canSelectNullableOptions>
               <mat-option [value]="null">Detected from the URL</mat-option>
               <mat-option value="SERVER">Data Center</mat-option>
               <mat-option value="CLOUD">Cloud</mat-option>
@@ -765,11 +765,17 @@
           </p>
         </header>
         <div class="form-fields" formGroupName="goldenFix">
-          <mat-checkbox class="span-12" formControlName="enabled"
-            >Run GoldenFix (<code>goldenFix.enabled</code>)</mat-checkbox
-          >
+          <mat-form-field class="span-4">
+            <mat-label>Run GoldenFix</mat-label>
+            <mat-select formControlName="enabled" canSelectNullableOptions>
+              <mat-option [value]="null">Global default</mat-option>
+              <mat-option [value]="true">On</mat-option>
+              <mat-option [value]="false">Off</mat-option>
+            </mat-select>
+            <mat-hint><code>goldenFix.enabled</code>{{ goldenFixDefault() }}</mat-hint>
+          </mat-form-field>
           <mat-button-toggle-group
-            class="span-12"
+            class="span-8"
             formControlName="inherit"
             aria-label="GoldenFix policy"
           >
@@ -834,7 +840,7 @@
         <div class="form-fields" formGroupName="flutter">
           <mat-form-field class="span-4">
             <mat-label>Platform</mat-label>
-            <mat-select formControlName="platform">
+            <mat-select formControlName="platform" canSelectNullableOptions>
               <mat-option [value]="null">Library default</mat-option>
               @for (platform of flutterPlatforms; track platform) {
                 <mat-option [value]="platform">{{ platform.toLowerCase() }}</mat-option>

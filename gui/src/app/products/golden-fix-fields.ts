@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { ReactiveFormsModule } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -8,7 +8,7 @@ import { GoldenFixPolicy } from '../core/models';
 import { errorText } from '../shared/form-errors';
 import {
   GOLDEN_FIX_ECOSYSTEMS,
-  GoldenFixControls,
+  GlobalGoldenFixForm,
   ServiceGoldenFixForm,
 } from './product-form-model';
 
@@ -33,7 +33,7 @@ import {
   `,
 })
 export class GoldenFixFields {
-  readonly group = input.required<FormGroup<GoldenFixControls> | ServiceGoldenFixForm>();
+  readonly group = input.required<GlobalGoldenFixForm | ServiceGoldenFixForm>();
   readonly inherited = input<GoldenFixPolicy | null>(null);
   readonly complete = input(false);
 

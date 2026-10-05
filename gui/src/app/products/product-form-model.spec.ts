@@ -16,9 +16,11 @@ import {
   duplicateService,
   firstInvalidSection,
   firstServiceWithProblem,
+  NO_GOLDEN_FIX_OVERRIDES,
+  createGlobalGoldenFixForm,
   goldenFixControls,
-  inheritedGoldenFix,
   inheritsGoldenFix,
+  toGlobalGoldenFixPolicy,
   isJobUrl,
   isRemoteJob,
   patchProduct,
@@ -55,7 +57,7 @@ describe('createServiceForm', () => {
     expect(value.testJobs).toEqual([]);
     expect(value.nexusIq.stage).toBe('build');
     expect(value.goldenFix.inherit).toBe(true);
-    expect(value.goldenFix.enabled).toBe(true);
+    expect(value.goldenFix.enabled).toBeNull();
     expect(value.metrics).toEqual({ enabled: true, influxProject: '', influxEnv: 'test' });
   });
 
@@ -405,9 +407,12 @@ describe('UrbanCode applications', () => {
 });
 
 describe('GoldenFix', () => {
+  const inherited = (enabled: boolean | null) => ({ enabled, ...NO_GOLDEN_FIX_OVERRIDES });
+
   it('lets a service follow the global policy, with only its own switch', () => {
-    const form = createServiceGoldenFixForm(inheritedGoldenFix(false));
+    const form = createServiceGoldenFixForm(inherited(false));
     expect(form.controls.inherit.value).toBe(true);
+    expect(form.controls.enabled.value).toBe(false);
     expect(form.controls.enabled.enabled).toBe(true);
     expect(form.controls.minThreatLevel.disabled).toBe(true);
 
@@ -415,42 +420,60 @@ describe('GoldenFix', () => {
     expect(form.controls.minThreatLevel.enabled).toBe(true);
   });
 
+  it('starts a new service at the global default', () => {
+    expect(createServiceGoldenFixForm().controls.enabled.value).toBeNull();
+    expect(createServiceGoldenFixForm(inherited(null)).controls.enabled.value).toBeNull();
+    expect(toServiceRequest(createServiceForm()).goldenFix).toEqual(inherited(null));
+  });
+
   it('starts overriding when the stored policy sets its own values', () => {
-    const form = createServiceGoldenFixForm({ ...inheritedGoldenFix(true), minThreatLevel: 7 });
+    const form = createServiceGoldenFixForm({ ...inherited(true), minThreatLevel: 7 });
     expect(form.controls.inherit.value).toBe(false);
   });
 
   it('tells a policy that only switches GoldenFix on or off', () => {
     expect(inheritsGoldenFix(null)).toBe(true);
-    expect(inheritsGoldenFix(inheritedGoldenFix(true))).toBe(true);
+    expect(inheritsGoldenFix(inherited(true))).toBe(true);
+    expect(inheritsGoldenFix(inherited(null))).toBe(true);
     expect(inheritsGoldenFix({ enabled: false, ecosystems: [] })).toBe(true);
     expect(inheritsGoldenFix({ enabled: true, ecosystems: ['npm'] })).toBe(false);
     expect(inheritsGoldenFix({ enabled: true, verifyEnabled: false })).toBe(false);
   });
 
+  it.each([
+    [null, null],
+    [true, true],
+    [false, false],
+  ])('sends the switch %s as %s', (stored, sent) => {
+    const form = createServiceForm(service({ goldenFix: inherited(stored) }));
+    expect(toServiceRequest(form).goldenFix.enabled).toBe(sent);
+  });
+
   it('sends the inherited policy, or the values the service overrides', () => {
     const form = createServiceForm(service());
-    expect(toServiceRequest(form).goldenFix).toEqual(inheritedGoldenFix(true));
+    expect(toServiceRequest(form).goldenFix).toEqual(inherited(null));
 
     form.controls.goldenFix.patchValue({
       inherit: false,
+      enabled: true,
       minThreatLevel: 5,
       ecosystems: ['npm', 'npm'],
       excludeDirs: 'legacy\n\nlegacy\ndocs',
     });
 
     expect(toServiceRequest(form).goldenFix).toEqual({
-      ...inheritedGoldenFix(true),
+      ...inherited(true),
       minThreatLevel: 5,
       ecosystems: ['npm'],
       excludeDirs: ['legacy', 'docs'],
     });
   });
 
-  it('requires every value of the global policy', () => {
-    const group = new FormGroup(goldenFixControls(null, true));
+  it('requires every value of the global policy, which always switches GoldenFix on or off', () => {
+    const group = createGlobalGoldenFixForm(null);
     const c = group.controls;
 
+    expect(c.enabled.value).toBe(true);
     expect(c.onlyDirectDependencies.hasError('required')).toBe(true);
     expect(c.minThreatLevel.hasError('required')).toBe(true);
     expect(c.ecosystems.hasError('required')).toBe(true);
@@ -458,6 +481,9 @@ describe('GoldenFix', () => {
     expect(c.commitAuthorEmail.hasError('required')).toBe(true);
     expect(c.timeZone.valid).toBe(true);
     expect(new FormGroup(goldenFixControls(null)).valid).toBe(true);
+
+    c.enabled.setValue(false);
+    expect(toGlobalGoldenFixPolicy(group).enabled).toBe(false);
   });
 });
 

@@ -7,6 +7,7 @@ import {
   FieldProblem,
   FlutterPlatform,
   FlutterSettings,
+  GlobalGoldenFixPolicy,
   GoldenFixPolicy,
   OpenShiftTarget,
   Product,
@@ -274,7 +275,6 @@ export function goldenFixControls(policy?: Partial<GoldenFixPolicy> | null, comp
   const required = complete ? [Validators.required] : [];
   const command = (value: string | null | undefined) => text(value, Validators.maxLength(500));
   return {
-    enabled: flag(policy?.enabled, true),
     onlyDirectDependencies: new FormControl<boolean | null>(
       policy?.onlyDirectDependencies ?? null,
       required,
@@ -316,10 +316,10 @@ export function goldenFixControls(policy?: Partial<GoldenFixPolicy> | null, comp
 
 export type GoldenFixControls = ReturnType<typeof goldenFixControls>;
 export type GoldenFixValue = ReturnType<FormGroup<GoldenFixControls>['getRawValue']>;
+export type GoldenFixOverrides = Omit<GoldenFixPolicy, 'enabled'>;
 
-export function toGoldenFixPolicy(v: GoldenFixValue): GoldenFixPolicy {
+export function toGoldenFixOverrides(v: GoldenFixValue): GoldenFixOverrides {
   return {
-    enabled: v.enabled,
     onlyDirectDependencies: v.onlyDirectDependencies,
     minThreatLevel: v.minThreatLevel,
     ecosystems: [...new Set(v.ecosystems)],
@@ -339,27 +339,24 @@ export function toGoldenFixPolicy(v: GoldenFixValue): GoldenFixPolicy {
   };
 }
 
-export function inheritedGoldenFix(enabled: boolean): GoldenFixPolicy {
-  return {
-    enabled,
-    onlyDirectDependencies: null,
-    minThreatLevel: null,
-    ecosystems: [],
-    goldenVersionTypes: [],
-    excludeDirs: [],
-    verifyEnabled: null,
-    verifyMaxAttempts: null,
-    verifyTimeoutMinutes: null,
-    verifyMavenCommand: null,
-    verifyGradleCommand: null,
-    verifyNpmCommand: null,
-    verifyPipCommand: null,
-    verifyPubCommand: null,
-    commitAuthorName: null,
-    commitAuthorEmail: null,
-    timeZone: null,
-  };
-}
+export const NO_GOLDEN_FIX_OVERRIDES: GoldenFixOverrides = {
+  onlyDirectDependencies: null,
+  minThreatLevel: null,
+  ecosystems: [],
+  goldenVersionTypes: [],
+  excludeDirs: [],
+  verifyEnabled: null,
+  verifyMaxAttempts: null,
+  verifyTimeoutMinutes: null,
+  verifyMavenCommand: null,
+  verifyGradleCommand: null,
+  verifyNpmCommand: null,
+  verifyPipCommand: null,
+  verifyPubCommand: null,
+  commitAuthorName: null,
+  commitAuthorEmail: null,
+  timeZone: null,
+};
 
 export function inheritsGoldenFix(policy?: Partial<GoldenFixPolicy> | null): boolean {
   if (!policy) {
@@ -371,9 +368,24 @@ export function inheritsGoldenFix(policy?: Partial<GoldenFixPolicy> | null): boo
   );
 }
 
+export function createGlobalGoldenFixForm(policy?: Partial<GlobalGoldenFixPolicy> | null) {
+  return new FormGroup({
+    enabled: flag(policy?.enabled, true),
+    ...goldenFixControls(policy, true),
+  });
+}
+
+export type GlobalGoldenFixForm = ReturnType<typeof createGlobalGoldenFixForm>;
+
+export function toGlobalGoldenFixPolicy(form: GlobalGoldenFixForm): GlobalGoldenFixPolicy {
+  const v = form.getRawValue();
+  return { enabled: v.enabled, ...toGoldenFixOverrides(v) };
+}
+
 export function createServiceGoldenFixForm(policy?: Partial<GoldenFixPolicy> | null) {
   const form = new FormGroup({
     inherit: flag(inheritsGoldenFix(policy)),
+    enabled: new FormControl<boolean | null>(policy?.enabled ?? null),
     ...goldenFixControls(policy),
   });
   const sync = () => {
@@ -389,6 +401,14 @@ export function createServiceGoldenFixForm(policy?: Partial<GoldenFixPolicy> | n
 }
 
 export type ServiceGoldenFixForm = ReturnType<typeof createServiceGoldenFixForm>;
+
+export function toServiceGoldenFixPolicy(form: ServiceGoldenFixForm): GoldenFixPolicy {
+  const v = form.getRawValue();
+  return {
+    enabled: v.enabled,
+    ...(v.inherit ? NO_GOLDEN_FIX_OVERRIDES : toGoldenFixOverrides(v)),
+  };
+}
 
 export function createServiceForm(
   service?: Partial<ServiceRequest>,
@@ -786,9 +806,7 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
       projectKey: optional(v.scm.projectKey),
       repoSlug: optional(v.scm.repoSlug),
     },
-    goldenFix: v.goldenFix.inherit
-      ? inheritedGoldenFix(v.goldenFix.enabled)
-      : toGoldenFixPolicy(v.goldenFix),
+    goldenFix: toServiceGoldenFixPolicy(c.goldenFix),
     metrics: {
       enabled: v.metrics.enabled,
       influxProject: optional(v.metrics.influxProject),

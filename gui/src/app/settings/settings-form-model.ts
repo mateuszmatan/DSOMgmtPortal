@@ -9,7 +9,7 @@ import {
   Scanner,
   SeverityLimits,
 } from '../core/models';
-import { goldenFixControls, toGoldenFixPolicy } from '../products/product-form-model';
+import { createGlobalGoldenFixForm, toGlobalGoldenFixPolicy } from '../products/product-form-model';
 import {
   HOST_NAME,
   HTTP_URL,
@@ -117,7 +117,7 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
       sourceDir: text(settings?.serviceDefaults.sourceDir ?? '.', max(500)),
       testsMaxParallel: integer(settings?.serviceDefaults.testsMaxParallel, 1, 100, required),
     }),
-    goldenFix: new FormGroup(goldenFixControls(settings?.goldenFix, true)),
+    goldenFix: createGlobalGoldenFixForm(settings?.goldenFix),
   });
   const { proxyHost, proxyPort } = form.controls.platform.controls;
   requireWhile(proxyPort, () => !!optional(proxyHost.value), proxyHost);
@@ -206,7 +206,7 @@ export function toSettingsRequest(
       sourceDir: optional(v.serviceDefaults.sourceDir) ?? '.',
       testsMaxParallel: number(v.serviceDefaults.testsMaxParallel),
     },
-    goldenFix: toGoldenFixPolicy(v.goldenFix),
+    goldenFix: toGlobalGoldenFixPolicy(form.controls.goldenFix),
   };
 }
 

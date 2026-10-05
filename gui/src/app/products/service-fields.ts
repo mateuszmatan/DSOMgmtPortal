@@ -114,6 +114,11 @@ export class ServiceFields {
     return value === null || value === undefined || value === '' ? '' : ` · left empty: ${value}`;
   }
 
+  protected goldenFixDefault(): string {
+    const enabled = this.defaults()?.goldenFix.enabled;
+    return enabled === undefined ? '' : ` · Global default: ${enabled ? 'on' : 'off'}`;
+  }
+
   protected inheritedGoldenFix(): string {
     const intro = 'The service follows the GoldenFix defaults of the DevSecOps Global Settings';
     const g = this.defaults()?.goldenFix;
