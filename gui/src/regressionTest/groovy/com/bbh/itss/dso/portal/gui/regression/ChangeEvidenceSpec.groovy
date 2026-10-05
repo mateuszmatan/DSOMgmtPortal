@@ -125,7 +125,7 @@ class ChangeEvidenceSpec extends GuiSpecification {
     }
 
     Locator panel(String name) {
-        page.locator('mat-expansion-panel').filter(new Locator.FilterOptions().setHas(page.locator(".name:text-is('${name}')")))
+        holding(page.locator('mat-expansion-panel'), ".name:text-is('${name}')")
     }
 
     Locator header(String name) {
@@ -133,11 +133,10 @@ class ChangeEvidenceSpec extends GuiSpecification {
     }
 
     Locator service(String product, String name) {
-        panel(product).locator('section.service').filter(new Locator.FilterOptions().setHas(page.locator("h3:text-is('${name}')")))
+        holding(panel(product).locator('section.service'), "h3:text-is('${name}')")
     }
 
     Locator card(String product, String serviceName, String type) {
-        service(product, serviceName).locator('dso-pipeline-evidence-card').filter(new Locator.FilterOptions()
-                .setHas(page.locator("h4:text-is('${type} pipeline')")))
+        holding(service(product, serviceName).locator('dso-pipeline-evidence-card'), "h4:text-is('${type} pipeline')")
     }
 }

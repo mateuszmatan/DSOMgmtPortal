@@ -3,7 +3,6 @@ package com.bbh.itss.dso.portal.gui.regression
 import com.bbh.itss.dso.portal.gui.support.ApiData
 import com.bbh.itss.dso.portal.gui.support.StubApi
 import com.bbh.itss.dso.portal.gui.support.StubResponse
-import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.options.AriaRole
 
@@ -80,7 +79,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
         when:
         buttonIn(serviceCard('gui'), 'Add pipeline', false).click()
-        dialog().getByRole(AriaRole.COMBOBOX, new Locator.GetByRoleOptions().setName('Pipeline type')).click()
+        dialogSelect('Pipeline type').click()
 
         then:
         assertThat(dialog().locator('h2')).hasText('Add pipeline')
@@ -209,11 +208,8 @@ class PipelineKeysSpec extends ProductPageSpecification {
         assertThat(dialog().locator('.key-status')).containsText('New key')
         assertThat(dialog().locator('.key-status .key-value')).hasText(newValue)
         assertThat(dialog().locator('tr.mat-mdc-row')).hasCount(2)
-        assertThat(dialog().locator('tr.mat-mdc-row').nth(0)).containsText(ApiData.hint(newValue))
-        assertThat(dialog().locator('tr.mat-mdc-row').nth(0)).containsText('Active')
-        assertThat(dialog().locator('tr.mat-mdc-row').nth(1)).containsText('2c0ca4f4…e713')
-        assertThat(dialog().locator('tr.mat-mdc-row').nth(1)).containsText('Invalidated')
-        assertThat(dialog().locator('tr.mat-mdc-row').nth(1)).containsText('Key printed in a build log')
+        keyRows([[ApiData.hint(newValue), 'Active'],
+                 ['2c0ca4f4…e713', 'Invalidated', 'Key printed in a build log']])
         awaitRequest('POST', '/api/pipelines/2/keys').json() == [:]
 
         when:
@@ -267,10 +263,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
         then:
         assertThat(dialog().locator('tr.mat-mdc-row')).hasCount(2)
-        assertThat(dialog().locator('tr.mat-mdc-row').nth(0)).containsText(ApiData.hint(REGENERATED_KEY))
-        assertThat(dialog().locator('tr.mat-mdc-row').nth(0)).containsText('Active')
-        assertThat(dialog().locator('tr.mat-mdc-row').nth(1)).containsText('dd3ac7a4…825e')
-        assertThat(dialog().locator('tr.mat-mdc-row').nth(1)).containsText('Invalidated')
+        keyRows([[ApiData.hint(REGENERATED_KEY), 'Active'], ['dd3ac7a4…825e', 'Invalidated']])
         assertThat(dialog().locator('.reason')).hasText('Mobile app moved to the new mobile platform pipeline')
         assertThat(dialogButton('Regenerate key')).hasCount(0)
         ownErrors().findAll { !it.contains('503') }.isEmpty()
@@ -288,7 +281,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
         then:
         assertThat(dialog().locator('h2')).hasText('Pipeline settings')
-        assertThat(dialog().getByRole(AriaRole.COMBOBOX, new Locator.GetByRoleOptions().setName('Pipeline type'))).isDisabled()
+        assertThat(dialogSelect('Pipeline type')).isDisabled()
         assertThat(dialogInput('Jenkins job')).hasValue('DevSecOps/CERTSCANNER/gui-full')
 
         when:
