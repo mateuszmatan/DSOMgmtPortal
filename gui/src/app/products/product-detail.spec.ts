@@ -115,4 +115,21 @@ describe('ProductDetail', () => {
     expect(page().querySelector('.key-value')?.textContent?.trim()).toBe('6f1c2d3e…9abc');
     expect(page().querySelector('.key .text-link')).toBeNull();
   });
+
+  it('shows the problem detail when a config preview fails', async () => {
+    await load();
+    const config = [...page().querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.textContent?.trim() === 'Config',
+    )!;
+
+    config.click();
+    http
+      .expectOne('/api/pipelines/100/config')
+      .flush({ detail: 'Pipeline 100 was not found' }, { status: 404, statusText: '' });
+    await fixture.whenStable();
+
+    expect(document.querySelector('.snack-error')?.textContent).toContain(
+      'Pipeline 100 was not found',
+    );
+  });
 });
