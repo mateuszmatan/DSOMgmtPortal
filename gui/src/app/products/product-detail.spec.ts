@@ -88,16 +88,31 @@ describe('ProductDetail', () => {
     await load();
     const toggle = () => page().querySelector<HTMLButtonElement>('.key .text-link')!;
 
-    expect(page().querySelector('.key-value')?.textContent).not.toContain(
-      pipeline().activeKey!.value,
-    );
+    expect(page().querySelector('.key-value')?.textContent?.trim()).toBe('6f1c2d3e…9abc');
     expect(toggle().textContent?.trim()).toBe('Show');
     expect(toggle().getAttribute('aria-label')).toBe('Show the key of the full pipeline');
 
     toggle().click();
     await fixture.whenStable();
 
-    expect(page().querySelector('.key-value')?.textContent).toBe(pipeline().activeKey!.value);
+    expect(page().querySelector('.key-value')?.textContent?.trim()).toBe(
+      pipeline().activeKey!.value,
+    );
     expect(toggle().textContent?.trim()).toBe('Hide');
+  });
+
+  it('shows only the hint of an active key whose value the API did not send', async () => {
+    const stored = pipeline();
+    fixture.detectChanges();
+    http.expectOne('/api/products/1').flush(product());
+    http
+      .expectOne('/api/products/1/pipelines')
+      .flush([
+        servicePipelines({ pipelines: [{ ...stored, activeKey: { ...stored.activeKey!, value: null } }] }),
+      ]);
+    await fixture.whenStable();
+
+    expect(page().querySelector('.key-value')?.textContent?.trim()).toBe('6f1c2d3e…9abc');
+    expect(page().querySelector('.key .text-link')).toBeNull();
   });
 });

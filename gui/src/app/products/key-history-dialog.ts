@@ -8,7 +8,7 @@ import { MatTableModule } from '@angular/material/table';
 import { PipelinesApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { Pipeline } from '../core/models';
-import { MaskKeyPipe, RelativeTimePipe } from '../shared/formatting';
+import { RelativeTimePipe } from '../shared/formatting';
 
 @Component({
   selector: 'dso-key-history-dialog',
@@ -18,7 +18,6 @@ import { MaskKeyPipe, RelativeTimePipe } from '../shared/formatting';
     MatDialogModule,
     MatProgressBarModule,
     MatTableModule,
-    MaskKeyPipe,
     RelativeTimePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -39,7 +38,7 @@ import { MaskKeyPipe, RelativeTimePipe } from '../shared/formatting';
           <table mat-table [dataSource]="pipeline.value().keys ?? []">
             <ng-container matColumnDef="key">
               <th mat-header-cell *matHeaderCellDef>Key</th>
-              <td mat-cell *matCellDef="let key" class="mono nowrap">{{ key.value | maskKey }}</td>
+              <td mat-cell *matCellDef="let key" class="mono nowrap">{{ key.hint }}</td>
             </ng-container>
             <ng-container matColumnDef="status">
               <th mat-header-cell *matHeaderCellDef>Status</th>

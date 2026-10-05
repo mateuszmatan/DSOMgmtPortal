@@ -301,7 +301,8 @@ export interface ProductRequest extends ProductFields {
 
 export interface PipelineKey {
   id: number;
-  value: string;
+  value: string | null;
+  hint: string;
   status: KeyStatus;
   issuedAt: string;
   revokedAt: string | null;
@@ -444,6 +445,7 @@ export interface PipelineRun {
   durationSeconds: number | null;
   commit: string | null;
   job: string | null;
+  buildUrl: string | null;
   stagesTotal: number | null;
   passed: number | null;
   warned: number | null;

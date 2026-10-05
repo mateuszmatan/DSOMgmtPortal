@@ -40,3 +40,10 @@ the repository URL. They are optional: the pipeline reads them from the reposito
 product page links each service to its repository: the repository URL when set, otherwise
 `https://bitbucket.org/{workspace}/{repoSlug}` for Bitbucket Cloud or `{apiUrl}/projects/{projectKey}/repos/{repoSlug}`
 for Data Center (`users/` for a personal `~` project key).
+
+## Pipeline keys
+
+The API sends each key with a `hint`: its first 8 characters, `…` and its last 4. The product page shows the active
+key by its hint; Show and Copy use the key `value`, which the product management endpoints send for the active key
+only. The key history lists every key by its hint. The monitoring endpoints send no key values at all, so the
+monitoring pages only check whether a pipeline has an active key.

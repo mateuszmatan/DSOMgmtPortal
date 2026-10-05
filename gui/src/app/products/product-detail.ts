@@ -16,7 +16,7 @@ import { Notifier } from '../core/notifier';
 import { bitbucketRepositoryUrl } from '../shared/bitbucket';
 import { CodeDialog, CodeDialogData } from '../shared/code-dialog';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
-import { MaskKeyPipe, RelativeTimePipe } from '../shared/formatting';
+import { RelativeTimePipe } from '../shared/formatting';
 import { jenkinsfile } from './jenkinsfile';
 import { KeyHistoryDialog } from './key-history-dialog';
 import { PipelineDialog, PipelineDialogData } from './pipeline-dialog';
@@ -32,7 +32,6 @@ import { RevokeKeyDialog } from './revoke-key-dialog';
     MatMenuModule,
     MatProgressBarModule,
     MatTooltipModule,
-    MaskKeyPipe,
     RelativeTimePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,

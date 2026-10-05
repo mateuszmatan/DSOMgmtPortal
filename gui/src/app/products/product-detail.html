@@ -198,35 +198,37 @@
                 @if (pipeline.activeKey; as key) {
                   <div class="key">
                     <span class="mono key-value">{{
-                      revealed().has(pipeline.id) ? key.value : (key.value | maskKey)
+                      revealed().has(pipeline.id) && key.value ? key.value : key.hint
                     }}</span>
-                    <button
-                      type="button"
-                      class="text-link"
-                      (click)="toggleKey(pipeline)"
-                      [attr.aria-label]="
-                        (revealed().has(pipeline.id)
-                          ? 'Hide the key of the '
-                          : 'Show the key of the ') +
-                        typeLabel(pipeline.type).toLowerCase() +
-                        ' pipeline'
-                      "
-                    >
-                      {{ revealed().has(pipeline.id) ? 'Hide' : 'Show' }}
-                    </button>
-                    <button
-                      type="button"
-                      class="text-link"
-                      [cdkCopyToClipboard]="key.value"
-                      (cdkCopyToClipboardCopied)="copied()"
-                      [attr.aria-label]="
-                        'Copy the key of the ' +
-                        typeLabel(pipeline.type).toLowerCase() +
-                        ' pipeline'
-                      "
-                    >
-                      Copy
-                    </button>
+                    @if (key.value; as value) {
+                      <button
+                        type="button"
+                        class="text-link"
+                        (click)="toggleKey(pipeline)"
+                        [attr.aria-label]="
+                          (revealed().has(pipeline.id)
+                            ? 'Hide the key of the '
+                            : 'Show the key of the ') +
+                          typeLabel(pipeline.type).toLowerCase() +
+                          ' pipeline'
+                        "
+                      >
+                        {{ revealed().has(pipeline.id) ? 'Hide' : 'Show' }}
+                      </button>
+                      <button
+                        type="button"
+                        class="text-link"
+                        [cdkCopyToClipboard]="value"
+                        (cdkCopyToClipboardCopied)="copied()"
+                        [attr.aria-label]="
+                          'Copy the key of the ' +
+                          typeLabel(pipeline.type).toLowerCase() +
+                          ' pipeline'
+                        "
+                      >
+                        Copy
+                      </button>
+                    }
                     <span class="muted key-dates">
                       Issued {{ key.issuedAt | relative }} ·
                       {{

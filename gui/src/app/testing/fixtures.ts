@@ -223,6 +223,7 @@ export function pipeline(overrides: Partial<Pipeline> = {}): Pipeline {
     activeKey: {
       id: 1000,
       value: '6f1c2d3e-0000-4abc-9def-123456789abc',
+      hint: '6f1c2d3e…9abc',
       status: 'ACTIVE',
       issuedAt: '2026-10-04T08:00:00Z',
       revokedAt: null,
