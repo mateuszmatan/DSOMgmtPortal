@@ -16,14 +16,14 @@
     @let p = product.value();
     <header class="page-header">
       <div class="identity">
-        <div class="title">
+        <div class="title row-wrap">
           <h1>{{ p.name }}</h1>
           <span class="code mono">{{ p.code }}</span>
         </div>
         @if (p.description) {
           <p>{{ p.description }}</p>
         }
-        <dl class="meta">
+        <dl class="pairs meta">
           @if (p.ownerTeam) {
             <div>
               <dt>Owner team</dt>
@@ -90,7 +90,7 @@
         <section class="card service">
           <header class="service-header">
             <div class="service-heading">
-              <div class="service-title">
+              <div class="service-title row-wrap">
                 <h2 class="mono">{{ service.serviceName }}</h2>
                 <span class="tag">{{
                   service.buildTool.charAt(0) + service.buildTool.slice(1).toLowerCase()
@@ -108,7 +108,9 @@
               <div class="repository">
                 <span class="label">Bitbucket repository</span>
                 @if (repositoryOf(service); as url) {
-                  <a [href]="url" target="_blank" rel="noopener" class="mono">{{ url }}</a>
+                  <a [href]="url" target="_blank" rel="noopener" class="mono plain-link">{{
+                    url
+                  }}</a>
                 } @else {
                   <span class="not-recorded">Not set</span>
                 }
@@ -135,13 +137,13 @@
           @for (pipeline of service.pipelines; track pipeline.id) {
             <div class="pipeline" [class.revoked]="!pipeline.activeKey">
               <div class="pipeline-body">
-                <div class="pipeline-title">
+                <div class="pipeline-title row-wrap">
                   <strong>{{ typeLabel(pipeline.type) }} pipeline</strong>
                   <span class="mono muted entry">{{ pipeline.entryPoint }}</span>
                   @if (pipeline.activeKey) {
-                    <span class="key-state active">Key active</span>
+                    <span class="chip success key-state">Key active</span>
                   } @else {
-                    <span class="key-state invalid">Key invalidated</span>
+                    <span class="chip danger key-state">Key invalidated</span>
                     <button
                       type="button"
                       class="text-link"
@@ -155,7 +157,7 @@
                     </button>
                   }
                 </div>
-                <dl class="pipeline-meta">
+                <dl class="pairs pipeline-meta">
                   <div>
                     <dt>Agents</dt>
                     <dd>{{ pipeline.agentLabels.join(', ') }}</dd>
@@ -165,7 +167,7 @@
                     <dd>
                       @if (pipeline.jenkinsJobUrl) {
                         <a
-                          class="mono"
+                          class="mono plain-link"
                           [href]="pipeline.jenkinsJobUrl"
                           target="_blank"
                           rel="noopener"
@@ -209,7 +211,7 @@
                   }
                 </dl>
                 @if (pipeline.activeKey; as key) {
-                  <div class="key">
+                  <div class="key row-wrap">
                     <span class="mono key-value">{{
                       revealed().has(pipeline.id) && key.value ? key.value : key.hint
                     }}</span>

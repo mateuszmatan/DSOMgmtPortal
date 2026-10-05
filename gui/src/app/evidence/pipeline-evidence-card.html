@@ -1,11 +1,11 @@
 @let p = pipeline();
 <article class="pipeline" [class.inactive]="!p.enabled">
   <header class="head">
-    <div class="title">
+    <div class="title row-wrap">
       <h4>{{ typeLabel() }} pipeline</h4>
       <dso-status-chip [status]="p.status" />
     </div>
-    <div class="actions">
+    <div class="actions row-wrap">
       @if (p.jenkinsJobUrl) {
         <a mat-button [href]="p.jenkinsJobUrl" target="_blank" rel="noopener">Jenkins job</a>
       } @else {
@@ -37,7 +37,7 @@
       <section>
         <h5>Jenkins build</h5>
         @let b = run.build;
-        <dl>
+        <dl class="rows">
           <dt>Build</dt>
           <dd>
             @if (b.number === null) {
@@ -95,7 +95,9 @@
             track link.label
           ) {
             @if (link.url) {
-              <a [href]="link.url" target="_blank" rel="noopener">{{ link.label }}</a>
+              <a class="plain-link" [href]="link.url" target="_blank" rel="noopener">{{
+                link.label
+              }}</a>
             } @else {
               <span class="not-recorded">{{ link.label }}: not recorded</span>
             }
@@ -159,7 +161,7 @@
     <div class="tables">
       <section>
         <h5>Tests</h5>
-        <div class="table-wrap">
+        <div class="table-scroll">
           <table class="facts">
             <thead>
               <tr>
@@ -195,7 +197,7 @@
 
       <section>
         <h5>Security and quality scans</h5>
-        <div class="table-wrap">
+        <div class="table-scroll">
           <table class="facts">
             <thead>
               <tr>
@@ -240,7 +242,9 @@
                     }
                     <td>
                       @if (s.link) {
-                        <a [href]="s.link" target="_blank" rel="noopener">Open</a>
+                        <a class="plain-link" [href]="s.link" target="_blank" rel="noopener"
+                          >Open</a
+                        >
                       } @else {
                         <span class="not-recorded">Not recorded</span>
                       }

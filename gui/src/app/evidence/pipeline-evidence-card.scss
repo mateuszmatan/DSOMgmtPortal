@@ -26,9 +26,6 @@
 
 .title,
 .actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
   gap: 8px;
 }
 
@@ -100,23 +97,16 @@ h5 {
   gap: 24px;
 }
 
-dl {
-  display: grid;
+.rows {
   grid-template-columns: 72px minmax(0, 1fr);
   gap: 2px 10px;
-  margin: 0;
   font-size: 12px;
-
-  dt {
-    color: var(--dso-muted);
-  }
 
   dd {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    margin: 0;
   }
 }
 
@@ -129,11 +119,6 @@ dl {
 
   a {
     font-weight: 600;
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
   }
 }
 
@@ -191,10 +176,6 @@ dl {
   }
 }
 
-.table-wrap {
-  overflow-x: auto;
-}
-
 .facts {
   width: 100%;
   border-collapse: collapse;
@@ -230,11 +211,6 @@ dl {
 
   a {
     font-weight: 600;
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
   }
 }
 

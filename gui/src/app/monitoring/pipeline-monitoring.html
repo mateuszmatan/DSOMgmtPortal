@@ -19,7 +19,7 @@
   } @else if (data(); as d) {
     <header class="page-header">
       <div>
-        <div class="title">
+        <div class="title row-wrap">
           <h1>
             <span class="mono">{{ d.pipeline.serviceName }}</span> ·
             {{ typeLabel(d.pipeline.type) }} pipeline
@@ -108,7 +108,7 @@
       <section class="card last-run">
         <header class="card-header"><h2>Latest run</h2></header>
         @if (d.lastRun; as run) {
-          <dl>
+          <dl class="rows">
             <dt>Result</dt>
             <dd><dso-status-chip [status]="run.result" /></dd>
             <dt>Finished</dt>

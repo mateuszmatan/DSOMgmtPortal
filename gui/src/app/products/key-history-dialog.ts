@@ -39,8 +39,8 @@ import { RelativeTimePipe } from '../shared/formatting';
         <div class="banner">{{ errorMessage(error) }}</div>
       } @else if (pipeline.hasValue()) {
         @if (pipeline.value().activeKey === null) {
-          <div class="key-status">
-            <span class="state">Key invalidated</span>
+          <div class="key-status row-wrap">
+            <span class="chip danger">Key invalidated</span>
             <span class="muted"
               >The pipeline is refused its configuration until its key is regenerated.</span
             >
@@ -54,8 +54,8 @@ import { RelativeTimePipe } from '../shared/formatting';
             </button>
           </div>
         } @else if (issuedKey(); as value) {
-          <div class="key-status" role="status">
-            <span class="state active">New key</span>
+          <div class="key-status row-wrap" role="status">
+            <span class="chip success">New key</span>
             <span class="mono key-value">{{ value }}</span>
             <button
               type="button"
@@ -79,7 +79,7 @@ import { RelativeTimePipe } from '../shared/formatting';
             <ng-container matColumnDef="status">
               <th mat-header-cell *matHeaderCellDef>Status</th>
               <td mat-cell *matCellDef="let key">
-                <span class="state" [class.active]="key.status === 'ACTIVE'">{{
+                <span class="chip" [class]="key.status === 'ACTIVE' ? 'success' : 'danger'">{{
                   key.status === 'ACTIVE' ? 'Active' : 'Invalidated'
                 }}</span>
               </td>
@@ -125,35 +125,9 @@ import { RelativeTimePipe } from '../shared/formatting';
       margin: 0 0 12px;
       color: var(--dso-muted);
     }
-    .state {
-      padding: 0 6px;
-      background: var(--dso-danger-bg);
-      color: var(--dso-danger);
-      font-weight: 600;
-      font-size: 11px;
-      line-height: 18px;
-    }
-    .state.active {
-      background: var(--dso-success-bg);
-      color: var(--dso-success);
-    }
     .key-status {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 4px 10px;
       margin-bottom: 10px;
       font-size: 12.5px;
-    }
-    .key-value {
-      padding: 1px 8px;
-      background: var(--dso-code-bg);
-      color: var(--dso-code-fg);
-      font-size: 11.5px;
-      overflow-wrap: anywhere;
-    }
-    .table-scroll {
-      overflow-x: auto;
     }
     .reason {
       font-size: 12.5px;

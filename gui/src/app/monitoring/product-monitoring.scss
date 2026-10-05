@@ -1,10 +1,3 @@
-.title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 10px;
-}
-
 .summary {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -13,17 +6,6 @@
   padding: 8px 12px;
   border-bottom: 1px solid var(--dso-border);
   font-size: 12.5px;
-}
-
-.pipeline-link {
-  color: inherit;
-  font-weight: 600;
-  text-decoration: none;
-
-  &:hover {
-    color: var(--mat-sys-primary);
-    text-decoration: underline;
-  }
 }
 
 .service {

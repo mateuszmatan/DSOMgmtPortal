@@ -13,7 +13,7 @@
       @let p = product.value();
       <header class="page-header">
         <div>
-          <div class="title">
+          <div class="title row-wrap">
             <h1>{{ p.name }}</h1>
             <span class="code mono">{{ p.code }}</span>
             <dso-status-chip [status]="p.overall" />
@@ -62,7 +62,7 @@
                 <th mat-header-cell *matHeaderCellDef>Pipeline</th>
                 <td mat-cell *matCellDef="let health">
                   <a
-                    class="pipeline-link"
+                    class="pipeline-link quiet-link"
                     [routerLink]="['/monitoring/pipelines', health.pipeline.id]"
                     (click)="$event.stopPropagation()"
                     >{{ typeLabel(health.pipeline.type) }}</a
