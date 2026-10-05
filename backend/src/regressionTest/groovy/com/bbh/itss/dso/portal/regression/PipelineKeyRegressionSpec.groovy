@@ -31,7 +31,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
 
     def "a new pipeline's key fetches its configuration until it is invalidated"() {
         given:
-        def created = createPipeline(gui, pipeline(agentLabels: ['linux-agent', 'docker']))
+        def created = pipelineFor(gui, pipeline(agentLabels: ['linux-agent', 'docker']))
         String key = created.activeKey.value
 
         when:
@@ -78,9 +78,9 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
 
     def "a pipeline links its Jenkins job given as a URL; a path needs the Jenkins URL of the global settings"() {
         when:
-        def byUrl = createPipeline(gui, pipeline(jenkinsJob: 'https://jenkins.bbh.com/job/DevSecOps/job/gui-full/',
+        def byUrl = pipelineFor(gui, pipeline(jenkinsJob: 'https://jenkins.bbh.com/job/DevSecOps/job/gui-full/',
                 description: 'Nightly full pipeline'))
-        def byPath = createPipeline(gui, pipeline(type: 'SAST', jenkinsJob: "DevSecOps/$code/gui-sast"))
+        def byPath = pipelineFor(gui, pipeline(type: 'SAST', jenkinsJob: "DevSecOps/$code/gui-sast"))
 
         then:
         byUrl.jenkinsJobUrl == 'https://jenkins.bbh.com/job/DevSecOps/job/gui-full/'
@@ -91,7 +91,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
 
     def "a new key replaces the old one, which stays refused"() {
         given:
-        def created = createPipeline(gui)
+        def created = pipelineFor(gui)
         String oldKey = created.activeKey.value
 
         when:
@@ -109,7 +109,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
 
     def "every key shows its hint, only the active key its value, and the monitoring pages no value at all"() {
         given:
-        def created = createPipeline(gui)
+        def created = pipelineFor(gui)
         String oldKey = created.activeKey.value
         String newKey = api.post("/api/pipelines/$created.id/keys").json.activeKey.value
 
@@ -143,7 +143,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
 
     def "fetching the configuration records when the key was last used"() {
         given:
-        def created = createPipeline(gui)
+        def created = pipelineFor(gui)
 
         when:
         api.get("/api/dso/config/${created.activeKey.value.toUpperCase()}?format=json")
@@ -155,7 +155,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
 
     def "an unknown key is 404 and revoking twice is 409"() {
         given:
-        def created = createPipeline(gui)
+        def created = pipelineFor(gui)
         api.post("/api/pipelines/$created.id/keys/revoke", [reason: 'retired'])
 
         expect:
@@ -166,29 +166,29 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
     def "agent labels beyond their column are refused with a field problem"() {
         when:
         def response = api.post("/api/services/$gui/pipelines",
-                pipeline(agentLabels: (1..20).collect { "agent-$it-${'x' * 50}".toString() }))
+                pipeline(type: 'SAST', agentLabels: (1..20).collect { "agent-$it-${'x' * 50}".toString() }))
 
         then:
         response.status == 400
         response.json.errors.collect { [it.field, it.message] } ==
                 [['agentLabels', 'is too long: all entries together may take at most 1000 bytes']]
-        api.get("/api/products/$certScanner.id/pipelines").json[0].pipelines == []
+        api.get("/api/products/$certScanner.id/pipelines").json[0].pipelines*.type == ['FULL']
     }
 
     def "a service has one pipeline of each type and a pipeline keeps its type"() {
         given:
-        def full = createPipeline(gui)
+        def full = pipelineFor(gui)
 
         expect:
         api.post("/api/services/$gui/pipelines", pipeline()).status == 409
         api.put("/api/pipelines/$full.id", pipeline(type: 'SAST')).status == 409
-        createPipeline(gui, pipeline(type: 'SAST')).type == 'SAST'
+        pipelineFor(gui, pipeline(type: 'SAST')).type == 'SAST'
     }
 
     def "the security pipeline passes on its extended pipeline job"() {
         when:
-        def security = createPipeline(gui, pipeline(type: 'SECURITY', extendedPipelineJob: "$code/gui-extended"))
-        def full = createPipeline(gui, pipeline(type: 'FULL', extendedPipelineJob: 'ignored'))
+        def security = pipelineFor(gui, pipeline(type: 'SECURITY', extendedPipelineJob: "$code/gui-extended"))
+        def full = pipelineFor(gui, pipeline(type: 'FULL', extendedPipelineJob: 'ignored'))
         def config = new Yaml().load(api.get("/api/dso/config/$security.activeKey.value").body) as Map
 
         then:
@@ -199,8 +199,8 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
 
     def "the product's pipelines are listed per service"() {
         given:
-        createPipeline(gui)
-        createPipeline(gui, pipeline(type: 'SAST'))
+        pipelineFor(gui)
+        pipelineFor(gui, pipeline(type: 'SAST'))
 
         when:
         def list = api.get("/api/products/$certScanner.id/pipelines").json
@@ -208,13 +208,13 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
         then:
         list*.serviceName == ['gui', 'backend-api']
         list[0].pipelines*.type == ['FULL', 'SAST']
-        list[1].pipelines == []
-        api.get('/api/products').json.find { it.code == code }.pipelineCount == 2
+        list[1].pipelines*.type == ['FULL']
+        api.get('/api/products').json.find { it.code == code }.pipelineCount == 3
     }
 
     def "removing a service from the product removes its pipelines"() {
         given:
-        def created = createPipeline(certScanner.services[1].id as long)
+        def created = pipelineFor(certScanner.services[1].id as long)
 
         when:
         api.put("/api/products/$certScanner.id", product(code: code, name: "Product $code",
@@ -227,7 +227,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
 
     def "concurrent key changes leave exactly one active key"() {
         given:
-        long id = createPipeline(gui).id as long
+        long id = pipelineFor(gui).id as long
         def pool = Executors.newFixedThreadPool(10)
 
         when:
@@ -251,7 +251,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
 
         when:
         def outcomes = raced.services.collect { svc ->
-            def created = createPipeline(svc.id as long)
+            def created = pipelineFor(svc.id as long)
             String key = created.activeKey.value
             def fetches = fetchDuring(pool, key) {
                 assert api.post("/api/pipelines/$created.id/keys/revoke", [reason: 'Leaked in a build log']).status == 200
@@ -278,7 +278,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
 
     def "a key replaced while pipelines keep fetching its configuration leaves one active key"() {
         given:
-        def created = createPipeline(gui)
+        def created = pipelineFor(gui)
         def pool = Executors.newFixedThreadPool(FETCHERS)
         List<String> replaced = []
 
@@ -307,7 +307,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
 
     def "an invalidated key is regenerated as a new active key while the old keys stay refused"() {
         given:
-        def created = createPipeline(gui)
+        def created = pipelineFor(gui)
         String first = created.activeKey.value
         String second = api.post("/api/pipelines/$created.id/keys").json.activeKey.value
         api.post("/api/pipelines/$created.id/keys/revoke", [reason: 'Leaked in a build log'])

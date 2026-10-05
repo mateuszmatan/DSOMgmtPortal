@@ -16,12 +16,18 @@ public record PipelineSettings(
         String jenkinsJob,
         String description) {
 
+    public static final String DEFAULT_AGENT_LABEL = "linux-agent";
+
     public PipelineSettings {
         agentLabels = Text.clean(agentLabels);
         extendedPipelineJob = Text.trimToNull(extendedPipelineJob);
         securityPipelineJob = Text.trimToNull(securityPipelineJob);
         jenkinsJob = Text.trimToNull(jenkinsJob);
         description = Text.trimToNull(description);
+    }
+
+    public static PipelineSettings forNewService() {
+        return new PipelineSettings(List.of(DEFAULT_AGENT_LABEL), null, null, null, null);
     }
 
     public void validate(ValidationProblems problems) {

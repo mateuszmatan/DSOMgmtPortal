@@ -55,7 +55,7 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
         given:
         def code = uniqueCode('GLOBAL')
         def created = createProduct(product(code: code, name: "Product $code", services: [service(name: 'gui')]))
-        def full = createPipeline(created.services[0].id as long, pipeline(jenkinsJob: "DevSecOps/$code/gui-full"))
+        def full = pipelineFor(created.services[0].id as long, pipeline(jenkinsJob: "DevSecOps/$code/gui-full"))
         String key = full.activeKey.value
 
         when:
@@ -93,7 +93,7 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
                 service(name: 'own-rd', sshTargets: [RD: [host: 'own-rd.testbbh.com', deployDir: '/opt/own']]),
                 ApiJson.fullOpenShiftService(name: 'cloud', sonar: null, nexusIq: null,
                         metrics: [influxProject: "$code-cloud".toString(), influxEnv: 'test'])]))
-        def full = createPipeline(created.services[0].id as long, pipeline())
+        def full = pipelineFor(created.services[0].id as long, pipeline())
 
         when:
         def changed = api.put('/api/settings', original + [deployment: original.deployment + [
@@ -123,7 +123,7 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
                 services: (1..20).collect { service(name: "svc-$it".toString()) }))
         def moved = createProduct(product(code: "${code}M", name: "Product ${code}M",
                 services: (1..20).collect { service(name: "svc-$it".toString()) }))
-        def full = (edited.services + moved.services).collect { createPipeline(it.id as long, pipeline()) }
+        def full = (edited.services + moved.services).collect { pipelineFor(it.id as long, pipeline()) }
         def changed = full[0]
         def movedPipeline = full[20]
         def pool = Executors.newFixedThreadPool(3)

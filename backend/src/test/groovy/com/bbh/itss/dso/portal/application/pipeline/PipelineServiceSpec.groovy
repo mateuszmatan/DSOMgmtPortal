@@ -133,6 +133,75 @@ class PipelineServiceSpec extends Specification {
         view.pipeline().activeKey().get().status() == KeyStatus.ACTIVE
     }
 
+    def "every service a save created starts with a full pipeline, a key and a published configuration"() {
+        given:
+        products.load(1L) >> Optional.of(certScanner)
+
+        when:
+        def views = service.createForNewServices(1L, [10L, 11L])
+
+        then:
+        1 * publisher.lockConfigurations()
+
+        then:
+        2 * pipelines.save({ Pipeline p ->
+            p.type() == PipelineType.FULL && p.settings().agentLabels() == ['linux-agent'] &&
+                    p.settings().jenkinsJob() == null && p.keys()*.value() == [NEW_KEY]
+        }) >>> [stored(100L, pipeline(id: null, serviceId: 10L)), stored(101L, pipeline(id: null, serviceId: 11L))]
+        1 * publisher.pipelineChanged(100L)
+        1 * publisher.pipelineChanged(101L)
+        views*.pipeline()*.id() == [100L, 101L]
+        views*.service()*.name() == ['gui', 'backend-api']
+        views.every { it.pipeline().isEnabled() }
+    }
+
+    def "a service that already has a full pipeline keeps the one it has"() {
+        given:
+        products.load(1L) >> Optional.of(certScanner)
+        pipelines.existsForService(10L, PipelineType.FULL) >> true
+
+        when:
+        def views = service.createForNewServices(1L, [10L, 11L])
+
+        then:
+        1 * pipelines.save({ Pipeline p -> p.service().serviceId() == 11L }) >> { Pipeline p -> stored(101L, p) }
+        0 * pipelines.save({ Pipeline p -> p.service().serviceId() == 10L })
+        views*.pipeline()*.id() == [101L]
+    }
+
+    def "a save that created no service starts no pipeline and takes no lock"() {
+        when:
+        def views = service.createForNewServices(1L, [])
+
+        then:
+        views == []
+        0 * publisher.lockConfigurations()
+        0 * products.load(_)
+        0 * pipelines.save(_)
+    }
+
+    def "a pipeline cannot start for a service of another product"() {
+        given:
+        products.load(1L) >> Optional.of(certScanner)
+
+        when:
+        service.createForNewServices(1L, [12L])
+
+        then:
+        def e = thrown(NotFoundException)
+        e.message == 'Service 12 does not exist'
+        0 * pipelines.save(_)
+    }
+
+    def "pipelines cannot start for an unknown product"() {
+        when:
+        service.createForNewServices(7L, [10L])
+
+        then:
+        def e = thrown(NotFoundException)
+        e.message == 'Product 7 does not exist'
+    }
+
     def "a service has at most one pipeline of each type"() {
         given:
         products.findByServiceId(10L) >> Optional.of(certScanner)

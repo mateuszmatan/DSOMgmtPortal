@@ -6,8 +6,10 @@ import com.bbh.itss.dso.portal.application.catalog.port.out.PipelineCountsPort
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductSummary
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase
+import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelinesUseCase
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.ProductDirectory
+import com.bbh.itss.dso.portal.domain.catalog.Service
 import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
 import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
@@ -33,9 +35,10 @@ class ProductCatalogServiceSpec extends Specification {
     ProductRepositoryPort products = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
     PipelineCountsPort pipelineCounts = Stub()
     PublishPipelineConfigsUseCase publisher = Mock()
+    ManagePipelinesUseCase pipelines = Mock()
 
     @Subject
-    def catalog = new ProductCatalogService(products, pipelineCounts, publisher)
+    def catalog = new ProductCatalogService(products, pipelineCounts, publisher, pipelines)
 
     def "the list shows each product with its service and pipeline counts"() {
         given:
@@ -109,7 +112,7 @@ class ProductCatalogServiceSpec extends Specification {
 
         then:
         1 * products.save({ Product p -> p.id() == null && p.services()*.displayOrder() == [0, 1] }) >> { Product p ->
-            stored(9L, p)
+            stored(9L, p, [10L, 11L])
         }
 
         then:
@@ -117,6 +120,48 @@ class ProductCatalogServiceSpec extends Specification {
         created.id() == 9
         created.services()*.name() == ['gui', 'backend-api']
         created.services()*.settings()*.metrics()*.influxProject() == ['CERT-gui', 'CERT-backend-api']
+    }
+
+    def "every service of a new product is given its own pipeline once the product is stored"() {
+        given:
+        def command = command(services: [service(name: 'gui'), service(name: 'backend-api')])
+
+        when:
+        catalog.create(command)
+
+        then:
+        1 * products.save(_) >> { Product p -> stored(9L, p, [10L, 11L]) }
+
+        then:
+        1 * publisher.productChanged(9L)
+
+        then:
+        1 * pipelines.createForNewServices(9L, [10L, 11L])
+    }
+
+    def "an update gives a pipeline to the services it adds and leaves the services it keeps alone"() {
+        given:
+        products.load(5L) >> Optional.of(product(id: 5, services: [[name: 'gui', id: 10], [name: 'api', id: 11]]))
+
+        when:
+        catalog.update(5L, command(version: 0L, services: [service(id: 10L, name: 'gui'), service(name: 'worker'),
+                                                           service(name: 'batch')]))
+
+        then:
+        1 * products.save(_) >> { Product p -> stored(5L, p, [10L, 12L, 13L]) }
+        1 * pipelines.createForNewServices(5L, [12L, 13L])
+    }
+
+    def "an update that adds no service asks for no pipeline"() {
+        given:
+        products.load(5L) >> Optional.of(product(id: 5, services: [[name: 'gui', id: 10]]))
+
+        when:
+        catalog.update(5L, command(version: 0L, services: [service(id: 10L, name: 'web')]))
+
+        then:
+        1 * products.save(_) >> { Product p -> stored(5L, p, [10L]) }
+        1 * pipelines.createForNewServices(5L, [])
     }
 
     def "the repository answers who already uses a product code"() {
@@ -269,7 +314,11 @@ class ProductCatalogServiceSpec extends Specification {
                 args.services as List<ServiceCommand> ?: [service(name: 'gui')])
     }
 
-    private static Product stored(long id, Product product) {
-        Product.restore(id, product.details(), product.appScanAccount(), product.services(), 0, CHANGED, CHANGED)
+    private static Product stored(long id, Product product, List<Long> serviceIds = []) {
+        List<Service> services = product.services().withIndex().collect { Service service, int index ->
+            new Service(index < serviceIds.size() ? serviceIds[index] : service.id(), service.name(),
+                    service.description(), service.displayOrder(), service.settings())
+        }
+        Product.restore(id, product.details(), product.appScanAccount(), services, 0, CHANGED, CHANGED)
     }
 }

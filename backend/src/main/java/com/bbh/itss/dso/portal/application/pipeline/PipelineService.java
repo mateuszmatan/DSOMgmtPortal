@@ -18,6 +18,8 @@ import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey;
 import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineKey;
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings;
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import com.bbh.itss.dso.portal.domain.pipeline.ServiceRef;
 import com.bbh.itss.dso.portal.domain.shared.ConflictException;
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
@@ -79,11 +81,31 @@ public class PipelineService implements ManagePipelinesUseCase, ManagePipelineKe
             throw new ConflictException("Service " + service.name() + " already has a " + command.type().variant()
                     + " pipeline");
         }
-        Pipeline created = Pipeline.create(new ServiceRef(product.id(), serviceId), command.type(), command.settings(),
-                keys, now());
-        Pipeline saved = pipelines.save(created);
+        return PipelineView.of(product, create(product, serviceId, command.type(), command.settings()), jenkinsUrl());
+    }
+
+    @Override
+    public List<PipelineView> createForNewServices(long productId, List<Long> serviceIds) {
+        if (serviceIds.isEmpty()) {
+            return List.of();
+        }
+        publisher.lockConfigurations();
+        Product product = products.load(productId).orElseThrow(() -> NotFoundException.of("Product", productId));
+        String jenkinsUrl = jenkinsUrl();
+        return serviceIds.stream()
+                .map(serviceId -> product.service(serviceId)
+                        .orElseThrow(() -> NotFoundException.of("Service", serviceId)))
+                .filter(service -> !pipelines.existsForService(service.id(), PipelineType.FULL))
+                .map(service -> PipelineView.of(product, create(product, service.id(), PipelineType.FULL,
+                        PipelineSettings.forNewService()), jenkinsUrl))
+                .toList();
+    }
+
+    private Pipeline create(Product product, long serviceId, PipelineType type, PipelineSettings settings) {
+        Pipeline saved = pipelines.save(Pipeline.create(new ServiceRef(product.id(), serviceId), type, settings,
+                keys, now()));
         publisher.pipelineChanged(saved.id());
-        return PipelineView.of(product, saved, jenkinsUrl());
+        return saved;
     }
 
     @Override

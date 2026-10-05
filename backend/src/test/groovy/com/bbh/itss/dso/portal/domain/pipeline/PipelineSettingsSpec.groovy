@@ -27,6 +27,18 @@ class PipelineSettingsSpec extends Specification {
         PipelineType.SAST     || null                | null
     }
 
+    def "the pipeline a new service starts with runs on the default agent and no Jenkins job of its own"() {
+        when:
+        def settings = PipelineSettings.forNewService()
+
+        then:
+        settings.agentLabels() == ['linux-agent']
+        settings.jenkinsJob() == null
+        settings.extendedPipelineJob() == null
+        settings.securityPipelineJob() == null
+        settings.description() == null
+    }
+
     def "blank settings are stored as null and agent labels cleaned"() {
         expect:
         new PipelineSettings([' linux ', '', 'linux', 'docker'], ' ', '  ', ' DevSecOps/gui ', '\t') ==

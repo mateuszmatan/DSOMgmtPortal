@@ -51,7 +51,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         api.get("/api/products?search=${code.toLowerCase()}").json*.code == [code]
         with(api.get('/api/products').json.find { it.code == code }) {
             serviceCount == 2
-            pipelineCount == 0
+            pipelineCount == 2
             ownerTeam == 'Payments Engineering'
         }
     }
@@ -312,7 +312,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         when:
         def created = createProduct(product(code: code, name: "Product $code",
                 services: [service(testJobs: [[stage: 'REGRESSION', job: 'ledger/regression', parameters: parameters]])]))
-        def pipeline = createPipeline(created.services[0].id as long)
+        def pipeline = pipelineFor(created.services[0].id as long)
         def config = api.get("/api/dso/config/$pipeline.activeKey.value?format=json").json
 
         then:
@@ -336,6 +336,44 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                  product(services: [service(build: build(command: [tasks: ['clean'], environment: ['not a variable']]))]),
                  product(appScan: null),
                  [code: 'X']]
+    }
+
+    def "every service a save creates starts with a full pipeline, a key and a published configuration"() {
+        given:
+        def code = uniqueCode()
+
+        when:
+        def created = createProduct(product(code: code, name: "Product $code",
+                services: [service(name: 'gui'), service(name: 'backend-api')]))
+        def started = api.get("/api/products/$created.id/pipelines").json
+
+        then:
+        started*.serviceName == ['gui', 'backend-api']
+        started.every { it.pipelines*.type == ['FULL'] }
+        started.every { it.pipelines[0].agentLabels == ['linux-agent'] && it.pipelines[0].jenkinsJob == null }
+        started.every { it.pipelines[0].enabled && it.pipelines[0].activeKey.status == 'ACTIVE' }
+        started.every { api.get("/api/dso/config/${it.pipelines[0].activeKey.value}").status == 200 }
+
+        when:
+        def kept = created.services[0]
+        def updated = api.put("/api/products/$created.id", product(code: code, name: "Product $code",
+                services: [service(id: kept.id, name: 'gui'), service(name: 'worker')])).json
+        def afterAdding = api.get("/api/products/$created.id/pipelines").json
+
+        then:
+        afterAdding*.serviceName == ['gui', 'worker']
+        afterAdding.every { it.pipelines*.type == ['FULL'] }
+        afterAdding[0].pipelines[0].id == started[0].pipelines[0].id
+        afterAdding[0].pipelines[0].activeKey.value == started[0].pipelines[0].activeKey.value
+        afterAdding[1].pipelines[0].activeKey.value != started[1].pipelines[0].activeKey.value
+
+        when:
+        api.delete("/api/pipelines/${afterAdding[1].pipelines[0].id}")
+        api.put("/api/products/$created.id", product(code: code, name: "Product $code 2",
+                services: [service(id: kept.id, name: 'gui'), service(id: updated.services[1].id, name: 'worker')]))
+
+        then:
+        api.get("/api/products/$created.id/pipelines").json[1].pipelines == []
     }
 
     def "#refusal is a problem detail that keeps the portal's internals to itself"() {
@@ -397,7 +435,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         given:
         def code = uniqueCode()
         def created = createProduct(product(code: code, name: "Product $code"))
-        def pipeline = createPipeline(created.services[0].id)
+        def pipeline = pipelineFor(created.services[0].id)
 
         when:
         def deleted = api.delete("/api/products/$created.id")

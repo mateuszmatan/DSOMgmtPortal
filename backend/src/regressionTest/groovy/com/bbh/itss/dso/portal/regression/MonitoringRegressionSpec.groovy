@@ -21,9 +21,9 @@ class MonitoringRegressionSpec extends PortalSpecification {
         influx.reset()
         code = uniqueCode('MON')
         monitored = createProduct(product(code: code, name: "Monitored $code", services: [service(name: 'gui'), service(name: 'api')]))
-        guiFull = createPipeline(monitored.services[0].id as long)
-        guiSast = createPipeline(monitored.services[0].id as long, pipeline(type: 'SAST'))
-        apiFull = createPipeline(monitored.services[1].id as long)
+        guiFull = pipelineFor(monitored.services[0].id as long)
+        guiSast = pipelineFor(monitored.services[0].id as long, pipeline(type: 'SAST'))
+        apiFull = pipelineFor(monitored.services[1].id as long)
         api.post("/api/pipelines/$guiSast.id/keys/revoke", [reason: 'paused'])
 
         def now = Instant.now()
@@ -106,7 +106,7 @@ class MonitoringRegressionSpec extends PortalSpecification {
 
     def "a pipeline without runs in the range shows the last one before it"() {
         given:
-        def apiSast = createPipeline(monitored.services[1].id as long, pipeline(type: 'SAST'))
+        def apiSast = pipelineFor(monitored.services[1].id as long, pipeline(type: 'SAST'))
         influx.addRun(project: "$code-apisast", variant: 'sast', time: Instant.now() - Duration.ofDays(60), result: 'UNSTABLE')
 
         when:

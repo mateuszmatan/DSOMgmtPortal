@@ -31,8 +31,8 @@ class EvidenceRegressionSpec extends PortalSpecification {
                         scm: [repositoryUrl: 'https://bitbucket.bbh.com/projects/TRE/repos/gui',
                               credentialsId: 'bitbucket-http-credentials']),
                 service(name: 'batch')]))
-        guiFull = createPipeline(evidenced.services[0].id as long, pipeline(jenkinsJob: JOB))
-        guiSast = createPipeline(evidenced.services[0].id as long, pipeline(type: 'SAST'))
+        guiFull = pipelineFor(evidenced.services[0].id as long, pipeline(jenkinsJob: JOB))
+        guiSast = pipelineFor(evidenced.services[0].id as long, pipeline(type: 'SAST'))
         api.post("/api/pipelines/$guiSast.id/keys/revoke", [reason: 'SAST runs inside the full pipeline'])
 
         finished = Instant.now().minus(Duration.ofHours(1))
@@ -79,7 +79,9 @@ class EvidenceRegressionSpec extends PortalSpecification {
         evidence.ownerTeam == 'Treasury Apps'
         evidence.contactEmail == 'treasury@bbh.com'
         evidence.services*.name == ['gui', 'batch']
-        evidence.services[1].pipelines == []
+        evidence.services[1].pipelines*.type == ['FULL']
+        evidence.services[1].pipelines*.status == ['NO_DATA']
+        evidence.services[1].pipelines[0].run == null
 
         def gui = "$code-gui"
         with(evidence.services[0]) {
