@@ -61,3 +61,8 @@ uses the build, report, test and artifact links the API sends.
 sends `goldenFix.enabled: null`, so the service follows "GoldenFix runs by default" of the Global Settings, and is
 where every new service starts. Selects whose first option means "not set" (Global default, Library default,
 Detected from the URL, Global value) show that option for a `null` value.
+
+## Test job parameters
+
+The parameters of a test job are a text area with one `NAME=value` per line, the format the DevSecOps library splits
+on. Every non-blank line must match `^[A-Za-z_][A-Za-z0-9_.-]*=.*$`, and the stored text is sent back unchanged.

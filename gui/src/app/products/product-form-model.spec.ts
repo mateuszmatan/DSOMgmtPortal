@@ -374,6 +374,42 @@ describe('test jobs', () => {
     job.controls.type.setValue('REMOTE');
     expect(toTestJob(job)).toMatchObject({ remoteJenkins: 'qa', credentialsId: 'jenkins-qa' });
   });
+
+  it('round-trips the stored parameters unchanged, one NAME=value per line', () => {
+    const parameters = 'ENV=rd\nSUITE=critical\nsuite.tags=smoke,login';
+    const job = createTestJobForm({ job: 'CERT/regression', parameters });
+
+    expect(job.controls.parameters.valid).toBe(true);
+    expect(toTestJob(job).parameters).toBe(parameters);
+  });
+
+  it('sends blank parameters as null', () => {
+    const job = createTestJobForm({ job: 'CERT/regression' });
+    job.controls.parameters.setValue(' \n ');
+
+    expect(job.controls.parameters.valid).toBe(true);
+    expect(toTestJob(job).parameters).toBeNull();
+  });
+
+  it.each([
+    ['ENV=rd,SUITE=critical', true],
+    ['ENV=rd\n\nSUITE=', true],
+    ['_flag=1', true],
+    ['ENV rd', false],
+    ['1ENV=rd', false],
+    [' ENV=rd', false],
+    ['ENV=rd\n=critical', false],
+  ])('checks that every parameter line %j is NAME=value: %s', (parameters, valid) => {
+    const job = createTestJobForm({ job: 'CERT/regression', parameters });
+    expect(job.controls.parameters.valid).toBe(valid);
+  });
+
+  it('names the parameter line that is not NAME=value', () => {
+    const job = createTestJobForm({ job: 'CERT/regression', parameters: 'ENV=rd\nSUITE critical' });
+    expect(job.controls.parameters.errors).toEqual({
+      item: { value: 'SUITE critical', message: 'Write each parameter as NAME=value' },
+    });
+  });
 });
 
 describe('UrbanCode applications', () => {

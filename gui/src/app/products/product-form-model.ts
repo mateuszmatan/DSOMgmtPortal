@@ -52,6 +52,7 @@ export const UUID =
 export const METRICS_TAG = /^[A-Za-z0-9._-]*$/;
 export const SONAR_KEY = /^([a-zA-Z0-9_.:-]*[a-zA-Z_.:-][a-zA-Z0-9_.:-]*)?$/;
 export const ENV_VARIABLE = /^[A-Za-z_][A-Za-z0-9_]*=.*$/;
+export const JOB_PARAMETER = /^[A-Za-z_][A-Za-z0-9_.-]*=.*$/;
 export const GIT_URL = /^(https?:\/\/\S+|ssh:\/\/\S+|git@\S+)$/;
 export const CLONE_URL = /^(https?:\/\/\S+|ssh:\/\/\S+)$/;
 export const BITBUCKET_NAME = /^[^\s/]*$/;
@@ -66,6 +67,7 @@ export const GOLDEN_FIX_ECOSYSTEMS = ['maven', 'npm', 'pypi', 'pub'];
 
 const FOLDER = /^[^,]{1,300}$/;
 const tokenLines = (value: string) => lines(value, false);
+const parameterLines = (value: string) => value.split('\n').filter((line) => line.trim());
 const tokenWords = (value: string) => words(value, false);
 const upTo = (length: number) => new RegExp(`^.{1,${length}}$`);
 
@@ -128,7 +130,11 @@ export function createTestJobForm(job?: Partial<TestJob> | null) {
     type: new FormControl<TestJobType | null>(job?.type ?? null),
     job: text(job?.job, Validators.required, Validators.maxLength(1000)),
     timeoutMinutes: integer(job?.timeoutMinutes, 1, 1440),
-    parameters: text(job?.parameters, Validators.maxLength(2000)),
+    parameters: text(
+      job?.parameters,
+      Validators.maxLength(2000),
+      eachItem(parameterLines, JOB_PARAMETER, 'Write each parameter as NAME=value'),
+    ),
     remoteJenkins: text(
       job?.remoteJenkins,
       Validators.maxLength(200),
@@ -168,7 +174,7 @@ export function toTestJob(form: TestJobForm): TestJob {
     type: v.type,
     job: v.job.trim(),
     timeoutMinutes: v.timeoutMinutes,
-    parameters: optional(v.parameters),
+    parameters: v.parameters.trim() ? v.parameters : null,
     remoteJenkins: remote ? optional(v.remoteJenkins) : null,
     remoteJenkinsUrl: remote ? optional(v.remoteJenkinsUrl) : null,
     credentialsId: remote ? optional(v.credentialsId) : null,

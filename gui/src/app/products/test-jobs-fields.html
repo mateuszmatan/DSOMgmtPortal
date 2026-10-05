@@ -117,13 +117,15 @@
           </mat-form-field>
           <mat-form-field class="span-6">
             <mat-label>Parameters</mat-label>
-            <input
+            <textarea
               matInput
               formControlName="parameters"
-              placeholder="ENV=rd,SUITE=critical"
+              rows="2"
+              placeholder="ENV=rd&#10;SUITE=critical"
               class="mono"
-            />
-            <mat-hint><code>parameters</code> · passed to the job</mat-hint>
+              spellcheck="false"
+            ></textarea>
+            <mat-hint><code>parameters</code> · One NAME=value per line</mat-hint>
             <mat-error>{{ errorText(job.controls.parameters) }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-3">
