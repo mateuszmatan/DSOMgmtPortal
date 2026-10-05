@@ -39,7 +39,7 @@ describe('PipelineMonitoringPage', () => {
     await fixture.whenStable();
   }
 
-  it('shows the pipeline with its DORA tiles, latest run and Grafana panels', async () => {
+  it('shows the pipeline with its DORA tiles, latest run and Grafana dashboard', async () => {
     await load();
 
     expect(text('h1')).toContain('gui');
@@ -51,7 +51,12 @@ describe('PipelineMonitoringPage', () => {
       'Time to restore',
     ]);
     expect(text('.last-run')).toContain('10 passed · 1 warned · 1 failed · 0 blocked · 0 skipped');
-    expect(page().querySelectorAll('.panels iframe').length).toBe(1);
+    expect(page().querySelector('.grafana iframe')?.getAttribute('src')).toBe(
+      'https://grafana.bbh.com/d/adzfc54123/pipeline?var-project=CERT-gui&kiosk',
+    );
+    expect(page().querySelector('.grafana a')?.getAttribute('href')).toBe(
+      'https://grafana.bbh.com/d/adzfc54123/pipeline?var-project=CERT-gui',
+    );
     expect(page().querySelector('a.jenkins')?.getAttribute('href')).toBe(
       'https://jenkins.bbh.com/job/DevSecOps/job/CERT/job/gui-full/',
     );

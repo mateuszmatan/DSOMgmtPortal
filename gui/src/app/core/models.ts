@@ -525,20 +525,13 @@ export interface ProductMonitoring {
   metricsError: string | null;
 }
 
-export interface GrafanaPanel {
-  id: number;
-  title: string;
-  width: number;
-  url: string;
-}
-
 export interface PipelineMonitoring {
   pipeline: Pipeline;
   status: RunResult;
   lastRun: PipelineRun | null;
   dora: DoraSummary;
   recentRuns: PipelineRun[];
-  grafana: { dashboardUrl: string; panels: GrafanaPanel[] } | null;
+  grafana: { dashboardUrl: string } | null;
   metricsError: string | null;
 }
 

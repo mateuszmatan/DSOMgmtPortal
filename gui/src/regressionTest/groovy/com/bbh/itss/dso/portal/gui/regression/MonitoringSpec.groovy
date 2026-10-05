@@ -149,7 +149,7 @@ class MonitoringSpec extends GuiSpecification {
 
         expect:
         assertThat(link('Jenkins', true)).hasAttribute('href', 'https://jenkins.bbh.com/job/DevSecOps/job/CERTSCANNER/job/gui-full/')
-        assertThat(link('Grafana', true)).hasAttribute('href', monitoring.grafana.dashboardUrl as String)
+        assertThat(link('Open in Grafana', true)).hasAttribute('href', monitoring.grafana.dashboardUrl as String)
         assertThat(page.locator('.last-run a.build-link')).hasAttribute('href', monitoring.lastRun.buildUrl as String)
         def links = page.locator('section.card').filter(new Locator.FilterOptions().setHasText('Recent runs')).locator('tr.mat-mdc-row')
         assertThat(links).hasCount(runs.size())
@@ -163,7 +163,7 @@ class MonitoringSpec extends GuiSpecification {
             }
             true
         }
-        assertThat(page.locator('iframe')).hasCount((monitoring.grafana.panels as List).size())
+        assertThat(page.locator('.grafana iframe')).hasAttribute('src', "${monitoring.grafana.dashboardUrl}&kiosk".toString())
         ownErrors().isEmpty()
     }
 
