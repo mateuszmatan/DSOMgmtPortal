@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { inputOf } from '../testing/dom';
 import { pipeline, servicePipelines } from '../testing/fixtures';
 import { PipelineDialog, PipelineDialogData } from './pipeline-dialog';
 
@@ -37,10 +38,8 @@ describe('PipelineDialog', () => {
     page().querySelector<HTMLButtonElement>('button[type=submit]')!.click();
     await fixture.whenStable();
   };
-  const type = async (name: string, value: string) => {
-    const input = page().querySelector<HTMLInputElement | HTMLTextAreaElement>(
-      `[formControlName=${name}]`,
-    )!;
+  const type = async (label: string, value: string) => {
+    const input = inputOf(page(), label);
     input.value = value;
     input.dispatchEvent(new Event('input'));
     input.dispatchEvent(new Event('blur'));
@@ -75,9 +74,7 @@ describe('PipelineDialog', () => {
 
     expect(page().querySelector('h2')?.textContent).toBe('Add pipeline');
     expect(page().querySelector('.intro')?.textContent).toContain('gets its own unique key');
-    expect(page().querySelector<HTMLInputElement>('[formControlName=agentLabels]')?.value).toBe(
-      'linux-agent',
-    );
+    expect(inputOf(page(), 'Jenkins agent labels').value).toBe('linux-agent');
     expect(page().querySelector('mat-hint')?.textContent).toContain(
       'Build, scans, tests, deployment and release',
     );
@@ -106,9 +103,7 @@ describe('PipelineDialog', () => {
     expect(page().querySelector('h2')?.textContent).toBe('Pipeline settings');
     expect(labels()).toContain('Security pipeline job');
     expect(labels()).not.toContain('Extended pipeline job');
-    expect(
-      page().querySelector<HTMLInputElement>('[formControlName=securityPipelineJob]')?.value,
-    ).toBe('CERT/gui-security');
+    expect(inputOf(page(), 'Security pipeline job').value).toBe('CERT/gui-security');
     expect(page().querySelector('button[type=submit]')?.textContent?.trim()).toBe('Save');
   });
 
@@ -116,9 +111,9 @@ describe('PipelineDialog', () => {
     const stored = pipeline();
     await render({ service: servicePipelines({ pipelines: [stored] }), pipeline: stored });
 
-    await type('agentLabels', ' linux-agent,  docker ');
-    await type('jenkinsJob', '');
-    await type('description', '  Release build  ');
+    await type('Jenkins agent labels', ' linux-agent,  docker ');
+    await type('Jenkins job', '');
+    await type('Description', '  Release build  ');
     await submit();
 
     const request = http.expectOne({ method: 'PUT', url: '/api/pipelines/100' });
@@ -141,8 +136,8 @@ describe('PipelineDialog', () => {
   it('refuses unusable agent labels and job paths before sending', async () => {
     await render({ service: servicePipelines({ pipelines: [] }) });
 
-    await type('agentLabels', 'linux agent!');
-    await type('jenkinsJob', 'DevSecOps/CERT?branch=main');
+    await type('Jenkins agent labels', 'linux agent!');
+    await type('Jenkins job', 'DevSecOps/CERT?branch=main');
     await submit();
 
     http.expectNone('/api/services/10/pipelines');
