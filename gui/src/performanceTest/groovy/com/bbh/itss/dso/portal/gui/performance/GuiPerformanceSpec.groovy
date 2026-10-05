@@ -71,7 +71,7 @@ class GuiPerformanceSpec extends GuiSpecification {
 
     double measure(String from, String click, int product, Map ready) {
         if (from) {
-            open(from.replace('ID', "$product"))
+            page.navigate(url(from.replace('ID', "$product")))
             assert !page.evaluate(READY, ready)
             def start = page.locator(click.replace('ID', "$product")).evaluate(CLICK) as double
             return (page.waitForFunction(READY, ready).jsonValue() as double) - start
