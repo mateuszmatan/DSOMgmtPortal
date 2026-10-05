@@ -1,11 +1,12 @@
 import { Routes } from '@angular/router';
+import { EVIDENCE, MONITORING, PRODUCTS, SETTINGS } from './core/sections';
 import { unsavedChangesGuard } from './core/unsaved-changes';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'products' },
   {
     path: 'products',
-    title: 'DevSecOps Product Management',
+    title: PRODUCTS.heading,
     loadComponent: () => import('./products/product-list').then((m) => m.ProductList),
   },
   {
@@ -27,7 +28,7 @@ export const routes: Routes = [
   },
   {
     path: 'monitoring',
-    title: 'DevSecOps Pipeline Monitoring',
+    title: MONITORING.heading,
     loadComponent: () =>
       import('./monitoring/monitoring-overview').then((m) => m.MonitoringOverview),
   },
@@ -45,12 +46,12 @@ export const routes: Routes = [
   },
   {
     path: 'evidence',
-    title: 'DevSecOps Change Evidence',
+    title: EVIDENCE.heading,
     loadComponent: () => import('./evidence/change-evidence').then((m) => m.ChangeEvidencePage),
   },
   {
     path: 'settings',
-    title: 'DevSecOps Global Settings',
+    title: SETTINGS.heading,
     canDeactivate: [unsavedChangesGuard],
     loadComponent: () => import('./settings/global-settings').then((m) => m.GlobalSettingsPage),
   },

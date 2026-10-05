@@ -1,12 +1,9 @@
-import { COMMA, ENTER, SPACE } from '@angular/cdk/keycodes';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatChipInputEvent, MatChipsModule } from '@angular/material/chips';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
@@ -20,6 +17,7 @@ import {
   PipelineType,
   ServicePipelines,
 } from '../core/models';
+import { eachItem, joinWords, maxWords, text, words } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { applyFieldProblems } from './product-form-model';
 
@@ -36,10 +34,8 @@ export const JENKINS_JOB = /^(https?:\/\/\S+|[^\s:?#][^:?#]*)$/;
   imports: [
     ReactiveFormsModule,
     MatButtonModule,
-    MatChipsModule,
     MatDialogModule,
     MatFormFieldModule,
-    MatIconModule,
     MatInputModule,
     MatProgressSpinnerModule,
     MatSelectModule,
@@ -53,7 +49,6 @@ export class PipelineDialog {
   private readonly dialogRef = inject<MatDialogRef<PipelineDialog, Pipeline>>(MatDialogRef);
   private readonly api = inject(PipelinesApi);
 
-  protected readonly separators = [ENTER, COMMA, SPACE];
   protected readonly editing = this.data.pipeline !== undefined;
   protected readonly types = PIPELINE_TYPES.filter(
     (type) =>
@@ -66,13 +61,12 @@ export class PipelineDialog {
       { value: this.data.pipeline?.type ?? this.types[0]?.value ?? 'FULL', disabled: this.editing },
       { nonNullable: true },
     ),
-    agentLabels: new FormControl<string[]>(this.data.pipeline?.agentLabels ?? ['linux-agent'], {
-      nonNullable: true,
-      validators: [
-        Validators.required,
-        (control) => (control.value.length > 20 ? { maxItems: true } : null),
-      ],
-    }),
+    agentLabels: text(
+      joinWords(this.data.pipeline?.agentLabels ?? ['linux-agent']),
+      Validators.required,
+      maxWords(20),
+      eachItem(words, AGENT_LABEL, "Use letters, digits, '.', '-' or '_' in a Jenkins label"),
+    ),
     jenkinsJob: new FormControl(this.data.pipeline?.jenkinsJob ?? '', {
       nonNullable: true,
       validators: [Validators.pattern(JENKINS_JOB), Validators.maxLength(1000)],
@@ -99,35 +93,7 @@ export class PipelineDialog {
   );
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
-  protected readonly labelError = signal<string | null>(null);
   protected readonly errorText = errorText;
-
-  protected addLabel(event: MatChipInputEvent): void {
-    const label = event.value.trim();
-    if (!label) {
-      return;
-    }
-    if (!AGENT_LABEL.test(label)) {
-      this.labelError.set(
-        `"${label}" is not a Jenkins label: use letters, digits, '.', '-' or '_'`,
-      );
-      return;
-    }
-    const labels = this.form.controls.agentLabels.value;
-    if (!labels.includes(label)) {
-      this.form.controls.agentLabels.setValue([...labels, label]);
-    }
-    this.form.controls.agentLabels.markAsTouched();
-    this.labelError.set(null);
-    event.chipInput.clear();
-  }
-
-  protected removeLabel(label: string): void {
-    this.form.controls.agentLabels.setValue(
-      this.form.controls.agentLabels.value.filter((value) => value !== label),
-    );
-    this.form.controls.agentLabels.markAsTouched();
-  }
 
   protected save(): void {
     this.form.markAllAsTouched();
@@ -137,7 +103,7 @@ export class PipelineDialog {
     const value = this.form.getRawValue();
     const request: PipelineRequest = {
       type: value.type,
-      agentLabels: value.agentLabels,
+      agentLabels: words(value.agentLabels),
       extendedPipelineJob:
         value.type === 'SECURITY' ? value.extendedPipelineJob.trim() || null : null,
       securityPipelineJob:

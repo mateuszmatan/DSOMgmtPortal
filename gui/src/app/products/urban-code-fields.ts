@@ -1,11 +1,9 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { GlobalSettings } from '../core/models';
 import { errorText } from '../shared/form-errors';
 import {
@@ -20,11 +18,9 @@ import {
   imports: [
     ReactiveFormsModule,
     MatButtonModule,
+    MatCheckboxModule,
     MatFormFieldModule,
-    MatIconModule,
     MatInputModule,
-    MatSlideToggleModule,
-    MatTooltipModule,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './urban-code-fields.html',
@@ -35,24 +31,26 @@ import {
     code {
       font-size: 11.5px;
     }
-    mat-slide-toggle {
-      padding: 4px 0;
-    }
     .component {
       position: relative;
-      margin-top: 10px;
-      padding: 14px 52px 6px 14px;
+      margin-top: 6px;
+      padding: 8px 88px 6px 10px;
       border: 1px solid var(--dso-border);
       background: #fbfcfd;
 
       .remove {
         position: absolute;
         top: 6px;
-        right: 6px;
+        right: 4px;
       }
     }
     .add-component {
-      margin-top: 10px;
+      margin-top: 6px;
+    }
+    @media (max-width: 700px) {
+      .component {
+        padding: 36px 10px 6px;
+      }
     }
   `,
 })

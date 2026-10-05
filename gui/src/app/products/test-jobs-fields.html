@@ -15,9 +15,7 @@
 </div>
 
 @if (f.controls.testJobs.errors?.['server']; as message) {
-  <div class="banner list-error" role="alert">
-    <mat-icon>error_outline</mat-icon><span>{{ message }}</span>
-  </div>
+  <div class="banner list-error" role="alert">{{ message }}</div>
 }
 
 @for (stage of stages; track stage.value) {
@@ -42,7 +40,7 @@
       </mat-form-field>
       <span class="spacer"></span>
       <button mat-stroked-button type="button" (click)="add(stage.value)">
-        <mat-icon>add</mat-icon>Add {{ stage.noun }} job
+        Add {{ stage.noun }} job
       </button>
     </header>
 
@@ -50,36 +48,34 @@
       <div class="list-item" [formGroup]="job" [class.invalid]="job.invalid && job.touched">
         <div class="list-item-head">
           <span class="index">{{ i + 1 }}</span>
-          <strong class="mono">{{
-            job.controls.name.value || job.controls.job.value || 'New job'
-          }}</strong>
+          <strong class="mono">{{ jobName(job) }}</strong>
           <span class="spacer"></span>
           <button
-            mat-icon-button
+            mat-button
             type="button"
             (click)="move(job, -1)"
             [disabled]="isFirst(job)"
-            matTooltip="Start earlier"
+            [attr.aria-label]="'Start ' + jobName(job) + ' earlier'"
           >
-            <mat-icon>arrow_upward</mat-icon>
+            Up
           </button>
           <button
-            mat-icon-button
+            mat-button
             type="button"
             (click)="move(job, 1)"
             [disabled]="isLast(job)"
-            matTooltip="Start later"
+            [attr.aria-label]="'Start ' + jobName(job) + ' later'"
           >
-            <mat-icon>arrow_downward</mat-icon>
+            Down
           </button>
           <button
-            mat-icon-button
+            mat-button
             type="button"
             class="danger"
             (click)="remove(job)"
-            matTooltip="Remove job"
+            [attr.aria-label]="'Remove ' + jobName(job)"
           >
-            <mat-icon>delete</mat-icon>
+            Remove
           </button>
         </div>
         <div class="form-fields">

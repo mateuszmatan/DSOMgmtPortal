@@ -17,11 +17,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { Observable, catchError, finalize, forkJoin, of } from 'rxjs';
 import { PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
@@ -52,11 +50,9 @@ import { ServiceFields } from './service-fields';
     MatButtonModule,
     MatExpansionModule,
     MatFormFieldModule,
-    MatIconModule,
     MatInputModule,
     MatProgressBarModule,
     MatProgressSpinnerModule,
-    MatTooltipModule,
     ServiceFields,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -53,6 +53,7 @@ export const SONAR_KEY = /^([a-zA-Z0-9_.:-]*[a-zA-Z_.:-][a-zA-Z0-9_.:-]*)?$/;
 export const ENV_VARIABLE = /^[A-Za-z_][A-Za-z0-9_]*=.*$/;
 export const GIT_URL = /^(https?:\/\/\S+|ssh:\/\/\S+|git@\S+)$/;
 export const CLONE_URL = /^(https?:\/\/\S+|ssh:\/\/\S+)$/;
+export const BITBUCKET_NAME = /^[^\s/]*$/;
 export const UCD_ENVIRONMENT = /^[A-Za-z0-9_-]{1,20}$/;
 export const MODULE_FOLDER = /^[A-Za-z0-9._/-]{1,100}$/;
 export const NEXUS_STAGE = /^[a-z-]*$/;
@@ -518,6 +519,10 @@ export function createServiceForm(
         maxWords(20),
         eachItem(words, upTo(100), 'At most 100 characters per reviewer'),
       ),
+      apiUrl: text(s?.scm?.apiUrl, Validators.pattern(HTTP_URL), max(1000)),
+      workspace: text(s?.scm?.workspace, Validators.pattern(BITBUCKET_NAME), max(200)),
+      projectKey: text(s?.scm?.projectKey, Validators.pattern(BITBUCKET_NAME), max(200)),
+      repoSlug: text(s?.scm?.repoSlug, Validators.pattern(BITBUCKET_NAME), max(200)),
     }),
     goldenFix: createServiceGoldenFixForm(s?.goldenFix),
     metrics: new FormGroup({
@@ -776,6 +781,10 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
       targetBranch: optional(v.scm.targetBranch),
       cloneUrl: optional(v.scm.cloneUrl),
       reviewers: words(v.scm.reviewers),
+      apiUrl: optional(v.scm.apiUrl),
+      workspace: optional(v.scm.workspace),
+      projectKey: optional(v.scm.projectKey),
+      repoSlug: optional(v.scm.repoSlug),
     },
     goldenFix: v.goldenFix.inherit
       ? inheritedGoldenFix(v.goldenFix.enabled)

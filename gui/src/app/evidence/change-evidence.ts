@@ -4,7 +4,6 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { RouterLink } from '@angular/router';
@@ -12,6 +11,7 @@ import { debounceTime, distinctUntilChanged, map } from 'rxjs';
 import { EvidenceApi, ProductsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { ProductEvidence, ServiceEvidence } from '../core/models';
+import { EVIDENCE } from '../core/sections';
 import { PipelineEvidenceCard } from './pipeline-evidence-card';
 
 export type EvidenceState =
@@ -27,7 +27,6 @@ export type EvidenceState =
     MatButtonModule,
     MatExpansionModule,
     MatFormFieldModule,
-    MatIconModule,
     MatInputModule,
     MatProgressBarModule,
     PipelineEvidenceCard,
@@ -41,6 +40,7 @@ export class ChangeEvidencePage {
   private readonly evidenceApi = inject(EvidenceApi);
   private readonly destroyRef = inject(DestroyRef);
 
+  protected readonly section = EVIDENCE;
   protected readonly search = new FormControl('', { nonNullable: true });
   private readonly query = toSignal(
     this.search.valueChanges.pipe(

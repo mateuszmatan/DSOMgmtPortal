@@ -1,15 +1,14 @@
 <div class="page settings">
   <header class="page-header">
     <div>
-      <h1>DevSecOps Global Settings</h1>
-      <p class="lead">
-        These settings apply to every DevSecOps pipeline of every product, and a service cannot
-        override them. Only the defaults (deployment, service and GoldenFix defaults) are starting
-        values that a service may replace with its own.
+      <h1>{{ section.heading }}</h1>
+      <p class="page-description">{{ section.description }}</p>
+      <p class="meta">
+        A service can replace only the deployment, service and GoldenFix defaults.
+        @if (settings(); as s) {
+          Version {{ s.version }} · saved {{ s.updatedAt | relative }}
+        }
       </p>
-      @if (settings(); as s) {
-        <p class="meta">Version {{ s.version }} · saved {{ s.updatedAt | relative }}</p>
-      }
     </div>
     <div class="actions">
       <button
@@ -18,7 +17,7 @@
         (click)="showConfig()"
         [disabled]="!settings() || loadingConfig()"
       >
-        <mat-icon>code</mat-icon>Generated configuration
+        Generated configuration
       </button>
     </div>
   </header>
@@ -28,12 +27,8 @@
   }
 
   @if (loadError(); as error) {
-    <div class="banner" role="alert">
-      <mat-icon>error_outline</mat-icon><span>{{ error }}</span>
-    </div>
-    <button mat-stroked-button type="button" (click)="reload()">
-      <mat-icon>refresh</mat-icon>Try again
-    </button>
+    <div class="banner" role="alert">{{ error }}</div>
+    <button mat-stroked-button type="button" (click)="reload()">Try again</button>
   } @else if (settings()) {
     @let p = form.controls.platform.controls;
     @let d = form.controls.deployment.controls;
@@ -44,15 +39,12 @@
 
     @if (conflict()) {
       <div class="banner conflict" role="alert">
-        <mat-icon>sync_problem</mat-icon>
         <div class="banner-text">
           <strong>Someone else saved the settings after you opened this page.</strong>
           Your changes were not saved, so nothing was overwritten. Reload to get the current values,
           then make your changes again.
         </div>
-        <button mat-flat-button type="button" (click)="reload()">
-          <mat-icon>refresh</mat-icon>Reload
-        </button>
+        <button mat-flat-button type="button" (click)="reload()">Reload</button>
       </div>
     }
 
@@ -66,10 +58,9 @@
               [class.problem]="section.problem"
               (click)="scrollTo(section.id)"
             >
-              <mat-icon>{{ section.icon }}</mat-icon>
               <span>{{ section.label }}</span>
               @if (section.problem) {
-                <mat-icon class="problem-icon" aria-label="Has problems">error</mat-icon>
+                <span class="problem-mark" role="img" aria-label="Has problems"></span>
               }
             </button>
           }
@@ -79,7 +70,6 @@
       <form [formGroup]="form" (ngSubmit)="save()" novalidate>
         @if (unmatchedProblems().length) {
           <div class="banner" role="alert">
-            <mat-icon>error_outline</mat-icon>
             <ul class="problems">
               @for (problem of unmatchedProblems(); track problem.field + problem.message) {
                 <li>
@@ -93,7 +83,7 @@
 
         <section class="card section" id="settings-platform" formGroupName="platform">
           <header class="section-head">
-            <h2><mat-icon>hub</mat-icon>Platform and tools</h2>
+            <h2>Platform and tools</h2>
             <p>
               The BBH tool servers every pipeline talks to, sent as <code>platform</code> and as the
               tool settings of every service. Credentials are Jenkins credential IDs, never secrets.
@@ -102,7 +92,7 @@
 
           <div class="form-block">
             <header>
-              <h3><mat-icon>build_circle</mat-icon>Jenkins</h3>
+              <h3>Jenkins</h3>
               <p>Where the pipelines run and the shared library their Jenkinsfiles load.</p>
             </header>
             <div class="form-fields">
@@ -134,7 +124,7 @@
 
           <div class="form-block">
             <header>
-              <h3><mat-icon>security</mat-icon>HCL AppScan</h3>
+              <h3>HCL AppScan</h3>
               <p>
                 The AppScan on Cloud service, the static analysis clients and the proxy its calls go
                 through.
@@ -197,7 +187,7 @@
 
           <div class="form-block">
             <header>
-              <h3><mat-icon>analytics</mat-icon>SonarQube and Nexus IQ</h3>
+              <h3>SonarQube and Nexus IQ</h3>
               <p>The quality and dependency policy servers every service reports to.</p>
             </header>
             <div class="form-fields">
@@ -230,7 +220,7 @@
 
           <div class="form-block">
             <header>
-              <h3><mat-icon>inventory</mat-icon>Repository, metrics and agents</h3>
+              <h3>Repository, metrics and agents</h3>
               <p>
                 The Nexus snapshot repository, the InfluxDB the pipelines write their metrics to and
                 the agent iOS builds run on.
@@ -273,7 +263,7 @@
 
         <section class="card section" id="settings-deployment" formGroupName="deployment">
           <header class="section-head">
-            <h2><mat-icon>dns</mat-icon>Deployment defaults</h2>
+            <h2>Deployment defaults</h2>
             <p>
               What a service deployed to virtual machines uses unless it sets its own value under
               <code>deploy.vm</code>.
@@ -281,7 +271,7 @@
           </header>
           <div class="form-block">
             <header>
-              <h3><mat-icon>rocket_launch</mat-icon>UrbanCode Deploy</h3>
+              <h3>UrbanCode Deploy</h3>
               <p>The site and process UrbanCode deployments run with.</p>
             </header>
             <div class="form-fields">
@@ -301,7 +291,7 @@
           </div>
           <div class="form-block">
             <header>
-              <h3><mat-icon>terminal</mat-icon>SSH deployment</h3>
+              <h3>SSH deployment</h3>
               <p>The test region hosts and how the deployment script is run on them.</p>
             </header>
             <div class="form-fields">
@@ -345,7 +335,7 @@
 
         <section class="card section" id="settings-limits" formGroupName="limits">
           <header class="section-head">
-            <h2><mat-icon>policy</mat-icon>Severity limits</h2>
+            <h2>Severity limits</h2>
             <p>
               The most findings of each severity a scan may report before it fails the pipeline.
               Zero allows none.
@@ -388,12 +378,12 @@
 
         <section class="card section" id="settings-scans" formGroupName="scans">
           <header class="section-head">
-            <h2><mat-icon>timer</mat-icon>Scans and coverage</h2>
+            <h2>Scans and coverage</h2>
             <p>The required unit test coverage and how long the pipelines wait for each scan.</p>
           </header>
           <div class="form-block">
             <header>
-              <h3><mat-icon>percent</mat-icon>Coverage</h3>
+              <h3>Coverage</h3>
               <p>The line coverage the unit tests must reach.</p>
             </header>
             <div class="form-fields">
@@ -407,7 +397,7 @@
           </div>
           <div class="form-block">
             <header>
-              <h3><mat-icon>code</mat-icon>SAST</h3>
+              <h3>SAST</h3>
               <p>Preparing the sources and waiting for the AppScan static scan.</p>
             </header>
             <div class="form-fields">
@@ -433,12 +423,12 @@
           </div>
           <div class="form-block">
             <header>
-              <h3><mat-icon>account_tree</mat-icon>SCA</h3>
+              <h3>SCA</h3>
               <p>The AppScan open source analysis of the dependencies.</p>
             </header>
             <div class="form-fields">
-              <mat-slide-toggle class="span-4" formControlName="scaEnabled"
-                >Run the SCA scan (<code>sca.enabled</code>)</mat-slide-toggle
+              <mat-checkbox class="span-4" formControlName="scaEnabled"
+                >Run the SCA scan (<code>sca.enabled</code>)</mat-checkbox
               >
               <mat-form-field class="span-4">
                 <mat-label>Poll timeout (minutes)</mat-label>
@@ -456,7 +446,7 @@
           </div>
           <div class="form-block">
             <header>
-              <h3><mat-icon>travel_explore</mat-icon>DAST</h3>
+              <h3>DAST</h3>
               <p>The AppScan dynamic scan of the deployed service and its report.</p>
             </header>
             <div class="form-fields">
@@ -488,13 +478,13 @@
           </div>
           <div class="form-block">
             <header>
-              <h3><mat-icon>fact_check</mat-icon>SonarQube quality gate</h3>
+              <h3>SonarQube quality gate</h3>
               <p>Whether the pipelines wait for the SonarQube quality gate and for how long.</p>
             </header>
             <div class="form-fields">
-              <mat-slide-toggle class="span-6" formControlName="sonarWaitForQualityGate"
+              <mat-checkbox class="span-6" formControlName="sonarWaitForQualityGate"
                 >Wait for the quality gate
-                (<code>tools.sonar.qualityGate.waitForQualityGate</code>)</mat-slide-toggle
+                (<code>tools.sonar.qualityGate.waitForQualityGate</code>)</mat-checkbox
               >
               <mat-form-field class="span-6">
                 <mat-label>Timeout (minutes)</mat-label>
@@ -513,7 +503,7 @@
 
         <section class="card section" id="settings-releaseGate" formGroupName="releaseGate">
           <header class="section-head">
-            <h2><mat-icon>verified</mat-icon>Release gate</h2>
+            <h2>Release gate</h2>
             <p>
               What a run must prove before the pipeline may release: the scans whose limits must
               hold and, optionally, the required coverage.
@@ -539,15 +529,13 @@
                   <code>{{ scannerInfo[scanner].gateKey }}</code
                   >{{ last ? '' : ', ' }}
                 }
-                · none selected checks no scan</span
-              >
+              </span>
               @if (rg.scanners.invalid) {
                 <span class="field-error">{{ errorText(rg.scanners) }}</span>
               }
             </div>
-            <mat-slide-toggle class="span-6" formControlName="requireCoverage"
-              >Require the minimum coverage
-              (<code>releaseGate.requireCoverage</code>)</mat-slide-toggle
+            <mat-checkbox class="span-6" formControlName="requireCoverage"
+              >Require the minimum coverage (<code>releaseGate.requireCoverage</code>)</mat-checkbox
             >
             <mat-form-field class="span-6">
               <mat-label>State file</mat-label>
@@ -562,7 +550,7 @@
 
         <section class="card section" id="settings-serviceDefaults" formGroupName="serviceDefaults">
           <header class="section-head">
-            <h2><mat-icon>tune</mat-icon>Service defaults</h2>
+            <h2>Service defaults</h2>
             <p>
               A new service starts with these values, and a service that leaves one of them out gets
               it from here. Each service may set its own.
@@ -604,15 +592,15 @@
 
         <section class="card section" id="settings-goldenFix">
           <header class="section-head">
-            <h2><mat-icon>auto_fix_high</mat-icon>GoldenFix defaults</h2>
+            <h2>GoldenFix defaults</h2>
             <p>
               How GoldenFix raises dependency upgrade pull requests. A service follows this policy
               unless it overrides values in its own GoldenFix section.
             </p>
           </header>
           <div class="form-fields">
-            <mat-slide-toggle class="span-12" [formControl]="gf.controls.enabled"
-              >GoldenFix runs by default (<code>goldenFix.enabled</code>)</mat-slide-toggle
+            <mat-checkbox class="span-12" [formControl]="gf.controls.enabled"
+              >GoldenFix runs by default (<code>goldenFix.enabled</code>)</mat-checkbox
             >
             <dso-golden-fix-fields [group]="gf" [complete]="true" />
           </div>
@@ -620,9 +608,7 @@
 
         <div class="save-bar">
           @if (saveError(); as error) {
-            <span class="save-error" role="alert"
-              ><mat-icon>error_outline</mat-icon>{{ error }}</span
-            >
+            <span class="save-error" role="alert">{{ error }}</span>
           } @else if (form.dirty) {
             <span class="muted">Unsaved changes</span>
           }

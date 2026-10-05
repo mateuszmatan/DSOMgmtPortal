@@ -488,6 +488,56 @@ describe('toServiceRequest', () => {
     expect(toServiceRequest(createServiceForm(stored))).toEqual({ ...stored, flutter: null });
   });
 
+  it('round-trips the Bitbucket repository GoldenFix raises its pull requests against', () => {
+    const stored = service();
+    stored.scm = {
+      ...stored.scm,
+      apiUrl: 'https://bitbucket.bbh.com',
+      workspace: 'bbh-technology',
+      projectKey: '~jsmith',
+      repoSlug: 'cert-scanner',
+    };
+
+    const form = createServiceForm(stored);
+
+    expect(form.controls.scm.valid).toBe(true);
+    expect(toServiceRequest(form).scm).toEqual(stored.scm);
+  });
+
+  it('sends blank Bitbucket repository fields as not set and trims the others', () => {
+    const form = createServiceForm(service());
+    form.controls.scm.patchValue({
+      apiUrl: ' https://bitbucket.bbh.com/ ',
+      workspace: '  ',
+      projectKey: ' TA ',
+      repoSlug: '',
+    });
+
+    expect(toServiceRequest(form).scm).toMatchObject({
+      apiUrl: 'https://bitbucket.bbh.com/',
+      workspace: null,
+      projectKey: 'TA',
+      repoSlug: null,
+    });
+  });
+
+  it('accepts only an http or https Bitbucket API URL and names without spaces or slashes', () => {
+    const { scm } = createServiceForm(service()).controls;
+
+    scm.controls.apiUrl.setValue('ssh://git@bitbucket.bbh.com');
+    scm.controls.workspace.setValue('bbh technology');
+    scm.controls.projectKey.setValue('TA/CERT');
+    scm.controls.repoSlug.setValue('cert scanner');
+
+    expect(scm.controls.apiUrl.hasError('pattern')).toBe(true);
+    expect(scm.controls.workspace.hasError('pattern')).toBe(true);
+    expect(scm.controls.projectKey.hasError('pattern')).toBe(true);
+    expect(scm.controls.repoSlug.hasError('pattern')).toBe(true);
+
+    scm.controls.repoSlug.setValue('r'.repeat(201));
+    expect(scm.controls.repoSlug.hasError('maxlength')).toBe(true);
+  });
+
   it('keeps the deployment names whatever the target, since the library reads them for both', () => {
     const form = createServiceForm(
       service({

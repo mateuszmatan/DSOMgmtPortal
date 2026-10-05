@@ -210,14 +210,14 @@ export function toSettingsRequest(
   };
 }
 
-export const SETTINGS_SECTIONS: { id: SettingsSectionId; label: string; icon: string }[] = [
-  { id: 'platform', label: 'Platform and tools', icon: 'hub' },
-  { id: 'deployment', label: 'Deployment defaults', icon: 'dns' },
-  { id: 'limits', label: 'Severity limits', icon: 'policy' },
-  { id: 'scans', label: 'Scans and coverage', icon: 'timer' },
-  { id: 'releaseGate', label: 'Release gate', icon: 'verified' },
-  { id: 'serviceDefaults', label: 'Service defaults', icon: 'tune' },
-  { id: 'goldenFix', label: 'GoldenFix defaults', icon: 'auto_fix_high' },
+export const SETTINGS_SECTIONS: { id: SettingsSectionId; label: string }[] = [
+  { id: 'platform', label: 'Platform and tools' },
+  { id: 'deployment', label: 'Deployment defaults' },
+  { id: 'limits', label: 'Severity limits' },
+  { id: 'scans', label: 'Scans and coverage' },
+  { id: 'releaseGate', label: 'Release gate' },
+  { id: 'serviceDefaults', label: 'Service defaults' },
+  { id: 'goldenFix', label: 'GoldenFix defaults' },
 ];
 
 export function firstInvalidSection(form: SettingsForm): SettingsSectionId | null {

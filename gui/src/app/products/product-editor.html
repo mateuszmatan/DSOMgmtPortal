@@ -1,10 +1,10 @@
 <div class="page editor">
   <nav class="breadcrumb" aria-label="Breadcrumb">
     <a routerLink="/products">DevSecOps Product Management</a>
-    <mat-icon>chevron_right</mat-icon>
+    <span class="sep" aria-hidden="true">/</span>
     @if (product(); as stored) {
       <a [routerLink]="['/products', stored.id]">{{ stored.name }}</a>
-      <mat-icon>chevron_right</mat-icon>
+      <span class="sep" aria-hidden="true">/</span>
       <span>Edit</span>
     } @else {
       <span>{{ id() ? 'Edit' : 'Add product' }}</span>
@@ -33,15 +33,12 @@
   }
 
   @if (loadError(); as error) {
-    <div class="banner">
-      <mat-icon>error_outline</mat-icon><span>{{ error }}</span>
-    </div>
-    <a mat-stroked-button routerLink="/products"><mat-icon>arrow_back</mat-icon>Back to products</a>
+    <div class="banner">{{ error }}</div>
+    <a mat-stroked-button routerLink="/products">Back to products</a>
   } @else if (!loading()) {
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
       @if (unmatchedProblems().length) {
         <div class="banner" role="alert">
-          <mat-icon>error_outline</mat-icon>
           <ul class="problems">
             @for (problem of unmatchedProblems(); track problem.field + problem.message) {
               <li>
@@ -56,7 +53,7 @@
       <section class="card product-fields">
         <div class="form-block">
           <header>
-            <h3><mat-icon>inventory_2</mat-icon>Product</h3>
+            <h3>Product</h3>
             <p>
               How the product appears in the portal. The code starts the default metrics tags of its
               services.
@@ -113,7 +110,7 @@
 
         <div class="form-block" formGroupName="appScan">
           <header>
-            <h3><mat-icon>vpn_key</mat-icon>HCL AppScan account</h3>
+            <h3>HCL AppScan account</h3>
             <p>
               The API key every service of the product scans with. Its secret stays in Jenkins
               credentials.
@@ -161,19 +158,14 @@
               own pipelines.
             </p>
           </div>
-          <button mat-stroked-button type="button" (click)="addService()">
-            <mat-icon>add</mat-icon>Add service
-          </button>
+          <button mat-stroked-button type="button" (click)="addService()">Add service</button>
         </header>
 
         @if (services().length === 0) {
           <div class="card empty-state">
-            <mat-icon>widgets</mat-icon>
             <h3>No services yet</h3>
             <p>Add the services of the product, for example its GUI and its backend API.</p>
-            <button mat-flat-button type="button" (click)="addService()">
-              <mat-icon>add</mat-icon>Add service
-            </button>
+            <button mat-flat-button type="button" (click)="addService()">Add service</button>
           </div>
         } @else {
           <mat-accordion displayMode="flat">
@@ -183,6 +175,8 @@
               let i = $index, first = $first, last = $last
             ) {
               <mat-expansion-panel
+                #panel
+                hideToggle
                 [expanded]="expanded() === i"
                 (opened)="panelToggled(i, true)"
                 (closed)="panelToggled(i, false)"
@@ -195,11 +189,7 @@
                       service.controls.name.value || 'new-service'
                     }}</span>
                     @if (showsErrors(service)) {
-                      <mat-icon
-                        class="error-icon"
-                        matTooltip="Some fields of this service need your attention"
-                        >error</mat-icon
-                      >
+                      <span class="tag error">Needs attention</span>
                     }
                   </mat-panel-title>
                   <mat-panel-description>
@@ -216,6 +206,9 @@
                       >
                     }
                   </mat-panel-description>
+                  <span class="panel-toggle" aria-hidden="true">{{
+                    panel.expanded ? 'Hide' : 'Show'
+                  }}</span>
                 </mat-expansion-panel-header>
 
                 <dso-service-fields
@@ -226,18 +219,32 @@
                 />
 
                 <mat-action-row>
-                  <button mat-button type="button" (click)="move(i, -1)" [disabled]="first">
-                    <mat-icon>arrow_upward</mat-icon>Up
+                  <button
+                    mat-button
+                    type="button"
+                    (click)="move(i, -1)"
+                    [disabled]="first"
+                    [attr.aria-label]="
+                      'Move ' + (service.controls.name.value || 'the service') + ' up'
+                    "
+                  >
+                    Up
                   </button>
-                  <button mat-button type="button" (click)="move(i, 1)" [disabled]="last">
-                    <mat-icon>arrow_downward</mat-icon>Down
+                  <button
+                    mat-button
+                    type="button"
+                    (click)="move(i, 1)"
+                    [disabled]="last"
+                    [attr.aria-label]="
+                      'Move ' + (service.controls.name.value || 'the service') + ' down'
+                    "
+                  >
+                    Down
                   </button>
                   <span class="spacer"></span>
-                  <button mat-button type="button" (click)="duplicate(i)">
-                    <mat-icon>content_copy</mat-icon>Duplicate
-                  </button>
+                  <button mat-button type="button" (click)="duplicate(i)">Duplicate</button>
                   <button mat-button type="button" class="danger" (click)="remove(i)">
-                    <mat-icon>delete</mat-icon>Remove
+                    Remove
                   </button>
                 </mat-action-row>
               </mat-expansion-panel>
@@ -248,7 +255,7 @@
 
       <div class="save-bar">
         @if (saveError(); as error) {
-          <span class="save-error" role="alert"><mat-icon>error_outline</mat-icon>{{ error }}</span>
+          <span class="save-error" role="alert">{{ error }}</span>
         } @else if (form.dirty) {
           <span class="muted">Unsaved changes</span>
         }

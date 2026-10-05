@@ -17,8 +17,8 @@
   <mat-error>{{ errorText(c.minThreatLevel) }}</mat-error>
 </mat-form-field>
 @if (complete()) {
-  <mat-slide-toggle class="span-4" [formControl]="c.onlyDirectDependencies"
-    >Direct dependencies only (<code>onlyDirectDependencies</code>)</mat-slide-toggle
+  <mat-checkbox class="span-4" [formControl]="c.onlyDirectDependencies"
+    >Direct dependencies only (<code>onlyDirectDependencies</code>)</mat-checkbox
   >
 } @else {
   <mat-form-field class="span-4">
@@ -62,8 +62,8 @@
 
 <h5 class="sub-heading span-12">Verification build</h5>
 @if (complete()) {
-  <mat-slide-toggle class="span-4" [formControl]="c.verifyEnabled"
-    >Build the fix before opening the pull request (<code>verify.enabled</code>)</mat-slide-toggle
+  <mat-checkbox class="span-4" [formControl]="c.verifyEnabled"
+    >Build the fix before opening the pull request (<code>verify.enabled</code>)</mat-checkbox
   >
 } @else {
   <mat-form-field class="span-4">

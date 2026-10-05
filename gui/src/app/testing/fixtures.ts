@@ -139,6 +139,10 @@ export function service(overrides: Partial<Service> = {}): Service {
       targetBranch: null,
       cloneUrl: null,
       reviewers: [],
+      apiUrl: null,
+      workspace: null,
+      projectKey: null,
+      repoSlug: null,
     },
     goldenFix: {
       enabled: true,

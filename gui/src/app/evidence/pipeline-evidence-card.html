@@ -7,9 +7,7 @@
     </div>
     <div class="actions">
       @if (p.jenkinsJobUrl) {
-        <a mat-button [href]="p.jenkinsJobUrl" target="_blank" rel="noopener"
-          ><mat-icon>open_in_new</mat-icon>Jenkins job</a
-        >
+        <a mat-button [href]="p.jenkinsJobUrl" target="_blank" rel="noopener">Jenkins job</a>
       } @else {
         <span class="not-recorded">No Jenkins job</span>
       }
@@ -19,7 +17,7 @@
         [cdkCopyToClipboard]="text()"
         (cdkCopyToClipboardCopied)="copied($event)"
       >
-        <mat-icon>content_copy</mat-icon>Copy for ServiceNow
+        Copy for ServiceNow
       </button>
     </div>
   </header>
@@ -89,23 +87,17 @@
         <div class="links">
           @for (
             link of [
-              { label: 'Build', url: b.url, icon: 'build' },
-              { label: 'Pipeline report', url: b.reportUrl, icon: 'summarize' },
-              { label: 'Unit test report', url: b.testReportUrl, icon: 'checklist' },
-              { label: 'Artifacts', url: b.artifactsUrl, icon: 'inventory_2' },
+              { label: 'Build', url: b.url },
+              { label: 'Pipeline report', url: b.reportUrl },
+              { label: 'Unit test report', url: b.testReportUrl },
+              { label: 'Artifacts', url: b.artifactsUrl },
             ];
             track link.label
           ) {
             @if (link.url) {
-              <a [href]="link.url" target="_blank" rel="noopener"
-                ><mat-icon>{{ link.icon }}</mat-icon
-                >{{ link.label }}</a
-              >
+              <a [href]="link.url" target="_blank" rel="noopener">{{ link.label }}</a>
             } @else {
-              <span class="not-recorded"
-                ><mat-icon>{{ link.icon }}</mat-icon
-                >{{ link.label }}: not recorded</span
-              >
+              <span class="not-recorded">{{ link.label }}: not recorded</span>
             }
           }
         </div>
@@ -142,11 +134,12 @@
         } @else {
           <p class="not-recorded">Not recorded</p>
         }
+      </section>
 
+      <section>
         <h5>Release gate</h5>
         @if (run.releaseGate; as g) {
           <p class="gate" [class.allowed]="g.allowed">
-            <mat-icon>{{ g.allowed ? 'verified' : 'gpp_bad' }}</mat-icon>
             <span>
               <strong>{{ g.allowed ? 'Release allowed' : 'Release blocked' }}</strong>
               @if (!g.allowed && g.violations !== null) {
@@ -163,100 +156,106 @@
       </section>
     </div>
 
-    <h5>Tests</h5>
-    <div class="table-wrap">
-      <table class="facts">
-        <thead>
-          <tr>
-            <th>Suite</th>
-            <th>Status</th>
-            <th>Jobs</th>
-            <th>Passed</th>
-            <th>Failed</th>
-            <th>Not configured</th>
-            <th>Duration</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (row of suites(); track row.stage) {
-            <tr>
-              <td>{{ stageLabels[row.stage] }}</td>
-              @if (row.suite; as s) {
-                <td><dso-check-chip [status]="s.status" /></td>
-                <td>{{ s.jobs ?? '–' }}</td>
-                <td>{{ s.passed ?? '–' }}</td>
-                <td [class.bad]="!!s.failed">{{ s.failed ?? '–' }}</td>
-                <td>{{ s.notConfigured ?? '–' }}</td>
-                <td>{{ s.durationMs === null ? '–' : (s.durationMs / 1000 | duration) }}</td>
-              } @else {
-                <td colspan="6"><span class="not-recorded">Not recorded</span></td>
+    <div class="tables">
+      <section>
+        <h5>Tests</h5>
+        <div class="table-wrap">
+          <table class="facts">
+            <thead>
+              <tr>
+                <th>Suite</th>
+                <th>Status</th>
+                <th>Jobs</th>
+                <th>Passed</th>
+                <th>Failed</th>
+                <th>Not configured</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of suites(); track row.stage) {
+                <tr>
+                  <td>{{ stageLabels[row.stage] }}</td>
+                  @if (row.suite; as s) {
+                    <td><dso-check-chip [status]="s.status" /></td>
+                    <td>{{ s.jobs ?? '–' }}</td>
+                    <td>{{ s.passed ?? '–' }}</td>
+                    <td [class.bad]="!!s.failed">{{ s.failed ?? '–' }}</td>
+                    <td>{{ s.notConfigured ?? '–' }}</td>
+                    <td>{{ s.durationMs === null ? '–' : (s.durationMs / 1000 | duration) }}</td>
+                  } @else {
+                    <td colspan="6"><span class="not-recorded">Not recorded</span></td>
+                  }
+                </tr>
               }
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-    <h5>Security and quality scans</h5>
-    <div class="table-wrap">
-      <table class="facts">
-        <thead>
-          <tr>
-            <th>Scanner</th>
-            <th>Status</th>
-            <th>Critical</th>
-            <th>High</th>
-            <th>Medium</th>
-            <th>Low</th>
-            <th>Report</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (row of scans(); track row.scanner) {
-            <tr>
-              <td>{{ row.label }}</td>
-              @if (row.scan; as s) {
-                <td><dso-check-chip [status]="s.status" /></td>
-                @if (hasFindings(s)) {
-                  @for (
-                    count of [
-                      [s.critical, s.maxCritical],
-                      [s.high, s.maxHigh],
-                      [s.medium, s.maxMedium],
-                    ];
-                    track $index
-                  ) {
-                    <td [class.bad]="over(count[0], count[1])">
-                      {{ count[0] ?? '–' }}
-                      @if (count[1] !== null) {
-                        <span class="limit">/ {{ count[1] }}</span>
+      <section>
+        <h5>Security and quality scans</h5>
+        <div class="table-wrap">
+          <table class="facts">
+            <thead>
+              <tr>
+                <th>Scanner</th>
+                <th>Status</th>
+                <th>Critical</th>
+                <th>High</th>
+                <th>Medium</th>
+                <th>Low</th>
+                <th>Report</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of scans(); track row.scanner) {
+                <tr>
+                  <td>{{ row.label }}</td>
+                  @if (row.scan; as s) {
+                    <td><dso-check-chip [status]="s.status" /></td>
+                    @if (hasFindings(s)) {
+                      @for (
+                        count of [
+                          [s.critical, s.maxCritical],
+                          [s.high, s.maxHigh],
+                          [s.medium, s.maxMedium],
+                        ];
+                        track $index
+                      ) {
+                        <td [class.bad]="over(count[0], count[1])">
+                          {{ count[0] ?? '–' }}
+                          @if (count[1] !== null) {
+                            <span class="limit">/ {{ count[1] }}</span>
+                          }
+                        </td>
+                      }
+                      <td>{{ s.low ?? '–' }}</td>
+                    } @else {
+                      <td colspan="4" class="muted">
+                        {{
+                          row.scanner === 'SONARQUBE' ? 'Quality gate only' : 'No findings recorded'
+                        }}
+                      </td>
+                    }
+                    <td>
+                      @if (s.link) {
+                        <a [href]="s.link" target="_blank" rel="noopener">Open</a>
+                      } @else {
+                        <span class="not-recorded">Not recorded</span>
                       }
                     </td>
-                  }
-                  <td>{{ s.low ?? '–' }}</td>
-                } @else {
-                  <td colspan="4" class="muted">
-                    {{ row.scanner === 'SONARQUBE' ? 'Quality gate only' : 'No findings recorded' }}
-                  </td>
-                }
-                <td>
-                  @if (s.link) {
-                    <a [href]="s.link" target="_blank" rel="noopener"
-                      >Open<mat-icon>open_in_new</mat-icon></a
-                    >
                   } @else {
-                    <span class="not-recorded">Not recorded</span>
+                    <td colspan="6"><span class="not-recorded">Not recorded</span></td>
                   }
-                </td>
-              } @else {
-                <td colspan="6"><span class="not-recorded">Not recorded</span></td>
+                </tr>
               }
-            </tr>
-          }
-        </tbody>
-      </table>
+            </tbody>
+          </table>
+        </div>
+        <p class="limits-note">Counts read as findings / limit of the BBH policy.</p>
+      </section>
     </div>
-    <p class="limits-note">Counts read as findings / limit of the BBH policy.</p>
   } @else {
     <p class="not-recorded no-run">No run of this pipeline was recorded yet.</p>
   }

@@ -1,6 +1,6 @@
 .product-fields {
-  padding: 8px 24px;
-  margin-bottom: 28px;
+  padding: 2px 16px;
+  margin-bottom: 16px;
 }
 
 .uppercase {
@@ -8,38 +8,41 @@
 }
 
 code {
-  font-size: 12px;
-  padding: 0 4px;
+  font-size: 11px;
+  padding: 0 3px;
   background: var(--dso-neutral-bg);
 }
 
 .section-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 12px;
+  gap: 8px 16px;
+  margin-bottom: 8px;
 
   h2 {
     display: flex;
     align-items: center;
     gap: 8px;
     margin: 0;
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 600;
   }
 
   p {
-    margin: 4px 0 0;
+    margin: 2px 0 0;
     color: var(--dso-muted);
+    font-size: 12px;
   }
 
   .count {
-    padding: 0 8px;
+    padding: 0 6px;
     background: var(--dso-neutral-bg);
-    font-size: 12px;
+    font-family: 'Inter Variable', sans-serif;
+    font-size: 11px;
     font-weight: 600;
-    line-height: 20px;
+    line-height: 18px;
   }
 }
 
@@ -48,7 +51,7 @@ mat-accordion {
 }
 
 mat-expansion-panel {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   border: 1px solid var(--dso-border);
   box-shadow: none !important;
 
@@ -64,19 +67,19 @@ mat-expansion-panel {
 mat-panel-title {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex: 0 0 auto;
-  min-width: 260px;
+  min-width: 240px;
 }
 
 .index {
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   background: var(--dso-info-bg);
   color: var(--dso-info);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -84,18 +87,11 @@ mat-panel-title {
   font-weight: 600;
 }
 
-.error-icon {
-  color: var(--dso-danger);
-  font-size: 20px;
-  width: 20px;
-  height: 20px;
-}
-
 mat-panel-description {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12px;
 
   .dot {
     color: var(--dso-border);
@@ -103,23 +99,31 @@ mat-panel-description {
 }
 
 .tag {
-  margin-left: 8px;
-  padding: 0 8px;
+  margin-left: 6px;
+  padding: 0 6px;
   background: var(--dso-neutral-bg);
   color: var(--dso-neutral);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
-  line-height: 20px;
+  line-height: 18px;
 
   &.new {
     background: var(--dso-success-bg);
     color: var(--dso-success);
   }
+
+  &.error {
+    margin-left: 0;
+    background: var(--dso-danger-bg);
+    color: var(--dso-danger);
+  }
 }
 
 mat-action-row {
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+  padding: 4px 8px;
 }
 
 @media (max-width: 1100px) {

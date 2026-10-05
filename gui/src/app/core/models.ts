@@ -189,6 +189,10 @@ export interface ScmSettings {
   targetBranch: string | null;
   cloneUrl: string | null;
   reviewers: string[];
+  apiUrl: string | null;
+  workspace: string | null;
+  projectKey: string | null;
+  repoSlug: string | null;
 }
 
 export interface GoldenFixPolicy {

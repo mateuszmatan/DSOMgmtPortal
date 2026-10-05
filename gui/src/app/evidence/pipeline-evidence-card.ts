@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PipelineEvidence, ProductEvidence, ServiceEvidence, StageEvidence } from '../core/models';
 import { Notifier } from '../core/notifier';
@@ -25,7 +24,6 @@ import {
   imports: [
     ClipboardModule,
     MatButtonModule,
-    MatIconModule,
     MatTooltipModule,
     CheckChip,
     DurationPipe,

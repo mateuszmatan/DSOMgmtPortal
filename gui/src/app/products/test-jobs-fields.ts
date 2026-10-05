@@ -2,10 +2,8 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { GlobalSettings, TestStage } from '../core/models';
 import { errorText } from '../shared/form-errors';
 import {
@@ -40,10 +38,8 @@ const STAGES: { value: TestStage; label: string; noun: string; parallel: StagePa
     ReactiveFormsModule,
     MatButtonModule,
     MatFormFieldModule,
-    MatIconModule,
     MatInputModule,
     MatSelectModule,
-    MatTooltipModule,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './test-jobs-fields.html',
@@ -55,7 +51,7 @@ const STAGES: { value: TestStage; label: string; noun: string; parallel: StagePa
       font-size: 11.5px;
     }
     .parallel {
-      width: 180px;
+      width: 150px;
     }
   `,
 })
@@ -97,6 +93,10 @@ export class TestJobsFields {
     jobs.removeAt(from, { emitEvent: false });
     jobs.insert(to, job);
     this.form().markAsDirty();
+  }
+
+  protected jobName(job: TestJobForm): string {
+    return job.controls.name.value || job.controls.job.value || 'New job';
   }
 
   protected isFirst(job: TestJobForm): boolean {

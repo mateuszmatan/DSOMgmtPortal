@@ -10,7 +10,6 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -42,7 +41,6 @@ const moment = new Intl.DateTimeFormat('en-GB', {
     RouterLink,
     MatButtonModule,
     MatButtonToggleModule,
-    MatIconModule,
     MatProgressBarModule,
     MatTableModule,
     MatTooltipModule,
@@ -123,7 +121,6 @@ export class PipelineMonitoringPage {
 
 export interface DoraTile {
   title: string;
-  icon: string;
   value: string;
   detail: string;
   level: DoraSummary['deploymentFrequencyLevel'];
@@ -134,21 +131,18 @@ export function doraTiles(dora: DoraSummary): DoraTile[] {
   return [
     {
       title: 'Deployment frequency',
-      icon: 'rocket_launch',
       value: frequency(dora.deploymentsPerWeek),
       detail: `${dora.deployments} ${dora.deployments === 1 ? 'deployment' : 'deployments'} in ${dora.rangeDays} days`,
       level: dora.deploymentFrequencyLevel,
     },
     {
       title: 'Lead time for changes',
-      icon: 'timer',
       value: formatDuration(dora.leadTimeMedianSeconds),
       detail: 'Median from commit to deployment',
       level: dora.leadTimeLevel,
     },
     {
       title: 'Change failure rate',
-      icon: 'report',
       value:
         dora.changeFailureRatePercent === null
           ? '–'
@@ -158,7 +152,6 @@ export function doraTiles(dora: DoraSummary): DoraTile[] {
     },
     {
       title: 'Time to restore',
-      icon: 'healing',
       value: formatDuration(dora.meanTimeToRestoreSeconds),
       detail: `Mean of ${dora.restores} ${dora.restores === 1 ? 'recovery' : 'recoveries'} from a failure`,
       level: dora.timeToRestoreLevel,

@@ -1,15 +1,12 @@
 <div class="page">
   <header class="page-header">
     <div>
-      <h1>DevSecOps Pipeline Monitoring</h1>
-      <p>
-        The latest status of every DevSecOps pipeline, from the runs the pipelines report to
-        InfluxDB.
-      </p>
+      <h1>{{ section.heading }}</h1>
+      <p class="page-description">{{ section.description }}</p>
     </div>
     <div class="actions">
       <button mat-stroked-button (click)="refresh()" [disabled]="overview.isLoading()">
-        <mat-icon>refresh</mat-icon>Refresh
+        Refresh
       </button>
     </div>
   </header>
@@ -22,18 +19,14 @@
   <div class="tiles">
     @for (tile of tiles(); track tile.label) {
       <div class="tile" [class]="tile.tone">
-        <mat-icon>{{ tile.icon }}</mat-icon>
-        <div>
-          <strong>{{ tile.value }}</strong
-          ><span>{{ tile.label }}</span>
-        </div>
+        <strong>{{ tile.value }}</strong
+        ><span>{{ tile.label }}</span>
       </div>
     }
   </div>
 
   <div class="toolbar">
     <mat-form-field class="search">
-      <mat-icon matPrefix>search</mat-icon>
       <input
         matInput
         [formControl]="search"
@@ -53,21 +46,19 @@
   }
 
   @if (overview.error(); as error) {
-    <div class="banner">
-      <mat-icon>error_outline</mat-icon><span>{{ errorMessage(error) }}</span>
-    </div>
+    <div class="banner">{{ errorMessage(error) }}</div>
   } @else if (overview.hasValue()) {
     @if (products().length === 0) {
       <div class="card empty-state">
-        <mat-icon>insights</mat-icon>
         @if (search.value) {
           <h3>No product matches "{{ search.value }}"</h3>
         } @else {
           <h3>No products yet</h3>
           <p>
-            Products added in DevSecOps Product Management appear here with the status of their pipelines.
+            Products added in DevSecOps Product Management appear here with the status of their
+            pipelines.
           </p>
-          <a mat-flat-button routerLink="/products/new"><mat-icon>add</mat-icon>Add product</a>
+          <a mat-flat-button routerLink="/products/new">Add product</a>
         }
       </div>
     } @else {

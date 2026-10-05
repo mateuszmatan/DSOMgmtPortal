@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 export interface CodeDialogData {
@@ -14,7 +13,7 @@ export interface CodeDialogData {
 
 @Component({
   selector: 'dso-code-dialog',
-  imports: [MatDialogModule, MatButtonModule, MatIconModule, ClipboardModule],
+  imports: [MatDialogModule, MatButtonModule, ClipboardModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h2 mat-dialog-title>{{ data.title }}</h2>
@@ -26,27 +25,27 @@ export interface CodeDialogData {
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       @if (data.fileName) {
-        <button mat-button (click)="download()"><mat-icon>download</mat-icon>Download</button>
+        <button mat-button (click)="download()">Download</button>
       }
       <button mat-button [cdkCopyToClipboard]="data.code" (cdkCopyToClipboardCopied)="copied()">
-        <mat-icon>content_copy</mat-icon>Copy
+        Copy
       </button>
       <button mat-flat-button mat-dialog-close>Close</button>
     </mat-dialog-actions>
   `,
   styles: `
     .subtitle {
-      margin: 0 0 12px;
+      margin: 0 0 8px;
       color: var(--dso-muted);
     }
     .code {
       margin: 0;
-      padding: 16px;
+      padding: 10px 12px;
 
       background: var(--dso-code-bg);
       color: var(--dso-code-fg);
-      font-size: 12.5px;
-      line-height: 1.5;
+      font-size: 12px;
+      line-height: 1.45;
       max-height: 60vh;
       overflow: auto;
     }

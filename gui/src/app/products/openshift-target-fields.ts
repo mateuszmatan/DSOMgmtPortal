@@ -2,10 +2,9 @@ import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { REGIONS, Region } from '../core/models';
 import { errorText } from '../shared/form-errors';
 import { OpenShiftTargetForm, ServiceForm } from './product-form-model';
@@ -98,10 +97,9 @@ const REPOSITORY: TargetField[] = [
     NgTemplateOutlet,
     ReactiveFormsModule,
     MatButtonToggleModule,
+    MatCheckboxModule,
     MatFormFieldModule,
-    MatIconModule,
     MatInputModule,
-    MatSlideToggleModule,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
@@ -110,13 +108,12 @@ const REPOSITORY: TargetField[] = [
       [value]="region()"
       (change)="region.set($event.value)"
       aria-label="Region"
-      hideSingleSelectionIndicator
     >
       @for (option of regions; track option) {
         <mat-button-toggle [value]="option">
           {{ option }} region
           @if (target(option).invalid) {
-            <mat-icon class="problem">error</mat-icon>
+            <span class="problem-mark" role="img" aria-label="Needs your attention"></span>
           }
         </mat-button-toggle>
       }
@@ -147,8 +144,8 @@ const REPOSITORY: TargetField[] = [
       @for (field of deployment; track field.key) {
         <ng-container *ngTemplateOutlet="textField; context: { $implicit: field, t }" />
       }
-      <mat-slide-toggle class="span-12" [formControl]="t.controls.skipConfigDeploy"
-        >Skip deploying the configuration (<code>skipConfigDeploy</code>)</mat-slide-toggle
+      <mat-checkbox class="span-12" [formControl]="t.controls.skipConfigDeploy"
+        >Skip deploying the configuration (<code>skipConfigDeploy</code>)</mat-checkbox
       >
       <h5 class="sub-heading span-12">Deployment repository</h5>
       @for (field of repository; track field.key) {
@@ -179,21 +176,14 @@ const REPOSITORY: TargetField[] = [
     code {
       font-size: 11.5px;
     }
-    .regions mat-icon {
+    .regions .problem-mark {
       margin-left: 6px;
-      font-size: 16px;
-      width: 16px;
-      height: 16px;
       vertical-align: middle;
-      color: var(--dso-danger);
     }
     .region-note {
-      margin: 10px 0 4px;
-      font-size: 12.5px;
+      margin: 6px 0 2px;
+      font-size: 12px;
       color: var(--dso-muted);
-    }
-    mat-slide-toggle {
-      padding: 4px 0;
     }
   `,
 })

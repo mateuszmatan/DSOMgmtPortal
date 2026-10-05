@@ -3,7 +3,6 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { PipelinesApi } from '../core/api';
@@ -17,7 +16,6 @@ import { MaskKeyPipe, RelativeTimePipe } from '../shared/formatting';
     DatePipe,
     MatButtonModule,
     MatDialogModule,
-    MatIconModule,
     MatProgressBarModule,
     MatTableModule,
     MaskKeyPipe,
@@ -35,50 +33,49 @@ import { MaskKeyPipe, RelativeTimePipe } from '../shared/formatting';
         <mat-progress-bar mode="indeterminate" />
       }
       @if (pipeline.error(); as error) {
-        <div class="banner">
-          <mat-icon>error_outline</mat-icon><span>{{ errorMessage(error) }}</span>
-        </div>
+        <div class="banner">{{ errorMessage(error) }}</div>
       } @else if (pipeline.hasValue()) {
-        <table mat-table [dataSource]="pipeline.value().keys ?? []">
-          <ng-container matColumnDef="key">
-            <th mat-header-cell *matHeaderCellDef>Key</th>
-            <td mat-cell *matCellDef="let key" class="mono nowrap">{{ key.value | maskKey }}</td>
-          </ng-container>
-          <ng-container matColumnDef="status">
-            <th mat-header-cell *matHeaderCellDef>Status</th>
-            <td mat-cell *matCellDef="let key">
-              <span class="state" [class.active]="key.status === 'ACTIVE'">
-                <mat-icon>{{ key.status === 'ACTIVE' ? 'key' : 'key_off' }}</mat-icon>
-                {{ key.status === 'ACTIVE' ? 'Active' : 'Invalidated' }}
-              </span>
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="issuedAt">
-            <th mat-header-cell *matHeaderCellDef>Issued</th>
-            <td mat-cell *matCellDef="let key" [title]="key.issuedAt | date: 'medium'">
-              {{ key.issuedAt | date: 'd MMM y, HH:mm' }}
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="lastUsedAt">
-            <th mat-header-cell *matHeaderCellDef>Last used</th>
-            <td mat-cell *matCellDef="let key">
-              {{ key.lastUsedAt ? (key.lastUsedAt | relative) : 'Never' }}
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="revoked">
-            <th mat-header-cell *matHeaderCellDef>Invalidated</th>
-            <td mat-cell *matCellDef="let key">
-              @if (key.revokedAt) {
-                <div>{{ key.revokedAt | date: 'd MMM y, HH:mm' }}</div>
-                <div class="muted reason">{{ key.revokeReason }}</div>
-              } @else {
-                <span class="muted">–</span>
-              }
-            </td>
-          </ng-container>
-          <tr mat-header-row *matHeaderRowDef="columns"></tr>
-          <tr mat-row *matRowDef="let row; columns: columns"></tr>
-        </table>
+        <div class="table-scroll">
+          <table mat-table [dataSource]="pipeline.value().keys ?? []">
+            <ng-container matColumnDef="key">
+              <th mat-header-cell *matHeaderCellDef>Key</th>
+              <td mat-cell *matCellDef="let key" class="mono nowrap">{{ key.value | maskKey }}</td>
+            </ng-container>
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let key">
+                <span class="state" [class.active]="key.status === 'ACTIVE'">{{
+                  key.status === 'ACTIVE' ? 'Active' : 'Invalidated'
+                }}</span>
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="issuedAt">
+              <th mat-header-cell *matHeaderCellDef>Issued</th>
+              <td mat-cell *matCellDef="let key" [title]="key.issuedAt | date: 'medium'">
+                {{ key.issuedAt | date: 'd MMM y, HH:mm' }}
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="lastUsedAt">
+              <th mat-header-cell *matHeaderCellDef>Last used</th>
+              <td mat-cell *matCellDef="let key">
+                {{ key.lastUsedAt ? (key.lastUsedAt | relative) : 'Never' }}
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="revoked">
+              <th mat-header-cell *matHeaderCellDef>Invalidated</th>
+              <td mat-cell *matCellDef="let key">
+                @if (key.revokedAt) {
+                  <div>{{ key.revokedAt | date: 'd MMM y, HH:mm' }}</div>
+                  <div class="muted reason">{{ key.revokeReason }}</div>
+                } @else {
+                  <span class="muted">–</span>
+                }
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="columns"></tr>
+            <tr mat-row *matRowDef="let row; columns: columns"></tr>
+          </table>
+        </div>
       }
     </mat-dialog-content>
     <mat-dialog-actions align="end">
@@ -94,28 +91,27 @@ import { MaskKeyPipe, RelativeTimePipe } from '../shared/formatting';
       color: var(--dso-muted);
     }
     .state {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+      padding: 0 6px;
+      background: var(--dso-danger-bg);
       color: var(--dso-danger);
       font-weight: 600;
-      font-size: 12.5px;
+      font-size: 11px;
+      line-height: 18px;
     }
     .state.active {
+      background: var(--dso-success-bg);
       color: var(--dso-success);
     }
-    .state mat-icon {
-      font-size: 16px;
-      width: 16px;
-      height: 16px;
+    .table-scroll {
+      overflow-x: auto;
     }
     .reason {
       font-size: 12.5px;
       max-width: 260px;
     }
     td.mat-mdc-cell {
-      padding-top: 8px;
-      padding-bottom: 8px;
+      padding-top: 4px;
+      padding-bottom: 4px;
     }
     .nowrap {
       white-space: nowrap;

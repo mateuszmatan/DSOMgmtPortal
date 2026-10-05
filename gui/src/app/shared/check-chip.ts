@@ -1,40 +1,28 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { MatIconModule } from '@angular/material/icon';
 import { CheckStatus } from '../core/models';
 
-const LOOK: Record<CheckStatus, { label: string; icon: string; tone: string }> = {
-  PASS: { label: 'Passed', icon: 'check_circle', tone: 'success' },
-  WARN: { label: 'Warning', icon: 'error', tone: 'warning' },
-  FAIL: { label: 'Failed', icon: 'cancel', tone: 'danger' },
-  BLOCKED: { label: 'Blocked', icon: 'block', tone: 'danger' },
-  NOT_REQUIRED: { label: 'Not required', icon: 'remove_circle_outline', tone: 'neutral' },
-  SKIP: { label: 'Skipped', icon: 'redo', tone: 'neutral' },
-  NO_DATA: { label: 'Not recorded', icon: 'help_outline', tone: 'muted' },
+const LOOK: Record<CheckStatus, { label: string; tone: string }> = {
+  PASS: { label: 'Passed', tone: 'success' },
+  WARN: { label: 'Warning', tone: 'warning' },
+  FAIL: { label: 'Failed', tone: 'danger' },
+  BLOCKED: { label: 'Blocked', tone: 'danger' },
+  NOT_REQUIRED: { label: 'Not required', tone: 'neutral' },
+  SKIP: { label: 'Skipped', tone: 'neutral' },
+  NO_DATA: { label: 'Not recorded', tone: 'muted' },
 };
 
 @Component({
   selector: 'dso-check-chip',
-  imports: [MatIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<span class="chip" [class]="look().tone"
-    ><mat-icon>{{ look().icon }}</mat-icon
-    >{{ look().label }}</span
-  >`,
+  template: `<span class="chip" [class]="look().tone">{{ look().label }}</span>`,
   styles: `
     .chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 1px 8px 1px 5px;
-      font-size: 11.5px;
+      display: inline-block;
+      padding: 0 6px;
+      font-size: 11px;
       font-weight: 600;
-      line-height: 20px;
+      line-height: 18px;
       white-space: nowrap;
-    }
-    mat-icon {
-      font-size: 15px;
-      width: 15px;
-      height: 15px;
     }
     .success {
       background: var(--dso-success-bg);

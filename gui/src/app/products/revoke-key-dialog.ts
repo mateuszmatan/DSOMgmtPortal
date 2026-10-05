@@ -3,7 +3,6 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { finalize } from 'rxjs';
@@ -19,7 +18,6 @@ import { errorText } from '../shared/form-errors';
     MatButtonModule,
     MatDialogModule,
     MatFormFieldModule,
-    MatIconModule,
     MatInputModule,
     MatProgressSpinnerModule,
   ],
@@ -29,7 +27,6 @@ import { errorText } from '../shared/form-errors';
     <form [formGroup]="form" (ngSubmit)="revoke()" novalidate>
       <mat-dialog-content>
         <div class="banner">
-          <mat-icon>warning_amber</mat-icon>
           <span>
             The {{ pipeline.type.toLowerCase() }} pipeline of
             <strong class="mono">{{ pipeline.serviceName }}</strong>
@@ -49,9 +46,7 @@ import { errorText } from '../shared/form-errors';
           <mat-error>{{ errorText(reason) }}</mat-error>
         </mat-form-field>
         @if (error(); as message) {
-          <div class="banner" role="alert">
-            <mat-icon>error_outline</mat-icon><span>{{ message }}</span>
-          </div>
+          <div class="banner" role="alert">{{ message }}</div>
         }
       </mat-dialog-content>
       <mat-dialog-actions align="end">
@@ -70,7 +65,7 @@ import { errorText } from '../shared/form-errors';
       width: min(520px, 80vw);
     }
     .banner {
-      margin-bottom: 16px;
+      margin-bottom: 12px;
     }
     .danger {
       --mat-button-filled-container-color: var(--dso-danger);

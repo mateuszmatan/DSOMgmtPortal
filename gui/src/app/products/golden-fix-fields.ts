@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { GoldenFixPolicy } from '../core/models';
 import { errorText } from '../shared/form-errors';
 import {
@@ -16,10 +16,10 @@ import {
   selector: 'dso-golden-fix-fields',
   imports: [
     ReactiveFormsModule,
+    MatCheckboxModule,
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
-    MatSlideToggleModule,
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './golden-fix-fields.html',
@@ -29,9 +29,6 @@ import {
     }
     code {
       font-size: 11.5px;
-    }
-    mat-slide-toggle {
-      padding: 4px 0;
     }
   `,
 })
