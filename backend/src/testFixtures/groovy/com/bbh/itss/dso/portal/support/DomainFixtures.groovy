@@ -1,0 +1,169 @@
+package com.bbh.itss.dso.portal.support
+
+import com.bbh.itss.dso.portal.domain.catalog.AppScanAccount
+import com.bbh.itss.dso.portal.domain.catalog.AppScanSettings
+import com.bbh.itss.dso.portal.domain.catalog.BuildSettings
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool
+import com.bbh.itss.dso.portal.domain.catalog.DeployTarget
+import com.bbh.itss.dso.portal.domain.catalog.DeploymentSettings
+import com.bbh.itss.dso.portal.domain.catalog.FlutterSettings
+import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
+import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
+import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings
+import com.bbh.itss.dso.portal.domain.catalog.OpenShiftTarget
+import com.bbh.itss.dso.portal.domain.catalog.Product
+import com.bbh.itss.dso.portal.domain.catalog.ProductDetails
+import com.bbh.itss.dso.portal.domain.catalog.ProductDirectory
+import com.bbh.itss.dso.portal.domain.catalog.Region
+import com.bbh.itss.dso.portal.domain.catalog.ScmSettings
+import com.bbh.itss.dso.portal.domain.catalog.Service
+import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
+import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings
+import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
+import com.bbh.itss.dso.portal.domain.catalog.SshTarget
+import com.bbh.itss.dso.portal.domain.catalog.TestJob
+import com.bbh.itss.dso.portal.domain.catalog.TestSettings
+import com.bbh.itss.dso.portal.domain.catalog.ToolCommand
+import com.bbh.itss.dso.portal.domain.catalog.UnitTestSettings
+import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings
+import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeSettings
+import com.bbh.itss.dso.portal.domain.pipeline.KeyStatus
+import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineKey
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
+import com.bbh.itss.dso.portal.domain.pipeline.ServiceRef
+
+import java.time.Instant
+
+final class DomainFixtures {
+
+    static final String APP_ID = '109f44ac-cc06-4ca0-884e-d944904f7019'
+    static final String JDK = '/usr/lib/jvm/java-17-openjdk'
+    static final String KEY = '0f8fad5b-d9cb-469f-a165-70867728950e'
+    static final Instant CREATED = Instant.parse('2026-10-01T08:00:00Z')
+    static final Instant UPDATED = Instant.parse('2026-10-02T09:30:00Z')
+
+    private DomainFixtures() {
+    }
+
+    static ToolCommand command(List<String> tasks, List<String> flags = []) {
+        ToolCommand.of(tasks, flags)
+    }
+
+    static BuildSettings build(Map args = [:]) {
+        BuildTool tool = args.tool as BuildTool ?: BuildTool.GRADLE
+        ToolCommand defaultCommand = tool == BuildTool.FLUTTER ? ToolCommand.NONE
+                : tool == BuildTool.MAVEN ? command(['clean', 'verify']) : command(['clean', 'build'])
+        new BuildSettings(tool, args.sourceDir as String,
+                args.containsKey('javaPath') ? args.javaPath as String : JDK, args.autoSetup as Boolean,
+                args.buildPath as String, args.containsKey('command') ? args.command as ToolCommand : defaultCommand)
+    }
+
+    static DeploymentSettings deployment(Map args = [:]) {
+        new DeploymentSettings(args.target as DeployTarget ?: DeployTarget.VM, args.appName as String,
+                args.artifactName as String, args.baseArtifactName as String)
+    }
+
+    static AppScanSettings appScan(Map args = [:]) {
+        new AppScanSettings(args.applicationId as String ?: APP_ID, args.sastScanName as String,
+                args.includedDirs as List<String>, args.excludedDirs as List<String>, args.compile as Boolean,
+                args.sourceCodeOnly as Boolean, args.useConfigFile as Boolean, args.insecureTls as Boolean,
+                args.clientPath as String, args.compileCommand as ToolCommand, args.dastEnabled as Boolean,
+                args.dastScanName as String, args.dastTargetUrl as String, args.dastPresenceId as String)
+    }
+
+    static ServiceSettings settings(Map args = [:]) {
+        BuildSettings build = args.build as BuildSettings ?: build()
+        DeploymentSettings deployment = args.deployment as DeploymentSettings ?: deployment()
+        ToolCommand delivery = args.containsKey('delivery') ? args.delivery as ToolCommand
+                : build.tool() == BuildTool.MAVEN && deployment.target() == DeployTarget.VM
+                ? command(['deploy:deploy-file']) : null
+        new ServiceSettings(build, args.unitTests as UnitTestSettings, args.tests as TestSettings,
+                args.testJobs as List<TestJob>, deployment, delivery, args.urbanCode as UrbanCodeSettings,
+                args.urbanCodeApplications as List<UrbanCodeApplicationSettings>,
+                args.sshTargets as Map<Region, SshTarget>, args.openShiftTargets as Map<Region, OpenShiftTarget>,
+                args.appScan as AppScanSettings ?: appScan(), args.sonar as SonarSettings,
+                args.nexusIq as NexusIqSettings, args.scm as ScmSettings, args.goldenFix as GoldenFixPolicy,
+                args.metrics as MetricsSettings, args.flutter as FlutterSettings)
+    }
+
+    static AppScanAccount account() {
+        new AppScanAccount('bbh_key-id', 'hcl-app-scan-account')
+    }
+
+    static ProductDetails details(Map args = [:]) {
+        new ProductDetails(args.code as String ?: 'CERT', args.name as String ?: 'CertScanner',
+                args.description as String, args.ownerTeam as String, args.contactEmail as String)
+    }
+
+    static ServiceDraft draft(Map args = [:]) {
+        new ServiceDraft(args.id as Long, args.name as String ?: 'gui', args.description as String,
+                args.settings as ServiceSettings ?: settings(args))
+    }
+
+    static Service service(Map args = [:]) {
+        new Service(args.id as Long, args.name as String ?: 'gui', args.description as String,
+                (args.displayOrder ?: 0) as int, args.settings as ServiceSettings ?: settings(args))
+    }
+
+    static Product product(Map args = [:]) {
+        ProductDetails details = details(args)
+        List<Map> services = args.containsKey('services') ? args.services as List<Map> : []
+        List<Service> stored = services.withIndex().collect { Map entry, int order ->
+            Service plain = service(entry + [displayOrder: entry.displayOrder ?: order])
+            new Service(plain.id(), plain.name(), plain.description(), plain.displayOrder(),
+                    plain.settings().withDefaultMetricsProject(details.code(), plain.name()))
+        }
+        Product.restore(args.containsKey('id') ? args.id as Long : 1L, details, args.appScan as AppScanAccount ?: account(),
+                stored, (args.version ?: 0) as long, CREATED, UPDATED)
+    }
+
+    static PipelineSettings pipelineSettings(Map args = [:]) {
+        new PipelineSettings(args.agentLabels as List<String> ?: ['linux-agent'], args.extendedPipelineJob as String,
+                args.securityPipelineJob as String, args.jenkinsJob as String, args.description as String)
+    }
+
+    static PipelineKey activeKey(Map args = [:]) {
+        new PipelineKey((args.id ?: 100L) as Long, args.value as String ?: KEY, KeyStatus.ACTIVE,
+                args.issuedAt as Instant ?: CREATED, null, null, args.lastUsedAt as Instant)
+    }
+
+    static PipelineKey revokedKey(Map args = [:]) {
+        new PipelineKey((args.id ?: 99L) as Long, args.value as String ?: '6ba7b810-9dad-41d1-80b4-00c04fd430c8',
+                KeyStatus.REVOKED, args.issuedAt as Instant ?: CREATED, args.revokedAt as Instant ?: UPDATED,
+                args.containsKey('reason') ? args.reason as String : 'Replaced by a new key', null)
+    }
+
+    static Pipeline pipeline(Map args = [:]) {
+        Pipeline.restore(args.containsKey('id') ? args.id as Long : 20L,
+                new ServiceRef((args.productId ?: 1L) as long, (args.serviceId ?: 10L) as long),
+                args.type as PipelineType ?: PipelineType.FULL, pipelineSettings(args),
+                args.containsKey('keys') ? args.keys as List<PipelineKey> : [activeKey()], (args.version ?: 0) as long,
+                CREATED, UPDATED)
+    }
+
+    static ProductDirectory directory(Map args = [:]) {
+        new ProductDirectory() {
+            @Override
+            Optional<ProductDirectory.ProductIdentity> findProductByCode(String code) {
+                Optional.ofNullable((args.byCode as Map)?.get(code) as ProductDirectory.ProductIdentity)
+            }
+
+            @Override
+            Optional<ProductDirectory.ProductIdentity> findProductByName(String name) {
+                Optional.ofNullable((args.byName as Map)?.get(name) as ProductDirectory.ProductIdentity)
+            }
+
+            @Override
+            List<ProductDirectory.ServiceIdentity> findServicesByMetricsTags(String influxProject, String influxEnv) {
+                ((args.byMetrics as Map)?.get("$influxProject|$influxEnv" as String) ?: []) as List<ProductDirectory.ServiceIdentity>
+            }
+
+            @Override
+            List<ProductDirectory.ServiceIdentity> findServicesBySonarProjectKey(String projectKey) {
+                ((args.bySonarKey as Map)?.get(projectKey) ?: []) as List<ProductDirectory.ServiceIdentity>
+            }
+        }
+    }
+}
