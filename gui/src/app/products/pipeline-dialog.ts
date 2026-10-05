@@ -17,7 +17,15 @@ import {
   PipelineType,
   ServicePipelines,
 } from '../core/models';
-import { eachItem, fitsColumn, joinWords, maxWords, text, words } from '../shared/form-controls';
+import {
+  eachItem,
+  fitsColumn,
+  joinWords,
+  maxWords,
+  setEnabled,
+  text,
+  words,
+} from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { applyFieldProblems } from './product-form-model';
 
@@ -93,8 +101,18 @@ export class PipelineDialog {
     PIPELINE_TYPES.find((type) => type.value === this.type()),
   );
   protected readonly saving = signal(false);
+
   protected readonly error = signal<string | null>(null);
   protected readonly errorText = errorText;
+
+  constructor() {
+    const sync = (type: PipelineType) => {
+      setEnabled(this.form.controls.extendedPipelineJob, type === 'SECURITY');
+      setEnabled(this.form.controls.securityPipelineJob, type === 'EXTENDED');
+    };
+    this.form.controls.type.valueChanges.subscribe(sync);
+    sync(this.form.controls.type.value);
+  }
 
   protected save(): void {
     this.form.markAllAsTouched();

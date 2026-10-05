@@ -1,4 +1,11 @@
-import { FormArray, FormControl, FormGroup, ValidatorFn, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormArray,
+  FormControl,
+  FormGroup,
+  ValidatorFn,
+  Validators,
+} from '@angular/forms';
 import {
   BitbucketAuthType,
   BitbucketType,
@@ -36,6 +43,7 @@ import {
   maxLines,
   maxWords,
   optional,
+  passesValidators,
   requireWhile,
   requiredRule,
   requiredWhen,
@@ -115,7 +123,7 @@ export function toToolCommand(form: ToolCommandForm): ToolCommand {
     tasks: words(v.tasks, false),
     flags: lines(v.flags, false),
     directory: optional(v.directory),
-    mavenHome: optional(v.mavenHome),
+    mavenHome: kept(form.controls.mavenHome),
     environment: lines(v.environment, false),
   };
 }
@@ -156,10 +164,17 @@ export function createTestJobForm(job?: Partial<TestJob> | null) {
     ),
     credentialsId: text(job?.credentialsId, Validators.maxLength(200)),
   });
-  const { type, remoteJenkins, remoteJenkinsUrl } = form.controls;
+  const { type, remoteJenkins, remoteJenkinsUrl, credentialsId } = form.controls;
   revalidateOnChange(type, remoteJenkins);
   revalidateOnChange(form.controls.job, remoteJenkins);
   revalidateOnChange(remoteJenkinsUrl, remoteJenkins);
+  const syncRemote = () =>
+    [remoteJenkins, remoteJenkinsUrl, credentialsId].forEach((control) =>
+      setEnabled(control, isRemoteJob(form)),
+    );
+  type.valueChanges.subscribe(syncRemote);
+  form.controls.job.valueChanges.subscribe(syncRemote);
+  syncRemote();
   remoteJenkins.updateValueAndValidity();
   return form;
 }
@@ -686,8 +701,13 @@ export function createServiceForm(
   [build.controls.command.controls.tasks, form.controls.delivery.controls.tasks].forEach(
     (control) => control.updateValueAndValidity(),
   );
-  tool.valueChanges.subscribe(() => syncApplicability(form));
-  target.valueChanges.subscribe(() => syncApplicability(form));
+  const sources: AbstractControl[] = [
+    tool,
+    target,
+    appScan.controls.compile,
+    appScan.controls.dastEnabled,
+  ];
+  sources.forEach((control) => control.valueChanges.subscribe(() => syncApplicability(form)));
   syncApplicability(form);
   return form;
 }
@@ -714,13 +734,35 @@ function syncApplicability(form: ServiceForm): void {
   setEnabled(form.controls.build.controls.autoSetup, !flutter);
   setEnabled(form.controls.unitTests.controls.command, !flutter);
   setEnabled(form.controls.sonar.controls.command, !flutter);
-  setEnabled(form.controls.appScan.controls.compileCommand, !flutter);
+  const appScan = form.controls.appScan.controls;
+  setEnabled(appScan.compileCommand, !flutter && appScan.compile.value);
+  [appScan.dastTargetUrl, appScan.dastScanName, appScan.dastPresenceId].forEach((control) =>
+    setEnabled(control, appScan.dastEnabled.value),
+  );
   setEnabled(form.controls.delivery, vm && tool === 'MAVEN');
+  toolCommands(form).forEach((command) =>
+    setEnabled(command.controls.mavenHome, command.enabled && tool === 'MAVEN'),
+  );
   setEnabled(form.controls.urbanCode, vm);
   setEnabled(form.controls.urbanCodeApplications, vm);
   setEnabled(form.controls.sshTargets, vm);
   setEnabled(form.controls.openShiftTargets, !vm);
   setEnabled(form.controls.flutter, flutter);
+}
+
+function toolCommands(form: ServiceForm): ToolCommandForm[] {
+  const c = form.controls;
+  return [
+    c.build.controls.command,
+    c.unitTests.controls.command,
+    c.sonar.controls.command,
+    c.appScan.controls.compileCommand,
+    c.delivery,
+  ];
+}
+
+function kept(control: FormControl<string>): string | null {
+  return passesValidators(control) ? optional(control.value) : null;
 }
 
 export function createProductForm() {
@@ -849,10 +891,13 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
       includedDirs: lines(v.appScan.includedDirs),
       excludedDirs: lines(v.appScan.excludedDirs),
       clientPath: optional(v.appScan.clientPath),
-      compileCommand: command(c.appScan.controls.compileCommand, !flutter),
-      dastScanName: optional(v.appScan.dastScanName),
-      dastTargetUrl: optional(v.appScan.dastTargetUrl),
-      dastPresenceId: optional(v.appScan.dastPresenceId),
+      compileCommand: command(
+        c.appScan.controls.compileCommand,
+        !flutter && passesValidators(c.appScan.controls.compileCommand),
+      ),
+      dastScanName: kept(c.appScan.controls.dastScanName),
+      dastTargetUrl: kept(c.appScan.controls.dastTargetUrl),
+      dastPresenceId: kept(c.appScan.controls.dastPresenceId),
     },
     sonar: {
       ...v.sonar,

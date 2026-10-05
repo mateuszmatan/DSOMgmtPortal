@@ -83,3 +83,8 @@ sent. The API problems still land on their fields when a rule only the backend k
 - Global Settings: the minimum line coverage is 1 to 100 and the release gate checks at least one scanner.
 - Lists: besides the number of entries and the length of each, the entries joined as stored must fit their column
   (for example 2000 characters for build flags, 4000 for variables, 1000 for agent labels).
+
+Fields that do not apply are disabled, so they never block a save without showing why: the DAST fields while DAST is
+off, the AppScan compile command while compiling is off, the Maven home of a Gradle build, the remote Jenkins fields of
+a test job that runs on this Jenkins, and the job of the other pipeline type in the pipeline dialog. A hidden value is
+kept and sent only while it is valid.

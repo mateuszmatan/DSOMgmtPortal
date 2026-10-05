@@ -229,7 +229,7 @@ describe('createServiceForm', () => {
   it('needs a DAST target URL once DAST is switched on', () => {
     const form = createServiceForm();
     const { dastEnabled, dastTargetUrl } = form.controls.appScan.controls;
-    expect(dastTargetUrl.valid).toBe(true);
+    expect(dastTargetUrl.disabled).toBe(true);
 
     dastEnabled.setValue(true);
     expect(dastTargetUrl.hasError('required')).toBe(true);
@@ -378,6 +378,86 @@ describe('sections that apply to the build tool and deployment target', () => {
 
     expect(sectionInvalid(form, build)).toBe(true);
     expect(sectionTouched(form, build)).toBe(true);
+  });
+});
+
+describe('fields hidden while they do not apply', () => {
+  it('turns the DAST fields off with DAST and sends only a valid hidden value', () => {
+    const form = createServiceForm(service());
+    const { dastEnabled, dastTargetUrl, dastScanName } = form.controls.appScan.controls;
+
+    dastEnabled.setValue(true);
+    dastTargetUrl.setValue('cert-scanner.testbbh.com');
+    dastScanName.setValue('nightly');
+    expect(form.invalid).toBe(true);
+
+    dastEnabled.setValue(false);
+
+    expect(dastTargetUrl.disabled && dastScanName.disabled).toBe(true);
+    expect(form.valid).toBe(true);
+    expect(toServiceRequest(form).appScan).toMatchObject({
+      dastEnabled: false,
+      dastTargetUrl: null,
+      dastScanName: 'nightly',
+    });
+
+    dastEnabled.setValue(true);
+    expect(dastTargetUrl.hasError('pattern')).toBe(true);
+  });
+
+  it('turns the compile command off with compiling and drops it when it is invalid', () => {
+    const form = createServiceForm(service());
+    const { compile, compileCommand } = form.controls.appScan.controls;
+    compileCommand.patchValue({ tasks: 'compileJava', environment: 'not a variable' });
+    expect(form.invalid).toBe(true);
+
+    compile.setValue(false);
+
+    expect(compileCommand.disabled).toBe(true);
+    expect(form.valid).toBe(true);
+    expect(toServiceRequest(form).appScan.compileCommand).toEqual(NO_COMMAND);
+
+    compileCommand.patchValue({ environment: 'CI=true' });
+    expect(toServiceRequest(form).appScan.compileCommand.tasks).toEqual(['compileJava']);
+
+    compile.setValue(true);
+    expect(compileCommand.enabled).toBe(true);
+  });
+
+  it('keeps the Maven home of every command to Maven builds', () => {
+    const form = createServiceForm(service());
+    const mavenHome = form.controls.build.controls.command.controls.mavenHome;
+    expect(mavenHome.disabled).toBe(true);
+    mavenHome.setValue('x'.repeat(501));
+    expect(form.valid).toBe(true);
+    expect(toServiceRequest(form).build.command.mavenHome).toBeNull();
+
+    form.controls.build.controls.tool.setValue('MAVEN');
+
+    expect(mavenHome.hasError('maxlength')).toBe(true);
+    expect(form.controls.delivery.controls.mavenHome.enabled).toBe(true);
+    expect(form.controls.appScan.controls.compileCommand.controls.mavenHome.enabled).toBe(true);
+
+    mavenHome.setValue('/opt/maven');
+    form.controls.build.controls.tool.setValue('GRADLE');
+    expect(toServiceRequest(form).build.command.mavenHome).toBe('/opt/maven');
+  });
+
+  it('turns the remote Jenkins fields of a test job off while it runs on this Jenkins', () => {
+    const job = createTestJobForm({ type: 'REMOTE', job: 'CERT/smoke' });
+    const { type, remoteJenkinsUrl, remoteJenkins, credentialsId } = job.controls;
+    remoteJenkinsUrl.setValue('jenkins-qa.bbh.com');
+    expect(job.invalid).toBe(true);
+
+    type.setValue('LOCAL');
+
+    expect([remoteJenkins, remoteJenkinsUrl, credentialsId].every((c) => c.disabled)).toBe(true);
+    expect(job.valid).toBe(true);
+    expect(toTestJob(job).remoteJenkinsUrl).toBeNull();
+
+    job.controls.job.setValue('https://jenkins-qa.bbh.com/job/smoke/');
+    expect(remoteJenkinsUrl.enabled).toBe(true);
+    expect(remoteJenkinsUrl.hasError('pattern')).toBe(true);
   });
 });
 
