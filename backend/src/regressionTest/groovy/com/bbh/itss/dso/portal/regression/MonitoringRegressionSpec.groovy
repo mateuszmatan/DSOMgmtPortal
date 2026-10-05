@@ -81,7 +81,9 @@ class MonitoringRegressionSpec extends PortalSpecification {
         details.metricsError == null
         details.status == 'SUCCESS'
         details.recentRuns*.result == ['SUCCESS', 'SUCCESS', 'FAILURE']
-        details.pipeline.keys.size() == 1
+        details.pipeline.keys == []
+        details.pipeline.activeKey.value == null
+        details.pipeline.activeKey.hint == "${guiFull.activeKey.value.take(8)}\u2026${guiFull.activeKey.value[-4..-1]}"
         with(details.dora) {
             runs == 3
             deployments == 2

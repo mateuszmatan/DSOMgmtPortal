@@ -44,6 +44,12 @@ class PipelineKeySpec extends Specification {
         'the time it was issued'    | { new PipelineKey(1L, 'k', KeyStatus.ACTIVE, null, null, null, null) }
     }
 
+    def "a key is shown by its first eight and last four characters"() {
+        expect:
+        new PipelineKey(1L, '0f8fad5b-d9cb-469f-a165-70867728950e', KeyStatus.ACTIVE, ISSUED, null, null, null).hint() ==
+                '0f8fad5b\u2026950e'
+    }
+
     def "a key value given by a pipeline is compared trimmed and in lower case: '#value'"() {
         expect:
         PipelineKey.normalize(value) == normalized

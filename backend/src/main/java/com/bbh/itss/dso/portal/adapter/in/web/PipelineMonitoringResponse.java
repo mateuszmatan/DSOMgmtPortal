@@ -10,7 +10,7 @@ public record PipelineMonitoringResponse(PipelineResponse pipeline, RunResult st
                                          GrafanaLinksResponse grafana, String metricsError) {
 
     static PipelineMonitoringResponse from(PipelineMonitoring monitoring) {
-        return new PipelineMonitoringResponse(PipelineResponse.withKeys(monitoring.pipeline()), monitoring.status(),
+        return new PipelineMonitoringResponse(PipelineResponse.monitored(monitoring.pipeline()), monitoring.status(),
                 PipelineRunResponse.from(monitoring.lastRun()), DoraSummaryResponse.from(monitoring.dora()),
                 monitoring.recentRuns().stream().map(PipelineRunResponse::from).toList(),
                 GrafanaLinksResponse.from(monitoring.dashboards()), monitoring.metricsError());

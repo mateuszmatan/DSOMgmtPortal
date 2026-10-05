@@ -85,7 +85,10 @@ class MonitoringControllerSpec extends Specification {
             metricsError == 'slow'
             pipelines[0].keySet() == ['pipeline', 'status', 'lastRun'] as Set
             pipelines[0].pipeline.id == 100
-            pipelines[0].pipeline.keys == null
+            pipelines[0].pipeline.keys == []
+            pipelines[0].pipeline.activeKey.value == null
+            pipelines[0].pipeline.activeKey.hint == '0f8fad5b\u2026950e'
+            pipelines[0].pipeline.activeKey.status == 'ACTIVE'
             pipelines[0].pipeline.jenkinsJobUrl == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-full/'
             pipelines[0].lastRun == [time       : '2026-10-04T09:00:00Z', result: 'SUCCESS', branch: 'develop', build: 42,
                                      durationSeconds: 600, commit: 'a1b2c3d', job: 'DevSecOps/CERT/gui-full',
@@ -110,7 +113,9 @@ class MonitoringControllerSpec extends Specification {
         week.status == 200
         with(parse(standard.contentAsString)) {
             keySet() == ['pipeline', 'status', 'lastRun', 'dora', 'recentRuns', 'grafana', 'metricsError'] as Set
-            pipeline.keys.size() == 1
+            pipeline.keys == []
+            pipeline.activeKey.value == null
+            pipeline.activeKey.hint == '0f8fad5b\u2026950e'
             status == 'SUCCESS'
             lastRun.build == 42
             recentRuns*.build == [42]

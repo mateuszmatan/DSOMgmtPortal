@@ -15,6 +15,9 @@ public record PipelineKey(
         String revokeReason,
         Instant lastUsedAt) {
 
+    private static final int HINT_START = 8;
+    private static final int HINT_END = 4;
+
     public PipelineKey {
         Objects.requireNonNull(value, "a key needs its value");
         Objects.requireNonNull(status, "a key needs its status");
@@ -31,6 +34,12 @@ public record PipelineKey(
 
     public static String normalize(String value) {
         return Text.isBlank(value) ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    public String hint() {
+        int length = value.length();
+        return value.substring(0, Math.min(HINT_START, length)) + "\u2026"
+                + value.substring(Math.max(0, length - HINT_END));
     }
 
     public boolean isActive() {

@@ -6,7 +6,7 @@ import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
 public record PipelineHealthResponse(PipelineResponse pipeline, RunResult status, PipelineRunResponse lastRun) {
 
     static PipelineHealthResponse from(PipelineHealth health) {
-        return new PipelineHealthResponse(PipelineResponse.summary(health.pipeline()), health.status(),
+        return new PipelineHealthResponse(PipelineResponse.monitored(health.pipeline()), health.status(),
                 PipelineRunResponse.from(health.lastRun()));
     }
 }
