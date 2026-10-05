@@ -42,7 +42,7 @@ export class ChangeEvidencePage {
 
   protected readonly section = EVIDENCE;
   protected readonly search = new FormControl('', { nonNullable: true });
-  private readonly query = toSignal(
+  protected readonly query = toSignal(
     this.search.valueChanges.pipe(
       debounceTime(250),
       map((value) => value.trim()),

@@ -26,7 +26,7 @@
   } @else if (list.hasValue()) {
     @if (list.value().length === 0) {
       <div class="card empty-state">
-        <h3>{{ search.value ? 'No matching products' : 'No products yet' }}</h3>
+        <h3>{{ query() ? 'No matching products' : 'No products yet' }}</h3>
         <p>Products appear here once they are added in DevSecOps Product Management.</p>
         <a mat-stroked-button routerLink="/products">Go to products</a>
       </div>

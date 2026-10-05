@@ -144,6 +144,22 @@
   font-size: 11px;
   font-weight: 600;
   line-height: 18px;
+
+  &.new {
+    background: var(--dso-success-bg);
+    color: var(--dso-success);
+  }
+}
+
+.generated {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+
+  .generated-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
 }
 
 .no-pipelines {

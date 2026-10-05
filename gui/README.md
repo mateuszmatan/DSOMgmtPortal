@@ -48,6 +48,16 @@ key by its hint; Show and Copy use the key `value`, which the product management
 only. The key history lists every key by its hint. The monitoring endpoints send no key values at all, so the
 monitoring pages only check whether a pipeline has an active key.
 
+Saving a product gives every new service a full pipeline with an active key; the backend creates them in the same
+save. The editor remembers which services were new (`GeneratedKeys`, in memory only), and the product page it opens
+next says "Pipeline keys generated for 2 new services" (or names the one new service), marks those services as New
+and shows their keys in full. The notice appears once: reloading the page or opening it from the list shows none.
+
+A pipeline whose key was invalidated shows a "Regenerate key" text button next to its key status, on the product page
+and in the key history dialog. It calls `POST /api/pipelines/{id}/keys` without a confirmation, since no working key
+is replaced, and shows the new key; the invalidated keys stay in the history. "Replace key" in the More menu of a
+pipeline with an active key still asks first, because it invalidates the key in use.
+
 ## Build links
 
 Every run carries the `buildUrl` the backend builds from the job that recorded the run (its `JOB_NAME`, so a branch of

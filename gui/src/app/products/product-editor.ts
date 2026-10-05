@@ -40,6 +40,7 @@ import {
   patchProduct,
   toProductRequest,
 } from './product-form-model';
+import { GeneratedKeys } from './generated-keys';
 import { ServiceFields } from './service-fields';
 
 @Component({
@@ -68,6 +69,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   private readonly router = inject(Router);
   private readonly notifier = inject(Notifier);
   private readonly dialog = inject(MatDialog);
+  private readonly generatedKeys = inject(GeneratedKeys);
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -232,12 +234,16 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     }
     const stored = this.product();
     const request = toProductRequest(this.form, stored?.version ?? null);
+    const newServices = request.services
+      .filter((service) => service.id === null)
+      .map((service) => service.name);
     this.saving.set(true);
     (stored ? this.products.update(stored.id, request) : this.products.create(request))
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: (product) => {
           this.saved = true;
+          this.generatedKeys.record(product.id, newServices);
           this.notifier.success(
             stored ? `${product.name} saved` : `${product.name} added to DevSecOps`,
           );

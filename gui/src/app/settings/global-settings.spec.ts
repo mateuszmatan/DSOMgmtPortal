@@ -203,4 +203,66 @@ describe('GlobalSettingsPage', () => {
       code: 'platform:\n  jenkinsLibrary: DevSecOpsJenkinsLibrary\n',
     });
   });
+
+  it('scrolls to a section chosen in its table of contents', async () => {
+    await load();
+    const section = page().querySelector<HTMLElement>('#settings-releaseGate')!;
+    const scroll = vi.fn();
+    section.scrollIntoView = scroll;
+
+    [...page().querySelectorAll<HTMLButtonElement>('.toc-item')]
+      .find((item) => item.textContent?.includes('Release gate'))!
+      .click();
+
+    expect(scroll).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+  });
+
+  it('wants at least one scanner in the release gate', async () => {
+    await load();
+
+    form().controls.releaseGate.controls.scanners.setValue([]);
+    await submit();
+
+    http.expectNone({ method: 'PUT', url: '/api/settings' });
+    expect(page().querySelector('#settings-releaseGate .field-error')?.textContent).toBe(
+      'Select at least one scanner',
+    );
+    expect(page().querySelector('.toc-item.problem')?.textContent).toContain('Release gate');
+  });
+
+  it('shows the problem detail of a refused save without fields', async () => {
+    await load();
+    form().markAsDirty();
+    await submit();
+
+    http
+      .expectOne({ method: 'PUT', url: '/api/settings' })
+      .flush(
+        { title: 'Service Unavailable', detail: 'The database is not available' },
+        { status: 503, statusText: 'Service Unavailable' },
+      );
+    await fixture.whenStable();
+
+    expect(page().querySelector('.save-error')?.textContent).toContain(
+      'The database is not available',
+    );
+    expect(page().querySelector('.banner.conflict')).toBeNull();
+    expect(settingsPage().hasUnsavedChanges()).toBe(true);
+  });
+
+  it('shows the problem detail when the configuration preview fails', async () => {
+    await load();
+    const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
+
+    page().querySelector<HTMLButtonElement>('.page-header .actions button')!.click();
+    http
+      .expectOne((r) => r.url === '/api/settings/config')
+      .flush({ detail: 'The Jenkins URL is not a valid address' }, { status: 422, statusText: '' });
+    await fixture.whenStable();
+
+    expect(open).not.toHaveBeenCalled();
+    expect(document.querySelector('.snack-error')?.textContent).toContain(
+      'The Jenkins URL is not a valid address',
+    );
+  });
 });

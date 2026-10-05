@@ -1,7 +1,10 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { Router, provideRouter } from '@angular/router';
+import { of } from 'rxjs';
+import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
 import {
   anotherService,
   globalSettings,
@@ -9,6 +12,7 @@ import {
   service,
   servicePipelines,
 } from '../testing/fixtures';
+import { GeneratedKeys } from './generated-keys';
 import { ProductEditor } from './product-editor';
 
 describe('ProductEditor', () => {
@@ -42,6 +46,34 @@ describe('ProductEditor', () => {
     page().querySelector<HTMLButtonElement>('button[type=submit]')!.click();
     await fixture.whenStable();
   }
+
+  async function edit(services = [service(), anotherService()]) {
+    fixture.componentRef.setInput('id', '1');
+    await fixture.whenStable();
+    http.expectOne('/api/products/1').flush(product({ services }));
+    http
+      .expectOne('/api/products/1/pipelines')
+      .flush([
+        servicePipelines(),
+        servicePipelines({ serviceId: 11, serviceName: 'api', pipelines: [] }),
+      ]);
+    http.expectOne('/api/settings').flush(globalSettings());
+    await fixture.whenStable();
+  }
+
+  const names = () =>
+    [...page().querySelectorAll('mat-expansion-panel .service-name')].map((name) =>
+      name.textContent?.trim(),
+    );
+  const button = (label: string) =>
+    [...page().querySelectorAll<HTMLButtonElement>('button')].find(
+      (element) =>
+        element.getAttribute('aria-label') === label || element.textContent?.trim() === label,
+    )!;
+  const confirming = (answer: boolean) =>
+    vi
+      .spyOn(TestBed.inject(MatDialog), 'open')
+      .mockReturnValue({ afterClosed: () => of(answer) } as unknown as MatDialogRef<unknown>);
 
   const imageBuild = {
     RD: {
@@ -127,6 +159,7 @@ describe('ProductEditor', () => {
 
     expect(router.navigate).toHaveBeenCalledWith(['/products', 5]);
     expect(editor().hasUnsavedChanges()).toBe(false);
+    expect(TestBed.inject(GeneratedKeys).take(5)).toEqual(['gui']);
   });
 
   it('marks the fields the API refused and lists the problems without a field', async () => {
@@ -268,6 +301,178 @@ describe('ProductEditor', () => {
     request.flush(product());
     await fixture.whenStable();
     expect(router.navigate).toHaveBeenCalledWith(['/products', 1]);
+    expect(TestBed.inject(GeneratedKeys).take(1)).toEqual([]);
+  });
+
+  it('tells the product page which services were added, so it can announce their keys', async () => {
+    fixture.componentRef.setInput('id', '1');
+    await fixture.whenStable();
+    http.expectOne('/api/products/1').flush(product());
+    http.expectOne('/api/products/1/pipelines').flush([servicePipelines()]);
+    http.expectOne('/api/settings').flush(globalSettings());
+    await fixture.whenStable();
+
+    editor()['duplicate'](0);
+    await submit();
+
+    const request = http.expectOne({ method: 'PUT', url: '/api/products/1' });
+    expect(request.request.body.services.map((s: { id: number | null }) => s.id)).toEqual([
+      10,
+      null,
+    ]);
+    request.flush(product({ services: [service(), service({ id: 12, name: 'gui-copy' })] }));
+    await fixture.whenStable();
+
+    expect(TestBed.inject(GeneratedKeys).take(1)).toEqual(['gui-copy']);
+  });
+
+  it('announces no keys when the save fails', async () => {
+    await start();
+    fillValidProduct();
+    await submit();
+
+    http
+      .expectOne({ method: 'POST', url: '/api/products' })
+      .flush({ detail: 'The database is not available' }, { status: 503, statusText: '' });
+    await fixture.whenStable();
+
+    expect(page().querySelector('.save-error')?.textContent).toContain(
+      'The database is not available',
+    );
+    expect(TestBed.inject(GeneratedKeys).take(5)).toEqual([]);
+  });
+
+  it('says why a stored product could not be loaded and leads back to the list', async () => {
+    fixture.componentRef.setInput('id', '9');
+    await fixture.whenStable();
+    const pipelines = http.expectOne('/api/products/9/pipelines');
+    const settings = http.expectOne('/api/settings');
+    http
+      .expectOne('/api/products/9')
+      .flush({ detail: 'Product 9 does not exist' }, { status: 404, statusText: 'Not Found' });
+    await fixture.whenStable();
+
+    expect(pipelines.cancelled && settings.cancelled).toBe(true);
+
+    expect(page().querySelector('.banner')?.textContent).toBe('Product 9 does not exist');
+    expect(page().querySelector('a[href="/products"].mat-mdc-button-base')).not.toBeNull();
+    expect(page().querySelector('form')).toBeNull();
+    expect(page().querySelector('h1')?.textContent).toBe('Edit product');
+  });
+
+  it('shows the pipelines of each stored service and opens none of several', async () => {
+    await edit();
+
+    expect(names()).toEqual(['gui', 'api']);
+    expect(page().querySelectorAll('mat-panel-description .tag')[0]?.textContent?.trim()).toBe(
+      '1 pipeline',
+    );
+    expect(page().querySelectorAll('mat-panel-description .tag').length).toBe(1);
+    expect(editor()['expanded']()).toBeNull();
+  });
+
+  it('moves services up and down and keeps the open one open', async () => {
+    await edit();
+    editor()['panelToggled'](0, true);
+    await fixture.whenStable();
+
+    button('Move gui down').click();
+    await fixture.whenStable();
+    expect(names()).toEqual(['api', 'gui']);
+    expect(editor()['expanded']()).toBe(1);
+
+    button('Move gui up').click();
+    await fixture.whenStable();
+    expect(names()).toEqual(['gui', 'api']);
+    expect(editor()['expanded']()).toBe(0);
+    expect(button('Move gui up').disabled).toBe(true);
+    expect(editor().hasUnsavedChanges()).toBe(true);
+  });
+
+  it('closes a service panel without opening another', async () => {
+    await edit();
+    editor()['panelToggled'](1, true);
+    editor()['panelToggled'](0, false);
+    expect(editor()['expanded']()).toBe(1);
+
+    editor()['panelToggled'](1, false);
+    expect(editor()['expanded']()).toBeNull();
+  });
+
+  it('asks before removing a stored service with pipelines and keeps it when cancelled', async () => {
+    await edit();
+    const open = confirming(false);
+
+    editor()['remove'](0);
+    await fixture.whenStable();
+
+    expect(open.mock.calls[0][0]).toBe(ConfirmDialog);
+    expect(open.mock.calls[0][1]?.data).toMatchObject({
+      title: 'Remove gui?',
+      message: expect.stringContaining("deletes the service's pipeline and keys"),
+      danger: true,
+    });
+    expect(names()).toEqual(['gui', 'api']);
+  });
+
+  it('removes a stored service once confirmed and sends the product without it', async () => {
+    await edit();
+    const open = confirming(true);
+    editor()['panelToggled'](1, true);
+
+    editor()['remove'](0);
+    await fixture.whenStable();
+
+    expect((open.mock.calls[0][1]?.data as ConfirmDialogData).message).toContain(
+      'Saving the product deletes',
+    );
+    expect(names()).toEqual(['api']);
+    expect(editor()['expanded']()).toBe(0);
+    await submit();
+    const request = http.expectOne({ method: 'PUT', url: '/api/products/1' });
+    expect(request.request.body.services.map((s: { id: number }) => s.id)).toEqual([11]);
+    request.flush(product({ services: [anotherService()] }));
+    await fixture.whenStable();
+  });
+
+  it('says a stored service without pipelines is only removed on save', async () => {
+    await edit();
+    const open = confirming(true);
+    editor()['panelToggled'](1, true);
+
+    editor()['remove'](1);
+    await fixture.whenStable();
+
+    expect((open.mock.calls[0][1]?.data as ConfirmDialogData).message).toBe(
+      'The service is removed when you save the product.',
+    );
+    expect(names()).toEqual(['gui']);
+    expect(editor()['expanded']()).toBeNull();
+  });
+
+  it('offers to add a service once the last one is removed', async () => {
+    await start();
+    editor()['remove'](0);
+    await fixture.whenStable();
+
+    expect(page().querySelector('.empty-state h3')?.textContent).toBe('No services yet');
+
+    page().querySelector<HTMLButtonElement>('.empty-state button')!.click();
+    await fixture.whenStable();
+    expect(page().querySelectorAll('mat-expansion-panel').length).toBe(1);
+    expect(editor()['expanded']()).toBe(0);
+  });
+
+  it('cancels back to the product or to the list', async () => {
+    await start();
+    button('Cancel').click();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/products']);
+  });
+
+  it('cancels back to the stored product', async () => {
+    await edit();
+    button('Cancel').click();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/products', 1]);
   });
 
   it('turns the product code into upper case as it is typed', async () => {

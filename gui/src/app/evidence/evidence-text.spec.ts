@@ -151,6 +151,36 @@ describe('evidenceText', () => {
     }
   });
 
+  it('counts test jobs that are not configured and suites without job counts', () => {
+    const run = runEvidence({
+      testSuites: [
+        {
+          stage: 'SMOKE',
+          status: 'WARN',
+          jobs: 3,
+          passed: null,
+          failed: 0,
+          notConfigured: 2,
+          durationMs: null,
+        },
+        {
+          stage: 'PERFORMANCE',
+          status: 'SKIP',
+          jobs: null,
+          passed: null,
+          failed: null,
+          notConfigured: null,
+          durationMs: 30_000,
+        },
+      ],
+    });
+
+    const text = evidenceText(productEvidence(), serviceEvidence(), pipelineEvidence({ run }));
+
+    expect(text).toContain('- Smoke: Warning, 0 of 3 jobs passed, 2 not configured\n');
+    expect(text).toContain('- Performance: Skipped, 30s\n');
+  });
+
   it('describes partial coverage and an allowed release', () => {
     const run = runEvidence({
       coverage: {

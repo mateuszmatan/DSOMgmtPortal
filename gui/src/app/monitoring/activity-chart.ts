@@ -185,7 +185,7 @@ export class ActivityChart {
 
     const tickIndexes = [
       ...new Set([0, Math.floor((days.length - 1) / 2), days.length - 1]),
-    ].filter((i) => i >= 0);
+    ].filter((i) => i >= 0 && i < days.length);
     const xTicks = tickIndexes.map((index, position) => ({
       label: label(days[index].date),
       x:

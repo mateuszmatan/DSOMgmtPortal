@@ -196,4 +196,85 @@ describe('ChangeEvidencePage', () => {
     const service = evidence.services[0];
     expect(copy).toHaveBeenCalledWith(evidenceText(evidence, service, service.pipelines[0]));
   });
+
+  it('says why the products could not be listed', async () => {
+    fixture.detectChanges();
+    http
+      .expectOne('/api/products')
+      .flush({ detail: 'The database is not available' }, { status: 503, statusText: '' });
+    await fixture.whenStable();
+
+    expect(page().querySelector('[role=alert]')?.textContent).toBe('The database is not available');
+    expect(page().querySelector('mat-accordion')).toBeNull();
+  });
+
+  it('leads to Product Management while there are no products', async () => {
+    await list([]);
+
+    expect(page().querySelector('.empty-state h3')?.textContent).toBe('No products yet');
+    expect(page().querySelector('.empty-state a')?.getAttribute('href')).toBe('/products');
+  });
+
+  it('finds products by the trimmed search term and says when none matches', async () => {
+    await list([summary()]);
+    const input = page().querySelector<HTMLInputElement>('input[aria-label="Find a product"]')!;
+
+    input.value = '   ';
+    input.dispatchEvent(new Event('input'));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    http.expectNone((request) => request.url === '/api/products');
+    input.value = ' pay ';
+    input.dispatchEvent(new Event('input'));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    fixture.detectChanges();
+    http.expectOne('/api/products?search=pay').flush([]);
+    await fixture.whenStable();
+
+    expect(page().querySelector('.empty-state h3')?.textContent).toBe('No matching products');
+  });
+
+  it('warns when the run metrics cannot be read and shows the contact', async () => {
+    await list([summary()]);
+    await expand(0);
+    http.expectOne('/api/evidence/products/1').flush(
+      productEvidence({
+        metricsError: 'InfluxDB is not reachable',
+        services: [serviceEvidence({ repositoryUrl: null, description: null })],
+      }),
+    );
+    await fixture.whenStable();
+
+    expect(page().querySelector('.banner')?.textContent).toContain(
+      'The run metrics cannot be read, so the runs show as not recorded: InfluxDB is not reachable',
+    );
+    expect(page().querySelector<HTMLAnchorElement>('.product-facts a')?.href).toBe(
+      'mailto:arch@bbh.com',
+    );
+    expect(page().querySelector('.identifiers dd')?.textContent?.trim()).toBe('Not recorded');
+    expect(page().querySelector('.service-head .muted')).toBeNull();
+  });
+
+  it('says when a product has no services or a service has no pipelines', async () => {
+    await list([summary(), summary({ id: 2, code: 'PAY', name: 'PayHub' })]);
+    await expand(0);
+    http
+      .expectOne('/api/evidence/products/1')
+      .flush(
+        productEvidence({ contactEmail: null, services: [serviceEvidence({ pipelines: [] })] }),
+      );
+    await expand(1);
+    http
+      .expectOne('/api/evidence/products/2')
+      .flush(productEvidence({ productId: 2, services: [] }));
+    await fixture.whenStable();
+
+    const panels = page().querySelectorAll('mat-expansion-panel');
+    expect(panels[0].querySelector('section.service p.not-recorded')?.textContent).toBe(
+      'The service has no pipelines yet.',
+    );
+    expect(panels[0].querySelector('.product-facts')?.textContent).toContain('Not recorded');
+    expect(panels[1].querySelector(':scope p.not-recorded')?.textContent).toBe(
+      'The product has no services yet.',
+    );
+  });
 });

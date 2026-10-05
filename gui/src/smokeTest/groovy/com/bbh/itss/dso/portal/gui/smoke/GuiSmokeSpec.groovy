@@ -1,7 +1,9 @@
 package com.bbh.itss.dso.portal.gui.smoke
 
 import com.bbh.itss.dso.portal.gui.support.GuiSpecification
+import com.bbh.itss.dso.portal.gui.support.StubApi
 import com.microsoft.playwright.Locator
+import com.microsoft.playwright.Page
 import com.microsoft.playwright.options.AriaRole
 import spock.lang.IgnoreIf
 
@@ -18,6 +20,10 @@ class GuiSmokeSpec extends GuiSpecification {
              description: 'Builds, tests and scans for ServiceNow changes'],
             [label: 'Global Settings', heading: 'DevSecOps Global Settings', path: '/settings',
              description: 'Tools, policy and defaults of every pipeline']]
+
+    static final String REGENERATED_KEY = '3f9d2c4e-8a1b-4c7d-9e2f-5b6a7c8d1e04'
+
+    static final String GENERATED_KEY = '9c4e1a7b-2d3f-4e5a-8b6c-7d8e9f0a1b2c'
 
     def "the portal shows its title, the short main menu and the footer"() {
         when:
@@ -123,6 +129,59 @@ class GuiSmokeSpec extends GuiSpecification {
                            '/evidence', '/settings'], [800, 600]].combinations()
     }
 
+    @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
+    def "an invalidated pipeline key is regenerated with a visible text button"() {
+        given:
+        api.respond('POST', '/api/pipelines/9/keys', StubApi.fixture('pipeline-9-regenerated.json'))
+
+        when:
+        open('/products/2')
+        def regenerate = button('Regenerate key of the SAST scanning pipeline')
+
+        then:
+        assertThat(regenerate).hasCount(1)
+        assertThat(regenerate).isVisible()
+        regenerate.locator('mat-icon').count() == 0
+
+        when:
+        regenerate.click()
+
+        then:
+        assertThat(page.locator('.key-value', new Page.LocatorOptions().setHasText(REGENERATED_KEY))).isVisible()
+        assertThat(page.locator('mat-snack-bar-container'))
+                .containsText('SAST scanning pipeline of mobile-app has a new key')
+        assertThat(button('Regenerate key')).hasCount(0)
+        api.requests('POST', '/api/pipelines/9/keys').size() == 1
+        ownErrors().isEmpty()
+    }
+
+    @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
+    def "saving a new service shows the pipeline key generated for it on the product page"() {
+        given:
+        def saved = StubApi.fixture('product-1.json') as Map
+        def services = saved.services as List<Map>
+        saved.services = [services[0], services[0] + [id: 7, name: 'gui-copy'], services[1]]
+        saved.version = (saved.version as int) + 1
+        api.on('PUT', '/api/products/1') { saved }
+        api.get('/api/products/1') { productSaved() ? saved : StubApi.fixture('product-1.json') }
+        api.get('/api/products/1/pipelines') {
+            StubApi.fixture(productSaved() ? 'product-1-pipelines-with-new-service.json' : 'product-1-pipelines.json')
+        }
+
+        when:
+        open('/products/1/edit')
+        page.locator('mat-expansion-panel-header').first().click()
+        button('Duplicate').first().click()
+        button('Save changes').click()
+        page.waitForURL('**/products/1')
+
+        then:
+        assertThat(page.locator('.generated')).containsText('Pipeline key generated for the new service gui-copy.')
+        assertThat(page.locator('.key-value', new Page.LocatorOptions().setHasText(GENERATED_KEY))).isVisible()
+        api.lastRequest('PUT', '/api/products/1').json().services*.id == [1, null, 2]
+        ownErrors().isEmpty()
+    }
+
     def "an unknown address falls back to the product list"() {
         when:
         open('/no-such-page')
@@ -130,6 +189,14 @@ class GuiSmokeSpec extends GuiSpecification {
         then:
         page.waitForURL('**/products')
         assertThat(page.locator('h1')).hasText('DevSecOps Product Management')
+    }
+
+    boolean productSaved() {
+        !api.requests('PUT', '/api/products/1').isEmpty()
+    }
+
+    Locator button(String name) {
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName(name))
     }
 
     def menuLink(String label) {

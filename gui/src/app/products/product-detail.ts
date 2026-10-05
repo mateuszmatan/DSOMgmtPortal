@@ -8,7 +8,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
-import { catchError, filter, of, switchMap } from 'rxjs';
+import { catchError, filter, finalize, of, switchMap, tap } from 'rxjs';
 import { PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { PIPELINE_TYPES, Pipeline, PipelineType, Product, ServicePipelines } from '../core/models';
@@ -17,6 +17,7 @@ import { bitbucketRepositoryUrl } from '../shared/bitbucket';
 import { CodeDialog, CodeDialogData } from '../shared/code-dialog';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
 import { RelativeTimePipe } from '../shared/formatting';
+import { GeneratedKeys } from './generated-keys';
 import { jenkinsfile } from './jenkinsfile';
 import { KeyHistoryDialog } from './key-history-dialog';
 import { PipelineDialog, PipelineDialogData } from './pipeline-dialog';
@@ -47,6 +48,7 @@ export class ProductDetail {
   private readonly dialog = inject(MatDialog);
   private readonly notifier = inject(Notifier);
   private readonly router = inject(Router);
+  private readonly generatedKeys = inject(GeneratedKeys);
 
   private readonly productId = computed(() => Number(this.id()));
   protected readonly product = rxResource({
@@ -55,7 +57,12 @@ export class ProductDetail {
   });
   protected readonly services = rxResource({
     params: () => this.productId(),
-    stream: ({ params }) => this.pipelines.listForProduct(params),
+    stream: ({ params }) => {
+      const newServices = this.generatedKeys.take(params);
+      return this.pipelines
+        .listForProduct(params)
+        .pipe(tap((services) => this.showGeneratedKeys(services, newServices)));
+    },
   });
 
   protected readonly stats = computed(() => {
@@ -83,10 +90,23 @@ export class ProductDetail {
   );
 
   protected readonly revealed = signal<ReadonlySet<number>>(new Set());
+  protected readonly regenerating = signal<ReadonlySet<number>>(new Set());
+  protected readonly generated = signal<readonly string[]>([]);
+  protected readonly generatedNotice = computed(() => {
+    const names = this.generated();
+    return names.length === 1
+      ? `Pipeline key generated for the new service ${names[0]}.`
+      : `Pipeline keys generated for ${names.length} new services: ${names.join(', ')}.`;
+  });
   protected readonly errorMessage = errorMessage;
 
   protected typeLabel(type: PipelineType): string {
     return PIPELINE_TYPES.find((option) => option.value === type)?.label ?? type;
+  }
+
+  protected typeName(type: PipelineType): string {
+    const label = this.typeLabel(type);
+    return /^[A-Z]{2}/.test(label) ? label : label.charAt(0).toLowerCase() + label.slice(1);
   }
 
   protected repositoryOf(service: ServicePipelines): string | null {
@@ -103,6 +123,10 @@ export class ProductDetail {
       revealed.add(pipeline.id);
     }
     this.revealed.set(revealed);
+  }
+
+  protected dismissGenerated(): void {
+    this.generated.set([]);
   }
 
   protected copied(): void {
@@ -175,30 +199,52 @@ export class ProductDetail {
       });
   }
 
-  protected issueKey(pipeline: Pipeline): void {
-    const rotating = pipeline.activeKey !== null;
+  protected replaceKey(pipeline: Pipeline): void {
     this.confirm({
-      title: rotating ? 'Replace the key?' : 'Issue a new key?',
-      message: rotating
-        ? 'The current key is invalidated and a new one is issued. Update the Jenkinsfile with the new key, ' +
-          'or the pipeline stops at its next start.'
-        : 'The pipeline works again once its Jenkinsfile passes the new key.',
-      confirmLabel: rotating ? 'Replace key' : 'Issue key',
-      danger: rotating,
+      title: 'Replace the key?',
+      message:
+        'The current key is invalidated and a new one is issued. Update the Jenkinsfile with the new key, ' +
+        'or the pipeline stops at its next start.',
+      confirmLabel: 'Replace key',
+      danger: true,
     })
       .pipe(switchMap(() => this.pipelines.issueKey(pipeline.id)))
       .subscribe({
         next: (updated) => {
-          this.replacePipeline(updated);
-          this.revealed.set(new Set([...this.revealed(), updated.id]));
+          this.keyIssued(updated);
           this.notifier.success('New key issued');
         },
         error: (error) => this.notifier.error(error),
       });
   }
 
+  protected regenerateKey(pipeline: Pipeline): void {
+    this.regenerating.set(new Set([...this.regenerating(), pipeline.id]));
+    this.pipelines
+      .issueKey(pipeline.id)
+      .pipe(
+        finalize(() =>
+          this.regenerating.set(
+            new Set([...this.regenerating()].filter((id) => id !== pipeline.id)),
+          ),
+        ),
+      )
+      .subscribe({
+        next: (updated) => {
+          this.keyIssued(updated);
+          this.notifier.success(
+            `${this.typeLabel(updated.type)} pipeline of ${updated.serviceName} has a new key: ` +
+              'pass it in the Jenkinsfile',
+          );
+        },
+        error: (error) => this.notifier.error(error),
+      });
+  }
+
   protected showKeyHistory(pipeline: Pipeline): void {
-    this.dialog.open(KeyHistoryDialog, { data: pipeline, maxWidth: '95vw' });
+    this.dialog
+      .open(KeyHistoryDialog, { data: pipeline, maxWidth: '95vw' })
+      .componentInstance.keyIssued.subscribe((updated) => this.keyIssued(updated));
   }
 
   protected deletePipeline(pipeline: Pipeline): void {
@@ -257,6 +303,31 @@ export class ProductDetail {
         this.replacePipeline(pipeline);
         this.notifier.success(message(pipeline));
       });
+  }
+
+  private keyIssued(pipeline: Pipeline): void {
+    this.replacePipeline(pipeline);
+    this.revealed.set(new Set([...this.revealed(), pipeline.id]));
+  }
+
+  private showGeneratedKeys(services: ServicePipelines[], newServices: readonly string[]): void {
+    const names = new Set(newServices);
+    const generated = services.filter(
+      (service) =>
+        names.has(service.serviceName) &&
+        service.pipelines.some((pipeline) => pipeline.activeKey !== null),
+    );
+    this.generated.set(generated.map((service) => service.serviceName));
+    this.revealed.set(
+      new Set([
+        ...this.revealed(),
+        ...generated.flatMap((service) =>
+          service.pipelines
+            .filter((pipeline) => pipeline.activeKey?.value)
+            .map((pipeline) => pipeline.id),
+        ),
+      ]),
+    );
   }
 
   private replacePipeline(pipeline: Pipeline): void {

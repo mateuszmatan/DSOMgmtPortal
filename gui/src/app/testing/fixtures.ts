@@ -6,6 +6,7 @@ import {
   Pipeline,
   PipelineEvidence,
   PipelineHealth,
+  PipelineKey,
   PipelineMonitoring,
   PipelineRun,
   ProductHealth,
@@ -254,6 +255,20 @@ export function pipeline(overrides: Partial<Pipeline> = {}): Pipeline {
     createdAt: '2026-10-04T08:00:00Z',
     updatedAt: '2026-10-04T08:00:00Z',
     keys: null,
+    ...overrides,
+  };
+}
+
+export function revokedKey(overrides: Partial<PipelineKey> = {}): PipelineKey {
+  return {
+    id: 999,
+    value: null,
+    hint: '1a2b3c4d…eeff',
+    status: 'REVOKED',
+    issuedAt: '2026-09-01T08:00:00Z',
+    revokedAt: '2026-10-01T09:30:00Z',
+    revokeReason: 'Leaked in a build log',
+    lastUsedAt: '2026-09-30T10:00:00Z',
     ...overrides,
   };
 }
