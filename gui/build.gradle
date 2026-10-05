@@ -1,0 +1,158 @@
+import com.github.gradle.node.npm.task.NpmTask
+
+plugins {
+    id 'groovy'
+    id 'java-test-fixtures'
+    alias(libs.plugins.node)
+}
+
+description = 'Angular user interface of the DevSecOps management portal'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+node {
+    version = libs.versions.nodejs.get()
+    download = true
+    distBaseUrl = null
+    npmInstallCommand = 'ci'
+}
+
+def guiSources = files(fileTree('src') { exclude 'smokeTest/**', 'regressionTest/**', 'performanceTest/**', 'testFixtures/**' }, 'public', 'angular.json', 'tsconfig.json', 'tsconfig.app.json', 'tsconfig.spec.json',
+        'package.json', 'package-lock.json')
+
+def distDir = layout.buildDirectory.dir('dist/browser')
+
+def buildGui = tasks.register('buildGui', NpmTask) {
+    group = 'build'
+    description = 'Builds the production bundle of the user interface.'
+    dependsOn tasks.named('npmInstall')
+    args = ['run', 'build']
+    inputs.files(guiSources).withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir(layout.buildDirectory.dir('dist'))
+    outputs.cacheIf { true }
+}
+
+def unitTest = tasks.register('unitTest', NpmTask) {
+    group = 'verification'
+    description = 'Runs the Vitest unit tests with coverage; fails below the coverage thresholds in angular.json.'
+    dependsOn tasks.named('npmInstall')
+    args = ['test', '--', '--watch=false', '--coverage']
+    inputs.files(guiSources).withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir(file('coverage'))
+    outputs.cacheIf { true }
+}
+
+configurations {
+    guiDist {
+        canBeConsumed = true
+        canBeResolved = false
+    }
+}
+
+artifacts {
+    guiDist(distDir) {
+        builtBy buildGui
+    }
+}
+
+tasks.named('assemble') {
+    dependsOn buildGui
+}
+
+tasks.named('jar') {
+    enabled = false
+}
+
+tasks.named('test') {
+    dependsOn unitTest
+}
+
+tasks.named('clean') {
+    delete 'coverage', '.angular'
+}
+
+dependencies {
+    testFixturesApi platform(libs.groovy.bom)
+    testFixturesApi libs.groovy
+    testFixturesApi libs.groovy.json
+    testFixturesApi platform(libs.spock.bom)
+    testFixturesApi libs.spock.core
+    testFixturesApi libs.playwright
+}
+
+def forward(Test task, String... names) {
+    names.each { name ->
+        def value = providers.systemProperty(name).orNull
+        if (value != null) {
+            task.systemProperty name, value
+        }
+    }
+}
+
+testing {
+    suites {
+        configureEach {
+            if (name != 'test') {
+                useJUnitJupiter(libs.versions.junit)
+                dependencies {
+                    implementation testFixtures(project())
+                }
+                targets.configureEach {
+                    testTask.configure {
+                        dependsOn buildGui
+                        inputs.dir(distDir).withPathSensitivity(PathSensitivity.RELATIVE)
+                        systemProperty 'gui.dist', distDir.get().asFile.absolutePath
+                        systemProperty 'gui.reports', layout.buildDirectory.dir('reports/gui').get().asFile.absolutePath
+                        forward(it, 'gui.browser', 'gui.headed')
+                        testLogging {
+                            events 'failed'
+                            exceptionFormat = 'full'
+                        }
+                    }
+                }
+            }
+        }
+
+        regressionTest(JvmTestSuite) {
+            targets.configureEach {
+                testTask.configure {
+                    description = 'Runs the user journeys of the interface in a browser against a stubbed API.'
+                    shouldRunAfter unitTest
+                }
+            }
+        }
+
+        smokeTest(JvmTestSuite) {
+            targets.configureEach {
+                testTask.configure {
+                    description = 'Opens every page of the interface in a browser; -Dsmoke.baseUrl checks a deployed portal.'
+                    shouldRunAfter tasks.named('regressionTest')
+                    forward(it, 'smoke.baseUrl')
+                    outputs.upToDateWhen { false }
+                    outputs.cacheIf { false }
+                }
+            }
+        }
+
+        performanceTest(JvmTestSuite) {
+            targets.configureEach {
+                testTask.configure {
+                    description = 'Measures load and render times of the interface on a large catalogue.'
+                    shouldRunAfter tasks.named('smokeTest')
+                    systemProperty 'performance.report', layout.buildDirectory.file('reports/performance/gui-performance-report.md').get().asFile.absolutePath
+                    forward(it, 'performance.factor')
+                    outputs.upToDateWhen { false }
+                    outputs.cacheIf { false }
+                }
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn unitTest, testing.suites.regressionTest, testing.suites.smokeTest, testing.suites.performanceTest
+}

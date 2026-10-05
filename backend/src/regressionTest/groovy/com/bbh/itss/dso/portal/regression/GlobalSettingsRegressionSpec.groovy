@@ -1,0 +1,271 @@
+package com.bbh.itss.dso.portal.regression
+
+import com.bbh.itss.dso.portal.support.ApiJson
+import com.bbh.itss.dso.portal.support.PortalSpecification
+import org.yaml.snakeyaml.Yaml
+
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
+
+import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
+import static com.bbh.itss.dso.portal.support.ApiJson.product
+import static com.bbh.itss.dso.portal.support.ApiJson.service
+
+class GlobalSettingsRegressionSpec extends PortalSpecification {
+
+    static final int ROUNDS = 25
+
+    Map original
+
+    def setup() {
+        original = api.get('/api/settings').json as Map
+    }
+
+    def cleanup() {
+        def current = api.get('/api/settings').json
+        if (current.version != original.version) {
+            def restored = api.put('/api/settings', original + [version: current.version])
+            assert restored.status == 200: restored
+        }
+    }
+
+    def "the global settings start as the defaults DSOEnhanced ships with"() {
+        expect:
+        with(original) {
+            version >= 0
+            platform.jenkinsUrl == null
+            platform.jenkinsLibrary == 'DevSecOpsJenkinsLibrary'
+            platform.asocUrl == 'https://bbh.cloud.appscan.com'
+            platform.sonarServerUrl == 'https://tools.bbh.com/sonar'
+            platform.nexusIqServerUrl == 'https://tools.bbh.com/IQ'
+            platform.nexusIqCredentialsId == 'nexusiqP'
+            platform.proxyHost == 'tstproxy.bbh.com'
+            platform.proxyPort == 9090
+            limits == [SAST    : [maxCritical: 0, maxHigh: 0, maxMedium: 0], SCA: [maxCritical: 0, maxHigh: 0, maxMedium: 0],
+                       NEXUS_IQ: [maxCritical: 0, maxHigh: 0, maxMedium: 0], DAST: [maxCritical: 0, maxHigh: 0, maxMedium: 0]]
+            scans.coverageMinLine == 60
+            releaseGate.scanners == ['SAST', 'SCA', 'NEXUS_IQ', 'DAST']
+            serviceDefaults == [buildTool: 'GRADLE', deployTarget: 'VM', sourceDir: '.', testsMaxParallel: 20]
+            deployment.urbanCodeSiteName == 'deploy.bbh.com'
+            goldenFix.commitAuthorName == 'DevSecOps GoldenFix'
+        }
+    }
+
+    def "a change is stored, counts as a new version and reaches every pipeline's configuration"() {
+        given:
+        def code = uniqueCode('GLOBAL')
+        def created = createProduct(product(code: code, name: "Product $code", services: [service(name: 'gui')]))
+        def full = pipelineFor(created.services[0].id as long, pipeline(jenkinsJob: "DevSecOps/$code/gui-full"))
+        String key = full.activeKey.value
+
+        when:
+        def changed = api.put('/api/settings', original + [
+                platform: original.platform + [jenkinsUrl: 'https://jenkins.bbh.com/', sonarServerUrl: 'https://sonar.bbh.com'],
+                limits  : original.limits + [SAST: [maxCritical: 0, maxHigh: 2, maxMedium: 10]],
+                scans   : original.scans + [coverageMinLine: 80]])
+
+        then:
+        changed.status == 200
+        changed.json.version == original.version + 1
+        changed.json.platform.jenkinsUrl == 'https://jenkins.bbh.com/'
+        changed.json.limits.SAST == [maxCritical: 0, maxHigh: 2, maxMedium: 10]
+        api.get('/api/settings').json == changed.json
+
+        and: 'the pipeline reads the new values, also from the database view'
+        def config = new Yaml().load(api.get("/api/dso/config/$key").body) as Map
+        config.platform.jenkinsUrl == 'https://jenkins.bbh.com/'
+        config.defaults.sast.maxHigh == 2
+        config.defaults.coverage.minLine == 80
+        config.projects.gui.tools.sonar.serverUrl == 'https://sonar.bbh.com'
+        def published = ApiJson.parse(libraryConfig(key).CONFIG_JSON as String)
+        published.platform.jenkinsUrl == 'https://jenkins.bbh.com/'
+        published.defaults.sast.maxHigh == 2
+
+        and: 'the job path of the pipeline now links to that Jenkins'
+        api.get("/api/pipelines/$full.id").json.jenkinsJobUrl == "https://jenkins.bbh.com/job/DevSecOps/job/$code/job/gui-full/"
+    }
+
+    def "the global RD and QC deployment values reach every VM service that does not set its own, also after a change"() {
+        given:
+        def code = uniqueCode('SSH')
+        def created = createProduct(product(code: code, name: "Product $code", services: [
+                service(name: 'plain'),
+                service(name: 'own-rd', sshTargets: [RD: [host: 'own-rd.testbbh.com', deployDir: '/opt/own']]),
+                ApiJson.fullOpenShiftService(name: 'cloud', sonar: null, nexusIq: null,
+                        metrics: [influxProject: "$code-cloud".toString(), influxEnv: 'test'])]))
+        def full = pipelineFor(created.services[0].id as long, pipeline())
+
+        when:
+        def changed = api.put('/api/settings', original + [deployment: original.deployment + [
+                rdHost: 'rdnew.testbbh.com', qcHost: 'qcnew.testbbh.com', sshUser: 'dsoadm']])
+        def projects = api.get("/api/products/$created.id/config?format=json").json.projects
+        def pipelineConfig = new Yaml().load(api.get("/api/dso/config/$full.activeKey.value").body) as Map
+
+        then:
+        changed.status == 200
+        projects.plain.deploy.vm == [
+                rd: [host        : 'rdnew.testbbh.com', user: 'dsoadm',
+                     deployScript: original.deployment.deployScript, versionFile: original.deployment.versionFile],
+                qc: [host        : 'qcnew.testbbh.com', user: 'dsoadm',
+                     deployScript: original.deployment.deployScript, versionFile: original.deployment.versionFile]]
+        projects['own-rd'].deploy.vm.rd == [host        : 'own-rd.testbbh.com', deployDir: '/opt/own', user: 'dsoadm',
+                                            deployScript: original.deployment.deployScript,
+                                            versionFile : original.deployment.versionFile]
+        projects['own-rd'].deploy.vm.qc.host == 'qcnew.testbbh.com'
+        !projects.cloud.deploy.containsKey('vm')
+        pipelineConfig.projects.plain.deploy.vm == projects.plain.deploy.vm
+    }
+
+    def "pipelines, services and the global settings changed at the same time leave the newest configuration published"() {
+        given:
+        def code = uniqueCode('RACE')
+        def edited = createProduct(product(code: code, name: "Product $code",
+                services: (1..20).collect { service(name: "svc-$it".toString()) }))
+        def moved = createProduct(product(code: "${code}M", name: "Product ${code}M",
+                services: (1..20).collect { service(name: "svc-$it".toString()) }))
+        def full = (edited.services + moved.services).collect { pipelineFor(it.id as long, pipeline()) }
+        def changed = full[0]
+        def movedPipeline = full[20]
+        def pool = Executors.newFixedThreadPool(3)
+
+        when:
+        def rounds = (1..ROUNDS).collect { round ->
+            def statuses = pool.invokeAll([
+                    { -> changeCoverage(61 + round) },
+                    { ->
+                        Thread.sleep(round % 8 * 4)
+                        api.put("/api/pipelines/$changed.id", pipeline(agentLabels: ["agent-$round".toString()]))
+                    },
+                    { ->
+                        Thread.sleep(round * 3 % 8 * 4)
+                        moveSourceDir(moved.id as long, "dir-$round".toString())
+                    }
+            ].collect { it as Callable })*.get()*.status
+            [round    : round, statuses: statuses,
+             published: [publishedConfig(changed), publishedConfig(movedPipeline)],
+             rendered : [renderedConfig(changed), renderedConfig(movedPipeline)]]
+        }
+        def stale = rounds.findAll { it.published != it.rendered }.collect {
+            [round: it.round, published: it.published.collect(this.&changedValues), rendered: it.rendered.collect(this.&changedValues)]
+        }
+
+        then:
+        rounds*.statuses.flatten().every { it == 200 }
+        stale == []
+        changedValues(rounds.last().rendered[0]) == [["agent-$ROUNDS".toString()], 61 + ROUNDS, '.']
+        changedValues(rounds.last().rendered[1]) == [['linux-agent'], 61 + ROUNDS, "dir-$ROUNDS".toString()]
+        full.every { publishedConfig(it) == renderedConfig(it) }
+
+        cleanup:
+        pool.shutdownNow()
+    }
+
+    def "a service follows the global GoldenFix default unless it sets its own"() {
+        given:
+        def code = uniqueCode('GOLDEN')
+        def created = createProduct(product(code: code, name: "Product $code",
+                services: [service(name: 'follows'), service(name: 'opted-in', goldenFix: [enabled: true])]))
+
+        when:
+        def changed = api.put('/api/settings', original + [goldenFix: original.goldenFix + [enabled: false]])
+        def projects = api.get("/api/products/$created.id/config?format=json").json.projects
+        def defaults = api.get('/api/settings/config?format=json').json.defaults
+
+        then:
+        changed.status == 200
+        created.services*.goldenFix*.enabled == [null, true]
+        defaults.goldenFix.enabled == false
+        !projects.follows.containsKey('goldenFix')
+        projects['opted-in'].goldenFix == [enabled: true]
+        jdbc.queryForList('SELECT GOLDEN_FIX_ENABLED FROM DSO_SERVICE WHERE PRODUCT_ID = ? ORDER BY DISPLAY_ORDER',
+                Integer, created.id) == [null, 1]
+    }
+
+    def "the global GoldenFix default stays on when a change does not say otherwise"() {
+        when:
+        def changed = api.put('/api/settings', original + [goldenFix: original.goldenFix + [enabled: null]])
+
+        then:
+        changed.status == 200
+        changed.json.goldenFix.enabled == true
+    }
+
+    def "a change based on an outdated version is refused"() {
+        given:
+        api.put('/api/settings', original + [scans: original.scans + [coverageMinLine: 70]])
+
+        when:
+        def stale = api.put('/api/settings', original + [scans: original.scans + [coverageMinLine: 75]])
+
+        then:
+        stale.status == 409
+        api.get('/api/settings').json.scans.coverageMinLine == 70
+    }
+
+    def "settings the pipelines could not work with are refused with every problem"() {
+        when:
+        def response = api.put('/api/settings', original + [
+                platform : original.platform + [proxyPort: null],
+                limits   : original.limits.findAll { it.key != 'DAST' },
+                goldenFix: original.goldenFix + [commitAuthorName: null, ecosystems: []]])
+
+        then:
+        response.status == 400
+        response.json.errors*.field == ['platform.proxyPort', 'limits.DAST', 'goldenFix.commitAuthorName',
+                                        'goldenFix.ecosystems']
+        api.get('/api/settings').json.version == original.version
+    }
+
+    def "a release gate without scanners, line coverage 0 or GoldenFix folders beyond their column are refused"() {
+        when:
+        def response = api.put('/api/settings', original + [
+                scans      : original.scans + [coverageMinLine: 0],
+                releaseGate: original.releaseGate + [scanners: []],
+                goldenFix  : original.goldenFix + [excludeDirs: (1..15).collect { "folder-$it/${'x' * 150}".toString() }]])
+
+        then:
+        response.status == 400
+        response.json.errors.collect { [it.field, it.message] } == [
+                ['scans.coverageMinLine', 'must be at least 1: the library replaces 0 with 60; turn off the coverage requirement of the release gate instead'],
+                ['releaseGate.scanners', 'select at least one scanner: without any the library gates on all four'],
+                ['goldenFix.excludeDirs', 'is too long: all entries together may take at most 2000 bytes']]
+        api.get('/api/settings').json.version == original.version
+    }
+
+    def "malformed settings are refused before they reach the business rules"() {
+        expect:
+        api.put('/api/settings', change(original)).status == 400
+
+        where:
+        change << [{ Map it -> it + [platform: null] },
+                   { Map it -> it + [platform: it.platform + [jenkinsUrl: 'jenkins.bbh.com']] },
+                   { Map it -> it + [platform: it.platform + [asocUrl: ' ']] },
+                   { Map it -> it + [limits: it.limits + [SAST: [maxCritical: -1, maxHigh: 0, maxMedium: 0]]] },
+                   { Map it -> it + [scans: it.scans + [coverageMinLine: 101]] },
+                   { Map it -> it + [releaseGate: it.releaseGate + [scanners: ['SONAR']]] }]
+    }
+
+    private changeCoverage(int minLine) {
+        def current = api.get('/api/settings').json
+        api.put('/api/settings', original + [version: current.version, scans: original.scans + [coverageMinLine: minLine]])
+    }
+
+    private moveSourceDir(long productId, String sourceDir) {
+        def read = api.get("/api/products/$productId").json
+        def first = read.services[0] + [build: read.services[0].build + [sourceDir: sourceDir]]
+        api.put("/api/products/$productId", product(code: read.code, name: read.name, version: read.version,
+                services: [first] + read.services.drop(1)))
+    }
+
+    private Map publishedConfig(Map pipeline) {
+        ApiJson.parse(libraryConfig(pipeline.activeKey.value as String).CONFIG_JSON as String) as Map
+    }
+
+    private static List changedValues(Map config) {
+        [config.pipeline.agentNames, config.defaults.coverage.minLine, config.projects['svc-1'].sourceDir]
+    }
+
+    private Map renderedConfig(Map pipeline) {
+        api.get("/api/pipelines/$pipeline.id/config?format=json").json as Map
+    }
+}

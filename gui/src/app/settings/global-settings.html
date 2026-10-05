@@ -1,0 +1,184 @@
+<div class="page settings">
+  <header class="page-header">
+    <div>
+      <h1>{{ page.heading }}</h1>
+      <p class="page-description">{{ page.description }}</p>
+      <p class="meta">
+        A service can replace only the deployment, service and GoldenFix defaults.
+        @if (settings(); as s) {
+          Version {{ s.version }} · saved {{ s.updatedAt | relative }}
+        }
+      </p>
+    </div>
+    <div class="actions">
+      <button
+        mat-stroked-button
+        type="button"
+        (click)="showConfig()"
+        [disabled]="!settings() || loadingConfig()"
+      >
+        Generated configuration
+      </button>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  @if (loadError(); as error) {
+    <div class="banner" role="alert">{{ error }}</div>
+    <button mat-stroked-button type="button" (click)="reload()">Try again</button>
+  } @else if (settings()) {
+    @if (conflict()) {
+      <div class="banner conflict" role="alert">
+        <div class="banner-text">
+          <strong>Someone else saved the settings after you opened this page.</strong>
+          Your changes were not saved, so nothing was overwritten. Reload to get the current values,
+          then make your changes again.
+        </div>
+        <button mat-flat-button type="button" (click)="reload()">Reload</button>
+      </div>
+    }
+
+    <div class="layout">
+      <aside class="toc">
+        <nav class="side-nav" aria-label="Sections">
+          @for (section of sections(); track section.id) {
+            <button
+              type="button"
+              class="toc-item side-nav-item"
+              [class.problem]="section.problem"
+              (click)="scrollTo(section.id)"
+            >
+              <span>{{ section.label }}</span>
+              @if (section.problem) {
+                <span class="problem-mark" role="img" aria-label="Has problems"></span>
+              }
+            </button>
+          }
+        </nav>
+      </aside>
+
+      <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+        @if (unmatchedProblems().length) {
+          <div class="banner" role="alert">
+            <ul class="problems">
+              @for (problem of unmatchedProblems(); track problem.field + problem.message) {
+                <li>
+                  <span class="mono">{{ problem.field }}</span
+                  >: {{ problem.message }}
+                </li>
+              }
+            </ul>
+          </div>
+        }
+
+        @for (section of sections(); track section.id) {
+          @let group = groupOf(section.id);
+          <section class="card section" [id]="'settings-' + section.id">
+            <header class="section-head">
+              <h2>{{ section.label }}</h2>
+              <p [innerHTML]="note(section.note)"></p>
+            </header>
+
+            @if (section.fields; as fields) {
+              <div class="form-fields">
+                <dso-fields [group]="group" [fields]="fields" />
+              </div>
+            }
+
+            @for (block of section.blocks; track block.heading) {
+              <div class="form-block">
+                <header>
+                  <h3>{{ block.heading }}</h3>
+                  <p>{{ block.note }}</p>
+                </header>
+                <div class="form-fields">
+                  <dso-fields [group]="group" [fields]="block.fields" />
+                </div>
+              </div>
+            }
+
+            @switch (section.id) {
+              @case ('limits') {
+                <div class="limits">
+                  <div class="limits-head">
+                    <span>Scanner</span>
+                    <span>Critical</span>
+                    <span>High</span>
+                    <span>Medium</span>
+                  </div>
+                  @for (scanner of scanners; track scanner) {
+                    <div class="limits-row">
+                      <div class="scanner">
+                        <strong>{{ scannerInfo[scanner].label }}</strong>
+                        <span class="muted">{{ scannerInfo[scanner].tool }}</span>
+                        <code
+                          >{{ scannerInfo[scanner].path }}.maxCritical | maxHigh | maxMedium</code
+                        >
+                      </div>
+                      <dso-fields
+                        [group]="form.controls.limits.controls[scanner]"
+                        [fields]="limitFields"
+                      />
+                    </div>
+                  }
+                </div>
+              }
+              @case ('releaseGate') {
+                <div class="form-fields gate">
+                  <div class="span-12">
+                    <span class="field-label">Scanners the gate checks</span>
+                    <mat-button-toggle-group
+                      [formControl]="form.controls.releaseGate.controls.scanners"
+                      multiple
+                      aria-label="Scanners the release gate checks"
+                    >
+                      @for (scanner of scanners; track scanner) {
+                        <mat-button-toggle [value]="scanner">{{
+                          scannerInfo[scanner].label
+                        }}</mat-button-toggle>
+                      }
+                    </mat-button-toggle-group>
+                    <span class="field-hint" [innerHTML]="gateHint()"></span>
+                    @if (form.controls.releaseGate.controls.scanners.invalid) {
+                      <span class="field-error">{{
+                        errorText(form.controls.releaseGate.controls.scanners)
+                      }}</span>
+                    }
+                  </div>
+                  <dso-fields [group]="group" [fields]="releaseGateFields" />
+                </div>
+              }
+              @case ('goldenFix') {
+                <div class="form-fields">
+                  <dso-fields [group]="group" [fields]="goldenFixEnabled" />
+                  <dso-golden-fix-fields [group]="form.controls.goldenFix" [complete]="true" />
+                </div>
+              }
+            }
+          </section>
+        }
+
+        <div class="save-bar">
+          @if (saveError(); as error) {
+            <span class="save-error" role="alert">{{ error }}</span>
+          } @else if (form.dirty) {
+            <span class="muted">Unsaved changes</span>
+          }
+          <span class="spacer"></span>
+          <button mat-button type="button" (click)="discard()" [disabled]="!form.dirty || saving()">
+            Discard changes
+          </button>
+          <button mat-flat-button type="submit" [disabled]="saving() || conflict()">
+            @if (saving()) {
+              <mat-spinner diameter="18" />
+            }
+            Save settings
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+</div>

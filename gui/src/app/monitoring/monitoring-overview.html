@@ -1,0 +1,97 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>{{ section.heading }}</h1>
+      <p class="page-description">{{ section.description }}</p>
+    </div>
+    <div class="actions">
+      <button mat-stroked-button (click)="refresh()" [disabled]="overview.isLoading()">
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <dso-metrics-banner
+    [status]="status.hasValue() ? status.value() : undefined"
+    [metricsError]="overview.hasValue() ? overview.value().metricsError : null"
+  />
+
+  <div class="stats">
+    @for (tile of tiles(); track tile.label) {
+      <div class="stat" [class]="tile.tone">
+        <strong>{{ tile.value }}</strong
+        ><span>{{ tile.label }}</span>
+      </div>
+    }
+  </div>
+
+  <div class="toolbar">
+    <mat-form-field class="search">
+      <input
+        matInput
+        [formControl]="search"
+        placeholder="Filter products"
+        aria-label="Filter products"
+      />
+    </mat-form-field>
+    <div class="legend">
+      @for (entry of statusOrder; track entry.status) {
+        <span><i class="swatch" [class]="entry.status.toLowerCase()"></i>{{ entry.label }}</span>
+      }
+    </div>
+  </div>
+
+  @if (overview.isLoading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  @if (overview.error(); as error) {
+    <div class="banner">{{ errorMessage(error) }}</div>
+  } @else if (overview.hasValue()) {
+    @if (products().length === 0) {
+      <div class="card empty-state">
+        @if (search.value) {
+          <h3>No product matches "{{ search.value }}"</h3>
+        } @else {
+          <h3>No products yet</h3>
+          <p>
+            Products added in DevSecOps Product Management appear here with the status of their
+            pipelines.
+          </p>
+          <a mat-flat-button routerLink="/products/new">Add product</a>
+        }
+      </div>
+    } @else {
+      <div class="grid">
+        @for (product of products(); track product.productId) {
+          <a
+            class="card product"
+            [routerLink]="['/monitoring/products', product.productId]"
+            [class]="'overall-' + product.overall.toLowerCase()"
+          >
+            <div class="product-head">
+              <div class="names">
+                <strong>{{ product.name }}</strong>
+                <span class="mono muted">{{ product.code }}</span>
+              </div>
+              <dso-status-chip [status]="product.overall" />
+            </div>
+            <div class="muted team">{{ product.ownerTeam ?? 'No owner team' }}</div>
+            <dso-status-bar [counts]="product.statusCounts" />
+            <div class="product-foot">
+              <span
+                >{{ product.pipelineCount }}
+                {{ product.pipelineCount === 1 ? 'pipeline' : 'pipelines' }} ·
+                {{ product.serviceCount }}
+                {{ product.serviceCount === 1 ? 'service' : 'services' }}</span
+              >
+              <span class="muted">{{
+                product.lastRunAt ? 'Last run ' + (product.lastRunAt | relative) : 'No runs yet'
+              }}</span>
+            </div>
+          </a>
+        }
+      </div>
+    }
+  }
+</div>

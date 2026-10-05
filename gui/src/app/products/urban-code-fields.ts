@@ -1,0 +1,142 @@
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ReactiveFormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { GlobalSettings } from '../core/models';
+import { addItem } from '../shared/form-controls';
+import { Field, Fields, area, check, count, formRevision, line, mono } from '../shared/fields';
+import {
+  ServiceForm,
+  UrbanCodeApplicationForm,
+  createUrbanCodeApplicationForm,
+  createUrbanCodeComponentForm,
+} from './product-form-model';
+
+const SWITCHES: Field[] = [
+  check('deployWithSnapshot', 'Deploy with a snapshot', 'deployWithSnapshot', 6),
+  check(
+    'includeOnlyDeployVersions',
+    'Snapshot holds only the deployed versions',
+    'includeOnlyDeployVersions',
+    6,
+  ),
+  check('updateSnapshotComponents', "Update the snapshot's components", 'updateSnapshotComp', 6),
+  check('deployOnlyChanged', 'Deploy only changed versions', 'deployOnlyChanged', 6),
+];
+
+const TEXTS: Field[] = [
+  check('skipWait', 'Do not wait for the deployment result', 'skipWait'),
+  area('deployDescription', 'Deployment description', 'deploy.vm.dod.deployDescription'),
+  area('requestProperties', 'Request properties', 'deploy.vm.dod.requestProperties', 6, {
+    mono: true,
+  }),
+];
+
+const APPLICATION: Field[] = [
+  mono('applicationName', 'Application name', 'applicationName', 5),
+  count('order', 'Order', 'order', 2, { min: 1, max: 999 }),
+  mono('environments', 'Environments', 'environments', 5, {
+    placeholder: 'DV, RD',
+    hint: 'left empty: all of them',
+  }),
+  line('snapshotName', 'Snapshot name', 'snapshotName'),
+];
+
+const COMPONENT: Field[] = [
+  mono('componentName', 'Component name', 'componentName', 4),
+  mono('baseDir', 'Base folder', 'baseDir', 4, { placeholder: 'build/libs' }),
+  mono('versionPrefix', 'Version prefix', 'versionPrefix', 2),
+  mono('version', 'Version', 'version', 2),
+  mono('fileIncludePatterns', 'Files to include', 'fileIncludePatterns', 6, {
+    placeholder: '*.jar',
+  }),
+  mono('fileExcludePatterns', 'Files to exclude', 'fileExcludePatterns', 6),
+  check('incrementalVersion', 'Incremental version', 'incrementalVersion'),
+];
+
+@Component({
+  selector: 'dso-urban-code-fields',
+  imports: [ReactiveFormsModule, MatButtonModule, Fields],
+  changeDetection: ChangeDetectionStrategy.Eager,
+  templateUrl: './urban-code-fields.html',
+  styles: `
+    :host {
+      display: block;
+    }
+    code {
+      font-size: 11.5px;
+    }
+    .component {
+      position: relative;
+      margin-top: 6px;
+      padding: 8px 88px 6px 10px;
+      border: 1px solid var(--dso-border);
+      background: #fbfcfd;
+
+      .remove {
+        position: absolute;
+        top: 6px;
+        right: 4px;
+      }
+    }
+    .add-component {
+      margin-top: 6px;
+    }
+    @media (max-width: 700px) {
+      .component {
+        padding: 36px 10px 6px;
+      }
+    }
+  `,
+})
+export class UrbanCodeFields {
+  readonly form = input.required<ServiceForm>();
+  readonly defaults = input<GlobalSettings | null>(null);
+
+  private readonly changes = formRevision(this.form);
+
+  protected readonly applications = computed(() => {
+    this.changes();
+    return [...this.form().controls.urbanCodeApplications.controls];
+  });
+
+  protected readonly applicationFields = APPLICATION;
+  protected readonly componentFields = COMPONENT;
+
+  protected settingsFields(): Field[] {
+    const deployment = this.defaults()?.deployment;
+    const site = deployment?.urbanCodeSiteName;
+    const process = deployment?.urbanCodeDeployProcess;
+    return [
+      line('siteName', 'Site name', 'deploy.vm.dod.siteName', 6, {
+        placeholder: site ?? '',
+        hint: `left empty: ${site ?? 'the global default'}`,
+      }),
+      line('deployProcess', 'Deployment process', 'deploy.vm.dod.deployProcess', 6, {
+        placeholder: process ?? '',
+        hint: `left empty: ${process ?? 'the global default'}`,
+      }),
+      ...SWITCHES,
+      ...TEXTS,
+    ];
+  }
+
+  protected addApplication(): void {
+    addItem(this.form().controls.urbanCodeApplications, createUrbanCodeApplicationForm());
+    this.form().markAsDirty();
+  }
+
+  protected removeApplication(index: number): void {
+    this.form().controls.urbanCodeApplications.removeAt(index);
+    this.form().markAsDirty();
+  }
+
+  protected addComponent(application: UrbanCodeApplicationForm): void {
+    addItem(application.controls.components, createUrbanCodeComponentForm());
+    this.form().markAsDirty();
+  }
+
+  protected removeComponent(application: UrbanCodeApplicationForm, index: number): void {
+    application.controls.components.removeAt(index);
+    this.form().markAsDirty();
+  }
+}

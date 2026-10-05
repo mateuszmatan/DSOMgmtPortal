@@ -1,0 +1,228 @@
+@let f = form();
+<div class="service">
+  <nav class="rail side-nav" aria-label="Service settings">
+    @for (section of sections(); track section.id) {
+      <button
+        type="button"
+        class="rail-item side-nav-item"
+        [class.active]="section.id === current()"
+        [class.problem]="section.problem"
+        [attr.aria-current]="section.id === current() ? 'true' : null"
+        (click)="select(section.id)"
+      >
+        <mat-icon aria-hidden="true">{{ section.icon }}</mat-icon>
+        <span>{{ section.label }}</span>
+        @if (section.problem) {
+          <span class="problem-mark" role="img" aria-label="Needs your attention"></span>
+        }
+      </button>
+    }
+  </nav>
+
+  <div class="pane">
+    <header class="pane-header">
+      <h3>{{ pane().label }}</h3>
+      <p [innerHTML]="pane().note"></p>
+    </header>
+    @switch (current()) {
+      @case ('general') {
+        <div class="form-fields">
+          <dso-fields [group]="f" [fields]="general" />
+        </div>
+      }
+
+      @case ('build') {
+        <div class="form-fields">
+          <dso-fields [group]="f.controls.build" [fields]="buildFields()" />
+          @if (flutter()) {
+            <p class="note span-12">
+              A Flutter build runs no Gradle or Maven command and needs the JDK path, since
+              automatic setup cannot pick a JDK for Flutter; its modules and credentials are in the
+              Flutter section.
+            </p>
+          } @else {
+            <h4 class="sub-heading span-12">Build command</h4>
+            <dso-tool-command-fields
+              [group]="f.controls.build.controls.command"
+              [tool]="tool()"
+              path="build"
+              gradleExample="clean build"
+              mavenExample="clean verify"
+            />
+          }
+        </div>
+      }
+
+      @case ('unitTests') {
+        <div class="form-fields">
+          @if (!flutter()) {
+            <h4 class="sub-heading span-12">Test command</h4>
+            <dso-tool-command-fields
+              [group]="f.controls.unitTests.controls.command"
+              [tool]="tool()"
+              path="tests.unitTests"
+              gradleExample="test jacocoTestReport"
+              mavenExample="test jacoco:report"
+            />
+          }
+          <h4 class="sub-heading span-12">Results</h4>
+          <dso-fields [group]="f.controls.unitTests" [fields]="unitTestFields()" />
+        </div>
+      }
+
+      @case ('testJobs') {
+        <dso-test-jobs-fields [form]="f" [defaults]="defaults()" />
+      }
+
+      @case ('deployment') {
+        <div class="form-fields">
+          <mat-button-toggle-group
+            class="span-12"
+            [formControl]="f.controls.deployment.controls.target"
+            aria-label="Deployment target"
+          >
+            <mat-button-toggle value="VM">Virtual machine</mat-button-toggle>
+            <mat-button-toggle value="OPENSHIFT">OpenShift</mat-button-toggle>
+          </mat-button-toggle-group>
+          <dso-fields [group]="f.controls.deployment" [fields]="deploymentFields()" />
+        </div>
+        @if (isVm() && tool() === 'MAVEN') {
+          <div class="form-fields block">
+            <h4 class="sub-heading span-12">Delivery</h4>
+            <p class="note span-12">
+              The Maven goals that upload the snapshot the VM deployment installs; required for a
+              Maven service deployed to virtual machines.
+            </p>
+            <dso-tool-command-fields
+              [group]="f.controls.delivery"
+              [tool]="tool()"
+              path="delivery"
+              mavenExample="deploy:deploy-file"
+            />
+          </div>
+        }
+      }
+
+      @case ('urbanCode') {
+        <dso-urban-code-fields [form]="f" [defaults]="defaults()" />
+      }
+
+      @case ('ssh') {
+        @for (region of regions; track region) {
+          <div class="form-fields block">
+            <h4 class="sub-heading span-12">
+              {{ regionNames[region] }} <code>deploy.vm.{{ region.toLowerCase() }}</code>
+            </h4>
+            <dso-fields
+              [group]="f.controls.sshTargets.controls[region]"
+              [fields]="sshFields(region)"
+            />
+          </div>
+        }
+      }
+
+      @case ('openShift') {
+        <dso-openshift-target-fields [form]="f" />
+      }
+
+      @case ('appScan') {
+        @let scan = f.controls.appScan;
+        <div class="form-fields">
+          <dso-fields [group]="scan" [fields]="appScan" />
+          <h4 class="sub-heading span-12">Static scan (SAST)</h4>
+          <dso-fields [group]="scan" [fields]="appScanStatic" />
+          <span class="span-6"></span>
+          <dso-fields [group]="scan" [fields]="appScanFlags" />
+          @if (!flutter() && scan.controls.compile.value) {
+            <h4 class="sub-heading span-12">Compile command</h4>
+            <dso-tool-command-fields
+              [group]="scan.controls.compileCommand"
+              [tool]="tool()"
+              path="asoc"
+              gradleExample="compileJava"
+              mavenExample="compile"
+            />
+          }
+          <h4 class="sub-heading span-12">Dynamic scan (DAST)</h4>
+          <dso-fields [group]="scan" [fields]="dastEnabled" />
+          @if (scan.controls.dastEnabled.value) {
+            <dso-fields [group]="scan" [fields]="dast" />
+          }
+        </div>
+      }
+
+      @case ('sonar') {
+        <div class="form-fields">
+          <dso-fields [group]="f.controls.sonar" [fields]="sonarFields()" />
+          @if (!flutter()) {
+            <h4 class="sub-heading span-12">Analysis command</h4>
+            <dso-tool-command-fields
+              [group]="f.controls.sonar.controls.command"
+              [tool]="tool()"
+              path="tools.sonar"
+              gradleExample="sonarqube"
+              mavenExample="sonar:sonar"
+            />
+          }
+        </div>
+      }
+
+      @case ('nexusIq') {
+        <div class="form-fields">
+          <dso-fields [group]="f.controls.nexusIq" [fields]="nexusIq" />
+        </div>
+      }
+
+      @case ('scm') {
+        <div class="form-fields">
+          <dso-fields [group]="f.controls.scm" [fields]="scm" />
+          <h4 class="sub-heading span-12">Repository for GoldenFix pull requests</h4>
+          <p class="note span-12">Optional; left empty, they are read from the repository URL.</p>
+          <dso-fields [group]="f.controls.scm" [fields]="bitbucketRepository" />
+        </div>
+      }
+
+      @case ('goldenFix') {
+        <div class="form-fields">
+          <dso-fields [group]="f.controls.goldenFix" [fields]="goldenFixField()" />
+          <mat-button-toggle-group
+            class="span-8"
+            [formControl]="f.controls.goldenFix.controls.inherit"
+            aria-label="GoldenFix policy"
+          >
+            <mat-button-toggle [value]="true">Inherit the global settings</mat-button-toggle>
+            <mat-button-toggle [value]="false">Override for this service</mat-button-toggle>
+          </mat-button-toggle-group>
+          @if (f.controls.goldenFix.controls.inherit.value) {
+            <p class="note span-12">{{ inheritedGoldenFix() }}</p>
+          } @else {
+            <dso-golden-fix-fields
+              [group]="f.controls.goldenFix"
+              [inherited]="defaults()?.goldenFix ?? null"
+            />
+          }
+        </div>
+      }
+
+      @case ('metrics') {
+        <div class="form-fields">
+          <dso-fields [group]="f.controls.metrics" [fields]="metricsFields()" />
+        </div>
+      }
+
+      @case ('flutter') {
+        @let flutterGroup = f.controls.flutter;
+        <div class="form-fields">
+          <dso-fields [group]="flutterGroup" [fields]="flutterPlatformField()" />
+          <dso-fields [group]="flutterGroup" [fields]="flutterModules" />
+          <h4 class="sub-heading span-12">Credentials <code>build.credentialsId</code></h4>
+          <dso-fields [group]="flutterGroup" [fields]="flutterCredentials" />
+          <h4 class="sub-heading span-12">Delivery</h4>
+          <dso-fields [group]="flutterGroup" [fields]="flutterDelivery()" />
+          <h4 class="sub-heading span-12">SonarQube analysis of Dart code</h4>
+          <dso-fields [group]="flutterGroup" [fields]="flutterSonar" />
+        </div>
+      }
+    }
+  </div>
+</div>

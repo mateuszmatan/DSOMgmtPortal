@@ -1,0 +1,130 @@
+import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { REGIONS, Region } from '../core/models';
+import { Field, Fields, check, formRevision, mono } from '../shared/fields';
+import { OpenShiftTargetForm, ServiceForm } from './product-form-model';
+
+export const IMAGE_BUILD: Field[] = [
+  mono('projectBuild', 'Build project', 'projectBuildR', 4),
+  mono('buildConfigPath', 'BuildConfig file', 'buildConfigPath', 4, {
+    placeholder: 'openshift/buildconfig.yaml',
+  }),
+  mono('dockerFilePath', 'Dockerfile', 'dockerFilePath', 4, {
+    placeholder: 'openshift/Dockerfile',
+  }),
+  mono('buildContext', 'Build context', 'buildContext', 6, { placeholder: 'target/docker' }),
+  mono('addFile', 'File added to the image', 'addFile', 6),
+];
+
+const REGISTRY: Field[] = [
+  mono('dockerRepoPush', 'Image pushed to', 'qcDockerRepoPush', 6),
+  mono('dockerRepoPull', 'Image pulled from', 'qcDockerRepoPull', 6),
+  mono('certDir', 'OpenShift certificates folder', 'openshiftCertDir', 6),
+  mono('nexusAuthFile', 'Nexus auth file', 'nexus.authfile', 6),
+];
+
+const DEPLOYMENT: Field[] = [
+  mono('projectDeployment', 'Deployment project', 'projectDeploymentR', 4),
+  mono('deployConfigPath', 'Deployment file', 'deployConfigPath', 4, {
+    placeholder: 'openshift/deployment.yaml',
+  }),
+  mono('configPath', 'Configuration file', 'configPathR', 4),
+  mono('healthCheckUrl', 'Health check path', 'healthCheckUrl', 4, {
+    placeholder: '/actuator/health',
+  }),
+  mono('routeHostname', 'Route host name', 'routeHostnameR', 4),
+  mono('deploymentPath', 'Deployment path', 'deploymentPath', 4),
+  check('skipConfigDeploy', 'Skip deploying the configuration', 'skipConfigDeploy'),
+];
+
+const REPOSITORY: Field[] = [
+  mono('deploymentRepoUrl', 'Repository URL', 'deploymentRepo.url', 6, {
+    error: 'Must be an http, https, ssh or git@ URL',
+  }),
+  mono('deploymentRepoBranch', 'Branch', 'deploymentRepo.branch', 3),
+  mono('deploymentRepoCredentialsId', 'Credentials ID', 'deploymentRepo.credentials', 3),
+];
+
+@Component({
+  selector: 'dso-openshift-target-fields',
+  imports: [MatButtonToggleModule, Fields],
+  changeDetection: ChangeDetectionStrategy.Eager,
+  template: `
+    <mat-button-toggle-group
+      class="regions"
+      [value]="region()"
+      (change)="region.set($event.value)"
+      aria-label="Region"
+    >
+      @for (option of regions; track option) {
+        <mat-button-toggle [value]="option">
+          {{ option }} region
+          @if (target(option).invalid) {
+            <span class="problem-mark" role="img" aria-label="Needs your attention"></span>
+          }
+        </mat-button-toggle>
+      }
+    </mat-button-toggle-group>
+    <p class="region-note">
+      @if (region() === 'RD') {
+        The lower test region, where the run builds the image. Keys under
+        <code>deploy.openshift.rd</code>.
+      } @else {
+        The higher test region, which deploys the image the run built. Keys under
+        <code>deploy.openshift.qc</code>.
+      }
+    </p>
+
+    @let t = target(region());
+    <div class="form-fields">
+      @if (region() === 'RD' || hasImageBuild(t)) {
+        <h5 class="sub-heading span-12">Image build</h5>
+        <dso-fields [group]="t" [fields]="imageBuild" />
+      }
+      <h5 class="sub-heading span-12">Image registry</h5>
+      <dso-fields [group]="t" [fields]="registry" />
+      <h5 class="sub-heading span-12">Deployment</h5>
+      <dso-fields [group]="t" [fields]="deployment" />
+      <h5 class="sub-heading span-12">Deployment repository</h5>
+      <dso-fields [group]="t" [fields]="repository" />
+    </div>
+  `,
+  styles: `
+    :host {
+      display: block;
+    }
+    code {
+      font-size: 11.5px;
+    }
+    .regions .problem-mark {
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .region-note {
+      margin: 6px 0 2px;
+      font-size: 12px;
+      color: var(--dso-muted);
+    }
+  `,
+})
+export class OpenShiftTargetFields {
+  readonly form = input.required<ServiceForm>();
+
+  private readonly changes = formRevision(this.form);
+
+  protected readonly regions = REGIONS;
+  protected readonly region = signal<Region>('RD');
+  protected readonly imageBuild = IMAGE_BUILD;
+  protected readonly registry = REGISTRY;
+  protected readonly deployment = DEPLOYMENT;
+  protected readonly repository = REPOSITORY;
+
+  protected target(region: Region): OpenShiftTargetForm {
+    this.changes();
+    return this.form().controls.openShiftTargets.controls[region];
+  }
+
+  protected hasImageBuild(target: OpenShiftTargetForm): boolean {
+    return IMAGE_BUILD.some((field) => !!target.get(field.key)?.value.trim());
+  }
+}

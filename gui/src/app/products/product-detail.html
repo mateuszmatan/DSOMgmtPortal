@@ -1,0 +1,305 @@
+<div class="page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/products">DevSecOps Product Management</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span>{{ product.hasValue() ? product.value().name : 'Product' }}</span>
+  </nav>
+
+  @if (product.isLoading() && !product.hasValue()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  @if (product.error(); as error) {
+    <div class="banner">{{ errorMessage(error) }}</div>
+    <a mat-stroked-button routerLink="/products">Back to products</a>
+  } @else if (product.hasValue()) {
+    @let p = product.value();
+    <header class="page-header">
+      <div class="identity">
+        <div class="title row-wrap">
+          <h1>{{ p.name }}</h1>
+          <span class="code mono">{{ p.code }}</span>
+        </div>
+        @if (p.description) {
+          <p>{{ p.description }}</p>
+        }
+        <dl class="pairs meta">
+          @if (p.ownerTeam) {
+            <div>
+              <dt>Owner team</dt>
+              <dd>{{ p.ownerTeam }}</dd>
+            </div>
+          }
+          @if (p.contactEmail) {
+            <div>
+              <dt>Contact</dt>
+              <dd>
+                <a [href]="'mailto:' + p.contactEmail">{{ p.contactEmail }}</a>
+              </dd>
+            </div>
+          }
+          <div>
+            <dt>AppScan key ID</dt>
+            <dd class="mono">{{ p.appScan.keyId }}</dd>
+          </div>
+          <div>
+            <dt>Changed</dt>
+            <dd>{{ p.updatedAt | relative }}</dd>
+          </div>
+        </dl>
+      </div>
+      <div class="actions">
+        <a mat-stroked-button [routerLink]="['/monitoring/products', p.id]">Monitoring</a>
+        <button mat-stroked-button (click)="showProductConfig(p)">config.yaml</button>
+        <a mat-flat-button [routerLink]="['/products', p.id, 'edit']">Edit product</a>
+        <button mat-button class="danger" (click)="deleteProduct(p)">Delete</button>
+      </div>
+    </header>
+
+    @if (stats(); as counts) {
+      <div class="stats">
+        @for (stat of counts; track stat.label) {
+          <div class="stat" [class]="stat.tone">
+            <strong>{{ stat.value }}</strong
+            ><span>{{ stat.label }}</span>
+          </div>
+        }
+      </div>
+    }
+
+    @if (generated().length) {
+      <div class="banner info generated" role="status">
+        <span class="generated-text"
+          >{{ generatedNotice() }} Copy each key into the Jenkinsfile of its service.</span
+        >
+        <button type="button" class="text-link" (click)="dismissGenerated()">Dismiss</button>
+      </div>
+    }
+
+    @if (services.error(); as error) {
+      <div class="banner">{{ errorMessage(error) }}</div>
+    } @else if (services.hasValue()) {
+      @if (services.value().length === 0) {
+        <div class="card empty-state">
+          <h3>No services yet</h3>
+          <p>Define the services of the product to give them DevSecOps pipelines.</p>
+          <a mat-flat-button [routerLink]="['/products', p.id, 'edit']">Add services</a>
+        </div>
+      }
+      @for (service of services.value(); track service.serviceId) {
+        <section class="card service">
+          <header class="service-header">
+            <div class="service-heading">
+              <div class="service-title row-wrap">
+                <h2 class="mono">{{ service.serviceName }}</h2>
+                <span class="tag">{{
+                  service.buildTool.charAt(0) + service.buildTool.slice(1).toLowerCase()
+                }}</span>
+                <span class="tag">{{
+                  service.deployTarget === 'VM' ? 'Virtual machine' : 'OpenShift'
+                }}</span>
+                @if (generated().includes(service.serviceName)) {
+                  <span class="tag new">New</span>
+                }
+                @if (service.description) {
+                  <span class="muted service-description">{{ service.description }}</span>
+                }
+              </div>
+              <div class="repository">
+                <span class="label">Bitbucket repository</span>
+                @if (repositoryOf(service); as url) {
+                  <a [href]="url" target="_blank" rel="noopener" class="mono plain-link">{{
+                    url
+                  }}</a>
+                } @else {
+                  <span class="not-recorded">Not set</span>
+                }
+              </div>
+            </div>
+            <button
+              mat-stroked-button
+              (click)="addPipeline(service)"
+              [disabled]="!canAddPipeline(service)"
+              [matTooltip]="
+                canAddPipeline(service) ? '' : 'The service has a pipeline of every type'
+              "
+            >
+              Add pipeline
+            </button>
+          </header>
+
+          @if (service.pipelines.length === 0) {
+            <p class="no-pipelines">
+              No pipeline yet. Add one to give this service a DevSecOps key.
+            </p>
+          }
+
+          @for (pipeline of service.pipelines; track pipeline.id) {
+            <div class="pipeline" [class.revoked]="!pipeline.activeKey">
+              <div class="pipeline-body">
+                <div class="pipeline-title row-wrap">
+                  <strong>{{ typeLabel(pipeline.type) }} pipeline</strong>
+                  <span class="mono muted entry">{{ pipeline.entryPoint }}</span>
+                  @if (pipeline.activeKey) {
+                    <span class="chip success key-state">Key active</span>
+                  } @else {
+                    <span class="chip danger key-state">Key invalidated</span>
+                    <button
+                      type="button"
+                      class="text-link"
+                      (click)="regenerateKey(pipeline)"
+                      [disabled]="regenerating().has(pipeline.id)"
+                      [attr.aria-label]="
+                        'Regenerate key of the ' + typeName(pipeline.type) + ' pipeline'
+                      "
+                    >
+                      {{ regenerating().has(pipeline.id) ? 'Regenerating…' : 'Regenerate key' }}
+                    </button>
+                  }
+                </div>
+                <dl class="pairs pipeline-meta">
+                  <div>
+                    <dt>Agents</dt>
+                    <dd>{{ pipeline.agentLabels.join(', ') }}</dd>
+                  </div>
+                  <div>
+                    <dt>Job</dt>
+                    <dd>
+                      @if (pipeline.jenkinsJobUrl) {
+                        <a
+                          class="mono plain-link"
+                          [href]="pipeline.jenkinsJobUrl"
+                          target="_blank"
+                          rel="noopener"
+                          matTooltip="Open the Jenkins job"
+                          >{{ pipeline.jenkinsJob }}</a
+                        >
+                      } @else if (pipeline.jenkinsJob) {
+                        <span
+                          class="mono"
+                          matTooltip="Set the Jenkins URL in the DevSecOps Global Settings to link the job"
+                          >{{ pipeline.jenkinsJob }}</span
+                        >
+                      } @else {
+                        <span class="not-recorded" matTooltip="Set the job in the pipeline settings"
+                          >Not set</span
+                        >
+                      }
+                    </dd>
+                  </div>
+                  @if (pipeline.extendedPipelineJob) {
+                    <div>
+                      <dt>Extended pipeline</dt>
+                      <dd class="mono">{{ pipeline.extendedPipelineJob }}</dd>
+                    </div>
+                  }
+                  @if (pipeline.securityPipelineJob) {
+                    <div>
+                      <dt>Security pipeline</dt>
+                      <dd class="mono">{{ pipeline.securityPipelineJob }}</dd>
+                    </div>
+                  }
+                  <div matTooltip="InfluxDB project and env tags of its metrics">
+                    <dt>Metrics tags</dt>
+                    <dd class="mono">{{ pipeline.influxProjectTag }} · {{ pipeline.influxEnv }}</dd>
+                  </div>
+                  @if (pipeline.description) {
+                    <div>
+                      <dt>Description</dt>
+                      <dd>{{ pipeline.description }}</dd>
+                    </div>
+                  }
+                </dl>
+                @if (pipeline.activeKey; as key) {
+                  <div class="key row-wrap">
+                    <span class="mono key-value">{{
+                      revealed().has(pipeline.id) && key.value ? key.value : key.hint
+                    }}</span>
+                    @if (key.value; as value) {
+                      <button
+                        type="button"
+                        class="text-link"
+                        (click)="toggleKey(pipeline)"
+                        [attr.aria-label]="
+                          (revealed().has(pipeline.id)
+                            ? 'Hide the key of the '
+                            : 'Show the key of the ') +
+                          typeName(pipeline.type) +
+                          ' pipeline'
+                        "
+                      >
+                        {{ revealed().has(pipeline.id) ? 'Hide' : 'Show' }}
+                      </button>
+                      <button
+                        type="button"
+                        class="text-link"
+                        [cdkCopyToClipboard]="value"
+                        (cdkCopyToClipboardCopied)="copied()"
+                        [attr.aria-label]="
+                          'Copy the key of the ' + typeName(pipeline.type) + ' pipeline'
+                        "
+                      >
+                        Copy
+                      </button>
+                    }
+                    <span class="muted key-dates">
+                      Issued {{ key.issuedAt | relative }} ·
+                      {{
+                        key.lastUsedAt ? 'last used ' + (key.lastUsedAt | relative) : 'not used yet'
+                      }}
+                    </span>
+                  </div>
+                } @else {
+                  <p class="revoked-note">
+                    The pipeline is refused its configuration until its key is regenerated.
+                  </p>
+                }
+              </div>
+              <div class="pipeline-actions">
+                @if (pipeline.jenkinsJobUrl) {
+                  <a mat-button [href]="pipeline.jenkinsJobUrl" target="_blank" rel="noopener"
+                    >Jenkins</a
+                  >
+                }
+                <a mat-button [routerLink]="['/monitoring/pipelines', pipeline.id]">Metrics</a>
+                <button mat-button (click)="showPipelineConfig(pipeline)">Config</button>
+                <button
+                  mat-button
+                  [matMenuTriggerFor]="pipelineMenu"
+                  [attr.aria-label]="'More actions of the ' + typeName(pipeline.type) + ' pipeline'"
+                >
+                  More
+                </button>
+                <mat-menu #pipelineMenu="matMenu" xPosition="before">
+                  <button mat-menu-item (click)="showJenkinsfile(pipeline)">Jenkinsfile</button>
+                  <button mat-menu-item (click)="showKeyHistory(pipeline)">Key history</button>
+                  <button mat-menu-item (click)="editPipeline(service, pipeline)">Settings</button>
+                  <mat-divider />
+                  @if (pipeline.activeKey) {
+                    <button mat-menu-item (click)="replaceKey(pipeline)">Replace key</button>
+                    <button mat-menu-item class="danger" (click)="revokeKey(pipeline)">
+                      Invalidate key
+                    </button>
+                  } @else {
+                    <button
+                      mat-menu-item
+                      (click)="regenerateKey(pipeline)"
+                      [disabled]="regenerating().has(pipeline.id)"
+                    >
+                      Regenerate key
+                    </button>
+                  }
+                  <button mat-menu-item class="danger" (click)="deletePipeline(pipeline)">
+                    Delete pipeline
+                  </button>
+                </mat-menu>
+              </div>
+            </div>
+          }
+        </section>
+      }
+    } @else {
+      <mat-progress-bar mode="indeterminate" />
+    }
+  }
+</div>
