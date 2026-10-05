@@ -12,6 +12,7 @@ import {
   service,
   servicePipelines,
 } from '../testing/fixtures';
+import { inputOf } from '../testing/dom';
 import { GeneratedKeys } from './generated-keys';
 import { ProductEditor } from './product-editor';
 
@@ -260,7 +261,7 @@ describe('ProductEditor', () => {
 
   it('turns the product code into upper case as it is typed', async () => {
     await start();
-    const input = page().querySelector<HTMLInputElement>('input[formControlName=code]')!;
+    const input = inputOf(page(), 'Code');
 
     input.value = 'cert';
     input.dispatchEvent(new Event('input'));
