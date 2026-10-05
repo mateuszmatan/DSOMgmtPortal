@@ -1,0 +1,196 @@
+package com.bbh.itss.dso.portal.adapter.out.influx
+
+import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint
+import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
+import com.bbh.itss.dso.portal.domain.monitoring.MetricsUnavailableException
+import com.bbh.itss.dso.portal.domain.monitoring.RunResult
+import org.springframework.web.client.RestClient
+import spock.lang.Specification
+import spock.lang.Subject
+
+import java.time.Instant
+
+class InfluxPipelineRunsAdapterSpec extends Specification {
+
+    InfluxQueryClient influx = Spy(constructorArgs: [
+            new InfluxProperties('http://influx', 'DevSecOps', 'DORA-metrics', 't', '180d'), RestClient.builder()])
+
+    @Subject
+    def adapter = new InfluxPipelineRunsAdapter(influx)
+
+    def gui = new MetricsTag('CERT-gui', 'test')
+    def guiSast = new MetricsTag('CERT-guisast', 'test')
+
+    def "it is configured when the client is"() {
+        expect:
+        adapter.configured()
+        !new InfluxPipelineRunsAdapter(unconfigured()).configured()
+    }
+
+    def "a ping queries the buckets"() {
+        when:
+        adapter.ping()
+
+        then:
+        1 * influx.query('buckets() |> limit(n: 1)') >> []
+    }
+
+    def "a ping that fails gives the reason"() {
+        when:
+        adapter.ping()
+
+        then:
+        1 * influx.query(_) >> { throw new IllegalStateException('Connection refused') }
+        def e = thrown(MetricsUnavailableException)
+        e.message == 'InfluxDB could not be read: Connection refused'
+    }
+
+    def "no pipelines need no query"() {
+        when:
+        def runs = adapter.latestRuns([])
+
+        then:
+        runs == [:]
+        0 * influx.query(_)
+    }
+
+    def "the latest run of each pipeline is read in one query"() {
+        when:
+        def runs = adapter.latestRuns([gui, guiSast, new MetricsTag('CERT-gui', 'uat')] as LinkedHashSet)
+
+        then:
+        1 * influx.query('''\
+            from(bucket: "DORA-metrics")
+              |> range(start: -180d)
+              |> filter(fn: (r) => r._measurement == "pipeline_run")
+              |> filter(fn: (r) => contains(value: r.project, set: ["CERT-gui", "CERT-guisast"]))
+              |> last()
+              |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+              |> group(columns: ["project", "env"])
+              |> sort(columns: ["_time"])
+              |> last(column: "_time")
+            '''.stripIndent()) >> [run('2026-10-01T10:00:00Z', 'CERT-gui', 'test', 'SUCCESS'),
+                                   run('2026-10-02T10:00:00Z', 'CERT-guisast', 'test', 'FAILURE'),
+                                   run('2026-10-03T10:00:00Z', 'CERT-gui', 'prod', 'SUCCESS')]
+        runs.keySet() == [gui, guiSast] as Set
+        runs[guiSast].result() == RunResult.FAILURE
+        runs[gui].time() == Instant.parse('2026-10-01T10:00:00Z')
+    }
+
+    def "the project names are escaped as Flux strings"() {
+        when:
+        adapter.latestRuns([new MetricsTag('CERT-"gui"${x}\\', 'test')])
+
+        then:
+        1 * influx.query({ String flux -> flux.contains('set: ["CERT-\\"gui\\"\\${x}\\\\"]') }) >> []
+    }
+
+    def "recent runs are read newest first for one pipeline"() {
+        when:
+        def runs = adapter.recentRuns(gui, 30, 25)
+
+        then:
+        1 * influx.query('''\
+            from(bucket: "DORA-metrics")
+              |> range(start: -30d)
+              |> filter(fn: (r) => r._measurement == "pipeline_run")
+              |> filter(fn: (r) => r.project == "CERT-gui" and r.env == "test")
+              |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+              |> group()
+              |> sort(columns: ["_time"], desc: true)
+              |> limit(n: 25)
+            '''.stripIndent()) >> [run('2026-10-02T10:00:00Z', 'CERT-gui', 'test', 'UNSTABLE'),
+                                   run('2026-10-01T10:00:00Z', 'CERT-gui', 'test', 'SUCCESS')]
+        runs*.result() == [RunResult.UNSTABLE, RunResult.SUCCESS]
+    }
+
+    def "the project and the environment of a pipeline are escaped as Flux strings"() {
+        when:
+        adapter.recentRuns(new MetricsTag('CERT-gui" or true or "', 'te"st'), 30, 25)
+        adapter.doraPoints(new MetricsTag('CERT-gui" or true or "', 'te"st'), 30)
+
+        then:
+        2 * influx.query({ String flux ->
+            flux.contains('r.project == "CERT-gui\\" or true or \\"" and r.env == "te\\"st"')
+        }) >> []
+    }
+
+    def "a window of #days days and #limit runs is not a query"() {
+        when:
+        adapter.recentRuns(gui, days, limit)
+
+        then:
+        0 * influx.query(_)
+        def e = thrown(IllegalArgumentException)
+        e.message.endsWith(' is not a positive number')
+
+        where:
+        days | limit
+        0    | 25
+        30   | 0
+        -1   | 25
+    }
+
+    def "DORA points are read from the dora measurement"() {
+        when:
+        def points = adapter.doraPoints(gui, 90)
+
+        then:
+        1 * influx.query('''\
+            from(bucket: "DORA-metrics")
+              |> range(start: -90d)
+              |> filter(fn: (r) => r._measurement == "dora")
+              |> filter(fn: (r) => r.project == "CERT-gui" and r.env == "test")
+              |> filter(fn: (r) => r._field == "deployment" or r._field == "change_failure" or r._field == "lead_time_s" or r._field == "duration_s")
+              |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+              |> group()
+              |> sort(columns: ["_time"])
+            '''.stripIndent()) >> [
+                [_time: '2026-10-01T10:00:00Z', deployment: '1', change_failure: '0', lead_time_s: '3600',
+                 duration_s: '600.0'],
+                [_time: '2026-10-02T10:00:00Z', change_failure: '1'],
+                [deployment: '1']]
+        points == [new DoraPoint(Instant.parse('2026-10-01T10:00:00Z'), true, false, 3600, 600),
+                   new DoraPoint(Instant.parse('2026-10-02T10:00:00Z'), false, true, 0, 0)]
+    }
+
+    def "without InfluxDB nothing is read and the reason is given"() {
+        given:
+        def client = unconfigured()
+        def unconfiguredAdapter = new InfluxPipelineRunsAdapter(client)
+
+        when:
+        reading(unconfiguredAdapter)
+
+        then:
+        0 * client.query(_)
+        def e = thrown(MetricsUnavailableException)
+        e.message == 'InfluxDB is not configured for the portal'
+
+        where:
+        reading << [{ it.latestRuns([]) }, { it.latestRuns([new MetricsTag('CERT-gui', 'test')]) },
+                    { it.recentRuns(new MetricsTag('CERT-gui', 'test'), 30, 25) },
+                    { it.doraPoints(new MetricsTag('CERT-gui', 'test'), 30) }, { it.ping() }]
+    }
+
+    def "a failed query gives the reason"() {
+        given:
+        influx.query(_) >> { throw new IllegalStateException('401 Unauthorized') }
+
+        when:
+        adapter.latestRuns([gui])
+
+        then:
+        def e = thrown(MetricsUnavailableException)
+        e.message == 'InfluxDB could not be read: 401 Unauthorized'
+    }
+
+    private InfluxQueryClient unconfigured() {
+        Spy(InfluxQueryClient, constructorArgs: [
+                new InfluxProperties(null, 'DevSecOps', 'DORA-metrics', null, '365d'), RestClient.builder()]) as InfluxQueryClient
+    }
+
+    private static Map<String, String> run(String time, String project, String env, String result) {
+        [_time: time, project: project, env: env, result: result, build: '7', duration_s: '1200']
+    }
+}

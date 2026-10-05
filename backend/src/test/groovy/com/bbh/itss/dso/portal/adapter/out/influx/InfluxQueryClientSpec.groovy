@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.out.influx
 
+import com.bbh.itss.dso.portal.domain.monitoring.MetricsUnavailableException
 import com.bbh.itss.dso.portal.support.FakeInfluxDb
 import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestClient
@@ -82,15 +83,93 @@ class InfluxQueryClientSpec extends Specification {
         url << [null, ' ']
     }
 
-    def "values are escaped for Flux string literals"() {
+    def "a reading of a configured client gives what was read"() {
+        given:
+        def client = new InfluxQueryClient(new InfluxProperties(influx.url, 'DevSecOps', 'DORA-metrics', null, '365d'),
+                RestClient.builder())
+
         expect:
-        InfluxQueryClient.literal(value) == literal
+        client.read { 'read' } == 'read'
+        client.bucket() == '"DORA-metrics"'
+        client.lastRunLookback() == '365d'
+    }
+
+    def "without a URL nothing is read and the reason is given"() {
+        given:
+        def client = new InfluxQueryClient(new InfluxProperties(null, 'DevSecOps', 'DORA-metrics', null, '365d'),
+                RestClient.builder())
+        def reads = 0
+
+        when:
+        client.read { reads++ }
+
+        then:
+        reads == 0
+        def e = thrown(MetricsUnavailableException)
+        e.message == 'InfluxDB is not configured for the portal'
+
+        when:
+        client.requireConfigured()
+
+        then:
+        thrown(MetricsUnavailableException)
+    }
+
+    def "a failed reading gives the reason, cut to 300 characters"() {
+        given:
+        def client = new InfluxQueryClient(new InfluxProperties(influx.url, 'DevSecOps', 'DORA-metrics', null, '365d'),
+                RestClient.builder())
+
+        when:
+        client.read { throw failure }
+
+        then:
+        def e = thrown(MetricsUnavailableException)
+        e.message == error
 
         where:
-        value         || literal
-        'CERT-gui'    || '"CERT-gui"'
-        'say "hi"'    || '"say \\"hi\\""'
-        'back\\slash' || '"back\\\\slash"'
-        'a${b}'       || '"a\\${b}"'
+        failure                                       || error
+        new IllegalStateException('401 Unauthorized') || 'InfluxDB could not be read: 401 Unauthorized'
+        new IllegalStateException('x' * 300)          || 'InfluxDB could not be read: ' + 'x' * 300
+        new IllegalStateException('0123456789' * 40)  || 'InfluxDB could not be read: ' + ('0123456789' * 30)
+        new RuntimeException()                        || 'InfluxDB could not be read: RuntimeException'
+        new MetricsUnavailableException('kept')       || 'kept'
+    }
+
+    def "an error from InfluxDB read through the client gives its status"() {
+        given:
+        influx.failWith(401)
+        def client = new InfluxQueryClient(new InfluxProperties(influx.url, 'DevSecOps', 'DORA-metrics', 'wrong', '365d'),
+                RestClient.builder())
+
+        when:
+        client.read { client.query('buckets()') }
+
+        then:
+        def e = thrown(MetricsUnavailableException)
+        e.message.startsWith('InfluxDB could not be read: 401 Unauthorized')
+    }
+
+    def "InfluxDB is configured with a URL"() {
+        expect:
+        new InfluxProperties(url, 'DevSecOps', 'DORA-metrics', null, '365d').configured() == configured
+
+        where:
+        url                     || configured
+        null                    || false
+        ' '                     || false
+        'http://localhost:8086' || true
+    }
+
+    def "the look-back for the latest runs must be a Flux duration"() {
+        when:
+        new InfluxProperties('http://localhost:8086', 'DevSecOps', 'DORA-metrics', null, lookback)
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message == "'$lookback' is not a Flux duration such as 365d"
+
+        where:
+        lookback << [null, '', '365', '-1d', '1d) |> drop()', '0d']
     }
 }

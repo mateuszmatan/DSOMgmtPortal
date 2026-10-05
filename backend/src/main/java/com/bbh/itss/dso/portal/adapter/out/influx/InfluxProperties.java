@@ -11,6 +11,10 @@ public record InfluxProperties(
         String token,
         @DefaultValue("365d") String lastRunLookback) {
 
+    public InfluxProperties {
+        Flux.duration(lastRunLookback);
+    }
+
     public boolean configured() {
         return url != null && !url.isBlank();
     }

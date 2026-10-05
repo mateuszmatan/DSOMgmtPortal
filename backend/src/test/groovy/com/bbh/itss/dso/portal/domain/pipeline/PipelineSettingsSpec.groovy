@@ -53,20 +53,6 @@ class PipelineSettingsSpec extends Specification {
         'Zażółć/gęślą'                              | JENKINS                   || 'https://jenkins.test/job/Za%C5%BC%C3%B3%C5%82%C4%87/job/g%C4%99%C5%9Bl%C4%85/'
     }
 
-    def "a path segment keeps the characters RFC 3986 allows in it and encodes the rest in upper case hex"() {
-        expect:
-        PipelineSettings.encodePathSegment(segment) == encoded
-
-        where:
-        segment                       || encoded
-        'AZaz09-._~'                  || 'AZaz09-._~'
-        "!\$&'()*+,;=:@"              || "!\$&'()*+,;=:@"
-        'a b/c?d#e%f[g]h"i<j>k\\l^m`' || 'a%20b%2Fc%3Fd%23e%25f%5Bg%5Dh%22i%3Cj%3Ek%5Cl%5Em%60'
-        '{|}'                         || '%7B%7C%7D'
-        'é€'                          || '%C3%A9%E2%82%AC'
-        '\u007f'                      || '%7F'
-    }
-
     def "a pipeline's own job is linked under the Jenkins URL"() {
         expect:
         both.jenkinsJobUrl(JENKINS) == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui/'

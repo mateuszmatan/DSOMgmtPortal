@@ -29,7 +29,8 @@ public final class DsoConfigBuilder {
 
     public Map<String, Object> productConfig(Product product) {
         Map<String, Object> projects = new LinkedHashMap<>();
-        product.services().forEach(service -> projects.put(service.name(), serviceTree(product, service).toMap(KEY_ORDER)));
+        product.services().forEach(service ->
+                projects.put(service.name(), serviceTree(product, service).toMap(KEY_ORDER)));
         return Map.of("projects", projects);
     }
 
