@@ -17,7 +17,7 @@ import {
   PipelineType,
   ServicePipelines,
 } from '../core/models';
-import { eachItem, joinWords, maxWords, text, words } from '../shared/form-controls';
+import { eachItem, fitsColumn, joinWords, maxWords, text, words } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { applyFieldProblems } from './product-form-model';
 
@@ -66,6 +66,7 @@ export class PipelineDialog {
       Validators.required,
       maxWords(20),
       eachItem(words, AGENT_LABEL, "Use letters, digits, '.', '-' or '_' in a Jenkins label"),
+      fitsColumn(words, ',', 1000),
     ),
     jenkinsJob: new FormControl(this.data.pipeline?.jenkinsJob ?? '', {
       nonNullable: true,

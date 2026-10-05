@@ -3,6 +3,7 @@ import { ServiceDefaults } from '../core/models';
 import { command, product, service } from '../testing/fixtures';
 import {
   NO_COMMAND,
+  OPENSHIFT_RD_REQUIRED,
   REMOTE_JENKINS_MESSAGE,
   SERVICE_SECTIONS,
   applyFieldProblems,
@@ -81,19 +82,111 @@ describe('createServiceForm', () => {
     expect(createServiceForm(service()).valid).toBe(true);
   });
 
-  it('needs the JDK path unless the build tool is Flutter or is set up automatically', () => {
+  it('needs the JDK path unless a Gradle or Maven build sets it up automatically', () => {
     const form = createServiceForm();
-    const javaPath = form.controls.build.controls.javaPath;
+    const { javaPath, autoSetup, tool } = form.controls.build.controls;
     expect(javaPath.hasError('required')).toBe(true);
 
+    autoSetup.setValue(true);
+    expect(javaPath.valid).toBe(true);
+
+    tool.setValue('MAVEN');
+    expect(javaPath.valid).toBe(true);
+
+    tool.setValue('FLUTTER');
+    expect(autoSetup.value).toBe(false);
+    expect(autoSetup.disabled).toBe(true);
+    expect(javaPath.hasError('required')).toBe(true);
+
+    tool.setValue('GRADLE');
+    expect(autoSetup.enabled).toBe(true);
+    expect(javaPath.hasError('required')).toBe(true);
+  });
+
+  it('needs the build path only for a Maven service deployed to virtual machines', () => {
+    const form = createServiceForm(service({ build: { ...service().build, buildPath: null } }));
+    const { buildPath, tool } = form.controls.build.controls;
+    expect(buildPath.valid).toBe(true);
+
+    tool.setValue('MAVEN');
+    expect(buildPath.hasError('required')).toBe(true);
+
+    form.controls.deployment.controls.target.setValue('OPENSHIFT');
+    expect(buildPath.valid).toBe(true);
+  });
+
+  it('needs the Nexus IQ application and scan patterns together', () => {
+    const form = createServiceForm();
+    const { application, scanPatterns } = form.controls.nexusIq.controls;
+    expect(application.valid && scanPatterns.valid).toBe(true);
+
+    scanPatterns.setValue('**/*.jar');
+    expect(application.hasError('required')).toBe(true);
+    expect(scanPatterns.valid).toBe(true);
+
+    scanPatterns.setValue('');
+    application.setValue('cert-api');
+    expect(scanPatterns.hasError('required')).toBe(true);
+    expect(application.valid).toBe(true);
+
+    scanPatterns.setValue('**/*.jar');
+    expect(application.valid && scanPatterns.valid).toBe(true);
+  });
+
+  it('needs the Flutter modules and the delivery coordinates on virtual machines', () => {
+    const form = createServiceForm();
     form.controls.build.controls.tool.setValue('FLUTTER');
-    expect(javaPath.valid).toBe(true);
+    const flutter = form.controls.flutter.controls;
+    expect(flutter.modules.hasError('required')).toBe(true);
+    expect(flutter.testModules.hasError('required')).toBe(true);
+    expect(flutter.testSubmodules.valid).toBe(true);
+    expect(flutter.deliveryGroup.hasError('required')).toBe(true);
+    expect(flutter.deliveryArtifact.hasError('required')).toBe(true);
+    expect(flutter.deliveryPlugin.hasError('required')).toBe(true);
 
-    form.controls.build.controls.tool.setValue('MAVEN');
-    expect(javaPath.hasError('required')).toBe(true);
+    form.controls.deployment.controls.target.setValue('OPENSHIFT');
+    expect(flutter.deliveryGroup.valid).toBe(true);
+    expect(flutter.deliveryArtifact.valid).toBe(true);
+    expect(flutter.deliveryPlugin.valid).toBe(true);
+  });
 
-    form.controls.build.controls.autoSetup.setValue(true);
-    expect(javaPath.valid).toBe(true);
+  it('needs the build fields of the RD OpenShift target', () => {
+    const form = createServiceForm();
+    form.controls.deployment.controls.target.setValue('OPENSHIFT');
+    const { RD, QC } = form.controls.openShiftTargets.controls;
+
+    expect(
+      Object.entries(RD.controls)
+        .filter(([, control]) => control.hasError('required'))
+        .map(([key]) => key),
+    ).toEqual([...OPENSHIFT_RD_REQUIRED]);
+    expect(QC.valid).toBe(true);
+  });
+
+  it('keeps every list within the size of its column', () => {
+    const form = createServiceForm(service());
+    const long = (count: number, length: number) =>
+      Array.from({ length: count }, (_, i) => `${i}`.padEnd(length, 'x')).join('\n');
+
+    form.controls.build.controls.command.controls.flags.setValue(long(10, 250));
+    expect(form.controls.build.controls.command.controls.flags.errors).toEqual({
+      columnLength: { max: 2000 },
+    });
+    form.controls.build.controls.command.controls.environment.setValue(
+      long(9, 490).replace(/^(\d+)x/gm, 'V$1='),
+    );
+    expect(form.controls.build.controls.command.controls.environment.errors).toEqual({
+      columnLength: { max: 4000 },
+    });
+    form.controls.appScan.controls.includedDirs.setValue(long(20, 120));
+    expect(form.controls.appScan.controls.includedDirs.hasError('columnLength')).toBe(true);
+    form.controls.nexusIq.controls.scanPatterns.setValue(long(10, 250));
+    expect(form.controls.nexusIq.controls.scanPatterns.hasError('columnLength')).toBe(true);
+    form.controls.scm.controls.reviewers.setValue(long(20, 100).replaceAll('\n', ', '));
+    expect(form.controls.scm.controls.reviewers.hasError('columnLength')).toBe(true);
+    form.controls.build.controls.tool.setValue('FLUTTER');
+    form.controls.flutter.controls.modules.setValue(long(20, 60));
+    expect(form.controls.flutter.controls.modules.hasError('columnLength')).toBe(true);
   });
 
   it('always needs the build tasks of a Gradle or Maven build', () => {
@@ -231,6 +324,16 @@ describe('sections that apply to the build tool and deployment target', () => {
 
     form.controls.deployment.controls.target.setValue('OPENSHIFT');
     form.patchValue({ deployment: { appName: 'gui', artifactName: 'gui.jar' } });
+    expect(form.invalid).toBe(true);
+
+    form.controls.openShiftTargets.controls.RD.patchValue({
+      projectBuild: 'cert-build',
+      buildConfigPath: 'openshift/build.yaml',
+      dockerFilePath: 'Dockerfile',
+      buildContext: '.',
+      dockerRepoPush: 'nexus.bbh.com:18444',
+      nexusAuthFile: '/etc/containers/auth.json',
+    });
 
     expect(form.valid).toBe(true);
   });
@@ -440,6 +543,21 @@ describe('UrbanCode applications', () => {
     const application = createUrbanCodeApplicationForm({ environments: ['DV', 'RD!'] });
     expect(application.controls.environments.hasError('item')).toBe(true);
   });
+
+  it('needs at least one component with its base folder and include patterns', () => {
+    const stored = service().urbanCodeApplications[0];
+    const application = createUrbanCodeApplicationForm({
+      ...stored,
+      components: [{ ...stored.components[0], baseDir: null, fileIncludePatterns: '' }],
+    });
+    const component = application.controls.components.at(0).controls;
+    expect(component.baseDir.hasError('required')).toBe(true);
+    expect(component.fileIncludePatterns.hasError('required')).toBe(true);
+    expect(component.fileExcludePatterns.valid).toBe(true);
+
+    application.controls.components.removeAt(0);
+    expect(application.controls.components.errors).toEqual({ rule: 'Add at least one component' });
+  });
 });
 
 describe('GoldenFix', () => {
@@ -620,7 +738,7 @@ describe('toServiceRequest', () => {
     });
   });
 
-  it('sends the commands and sections that do not apply empty', () => {
+  it('sends the commands and sections that do not apply empty, keeping the JDK of Flutter', () => {
     const form = createServiceForm(service());
     form.controls.build.controls.tool.setValue('FLUTTER');
     form.controls.flutter.patchValue({
@@ -634,7 +752,8 @@ describe('toServiceRequest', () => {
     const request = toServiceRequest(form);
 
     expect(request.build.command).toEqual(NO_COMMAND);
-    expect(request.build.javaPath).toBeNull();
+    expect(request.build.javaPath).toBe(service().build.javaPath);
+    expect(request.build.autoSetup).toBe(false);
     expect(request.unitTests.command).toEqual(NO_COMMAND);
     expect(request.sonar.command).toEqual(NO_COMMAND);
     expect(request.appScan.compileCommand).toEqual(NO_COMMAND);

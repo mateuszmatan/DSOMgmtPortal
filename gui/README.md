@@ -66,3 +66,20 @@ Detected from the URL, Global value) show that option for a `null` value.
 
 The parameters of a test job are a text area with one `NAME=value` per line, the format the DevSecOps library splits
 on. Every non-blank line must match `^[A-Za-z_][A-Za-z0-9_.-]*=.*$`, and the stored text is sent back unchanged.
+
+## Validation mirrored from the backend
+
+The forms check on the visible fields what the backend checks, so a save the API would refuse is caught before it is
+sent. The API problems still land on their fields when a rule only the backend knows fails.
+
+- Build: the JDK path is required unless a Gradle or Maven build sets it up automatically. A Flutter build always
+  needs it, for SonarQube, so automatic setup is off for Flutter. A Maven service deployed to virtual machines needs
+  the build path, which the Nexus delivery reads.
+- Nexus IQ: the application and the scan patterns are set together or not at all.
+- Flutter: at least one module and one test module; the delivery group, artifact and plugin on virtual machines.
+- UrbanCode: every application has at least one component, and every component its base folder and include patterns.
+- OpenShift: the RD region needs the image build fields (build project, BuildConfig file, Dockerfile, build context),
+  the image push target and the Nexus auth file.
+- Global Settings: the minimum line coverage is 1 to 100 and the release gate checks at least one scanner.
+- Lists: besides the number of entries and the length of each, the entries joined as stored must fit their column
+  (for example 2000 characters for build flags, 4000 for variables, 1000 for agent labels).

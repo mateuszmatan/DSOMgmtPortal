@@ -53,6 +53,9 @@ projects:
         url: https://bitbucket.bbh.com/projects/TA/repos/cert-scanner
         credentialsId: bitbucket-http-credentials
         authType: basic
+        apiUrl: https://bitbucket.bbh.com
+        projectKey: TA
+        repoSlug: cert-scanner
     tests:
       unitTests:
         gradle:

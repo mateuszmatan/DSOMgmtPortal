@@ -37,6 +37,17 @@ describe('ProductEditor', () => {
     await fixture.whenStable();
   }
 
+  const imageBuild = {
+    RD: {
+      projectBuild: 'cert-build',
+      buildConfigPath: 'openshift/buildconfig.yaml',
+      dockerFilePath: 'openshift/Dockerfile',
+      buildContext: 'target/docker',
+      dockerRepoPush: 'nexus.bbh.com:18444/cert',
+      nexusAuthFile: '/etc/containers/auth.json',
+    },
+  };
+
   function fillValidProduct() {
     editor()['form'].patchValue({
       code: 'CERT',
@@ -49,6 +60,7 @@ describe('ProductEditor', () => {
         name: 'gui',
         build: { javaPath: '/usr/lib/jvm/java-17-openjdk', command: { tasks: 'clean package' } },
         deployment: { appName: 'gui', artifactName: 'gui.jar' },
+        openShiftTargets: imageBuild,
         appScan: { applicationId: '109f44ac-cc06-4ca0-884e-d944904f7019' },
       });
   }
@@ -121,6 +133,7 @@ describe('ProductEditor', () => {
         name: 'api',
         build: { javaPath: '/usr/lib/jvm/java-21-openjdk', command: { tasks: 'clean package' } },
         deployment: { appName: 'api', artifactName: 'api.jar' },
+        openShiftTargets: imageBuild,
         appScan: { applicationId: '209f44ac-cc06-4ca0-884e-d944904f7019' },
       });
     await submit();

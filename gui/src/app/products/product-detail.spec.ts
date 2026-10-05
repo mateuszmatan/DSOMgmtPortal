@@ -105,13 +105,11 @@ describe('ProductDetail', () => {
     const stored = pipeline();
     fixture.detectChanges();
     http.expectOne('/api/products/1').flush(product());
-    http
-      .expectOne('/api/products/1/pipelines')
-      .flush([
-        servicePipelines({
-          pipelines: [{ ...stored, activeKey: { ...stored.activeKey!, value: null } }],
-        }),
-      ]);
+    http.expectOne('/api/products/1/pipelines').flush([
+      servicePipelines({
+        pipelines: [{ ...stored, activeKey: { ...stored.activeKey!, value: null } }],
+      }),
+    ]);
     await fixture.whenStable();
 
     expect(page().querySelector('.key-value')?.textContent?.trim()).toBe('6f1c2d3e…9abc');

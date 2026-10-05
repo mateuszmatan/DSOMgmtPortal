@@ -1,4 +1,4 @@
-import { FormArray, FormControl, FormGroup, Validators } from '@angular/forms';
+import { FormArray, FormControl, FormGroup, ValidatorFn, Validators } from '@angular/forms';
 import {
   BitbucketAuthType,
   BitbucketType,
@@ -27,6 +27,7 @@ import {
   HOST_NAME,
   HTTP_URL,
   eachItem,
+  fitsColumn,
   flag,
   integer,
   joinLines,
@@ -36,6 +37,7 @@ import {
   maxWords,
   optional,
   requireWhile,
+  requiredRule,
   requiredWhen,
   revalidateOnChange,
   setEnabled,
@@ -85,11 +87,13 @@ export function createToolCommandForm(command?: Partial<ToolCommand> | null) {
       joinWords(command?.tasks),
       maxWords(30, false),
       eachItem(tokenWords, upTo(200), 'At most 200 characters per task'),
+      fitsColumn(tokenWords, '\n', 1000),
     ),
     flags: text(
       joinLines(command?.flags),
       maxLines(40, false),
       eachItem(tokenLines, upTo(300), 'At most 300 characters per flag'),
+      fitsColumn(tokenLines, '\n', 2000),
     ),
     directory: text(command?.directory, Validators.maxLength(500)),
     mavenHome: text(command?.mavenHome, Validators.maxLength(500)),
@@ -98,6 +102,7 @@ export function createToolCommandForm(command?: Partial<ToolCommand> | null) {
       maxLines(30, false),
       eachItem(tokenLines, ENV_VARIABLE, 'Write each variable as NAME=value'),
       eachItem(tokenLines, upTo(500), 'At most 500 characters per variable'),
+      fitsColumn(tokenLines, '\n', 4000),
     ),
   });
 }
@@ -184,8 +189,12 @@ export function toTestJob(form: TestJobForm): TestJob {
 export function createUrbanCodeComponentForm(component?: Partial<UrbanCodeComponent> | null) {
   return new FormGroup({
     componentName: text(component?.componentName, Validators.required, Validators.maxLength(200)),
-    baseDir: text(component?.baseDir, Validators.maxLength(500)),
-    fileIncludePatterns: text(component?.fileIncludePatterns, Validators.maxLength(500)),
+    baseDir: text(component?.baseDir, Validators.required, Validators.maxLength(500)),
+    fileIncludePatterns: text(
+      component?.fileIncludePatterns,
+      Validators.required,
+      Validators.maxLength(500),
+    ),
     fileExcludePatterns: text(component?.fileExcludePatterns, Validators.maxLength(500)),
     versionPrefix: text(component?.versionPrefix, Validators.maxLength(200)),
     version: text(component?.version, Validators.maxLength(200)),
@@ -212,7 +221,10 @@ export function createUrbanCodeApplicationForm(
       eachItem(words, UCD_ENVIRONMENT, "Use letters, digits, '-' and '_', at most 20 characters"),
     ),
     snapshotName: text(application?.snapshotName, Validators.maxLength(200)),
-    components: new FormArray(components.map(createUrbanCodeComponentForm)),
+    components: new FormArray(
+      components.map(createUrbanCodeComponentForm),
+      requiredRule('Add at least one component'),
+    ),
   });
 }
 
@@ -249,10 +261,22 @@ export function createSshTargetForm(target?: Partial<SshTarget> | null) {
 
 export type SshTargetForm = ReturnType<typeof createSshTargetForm>;
 
-export function createOpenShiftTargetForm(target?: Partial<OpenShiftTarget> | null) {
+export const OPENSHIFT_RD_REQUIRED: readonly (keyof OpenShiftTarget)[] = [
+  'projectBuild',
+  'buildConfigPath',
+  'dockerFilePath',
+  'buildContext',
+  'dockerRepoPush',
+  'nexusAuthFile',
+];
+
+export function createOpenShiftTargetForm(
+  target?: Partial<OpenShiftTarget> | null,
+  required: readonly (keyof OpenShiftTarget)[] = [],
+) {
   const t = target;
   const max = (length: number) => Validators.maxLength(length);
-  return new FormGroup({
+  const form = new FormGroup({
     projectBuild: text(t?.projectBuild, max(200)),
     buildConfigPath: text(t?.buildConfigPath, max(500)),
     dockerFilePath: text(t?.dockerFilePath, max(500)),
@@ -273,6 +297,11 @@ export function createOpenShiftTargetForm(target?: Partial<OpenShiftTarget> | nu
     deploymentRepoBranch: text(t?.deploymentRepoBranch, max(200)),
     deploymentRepoCredentialsId: text(t?.deploymentRepoCredentialsId, max(200)),
   });
+  required.forEach((key) => {
+    form.controls[key].addValidators(Validators.required);
+    form.controls[key].updateValueAndValidity();
+  });
+  return form;
 }
 
 export type OpenShiftTargetForm = ReturnType<typeof createOpenShiftTargetForm>;
@@ -295,11 +324,13 @@ export function goldenFixControls(policy?: Partial<GoldenFixPolicy> | null, comp
       ...required,
       maxLines(10),
       eachItem(lines, REMEDIATION_TYPE, 'Use a Nexus IQ remediation type'),
+      fitsColumn(lines, '\n', 1000),
     ),
     excludeDirs: text(
       joinLines(policy?.excludeDirs),
       maxLines(30),
       eachItem(lines, upTo(200), 'At most 200 characters per folder'),
+      fitsColumn(lines, '\n', 2000),
     ),
     verifyEnabled: new FormControl<boolean | null>(policy?.verifyEnabled ?? null, required),
     verifyMaxAttempts: integer(policy?.verifyMaxAttempts, 1, 10, ...required),
@@ -427,9 +458,16 @@ export function createServiceForm(
       joinLines(values),
       maxLines(30),
       eachItem(lines, FOLDER, 'One folder per line, without commas'),
+      fitsColumn(lines, '\n', 2000),
     );
-  const modules = (values: string[] | undefined) =>
-    text(joinLines(values), maxLines(30), eachItem(lines, MODULE_FOLDER, 'Not a folder name'));
+  const modules = (values: string[] | undefined, ...validators: ValidatorFn[]) =>
+    text(
+      joinLines(values),
+      ...validators,
+      maxLines(30),
+      eachItem(lines, MODULE_FOLDER, 'Not a folder name'),
+      fitsColumn(lines, '\n', 1000),
+    );
   const parallel = (value: number | null | undefined) => integer(value, 1, 100);
 
   const form = new FormGroup({
@@ -490,7 +528,7 @@ export function createServiceForm(
       QC: createSshTargetForm(s?.sshTargets?.QC),
     }),
     openShiftTargets: new FormGroup({
-      RD: createOpenShiftTargetForm(s?.openShiftTargets?.RD),
+      RD: createOpenShiftTargetForm(s?.openShiftTargets?.RD, OPENSHIFT_RD_REQUIRED),
       QC: createOpenShiftTargetForm(s?.openShiftTargets?.QC),
     }),
     appScan: new FormGroup({
@@ -526,6 +564,7 @@ export function createServiceForm(
         joinLines(s?.nexusIq?.scanPatterns),
         maxLines(20),
         eachItem(lines, upTo(300), 'At most 300 characters per pattern'),
+        fitsColumn(lines, '\n', 2000),
       ),
       stage: text(s?.nexusIq?.stage ?? 'build', Validators.pattern(NEXUS_STAGE), max(50)),
       failOnNetworkError: flag(s?.nexusIq?.failOnNetworkError),
@@ -544,6 +583,7 @@ export function createServiceForm(
         joinWords(s?.scm?.reviewers, ', '),
         maxWords(20),
         eachItem(words, upTo(100), 'At most 100 characters per reviewer'),
+        fitsColumn(words, ',', 2000),
       ),
       apiUrl: text(s?.scm?.apiUrl, Validators.pattern(HTTP_URL), max(1000)),
       workspace: text(s?.scm?.workspace, Validators.pattern(BITBUCKET_NAME), max(200)),
@@ -558,8 +598,8 @@ export function createServiceForm(
     }),
     flutter: new FormGroup({
       platform: new FormControl<FlutterPlatform | null>(s?.flutter?.platform ?? null),
-      modules: modules(s?.flutter?.modules),
-      testModules: modules(s?.flutter?.testModules),
+      modules: modules(s?.flutter?.modules, Validators.required),
+      testModules: modules(s?.flutter?.testModules, Validators.required),
       testSubmodules: modules(s?.flutter?.testSubmodules),
       testSubplugins: modules(s?.flutter?.testSubplugins),
       signingPasswordCredentialsId: text(
@@ -592,18 +632,35 @@ export function createServiceForm(
     }),
   });
 
-  const { build, deployment, appScan, unitTests, sonar, scm } = form.controls;
+  const { build, deployment, appScan, unitTests, sonar, nexusIq, scm, flutter } = form.controls;
   const tool = build.controls.tool;
   const target = deployment.controls.target;
   const openShift = () => target.value === 'OPENSHIFT';
+  const vm = () => target.value === 'VM';
   build.controls.command.controls.tasks.addValidators(Validators.required);
   form.controls.delivery.controls.tasks.addValidators(Validators.required);
   requireWhile(
     build.controls.javaPath,
-    () => tool.value !== 'FLUTTER' && !build.controls.autoSetup.value,
+    () => tool.value === 'FLUTTER' || !build.controls.autoSetup.value,
     tool,
     build.controls.autoSetup,
   );
+  requireWhile(build.controls.buildPath, () => vm() && tool.value === 'MAVEN', tool, target);
+  requireWhile(
+    nexusIq.controls.application,
+    () => lines(nexusIq.controls.scanPatterns.value).length > 0,
+    nexusIq.controls.scanPatterns,
+  );
+  requireWhile(
+    nexusIq.controls.scanPatterns,
+    () => !!optional(nexusIq.controls.application.value),
+    nexusIq.controls.application,
+  );
+  [
+    flutter.controls.deliveryGroup,
+    flutter.controls.deliveryArtifact,
+    flutter.controls.deliveryPlugin,
+  ].forEach((control) => requireWhile(control, vm, target));
   requireWhile(deployment.controls.appName, openShift, target);
   requireWhile(deployment.controls.artifactName, openShift, target);
   requireWhile(
@@ -651,6 +708,10 @@ function syncApplicability(form: ServiceForm): void {
   const vm = form.controls.deployment.controls.target.value === 'VM';
   const flutter = tool === 'FLUTTER';
   setEnabled(form.controls.build.controls.command, !flutter);
+  if (flutter) {
+    form.controls.build.controls.autoSetup.setValue(false);
+  }
+  setEnabled(form.controls.build.controls.autoSetup, !flutter);
   setEnabled(form.controls.unitTests.controls.command, !flutter);
   setEnabled(form.controls.sonar.controls.command, !flutter);
   setEnabled(form.controls.appScan.controls.compileCommand, !flutter);
@@ -738,7 +799,7 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
     build: {
       tool,
       sourceDir: optional(v.build.sourceDir) ?? '.',
-      javaPath: flutter ? null : optional(v.build.javaPath),
+      javaPath: optional(v.build.javaPath),
       autoSetup: v.build.autoSetup,
       buildPath: optional(v.build.buildPath),
       command: command(c.build.controls.command, !flutter),

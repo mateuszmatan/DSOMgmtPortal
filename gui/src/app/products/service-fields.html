@@ -68,22 +68,24 @@
             <mat-hint><code>sourceDir</code> · relative to the repository root</mat-hint>
             <mat-error>{{ errorText(f.controls.build.controls.sourceDir) }}</mat-error>
           </mat-form-field>
-          @if (tool() !== 'FLUTTER') {
-            <mat-form-field class="span-6">
-              <mat-label>JDK path</mat-label>
-              <input
-                matInput
-                formControlName="javaPath"
-                placeholder="/usr/lib/jvm/java-17-openjdk"
-                class="mono"
-              />
-              <mat-hint
-                ><code>javaPath</code> · JAVA_HOME of the unit tests stage, unless the build tool is
-                set up automatically</mat-hint
-              >
-              <mat-error>{{ errorText(f.controls.build.controls.javaPath) }}</mat-error>
-            </mat-form-field>
-          }
+          <mat-form-field class="span-6">
+            <mat-label>JDK path</mat-label>
+            <input
+              matInput
+              formControlName="javaPath"
+              placeholder="/usr/lib/jvm/java-17-openjdk"
+              class="mono"
+            />
+            <mat-hint
+              ><code>javaPath</code> ·
+              {{
+                tool() === 'FLUTTER'
+                  ? 'JAVA_HOME of the Flutter build stages'
+                  : 'JAVA_HOME of the unit tests stage, unless the build tool is set up automatically'
+              }}</mat-hint
+            >
+            <mat-error>{{ errorText(f.controls.build.controls.javaPath) }}</mat-error>
+          </mat-form-field>
           <mat-checkbox class="span-6" formControlName="autoSetup">
             Set up the build tool automatically (<code>buildToolAutoSetup</code>)
           </mat-checkbox>
@@ -95,13 +97,21 @@
               [placeholder]="tool() === 'MAVEN' ? 'target/*.jar' : 'build/libs/*.jar'"
               class="mono"
             />
-            <mat-hint><code>build.buildPath</code> · what the build produces</mat-hint>
+            <mat-hint
+              ><code>build.buildPath</code> ·
+              {{
+                isVm() && tool() === 'MAVEN'
+                  ? 'the artifact the Nexus snapshot delivery uploads'
+                  : 'what the build produces'
+              }}</mat-hint
+            >
             <mat-error>{{ errorText(f.controls.build.controls.buildPath) }}</mat-error>
           </mat-form-field>
           @if (tool() === 'FLUTTER') {
             <p class="note span-12">
-              A Flutter build runs no Gradle or Maven command; its modules and credentials are in
-              the Flutter section.
+              A Flutter build runs no Gradle or Maven command and needs the JDK path, since
+              automatic setup cannot pick a JDK for Flutter; its modules and credentials are in the
+              Flutter section.
             </p>
           } @else {
             <h4 class="sub-heading span-12">Build command</h4>
@@ -572,7 +582,7 @@
           <mat-form-field class="span-5">
             <mat-label>Application</mat-label>
             <input matInput formControlName="application" class="mono" />
-            <mat-hint><code>tools.nexusIq.application</code></mat-hint>
+            <mat-hint><code>tools.nexusIq.application</code> · set with the scan patterns</mat-hint>
             <mat-error>{{ errorText(f.controls.nexusIq.controls.application) }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-3">
@@ -602,7 +612,10 @@
               spellcheck="false"
               placeholder="**/build/libs/*.jar"
             ></textarea>
-            <mat-hint><code>tools.nexusIq.scanPatterns</code> · one Ant pattern per line</mat-hint>
+            <mat-hint
+              ><code>tools.nexusIq.scanPatterns</code> · one Ant pattern per line, set with the
+              application</mat-hint
+            >
             <mat-error>{{ errorText(f.controls.nexusIq.controls.scanPatterns) }}</mat-error>
           </mat-form-field>
           <mat-checkbox class="span-4" formControlName="failOnNetworkError"
@@ -857,7 +870,9 @@
               class="mono"
               spellcheck="false"
             ></textarea>
-            <mat-hint><code>tools.flutter.flutterModules</code> · one per line</mat-hint>
+            <mat-hint
+              ><code>tools.flutter.flutterModules</code> · one per line, at least one</mat-hint
+            >
             <mat-error>{{ errorText(f.controls.flutter.controls.modules) }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-4">
@@ -869,7 +884,7 @@
               class="mono"
               spellcheck="false"
             ></textarea>
-            <mat-hint><code>tests.modules</code></mat-hint>
+            <mat-hint><code>tests.modules</code> · at least one</mat-hint>
             <mat-error>{{ errorText(f.controls.flutter.controls.testModules) }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-4">
@@ -932,7 +947,10 @@
               placeholder="com.bbh.payhub"
               class="mono"
             />
-            <mat-hint><code>delivery.group</code></mat-hint>
+            <mat-hint
+              ><code>delivery.group</code
+              >{{ isVm() ? ' · required on virtual machines' : '' }}</mat-hint
+            >
             <mat-error>{{ errorText(f.controls.flutter.controls.deliveryGroup) }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-4">

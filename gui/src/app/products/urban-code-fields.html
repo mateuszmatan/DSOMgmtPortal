@@ -194,7 +194,9 @@
           </div>
         </div>
       } @empty {
-        <p class="list-empty">No component yet.</p>
+        <p class="list-empty" [class.missing]="application.touched">
+          No component yet. Add at least one.
+        </p>
       }
       <button mat-button type="button" class="add-component" (click)="addComponent(application)">
         Add component

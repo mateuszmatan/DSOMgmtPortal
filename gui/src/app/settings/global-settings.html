@@ -389,8 +389,8 @@
             <div class="form-fields">
               <mat-form-field class="span-4">
                 <mat-label>Minimum line coverage (%)</mat-label>
-                <input matInput type="number" min="0" max="100" formControlName="coverageMinLine" />
-                <mat-hint><code>coverage.minLine</code></mat-hint>
+                <input matInput type="number" min="1" max="100" formControlName="coverageMinLine" />
+                <mat-hint><code>coverage.minLine</code> · 1 to 100</mat-hint>
                 <mat-error>{{ errorText(sc.coverageMinLine) }}</mat-error>
               </mat-form-field>
             </div>

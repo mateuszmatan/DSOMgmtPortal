@@ -17,6 +17,7 @@ import {
   integer,
   optional,
   requireWhile,
+  requiredRule,
   text,
 } from '../shared/form-controls';
 
@@ -81,7 +82,7 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
       DAST: createLimitsForm(settings?.limits.DAST),
     }),
     scans: new FormGroup({
-      coverageMinLine: integer(s?.coverageMinLine, 0, 100, required),
+      coverageMinLine: integer(s?.coverageMinLine, 1, 100, required),
       sastPrepareTimeoutMinutes: minutes(s?.sastPrepareTimeoutMinutes),
       sastPollTimeoutMinutes: minutes(s?.sastPollTimeoutMinutes),
       sastPollIntervalSeconds: seconds(s?.sastPollIntervalSeconds),
@@ -98,6 +99,7 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
     releaseGate: new FormGroup({
       scanners: new FormControl<Scanner[]>(settings?.releaseGate.scanners ?? [...SCANNERS], {
         nonNullable: true,
+        validators: requiredRule('Select at least one scanner'),
       }),
       requireCoverage: flag(settings?.releaseGate.requireCoverage, true),
       stateFile: text(

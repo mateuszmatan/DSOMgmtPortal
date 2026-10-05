@@ -43,6 +43,59 @@ describe('ServiceFields', () => {
     await fixture.whenStable();
   }
 
+  describe('Build', () => {
+    const field = (name: string) =>
+      pane().querySelector(`[formControlName=${name}]`)?.closest('mat-form-field') as HTMLElement;
+
+    it('asks for the JDK of a Flutter build and turns automatic setup off', async () => {
+      await render(service({ build: { ...service().build, autoSetup: true, javaPath: null } }));
+      await open('Build');
+      expect(field('javaPath').textContent).toContain(
+        'unless the build tool is set up automatically',
+      );
+
+      form.controls.build.controls.tool.setValue('FLUTTER');
+      await fixture.whenStable();
+      expect(field('javaPath').textContent).toContain('JAVA_HOME of the Flutter build stages');
+
+      form.controls.build.controls.javaPath.markAsTouched();
+      await fixture.whenStable();
+      expect(field('javaPath').textContent).toContain('Required');
+      expect(
+        pane().querySelector<HTMLInputElement>('mat-checkbox[formControlName=autoSetup] input')
+          ?.disabled,
+      ).toBe(true);
+      expect(pane().querySelector('.note')?.textContent).toContain('needs the JDK path');
+    });
+
+    it('names the artifact the Nexus delivery uploads for Maven on virtual machines', async () => {
+      await render();
+      await open('Build');
+      expect(field('buildPath').textContent).toContain('what the build produces');
+
+      form.controls.build.controls.tool.setValue('MAVEN');
+      await fixture.whenStable();
+
+      expect(field('buildPath').textContent).toContain(
+        'the artifact the Nexus snapshot delivery uploads',
+      );
+    });
+  });
+
+  describe('Flutter', () => {
+    it('marks the delivery coordinates required on virtual machines only', async () => {
+      await render(service({ build: { ...service().build, tool: 'FLUTTER' } }));
+      await open('Flutter');
+      expect(hints()).toContain('delivery.group · required on virtual machines');
+      expect(hints()).toContain('tools.flutter.flutterModules · one per line, at least one');
+
+      form.controls.deployment.controls.target.setValue('OPENSHIFT');
+      await fixture.whenStable();
+
+      expect(hints()).toContain('delivery.group');
+    });
+  });
+
   describe('GoldenFix', () => {
     it('offers Global default, On and Off and names the global default', async () => {
       await render();
@@ -65,7 +118,10 @@ describe('ServiceFields', () => {
 
     it('turns GoldenFix on for the service only', async () => {
       const settings = globalSettings();
-      await render(service(), { ...settings, goldenFix: { ...settings.goldenFix, enabled: false } });
+      await render(service(), {
+        ...settings,
+        goldenFix: { ...settings.goldenFix, enabled: false },
+      });
       await open('GoldenFix');
 
       expect(hints()).toContain('goldenFix.enabled · Global default: off');
