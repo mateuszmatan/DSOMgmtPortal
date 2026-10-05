@@ -145,13 +145,13 @@ export function doraTiles(dora: DoraSummary): DoraTile[] {
         dora.changeFailureRatePercent === null
           ? '–'
           : `${dora.changeFailureRatePercent.toFixed(1)}%`,
-      detail: `Of ${dora.runs} ${dora.runs === 1 ? 'run' : 'runs'} in the range`,
+      detail: `Of ${dora.deployments} ${dora.deployments === 1 ? 'deployment' : 'deployments'} in the range`,
       level: dora.changeFailureRateLevel,
     },
     {
       title: 'Time to restore',
       value: formatDuration(dora.meanTimeToRestoreSeconds),
-      detail: `Mean of ${dora.restores} ${dora.restores === 1 ? 'recovery' : 'recoveries'} from a failure`,
+      detail: `Mean of ${dora.restores} ${dora.restores === 1 ? 'recovery' : 'recoveries'} from a failed deployment`,
       level: dora.timeToRestoreLevel,
       alert: dora.failingSince
         ? `Failing since ${moment.format(new Date(dora.failingSince))}`
