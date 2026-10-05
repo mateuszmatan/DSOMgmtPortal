@@ -1,6 +1,10 @@
 package com.bbh.itss.dso.portal.regression
 
+import com.bbh.itss.dso.portal.support.ApiJson
 import com.bbh.itss.dso.portal.support.PortalSpecification
+
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
 
 import static com.bbh.itss.dso.portal.support.ApiJson.build
 import static com.bbh.itss.dso.portal.support.ApiJson.fullFlutterService
@@ -71,7 +75,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
             checked.each { section -> assert stored[section] == sent[section] }
         }
 
-        and: 'reading the product back and saving it unchanged keeps every value and the version'
+        and: 'reading the product back and saving it unchanged keeps every value'
         def read = api.get("/api/products/${created.json.id}").json
         read == created.json
         def saved = api.put("/api/products/${created.json.id}", product(code: code, name: "Product $code",
@@ -136,6 +140,99 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         stale.status == 409
         stale.json.detail.contains('changed by someone else')
         api.get("/api/products/$created.id").json.name == "First change $code"
+    }
+
+    def "a save based on a product read before another save is refused, whatever the other save changed (#change)"() {
+        given:
+        def code = uniqueCode()
+        def created = createProduct(product(code: code, name: "Product $code",
+                services: [service(name: 'gui'), service(name: 'api')]))
+        def read = api.get("/api/products/$created.id").json
+        Map<String, Closure<List>> edits = [
+                'a service added'          : { List services -> services + [service(name: 'worker')] },
+                'a service removed'        : { List services -> services.take(1) },
+                'only a service\'s settings': { List services -> [services[0] + [description: 'Edited by A'], services[1]] }]
+
+        when:
+        def first = api.put("/api/products/$created.id", product(code: code, name: "Product $code",
+                version: read.version, services: edits[change](read.services)))
+        def stale = api.put("/api/products/$created.id", product(code: code, name: "Renamed by B $code",
+                version: read.version, services: read.services))
+        def stored = api.get("/api/products/$created.id").json
+
+        then:
+        first.status == 200
+        first.json.version > read.version
+        stale.status == 409
+        stale.json.detail.contains('changed by someone else')
+        stored.version == first.json.version
+        stored.name == "Product $code"
+        stored.services*.name == names
+        stored.services*.description == descriptions
+
+        where:
+        change                      | names                     | descriptions
+        'a service added'           | ['gui', 'api', 'worker']  | [null, null, null]
+        'a service removed'         | ['gui']                   | [null]
+        'only a service\'s settings' | ['gui', 'api']            | ['Edited by A', null]
+    }
+
+    def "concurrent saves of the same product version let exactly one editor through"() {
+        given:
+        def code = uniqueCode()
+        def created = createProduct(product(code: code, name: "Product $code",
+                services: [service(name: 'gui'), service(name: 'api')]))
+        long id = created.id as long
+        def read = api.get("/api/products/$id").json
+        List<Map> requests = (1..8).collect { editor ->
+            ApiJson.parse(ApiJson.toJson(product(code: code, name: "Product $code", version: read.version,
+                    services: [read.services[0] + [description: "Edited by $editor".toString()], read.services[1]]))) as Map
+        }
+        def pool = Executors.newFixedThreadPool(requests.size())
+
+        when:
+        def responses = pool.invokeAll(requests.collect { request ->
+            { -> api.put("/api/products/$id", request) } as Callable
+        })*.get()
+        def stored = api.get("/api/products/$id").json
+        def accepted = responses.findAll { it.status == 200 }
+
+        then:
+        accepted.size() == 1
+        responses.count { it.status == 409 } == requests.size() - 1
+        stored.version == accepted[0].json.version
+        stored.version > read.version
+        stored.services[0].description == accepted[0].json.services[0].description
+
+        cleanup:
+        pool.shutdownNow()
+    }
+
+    def "a value moves between the services of a product in one save"() {
+        given:
+        def code = uniqueCode()
+        def created = createProduct(product(code: code, name: "Product $code", services: [
+                service(name: 'gui', sonar: [projectKey: "$code-gui".toString(), command: [tasks: ['sonar']]],
+                        metrics: [influxProject: "$code-gui".toString(), influxEnv: 'uat']),
+                service(name: 'api', sonar: [projectKey: "$code-api".toString(), command: [tasks: ['sonar']]],
+                        metrics: [influxProject: "$code-api".toString(), influxEnv: 'uat'])]))
+        def (gui, rest) = created.services
+
+        when: 'gui and api swap their names, SonarQube keys and metrics tags, and a new service takes the old gui name'
+        def swapped = api.put("/api/products/$created.id", product(code: code, name: "Product $code",
+                version: created.version, services: [
+                gui + [name: 'api', sonar: gui.sonar + [projectKey: rest.sonar.projectKey], metrics: rest.metrics],
+                rest + [name: 'gui-legacy', sonar: rest.sonar + [projectKey: gui.sonar.projectKey], metrics: gui.metrics],
+                service(name: 'gui')]))
+
+        then:
+        swapped.status == 200
+        swapped.json.services*.id == [gui.id, rest.id, swapped.json.services[2].id]
+        swapped.json.services*.name == ['api', 'gui-legacy', 'gui']
+        swapped.json.services*.sonar*.projectKey == ["$code-api".toString(), "$code-gui".toString(), null]
+        swapped.json.services[0].metrics == rest.metrics
+        swapped.json.services[1].metrics == gui.metrics
+        api.get("/api/products/$created.id").json == swapped.json
     }
 
     def "product codes and names are unique regardless of case"() {

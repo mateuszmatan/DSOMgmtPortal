@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Entity
 @Table(name = "DSO_SERVICE")
@@ -140,6 +141,20 @@ public class ServiceEntity extends AuditedEntity {
 
     int displayOrder() {
         return displayOrder;
+    }
+
+    boolean holdsOtherUniqueValuesThan(String otherName, String sonarProjectKey, String influxProject,
+                                       String influxEnv) {
+        return !Objects.equals(name, otherName) || !Objects.equals(sonar.projectKey(), sonarProjectKey)
+                || !Objects.equals(metrics.influxProject(), influxProject)
+                || !Objects.equals(metrics.influxEnv(), influxEnv);
+    }
+
+    void releaseUniqueValues() {
+        String placeholder = "~" + getId();
+        name = placeholder;
+        sonar = sonar.withProjectKey(null);
+        metrics = metrics.withInfluxProject(placeholder);
     }
 
     void identity(String name, String description, int displayOrder) {

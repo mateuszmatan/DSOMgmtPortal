@@ -17,6 +17,10 @@ public record MetricsSettingsEmbeddable(
         return new MetricsSettingsEmbeddable(metrics.enabled(), metrics.influxProject(), metrics.influxEnv());
     }
 
+    MetricsSettingsEmbeddable withInfluxProject(String project) {
+        return new MetricsSettingsEmbeddable(enabled, project, influxEnv);
+    }
+
     MetricsSettings toDomain() {
         return new MetricsSettings(enabled, influxProject, influxEnv);
     }

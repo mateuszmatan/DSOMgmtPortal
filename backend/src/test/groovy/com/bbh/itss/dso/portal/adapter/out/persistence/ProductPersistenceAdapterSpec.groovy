@@ -173,6 +173,51 @@ class ProductPersistenceAdapterSpec extends Specification {
         jdbc.queryForList('SELECT NAME FROM DSO_SERVICE ORDER BY DISPLAY_ORDER')*.NAME == ['api', 'gui']
     }
 
+    def "every update raises the version and the modification time, also one that changes only a service"() {
+        given:
+        def stored = adapter.save(Product.create(details(), account(), [draft('gui'), draft('api')], adapter))
+        def (gui, api) = stored.services()*.id()
+
+        when:
+        stored.update(stored.version(), details(), account(),
+                [new ServiceDraft(gui, 'gui', 'Edited', settings()), draft('api', api)], adapter)
+        def edited = adapter.save(stored)
+        edited.update(edited.version(), details(), account(),
+                [new ServiceDraft(gui, 'gui', 'Edited', settings()), draft('api', api)], adapter)
+        def unchanged = adapter.save(edited)
+
+        then:
+        edited.version() > stored.version()
+        edited.updatedAt().isAfter(stored.updatedAt())
+        edited.services()[0].description() == 'Edited'
+        unchanged.version() > edited.version()
+        unchanged.updatedAt().isAfter(edited.updatedAt())
+        jdbc.queryForObject('SELECT VERSION FROM DSO_PRODUCT', Long) == unchanged.version()
+    }
+
+    def "names, SonarQube keys and metrics tags move and swap between the services of one save"() {
+        given:
+        def stored = adapter.save(Product.create(details(), account(), [
+                draft('gui', null, tagged('cert-gui')), draft('api', null, tagged('cert-api'))], adapter))
+        def (gui, api) = stored.services()*.id()
+
+        when:
+        stored.update(stored.version(), details(), account(), [
+                draft('api', gui, tagged('cert-api')), draft('gui-legacy', api, tagged('cert-gui')), draft('gui')],
+                adapter)
+        adapter.save(stored)
+        entities.clear()
+        def loaded = adapter.load(stored.id()).get()
+
+        then:
+        loaded.services()*.id().take(2) == [gui, api]
+        loaded.services()*.name() == ['api', 'gui-legacy', 'gui']
+        loaded.services()*.settings()*.sonar()*.projectKey() == ['cert-api', 'cert-gui', null]
+        loaded.services()*.settings()*.metrics()*.influxProject() == ['cert-api', 'cert-gui', 'CERT-gui']
+        jdbc.queryForObject("SELECT COUNT(*) FROM DSO_SERVICE WHERE NAME LIKE '~%' OR INFLUX_PROJECT LIKE '~%'",
+                Integer) == 0
+    }
+
     def "a product read at another version than the stored one is not written"() {
         given:
         def stored = adapter.save(Product.create(details(), account(), [draft('gui')], adapter))
@@ -273,6 +318,10 @@ class ProductPersistenceAdapterSpec extends Specification {
          'DSO_SERVICE_SSH_TARGET', 'DSO_SERVICE_OPENSHIFT_TARGET'].every {
             jdbc.queryForObject("SELECT COUNT(*) FROM $it" as String, Integer) == 0
         }
+    }
+
+    private static ServiceSettings tagged(String tag) {
+        settings(sonar: SonarSettings.of(null, tag, command(['sonarqube'])), metrics: new MetricsSettings(true, tag, 'uat'))
     }
 
     private static ServiceDraft draft(String name, Long id = null, ServiceSettings settings = settings()) {
