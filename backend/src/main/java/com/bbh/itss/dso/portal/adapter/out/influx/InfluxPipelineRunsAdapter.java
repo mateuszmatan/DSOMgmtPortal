@@ -85,7 +85,8 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort, MonitoringStatusPor
                   |> range(start: -%dd)
                   |> filter(fn: (r) => r._measurement == "dora")
                   |> filter(fn: (r) => r.project == %s and r.env == %s)
-                  |> filter(fn: (r) => r._field == "deployment" or r._field == "change_failure" or r._field == "lead_time_s" or r._field == "duration_s")
+                  |> filter(fn: (r) => r._field == "deployment" or r._field == "change_failure" \
+                or r._field == "lead_time_s" or r._field == "duration_s")
                   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
                   |> group()
                   |> sort(columns: ["_time"])

@@ -38,8 +38,8 @@ class ArchitectureSpec extends Specification {
     static final String WEB = 'com.bbh.itss.dso.portal.adapter.in.web..'
     static final String PERSISTENCE = 'com.bbh.itss.dso.portal.adapter.out.persistence..'
     static final String INFLUX = 'com.bbh.itss.dso.portal.adapter.out.influx..'
-    static final String[] LEGACY = ['com.bbh.itss.dso.portal.dsoconfig..', 'com.bbh.itss.dso.portal.monitoring..',
-                                    'com.bbh.itss.dso.portal.evidence..', 'com.bbh.itss.dso.portal.demo..']
+    static final String ADAPTER = 'com.bbh.itss.dso.portal.adapter..'
+    static final String CONFIG = 'com.bbh.itss.dso.portal.config..'
     static final String[] FRAMEWORKS = ['jakarta..', 'org.springframework..', 'org.hibernate..', 'tools.jackson..',
                                         'com.fasterxml..', 'org.slf4j..']
 
@@ -52,6 +52,23 @@ class ArchitectureSpec extends Specification {
         portal.contain(DsoPortalApplication)
         portal.contain(UseCase)
         portal.size() > 100
+    }
+
+    def "every class of the portal lives in the domain, the application, an adapter or the configuration"() {
+        expect:
+        holds classes().that().doNotHaveFullyQualifiedName(DsoPortalApplication.name)
+                .should().resideInAnyPackage(DOMAIN, APPLICATION, ADAPTER, CONFIG)
+    }
+
+    def "the Spring Boot application is the only class at the root of the portal"() {
+        expect:
+        holds classes().that().resideInAPackage('com.bbh.itss.dso.portal')
+                .should().haveFullyQualifiedName(DsoPortalApplication.name)
+    }
+
+    def "every namespace of the portal starts with com.bbh.itss.dso"() {
+        expect:
+        holds classes().should().resideInAPackage('com.bbh.itss.dso..')
     }
 
     def "the domain depends on nothing but Java and itself"() {
@@ -92,8 +109,7 @@ class ArchitectureSpec extends Specification {
 
     def "controllers and their advice live in the web adapter"() {
         expect:
-        holds classes().that().resideOutsideOfPackages(LEGACY)
-                .and(describedAs('are controllers or controller advice') { JavaClass type ->
+        holds classes().that(describedAs('are controllers or controller advice') { JavaClass type ->
                     [RestController, RestControllerAdvice, Controller].any { type.isAnnotatedWith(it) }
                 })
                 .should().resideInAPackage(WEB)
@@ -101,8 +117,7 @@ class ArchitectureSpec extends Specification {
 
     def "entities, embeddables, converters and Spring Data repositories live in the persistence adapter"() {
         expect:
-        holds classes().that().resideOutsideOfPackages(LEGACY)
-                .and(describedAs('are persistence types') { JavaClass type ->
+        holds classes().that(describedAs('are persistence types') { JavaClass type ->
                     [Entity, Embeddable, MappedSuperclass, Converter].any { type.isAnnotatedWith(it) } ||
                             type.isAssignableTo(Repository)
                 })

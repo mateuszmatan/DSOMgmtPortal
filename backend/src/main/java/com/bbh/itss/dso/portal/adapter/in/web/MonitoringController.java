@@ -33,7 +33,8 @@ public class MonitoringController {
     }
 
     @GetMapping("/pipelines/{id}")
-    public PipelineMonitoringResponse pipeline(@PathVariable long id, @RequestParam(defaultValue = "30d") String range) {
+    public PipelineMonitoringResponse pipeline(@PathVariable long id,
+                                               @RequestParam(defaultValue = "30d") String range) {
         return PipelineMonitoringResponse.from(monitoring.pipeline(id, range));
     }
 }

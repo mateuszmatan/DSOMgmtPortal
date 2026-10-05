@@ -1,4 +1,4 @@
-package com.bbh.itss.dso.portal.demo;
+package com.bbh.itss.dso.portal.adapter.in.startup;
 
 import com.bbh.itss.dso.portal.application.catalog.port.in.ManageProductsUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductCommand;
