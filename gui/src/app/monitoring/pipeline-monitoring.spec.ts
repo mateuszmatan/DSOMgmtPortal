@@ -3,7 +3,12 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { PipelineMonitoring } from '../core/models';
-import { monitoringPipeline, pipelineMonitoring, pipelineRun } from '../testing/fixtures';
+import {
+  doraSummary,
+  monitoringPipeline,
+  pipelineMonitoring,
+  pipelineRun,
+} from '../testing/fixtures';
 import { PipelineMonitoringPage } from './pipeline-monitoring';
 
 describe('PipelineMonitoringPage', () => {
@@ -132,5 +137,34 @@ describe('PipelineMonitoringPage', () => {
 
     expect(text('.banner')).toBe('Pipeline 100 was not found');
     expect(text('a[mat-stroked-button]')).toBe('Back to monitoring');
+  });
+
+  it('reads the metrics again on refresh and shows the progress meanwhile', async () => {
+    await load();
+    const refresh = page().querySelector<HTMLButtonElement>(
+      'button[aria-label="Refresh the pipeline metrics"]',
+    )!;
+    expect(page().querySelector('mat-progress-bar')).toBeNull();
+
+    refresh.click();
+    TestBed.tick();
+
+    expect(page().querySelector('mat-progress-bar')).not.toBeNull();
+    expect(refresh.disabled).toBe(true);
+    http
+      .expectOne('/api/monitoring/pipelines/100?range=30d')
+      .flush(pipelineMonitoring({ dora: doraSummary({ deployments: 13 }) }));
+    await fixture.whenStable();
+
+    expect(page().querySelector('mat-progress-bar')).toBeNull();
+    expect(refresh.disabled).toBe(false);
+  });
+
+  it('warns on the time to restore tile since when the pipeline is failing', async () => {
+    await load(pipelineMonitoring({ dora: doraSummary({ failingSince: '2026-10-04T08:00:00Z' }) }));
+
+    const alerts = page().querySelectorAll('.tile-alert');
+    expect(alerts.length).toBe(1);
+    expect(alerts[0].textContent).toMatch(/^Failing since 4 Oct, \d\d:00$/);
   });
 });

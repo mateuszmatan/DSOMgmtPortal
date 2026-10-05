@@ -381,7 +381,7 @@ describe('ProductEditor', () => {
     expect(names()).toEqual(['api', 'gui']);
     expect(editor()['expanded']()).toBe(1);
 
-    button('Move api down').click();
+    button('Move gui up').click();
     await fixture.whenStable();
     expect(names()).toEqual(['gui', 'api']);
     expect(editor()['expanded']()).toBe(0);

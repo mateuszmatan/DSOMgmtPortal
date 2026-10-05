@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GlobalSettings, TestJob } from '../core/models';
+import { applyFieldProblems } from '../shared/form-controls';
 import { globalSettings, service } from '../testing/fixtures';
 import { ServiceForm, createServiceForm } from './product-form-model';
 import { TestJobsFields } from './test-jobs-fields';
@@ -100,6 +101,35 @@ describe('TestJobsFields', () => {
     button(sections()[1], 'Remove').click();
     await fixture.whenStable();
     expect(names()).toEqual(['smoke', 'first', '']);
+  });
+
+  it('moves a job up past the jobs of other stages', async () => {
+    await render([
+      job({ stage: 'REGRESSION', name: 'first' }),
+      job({ stage: 'SMOKE', name: 'smoke' }),
+      job({ stage: 'REGRESSION', name: 'second' }),
+    ]);
+
+    const second = sections()[1].querySelectorAll('.list-item')[1];
+    button(second, 'Up').click();
+    await fixture.whenStable();
+
+    expect(names()).toEqual(['second', 'first', 'smoke']);
+    expect(
+      [...sections()[1].querySelectorAll('.list-item strong')].map((name) => name.textContent),
+    ).toEqual(['second', 'first']);
+  });
+
+  it('shows a problem the API reported for the whole list of jobs', async () => {
+    await render([job({ name: 'smoke' })]);
+
+    applyFieldProblems(form, [{ field: 'testJobs', message: 'Too long: at most 4000 characters' }]);
+    fixture.changeDetectorRef.markForCheck();
+    await fixture.whenStable();
+
+    expect(page().querySelector('.list-error[role=alert]')?.textContent?.trim()).toBe(
+      'Too long: at most 4000 characters',
+    );
   });
 
   it('keeps the first job from moving up and the last from moving down', async () => {

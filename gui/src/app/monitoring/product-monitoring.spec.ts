@@ -100,4 +100,22 @@ describe('ProductMonitoringPage', () => {
 
     expect(page().querySelector('.banner')?.textContent).toBe('Product 1 was not found');
   });
+
+  it('reads the product again on refresh and shows the progress meanwhile', async () => {
+    await load();
+    const refresh = [...page().querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.textContent?.trim() === 'Refresh',
+    )!;
+
+    refresh.click();
+    TestBed.tick();
+
+    expect(page().querySelector('mat-progress-bar')).not.toBeNull();
+    expect(refresh.disabled).toBe(true);
+    http.expectOne('/api/monitoring/products/1').flush(productMonitoring());
+    await fixture.whenStable();
+
+    expect(page().querySelector('mat-progress-bar')).toBeNull();
+    expect(page().querySelector('h1')?.textContent).toBe('CertScanner');
+  });
 });
