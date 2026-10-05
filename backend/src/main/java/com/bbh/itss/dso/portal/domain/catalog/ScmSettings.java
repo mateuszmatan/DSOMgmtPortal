@@ -10,18 +10,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-public record ScmSettings(
-        String repositoryUrl,
-        String credentialsId,
-        BitbucketAuthType authType,
-        BitbucketType type,
-        String targetBranch,
-        String cloneUrl,
-        List<String> reviewers,
-        String apiUrl,
-        String workspace,
-        String projectKey,
-        String repoSlug) implements ConfigSection {
+public record ScmSettings(String repositoryUrl, String credentialsId, BitbucketAuthType authType, BitbucketType type,
+                          String targetBranch, String cloneUrl, List<String> reviewers, String apiUrl, String workspace,
+                          String projectKey, String repoSlug) implements ConfigSection {
 
     public static final ScmSettings NONE = of(null, null);
 
@@ -50,8 +41,8 @@ public record ScmSettings(
         }
         config.set("scm.bitbucket.url", repositoryUrl)
                 .set("scm.bitbucket.credentialsId", credentialsId)
-                .set("scm.bitbucket.authType", authType.configValue())
-                .set("scm.bitbucket.type", type == null ? null : type.configValue())
+                .set("scm.bitbucket.authType", authType)
+                .set("scm.bitbucket.type", type)
                 .set("scm.bitbucket.targetBranch", targetBranch)
                 .set("scm.bitbucket.cloneUrl", cloneUrl)
                 .set("scm.bitbucket.reviewers", reviewers)

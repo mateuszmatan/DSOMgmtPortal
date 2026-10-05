@@ -8,12 +8,8 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.List;
 
-public record NexusIqSettings(
-        String application,
-        List<String> scanPatterns,
-        String stage,
-        Boolean failOnNetworkError,
-        String scaScanName) implements ConfigSection {
+public record NexusIqSettings(String application, List<String> scanPatterns, String stage, Boolean failOnNetworkError,
+                              String scaScanName) implements ConfigSection {
 
     public static final String DEFAULT_STAGE = "build";
     public static final NexusIqSettings NONE = new NexusIqSettings(null, List.of(), null, false, null);

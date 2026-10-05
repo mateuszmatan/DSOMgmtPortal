@@ -11,28 +11,12 @@ import java.time.Instant;
 import java.util.List;
 import java.util.function.Function;
 
-public record PipelineResponse(
-        Long id,
-        Long productId,
-        String productCode,
-        String productName,
-        Long serviceId,
-        String serviceName,
-        PipelineType type,
-        String entryPoint,
-        List<String> agentLabels,
-        String extendedPipelineJob,
-        String securityPipelineJob,
-        String jenkinsJob,
-        String jenkinsJobUrl,
-        String description,
-        boolean enabled,
-        KeyResponse activeKey,
-        String influxProjectTag,
-        String influxEnv,
-        Instant createdAt,
-        Instant updatedAt,
-        List<KeyResponse> keys) {
+public record PipelineResponse(Long id, Long productId, String productCode, String productName, Long serviceId,
+                               String serviceName, PipelineType type, String entryPoint, List<String> agentLabels,
+                               String extendedPipelineJob, String securityPipelineJob, String jenkinsJob,
+                               String jenkinsJobUrl, String description, boolean enabled, KeyResponse activeKey,
+                               String influxProjectTag, String influxEnv, Instant createdAt, Instant updatedAt,
+                               List<KeyResponse> keys) {
 
     public static PipelineResponse summary(PipelineView view) {
         return of(view, KeyResponse::from, null);

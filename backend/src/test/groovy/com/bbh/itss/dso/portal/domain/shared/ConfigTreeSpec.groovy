@@ -1,21 +1,26 @@
 package com.bbh.itss.dso.portal.domain.shared
 
+import com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform
 import spock.lang.Specification
 
 class ConfigTreeSpec extends Specification {
 
     def tree = new ConfigTree()
 
-    def "values are written by dotted path into nested sections"() {
+    def "values, flags that are on and enumerated values in lower case are written by dotted path"() {
         when:
         tree.set('tools.sonar.projectKey', 'cert-scanner')
                 .set('tools.sonar.projectName', 'CertScanner')
                 .set('appId', '109f44ac')
                 .set('dast.enabled', false)
+                .set('flutter.platform', FlutterPlatform.APPBUNDLE)
+                .flag('flutter.sonar', true)
+                .flag('flutter.skipped', false)
 
         then:
-        tree.toMap() == [tools: [sonar: [projectKey: 'cert-scanner', projectName: 'CertScanner']],
-                         appId: '109f44ac', dast: [enabled: false]]
+        tree.toMap() == [tools  : [sonar: [projectKey: 'cert-scanner', projectName: 'CertScanner']],
+                         appId  : '109f44ac', dast: [enabled: false],
+                         flutter: [platform: 'appbundle', sonar: true]]
     }
 
     def "a missing value is skipped: #description"() {

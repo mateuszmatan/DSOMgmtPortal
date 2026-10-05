@@ -3,20 +3,12 @@ package com.bbh.itss.dso.portal.domain.settings;
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
-public record ScanSettings(
-        Integer coverageMinLine,
-        Integer sastPrepareTimeoutMinutes,
-        Integer sastPollTimeoutMinutes,
-        Integer sastPollIntervalSeconds,
-        Boolean scaEnabled,
-        Integer scaPollTimeoutMinutes,
-        Integer scaPollIntervalSeconds,
-        Integer dastPollTimeoutMinutes,
-        Integer dastPollIntervalSeconds,
-        Integer dastReportTimeoutMinutes,
-        Integer dastReportIntervalSeconds,
-        Boolean sonarWaitForQualityGate,
-        Integer sonarQualityGateTimeoutMinutes) {
+public record ScanSettings(Integer coverageMinLine, Integer sastPrepareTimeoutMinutes, Integer sastPollTimeoutMinutes,
+                           Integer sastPollIntervalSeconds, Boolean scaEnabled, Integer scaPollTimeoutMinutes,
+                           Integer scaPollIntervalSeconds, Integer dastPollTimeoutMinutes,
+                           Integer dastPollIntervalSeconds, Integer dastReportTimeoutMinutes,
+                           Integer dastReportIntervalSeconds, Boolean sonarWaitForQualityGate,
+                           Integer sonarQualityGateTimeoutMinutes) {
 
     public void validate(ValidationProblems problems) {
         if (coverageMinLine != null && coverageMinLine < 1) {

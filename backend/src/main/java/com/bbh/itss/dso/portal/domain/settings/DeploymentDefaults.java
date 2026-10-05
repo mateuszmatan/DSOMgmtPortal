@@ -5,14 +5,8 @@ import com.bbh.itss.dso.portal.domain.catalog.Region;
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.Text;
 
-public record DeploymentDefaults(
-        String urbanCodeSiteName,
-        String urbanCodeDeployProcess,
-        String rdHost,
-        String qcHost,
-        String sshUser,
-        String deployScript,
-        String versionFile) {
+public record DeploymentDefaults(String urbanCodeSiteName, String urbanCodeDeployProcess, String rdHost, String qcHost,
+                                 String sshUser, String deployScript, String versionFile) {
 
     public DeploymentDefaults {
         urbanCodeSiteName = Text.trimToNull(urbanCodeSiteName);

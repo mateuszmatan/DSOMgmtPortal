@@ -6,26 +6,12 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.Map;
 
-public record OpenShiftTarget(
-        String projectBuild,
-        String buildConfigPath,
-        String dockerFilePath,
-        String buildContext,
-        String addFile,
-        String dockerRepoPush,
-        String dockerRepoPull,
-        String certDir,
-        String nexusAuthFile,
-        String projectDeployment,
-        String deployConfigPath,
-        String configPath,
-        Boolean skipConfigDeploy,
-        String healthCheckUrl,
-        String routeHostname,
-        String deploymentPath,
-        String deploymentRepoUrl,
-        String deploymentRepoBranch,
-        String deploymentRepoCredentialsId) {
+public record OpenShiftTarget(String projectBuild, String buildConfigPath, String dockerFilePath, String buildContext,
+                              String addFile, String dockerRepoPush, String dockerRepoPull, String certDir,
+                              String nexusAuthFile, String projectDeployment, String deployConfigPath,
+                              String configPath, Boolean skipConfigDeploy, String healthCheckUrl, String routeHostname,
+                              String deploymentPath, String deploymentRepoUrl, String deploymentRepoBranch,
+                              String deploymentRepoCredentialsId) {
 
     public OpenShiftTarget {
         projectBuild = Text.trimToNull(projectBuild);
@@ -54,18 +40,9 @@ public record OpenShiftTarget(
 
     public void validateImageBuild(ValidationProblems problems) {
         String message = "is required for OpenShift: the Nexus snapshot delivery builds the image in the RD project";
-        require(problems, "projectBuild", projectBuild, message);
-        require(problems, "buildConfigPath", buildConfigPath, message);
-        require(problems, "dockerFilePath", dockerFilePath, message);
-        require(problems, "buildContext", buildContext, message);
-        require(problems, "dockerRepoPush", dockerRepoPush, message);
-        require(problems, "nexusAuthFile", nexusAuthFile, message);
-    }
-
-    private static void require(ValidationProblems problems, String field, String value, String message) {
-        if (value == null) {
-            problems.add(field, message);
-        }
+        problems.require("projectBuild", projectBuild, message).require("buildConfigPath", buildConfigPath, message)
+                .require("dockerFilePath", dockerFilePath, message).require("buildContext", buildContext, message)
+                .require("dockerRepoPush", dockerRepoPush, message).require("nexusAuthFile", nexusAuthFile, message);
     }
 
     public boolean isEmpty() {
@@ -91,10 +68,8 @@ public record OpenShiftTarget(
                 .set("deploymentPath", deploymentPath)
                 .set("deploymentRepo.url", deploymentRepoUrl)
                 .set("deploymentRepo.branch", deploymentRepoBranch)
-                .set("deploymentRepo.credentials", deploymentRepoCredentialsId);
-        if (skipConfigDeploy) {
-            entry.set("skipConfigDeploy", true);
-        }
+                .set("deploymentRepo.credentials", deploymentRepoCredentialsId)
+                .flag("skipConfigDeploy", skipConfigDeploy);
         return entry.toMap();
     }
 }

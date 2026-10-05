@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
-import com.bbh.itss.dso.portal.adapter.RecordMapper;
 import com.bbh.itss.dso.portal.application.evidence.port.in.PipelineEvidence;
 import com.bbh.itss.dso.portal.application.evidence.port.in.ProductEvidence;
 import com.bbh.itss.dso.portal.application.evidence.port.in.QueryEvidenceUseCase;
@@ -8,9 +7,7 @@ import com.bbh.itss.dso.portal.application.evidence.port.in.ServiceEvidence;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
 import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings;
-import com.bbh.itss.dso.portal.domain.catalog.TestStage;
-import com.bbh.itss.dso.portal.domain.evidence.CheckStatus;
-import com.bbh.itss.dso.portal.domain.evidence.EvidenceScanner;
+import com.bbh.itss.dso.portal.domain.evidence.RunEvidenceReport;
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
@@ -19,7 +16,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.Instant;
 import java.util.List;
 
 @RestController
@@ -62,39 +58,12 @@ public class EvidenceController {
     }
 
     public record PipelineEvidenceResponse(Long pipelineId, PipelineType type, boolean enabled, String jenkinsJobUrl,
-                                           RunResult status, RunEvidence run) {
+                                           RunResult status, RunEvidenceReport run) {
 
         static PipelineEvidenceResponse of(PipelineEvidence evidence) {
             Pipeline pipeline = evidence.pipeline();
             return new PipelineEvidenceResponse(pipeline.id(), pipeline.type(), pipeline.isEnabled(),
-                    evidence.jenkinsJobUrl(), evidence.status(), RecordMapper.map(evidence.run(), RunEvidence.class));
+                    evidence.jenkinsJobUrl(), evidence.status(), evidence.run());
         }
-    }
-
-    public record RunEvidence(Build build, Coverage coverage, List<TestSuite> testSuites, List<Scan> scans,
-                              ReleaseGate releaseGate, List<Stage> stages) {
-    }
-
-    public record Build(Long number, Instant finishedAt, RunResult result, String branch, String commit,
-                        Long durationSeconds, String job, String url, String reportUrl, String testReportUrl,
-                        String artifactsUrl) {
-    }
-
-    public record Coverage(CheckStatus status, Double linePercent, Double requiredPercent, Long coveredLines,
-                           Long totalLines) {
-    }
-
-    public record TestSuite(TestStage stage, CheckStatus status, Long jobs, Long passed, Long failed,
-                            Long notConfigured, Long durationMs) {
-    }
-
-    public record Scan(EvidenceScanner scanner, CheckStatus status, Long critical, Long high, Long medium, Long low,
-                       Long maxCritical, Long maxHigh, Long maxMedium, String link) {
-    }
-
-    public record ReleaseGate(boolean allowed, Long violations, String reason) {
-    }
-
-    public record Stage(String name, CheckStatus status, Long durationSeconds, String reason) {
     }
 }

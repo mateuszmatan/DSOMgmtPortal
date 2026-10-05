@@ -9,12 +9,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public record ToolCommand(
-        List<String> tasks,
-        List<String> flags,
-        String directory,
-        String mavenHome,
-        List<String> environment) {
+public record ToolCommand(List<String> tasks, List<String> flags, String directory, String mavenHome,
+                          List<String> environment) {
 
     public static final ToolCommand NONE = new ToolCommand(List.of(), List.of(), null, null, List.of());
 

@@ -4,11 +4,8 @@ import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 
 import java.util.List;
 
-public record TestSettings(
-        Integer maxParallel,
-        Integer smokeMaxParallel,
-        Integer regressionMaxParallel,
-        Integer performanceMaxParallel) {
+public record TestSettings(Integer maxParallel, Integer smokeMaxParallel, Integer regressionMaxParallel,
+                           Integer performanceMaxParallel) {
 
     public static final TestSettings DEFAULTS = new TestSettings(null, null, null, null);
 

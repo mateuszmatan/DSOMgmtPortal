@@ -143,11 +143,6 @@ class FlutterSettingsSpec extends Specification {
         credentials('sign', 'prod', null)    || ['testLicenseCredentialsId']
     }
 
-    def "Flutter platforms are written in lower case"() {
-        expect:
-        FlutterPlatform.values()*.configValue() == ['apk', 'appbundle', 'ios', 'macos', 'linux', 'windows', 'web']
-    }
-
     private static FlutterSettings credentials(String signing, String prod, String test) {
         new FlutterSettings(null, ['app'], ['app'], [], [], signing, prod, test, 'com.bbh', 'app', 'plugin', null, null,
                 false, null, null)

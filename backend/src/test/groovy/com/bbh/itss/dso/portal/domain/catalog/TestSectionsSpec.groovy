@@ -5,14 +5,14 @@ import com.bbh.itss.dso.portal.domain.shared.ConfigTree
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.domain.catalog.TestJobType.LOCAL
 import static com.bbh.itss.dso.portal.domain.catalog.TestJobType.REMOTE
 import static com.bbh.itss.dso.portal.domain.catalog.TestStage.PERFORMANCE
 import static com.bbh.itss.dso.portal.domain.catalog.TestStage.REGRESSION
 import static com.bbh.itss.dso.portal.domain.catalog.TestStage.SMOKE
-import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
-import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
-import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 
 class TestSectionsSpec extends Specification {
 
@@ -163,10 +163,9 @@ class TestSectionsSpec extends Specification {
                 [type: 'local', job: 'CERT/smoke', timeoutMin: 15]
     }
 
-    def "test stages and job types are written in lower case"() {
+    def "test stages are written in lower case"() {
         expect:
         TestStage.values()*.configKey() == ['smoke', 'regression', 'performance']
-        TestJobType.values()*.configValue() == ['local', 'remote']
     }
 
     def "default test settings without jobs write nothing"() {

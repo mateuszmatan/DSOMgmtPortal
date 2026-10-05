@@ -6,14 +6,8 @@ import java.time.Instant;
 import java.util.Locale;
 import java.util.Objects;
 
-public record PipelineKey(
-        Long id,
-        String value,
-        KeyStatus status,
-        Instant issuedAt,
-        Instant revokedAt,
-        String revokeReason,
-        Instant lastUsedAt) {
+public record PipelineKey(Long id, String value, KeyStatus status, Instant issuedAt, Instant revokedAt,
+                          String revokeReason, Instant lastUsedAt) {
 
     private static final int HINT_START = 8;
     private static final int HINT_END = 4;

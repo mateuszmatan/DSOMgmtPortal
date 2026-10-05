@@ -4,16 +4,9 @@ import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
-public record SonarSettings(
-        String projectName,
-        String projectKey,
-        String installationName,
-        String credentialsId,
-        String authTokenCredentialsId,
-        String badgeToken,
-        Boolean addBadges,
-        Boolean fullBadges,
-        ToolCommand command) {
+public record SonarSettings(String projectName, String projectKey, String installationName, String credentialsId,
+                            String authTokenCredentialsId, String badgeToken, Boolean addBadges, Boolean fullBadges,
+                            ToolCommand command) {
 
     public static final SonarSettings NONE = new SonarSettings(null, null, null, null, null, null, false, false, null);
 
@@ -39,13 +32,9 @@ public record SonarSettings(
                 .set("tools.sonar.installationName", installationName)
                 .set("tools.sonar.credentialsId", credentialsId)
                 .set("tools.sonar.authToken", authTokenCredentialsId)
-                .set("tools.sonar.badgeToken", badgeToken);
-        if (addBadges) {
-            config.set("tools.sonar.addBadges", true);
-        }
-        if (fullBadges) {
-            config.set("tools.sonar.fullBadges", true);
-        }
+                .set("tools.sonar.badgeToken", badgeToken)
+                .flag("tools.sonar.addBadges", addBadges)
+                .flag("tools.sonar.fullBadges", fullBadges);
         command.writeTo(config, "tools.sonar", tool);
     }
 

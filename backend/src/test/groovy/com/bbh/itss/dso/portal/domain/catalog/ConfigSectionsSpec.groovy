@@ -1,7 +1,5 @@
 package com.bbh.itss.dso.portal.domain.catalog
 
-import com.bbh.itss.dso.portal.domain.catalog.BuildTool
-import com.bbh.itss.dso.portal.domain.catalog.DeployTarget
 import com.bbh.itss.dso.portal.domain.shared.ConfigSection
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
@@ -378,14 +376,6 @@ class ConfigSectionsSpec extends Specification {
         written(new AppScanAccount('bbh_key', ' ')) == [asoc: [keyId: 'bbh_key']]
         new AppScanAccount(' ', ' ') == new AppScanAccount(null, null)
         problems(new AppScanAccount('bbh_key', null)) == []
-    }
-
-    def "enumerated settings are written in lower case"() {
-        expect:
-        BuildTool.values()*.configValue() == ['gradle', 'maven', 'flutter']
-        DeployTarget.values()*.configValue() == ['vm', 'openshift']
-        BitbucketAuthType.values()*.configValue() == ['basic', 'bearer']
-        BitbucketType.values()*.configValue() == ['server', 'cloud']
     }
 
     private static Map written(ConfigSection section) {

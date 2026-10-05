@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
-import com.bbh.itss.dso.portal.adapter.RecordMapper;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitorPipelinesUseCase;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringOverview;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringStatus;
@@ -10,7 +9,7 @@ import com.bbh.itss.dso.portal.application.monitoring.port.in.ProductHealth;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.ProductMonitoring;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
-import com.bbh.itss.dso.portal.domain.monitoring.DoraLevel;
+import com.bbh.itss.dso.portal.domain.monitoring.DoraSummary;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,7 +19,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -63,7 +61,7 @@ public class MonitoringController {
         PipelineMonitoring found = monitoring.pipeline(id, range);
         PipelineView view = found.pipeline();
         return new PipelineMonitoringResponse(PipelineResponse.monitored(view), found.status(),
-                RunResponse.of(found.lastRun(), view), RecordMapper.map(found.dora(), DoraResponse.class),
+                RunResponse.of(found.lastRun(), view), found.dora(),
                 found.recentRuns().stream().map(run -> RunResponse.of(run, view)).toList(),
                 found.dashboardUrl() == null ? null : new Grafana(found.dashboardUrl()), found.metricsError());
     }
@@ -101,7 +99,7 @@ public class MonitoringController {
     }
 
     public record PipelineMonitoringResponse(PipelineResponse pipeline, RunResult status, RunResponse lastRun,
-                                             DoraResponse dora, List<RunResponse> recentRuns, Grafana grafana,
+                                             DoraSummary dora, List<RunResponse> recentRuns, Grafana grafana,
                                              String metricsError) {
     }
 
@@ -114,16 +112,6 @@ public class MonitoringController {
                     run.durationSeconds(), run.commit(), run.job(), view.buildUrl(run), run.stagesTotal(),
                     run.passed(), run.warned(), run.failed(), run.blocked(), run.skipped());
         }
-    }
-
-    public record DoraResponse(int rangeDays, int runs, int deployments, Double deploymentsPerWeek,
-                               DoraLevel deploymentFrequencyLevel, Long leadTimeMedianSeconds, DoraLevel leadTimeLevel,
-                               Double changeFailureRatePercent, DoraLevel changeFailureRateLevel,
-                               Long meanTimeToRestoreSeconds, DoraLevel timeToRestoreLevel, int restores,
-                               Instant failingSince, Long averageDurationSeconds, List<DailyActivity> daily) {
-    }
-
-    public record DailyActivity(LocalDate date, int runs, int failures, int deployments) {
     }
 
     public record Grafana(String dashboardUrl) {

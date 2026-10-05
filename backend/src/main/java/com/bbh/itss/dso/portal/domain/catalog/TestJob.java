@@ -1,22 +1,14 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
+import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-public record TestJob(
-        TestStage stage,
-        String name,
-        TestJobType type,
-        String job,
-        Integer timeoutMinutes,
-        String parameters,
-        String remoteJenkins,
-        String remoteJenkinsUrl,
-        String credentialsId) {
+public record TestJob(TestStage stage, String name, TestJobType type, String job, Integer timeoutMinutes,
+                      String parameters, String remoteJenkins, String remoteJenkinsUrl, String credentialsId) {
 
     private static final Pattern PARAMETER = Pattern.compile("^[A-Za-z_][A-Za-z0-9_.-]*=.*$");
 
@@ -47,21 +39,8 @@ public record TestJob(
     }
 
     public Map<String, Object> toConfig() {
-        Map<String, Object> entry = new LinkedHashMap<>();
-        put(entry, "name", name);
-        put(entry, "type", type == null ? null : type.configValue());
-        entry.put(isUrl() ? "url" : "job", job);
-        put(entry, "timeoutMin", timeoutMinutes);
-        put(entry, "parameters", parameters);
-        put(entry, "remoteJenkins", remoteJenkins);
-        put(entry, "remoteJenkinsUrl", remoteJenkinsUrl);
-        put(entry, "credentialsId", credentialsId);
-        return entry;
-    }
-
-    private static void put(Map<String, Object> entry, String key, Object value) {
-        if (value != null) {
-            entry.put(key, value);
-        }
+        return new ConfigTree().set("name", name).set("type", type).set(isUrl() ? "url" : "job", job)
+                .set("timeoutMin", timeoutMinutes).set("parameters", parameters).set("remoteJenkins", remoteJenkins)
+                .set("remoteJenkinsUrl", remoteJenkinsUrl).set("credentialsId", credentialsId).toMap();
     }
 }

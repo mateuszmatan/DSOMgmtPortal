@@ -12,8 +12,8 @@ public record ServiceDefaults(BuildTool buildTool, DeployTarget deployTarget, St
     }
 
     public void writeTo(ConfigTree defaults) {
-        defaults.set("buildTool", buildTool.configValue())
-                .set("deployTarget", deployTarget.configValue())
+        defaults.set("buildTool", buildTool)
+                .set("deployTarget", deployTarget)
                 .set("sourceDir", sourceDir)
                 .set("tests.maxParallel", testsMaxParallel);
     }
