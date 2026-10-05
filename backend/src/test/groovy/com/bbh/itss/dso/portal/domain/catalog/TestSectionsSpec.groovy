@@ -1,34 +1,27 @@
 package com.bbh.itss.dso.portal.domain.catalog
 
-import com.bbh.itss.dso.portal.domain.catalog.BuildTool
-import com.bbh.itss.dso.portal.domain.shared.ConfigTree
-import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.domain.catalog.TestJobType.LOCAL
 import static com.bbh.itss.dso.portal.domain.catalog.TestJobType.REMOTE
 import static com.bbh.itss.dso.portal.domain.catalog.TestStage.PERFORMANCE
 import static com.bbh.itss.dso.portal.domain.catalog.TestStage.REGRESSION
 import static com.bbh.itss.dso.portal.domain.catalog.TestStage.SMOKE
-import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
-import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
-import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
+import static com.bbh.itss.dso.portal.domain.shared.Sections.messages
+import static com.bbh.itss.dso.portal.domain.shared.Sections.problems
+import static com.bbh.itss.dso.portal.domain.shared.Sections.written
 
 class TestSectionsSpec extends Specification {
 
     static final String REMOTE_URL = 'https://jenkins-qc.bbh.com/job/CERT/job/regression/'
 
     def "unit test settings trim their paths and allow no empty results by default"() {
-        when:
-        def unitTests = new UnitTestSettings(null, ' **/TEST-*.xml ', ' ', ' gui/build ', null, ' ')
-
-        then:
-        unitTests.command() == ToolCommand.NONE
-        unitTests.resultPattern() == '**/TEST-*.xml'
-        unitTests.rootDir() == null
-        unitTests.reportOutDir() == 'gui/build'
-        !unitTests.allowEmptyResults()
-        unitTests.coverageReportPath() == null
+        expect:
+        new UnitTestSettings(null, ' **/TEST-*.xml ', ' ', ' gui/build ', null, ' ') ==
+                new UnitTestSettings(ToolCommand.NONE, '**/TEST-*.xml', null, 'gui/build', false, null)
         UnitTestSettings.NONE == new UnitTestSettings(ToolCommand.NONE, ' ', '', ' ', false, ' ')
     }
 
@@ -46,31 +39,19 @@ class TestSectionsSpec extends Specification {
                  coverage: [reportPath: 'build/reports/jacoco/test/jacocoTestReport.xml']]
     }
 
-    def "a Maven unit tests stage writes its goals under tests.unitTests.maven"() {
-        given:
-        def unitTests = new UnitTestSettings(new ToolCommand(['test', 'jacoco:report'], [], null, '/opt/maven', []),
-                null, null, null, false, 'target/site/jacoco/jacoco.xml')
-
+    def "a #tool unit tests stage writes #config"() {
         expect:
-        written { unitTests.writeTo(it, MAVEN) } ==
-                [tests   : [unitTests: [maven: [goals: ['test', 'jacoco:report'], mvnPath: '/opt/maven']]],
-                 coverage: [reportPath: 'target/site/jacoco/jacoco.xml']]
-    }
-
-    def "a Flutter unit tests stage writes its reports but no Gradle or Maven command"() {
-        given:
-        def unitTests = new UnitTestSettings(ToolCommand.of(['test'], []), 'test-results/*.xml', null, null, false, null)
-
-        expect:
-        written { unitTests.writeTo(it, FLUTTER) } == [tests: [unitTests: [unitTestResult: 'test-results/*.xml']]]
-    }
-
-    def "unit tests that set nothing write nothing for #tool"() {
-        expect:
-        written { UnitTestSettings.NONE.writeTo(it, tool) } == [:]
+        written { unitTests.writeTo(it, tool) } == config
 
         where:
-        tool << BuildTool.values()
+        tool << [MAVEN, FLUTTER, GRADLE, MAVEN, FLUTTER]
+        unitTests << [new UnitTestSettings(new ToolCommand(['test', 'jacoco:report'], [], null, '/opt/maven', []), null, null,
+                null, false, 'target/site/jacoco/jacoco.xml'),
+                      new UnitTestSettings(ToolCommand.of(['test'], []), 'test-results/*.xml', null, null, false, null),
+                      UnitTestSettings.NONE, UnitTestSettings.NONE, UnitTestSettings.NONE]
+        config << [[tests   : [unitTests: [maven: [goals: ['test', 'jacoco:report'], mvnPath: '/opt/maven']]],
+                    coverage: [reportPath: 'target/site/jacoco/jacoco.xml']],
+                   [tests: [unitTests: [unitTestResult: 'test-results/*.xml']]], [:], [:], [:]]
     }
 
     def "a #tool unit tests stage that sets #description reports #fields"() {
@@ -100,19 +81,9 @@ class TestSectionsSpec extends Specification {
     }
 
     def "a test job trims its values and stores blank ones as null"() {
-        when:
-        def job = new TestJob(SMOKE, ' ', null, ' CERT/gui-smoke ', null, ' ', ' ', ' ', ' ')
-
-        then:
-        job.stage() == SMOKE
-        job.name() == null
-        job.type() == null
-        job.job() == 'CERT/gui-smoke'
-        job.timeoutMinutes() == null
-        job.parameters() == null
-        job.remoteJenkins() == null
-        job.remoteJenkinsUrl() == null
-        job.credentialsId() == null
+        expect:
+        new TestJob(SMOKE, ' ', null, ' CERT/gui-smoke ', null, ' ', ' ', ' ', ' ') ==
+                new TestJob(SMOKE, null, null, 'CERT/gui-smoke', null, null, null, null, null)
         new TestJob(SMOKE, null, null, null, null, null, null, null, null).job() == null
     }
 
@@ -143,12 +114,7 @@ class TestSectionsSpec extends Specification {
         null   | 'CERT/smoke'                 | null   | null                 || false
     }
 
-    def "a job path is written as job and only the fields that are set"() {
-        expect:
-        new TestJob(SMOKE, null, null, 'CERT/gui-smoke', null, null, null, null, null).toConfig() == [job: 'CERT/gui-smoke']
-    }
-
-    def "a job URL is written as url with every field in the library's order"() {
+    def "a job URL is written as url, a path as job, with only the fields that are set in the library's order"() {
         when:
         def entry = new TestJob(REGRESSION, 'regression', REMOTE, REMOTE_URL, 90, 'ENV=qc\nBROWSER=chrome', 'jenkins-qc',
                 'https://jenkins-qc.bbh.com', 'jenkins-qc-token').toConfig()
@@ -161,18 +127,7 @@ class TestSectionsSpec extends Specification {
                                    'credentialsId']
         new TestJob(SMOKE, null, LOCAL, 'CERT/smoke', 15, null, null, null, null).toConfig() ==
                 [type: 'local', job: 'CERT/smoke', timeoutMin: 15]
-    }
-
-    def "test stages and job types are written in lower case"() {
-        expect:
-        TestStage.values()*.configKey() == ['smoke', 'regression', 'performance']
-        TestJobType.values()*.configValue() == ['local', 'remote']
-    }
-
-    def "default test settings without jobs write nothing"() {
-        expect:
-        TestSettings.DEFAULTS == new TestSettings(null, null, null, null)
-        written { TestSettings.DEFAULTS.writeTo(it, []) } == [:]
+        new TestJob(SMOKE, null, null, 'CERT/gui-smoke', null, null, null, null, null).toConfig() == [job: 'CERT/gui-smoke']
     }
 
     def "each stage writes its own limit and its jobs in the order they were entered"() {
@@ -193,33 +148,16 @@ class TestSectionsSpec extends Specification {
         tests.keySet() as List == ['maxParallel', 'smoke', 'regression', 'performance']
     }
 
-    def "a stage limit is written even when the stage has no jobs"() {
+    def "a stage limit is written even when the stage has no jobs, and the defaults without jobs write nothing"() {
         expect:
+        TestStage.values()*.configKey() == ['smoke', 'regression', 'performance']
+        TestSettings.DEFAULTS == new TestSettings(null, null, null, null)
+        written { TestSettings.DEFAULTS.writeTo(it, []) } == [:]
         written { new TestSettings(null, null, 3, null).writeTo(it, []) } == [tests: [regression: [maxParallel: 3]]]
         written { new TestSettings(null, null, null, 5).writeTo(it, []) } == [tests: [performance: [maxParallel: 5]]]
         written {
             new TestSettings(null, null, null, null)
                     .writeTo(it, [new TestJob(PERFORMANCE, null, null, 'CERT/load', null, null, null, null, null)])
         } == [tests: [performance: [jobs: [[job: 'CERT/load']]]]]
-    }
-
-    private static Map written(Closure write) {
-        def tree = new ConfigTree()
-        write(tree)
-        tree.toMap()
-    }
-
-    private static List<String> problems(Closure validate) {
-        reported(validate)*.field
-    }
-
-    private static List<String> messages(Closure validate) {
-        reported(validate)*.message
-    }
-
-    private static List reported(Closure validate) {
-        def problems = new ValidationProblems()
-        validate(problems)
-        problems.list()
     }
 }

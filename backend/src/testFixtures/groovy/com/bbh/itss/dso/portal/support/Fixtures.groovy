@@ -234,4 +234,11 @@ final class Fixtures {
     static GlobalSettings storedSettings(String jenkinsUrl) {
         storedSettings { it.withPlatform(it.platform().withJenkinsUrl(jenkinsUrl)) }
     }
+
+    static <T extends Record> T copy(Map changes, T record) {
+        def components = record.class.recordComponents
+        def args = components.collect { changes.containsKey(it.name) ? changes[it.name] : it.accessor.invoke(record) }
+        record.class.declaredConstructors.find { it.parameterCount == components.length }
+                .newInstance(args as Object[]) as T
+    }
 }

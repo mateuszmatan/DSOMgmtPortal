@@ -21,6 +21,7 @@ class EvidenceLinksSpec extends Specification {
         links.appScanUrl() == "https://bbh.cloud.appscan.com/main/myapps/$APP_ID/scans"
         links.sonarUrl() == 'https://tools.bbh.com/sonar/dashboard?id=cert-gui'
         links.nexusIqUrl() == 'https://tools.bbh.com/IQ/'
+        EvidenceLinks.PIPELINE_REPORT == 'Pipeline_20Report/'
     }
 
     def "trailing slashes of the tool servers are dropped and the identifiers encoded"() {
@@ -34,46 +35,18 @@ class EvidenceLinksSpec extends Specification {
         links.nexusIqUrl() == 'https://iq.bbh.com/platform/'
     }
 
-    def "without a build there is nothing of a build to link"() {
-        when:
-        def links = EvidenceLinks.of(null, null, null, null, null, null)
-
-        then:
-        links.buildUrl() == null
-        links.reportUrl() == null
-        links.testReportUrl() == null
-        links.artifactsUrl() == null
-    }
-
-    def "the pages a build publishes are linked under it"() {
-        when:
-        def links = EvidenceLinks.of(BUILD, null, null, null, null, null)
-
-        then:
-        links.buildUrl() == BUILD
-        links.reportUrl() == BUILD + 'Pipeline_20Report/'
-        links.testReportUrl() == BUILD + 'testReport/'
-        links.artifactsUrl() == BUILD + 'artifact/'
-    }
-
-    def "a scanner is linked only when both its server and the service's identifier are known"() {
+    def "a scanner is linked only when both its server and the service's identifier are known, and a build only when there is one"() {
         when:
         def links = EvidenceLinks.of(null, asocUrl, appId, sonarUrl, sonarKey, nexusIqUrl)
 
         then:
-        links.appScanUrl() == null
-        links.sonarUrl() == null
-        links.nexusIqUrl() == null
+        [links.appScanUrl(), links.sonarUrl(), links.nexusIqUrl()] == [null, null, null]
+        [links.buildUrl(), links.reportUrl(), links.testReportUrl(), links.artifactsUrl()] == [null, null, null, null]
 
         where:
         asocUrl                         | appId  | sonarUrl                      | sonarKey   | nexusIqUrl
         null                            | APP_ID | null                          | 'cert-gui' | null
         'https://bbh.cloud.appscan.com' | null   | 'https://tools.bbh.com/sonar' | null       | ''
         ' '                             | ' '    | ' '                           | ' '        | '  '
-    }
-
-    def "the report the library publishes is the Pipeline Report page"() {
-        expect:
-        EvidenceLinks.PIPELINE_REPORT == 'Pipeline_20Report/'
     }
 }

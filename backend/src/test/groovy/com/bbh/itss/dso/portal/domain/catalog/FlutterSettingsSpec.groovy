@@ -1,11 +1,12 @@
 package com.bbh.itss.dso.portal.domain.catalog
 
-import com.bbh.itss.dso.portal.domain.shared.ConfigTree
-import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform.APK
 import static com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform.APPBUNDLE
+import static com.bbh.itss.dso.portal.domain.shared.Sections.problems
+import static com.bbh.itss.dso.portal.domain.shared.Sections.reported
+import static com.bbh.itss.dso.portal.domain.shared.Sections.written
 
 class FlutterSettingsSpec extends Specification {
 
@@ -13,34 +14,11 @@ class FlutterSettingsSpec extends Specification {
             'flutter-signing', 'flutter-prod-license', 'flutter-test-license', 'com.bbh.cert', 'cert-app',
             'com.bbh:flutter-delivery:1.0', 'lib', 'test', true, 'dart analyze --fatal-infos', '5.0.1.3006')
 
-    def "Flutter settings trim their values and keep each module once"() {
-        when:
-        def flutter = new FlutterSettings(null, [' app ', 'app', ''], null, [' core '], [' '], ' ', ' ', ' ', ' ', ' ', ' ',
-                ' ', ' ', null, ' ', ' ')
-
-        then:
-        flutter.platform() == null
-        flutter.modules() == ['app']
-        flutter.testModules() == []
-        flutter.testSubmodules() == ['core']
-        flutter.testSubplugins() == []
-        flutter.signingPasswordCredentialsId() == null
-        flutter.prodLicenseCredentialsId() == null
-        flutter.testLicenseCredentialsId() == null
-        flutter.deliveryGroup() == null
-        flutter.deliveryArtifact() == null
-        flutter.deliveryPlugin() == null
-        flutter.sonarSources() == null
-        flutter.sonarTests() == null
-        !flutter.sonarFlutterPlugin()
-        flutter.dartAnalyzeCommand() == null
-        flutter.sonarScannerVersion() == null
-        FlutterSettings.NONE == new FlutterSettings(null, null, null, null, null, ' ', null, null, null, null, null, null,
-                null, null, null, null)
-    }
-
-    def "Flutter settings that set nothing write nothing"() {
+    def "Flutter settings trim their values, keep each module once and write nothing when they set nothing"() {
         expect:
+        new FlutterSettings(null, [' app ', 'app', ''], null, [' core '], [' '], *([' '] * 8), null, ' ', ' ') ==
+                new FlutterSettings(null, ['app'], [], ['core'], [], *([null] * 8), false, null, null)
+        FlutterSettings.NONE == new FlutterSettings(*([null] * 16))
         written(FlutterSettings.NONE) == [:]
     }
 
@@ -75,32 +53,27 @@ class FlutterSettingsSpec extends Specification {
     }
 
     def "the Flutter build stage needs its modules, a test module and all three credentials"() {
-        given:
-        def problems = new ValidationProblems()
-
         when:
-        FlutterSettings.NONE.validate(problems.at('flutter'), DeployTarget.OPENSHIFT)
+        def problems = reported { FlutterSettings.NONE.validate(it, DeployTarget.OPENSHIFT) }
 
         then:
-        problems.list()*.field == ['flutter.modules', 'flutter.testModules', 'flutter.signingPasswordCredentialsId',
-                                   'flutter.prodLicenseCredentialsId', 'flutter.testLicenseCredentialsId']
-        problems.list()*.message == ['add at least one module: the build stage prepares each of them',
-                                     'add at least one test module: the unit tests stage runs them'] +
+        problems*.field == ['modules', 'testModules', 'signingPasswordCredentialsId', 'prodLicenseCredentialsId',
+                            'testLicenseCredentialsId']
+        problems*.message == ['add at least one module: the build stage prepares each of them',
+                              'add at least one test module: the unit tests stage runs them'] +
                 ['is required: the Flutter build stage reads this Jenkins credential'] * 3
     }
 
     def "a Flutter build delivered to VMs needs the Nexus coordinates of its delivery"() {
-        given:
-        def problems = new ValidationProblems()
-        def withoutDelivery = new FlutterSettings(APK, ['app'], ['app'], [], [], 'sign', 'prod', 'test', group, artifact,
-                plugin, null, null, false, null, null)
-
         when:
-        withoutDelivery.validate(problems, target)
+        def problems = reported {
+            new FlutterSettings(APK, ['app'], ['app'], [], [], 'sign', 'prod', 'test', group, artifact, plugin, null, null,
+                    false, null, null).validate(it, target)
+        }
 
         then:
-        problems.list()*.field == missing
-        problems.list()*.message.every { it == 'is required for Flutter on VMs: the Nexus delivery uploads the build under it' }
+        problems*.field == missing
+        problems*.message.every { it == 'is required for Flutter on VMs: the Nexus delivery uploads the build under it' }
 
         where:
         target                 | group     | artifact | plugin   || missing
@@ -112,28 +85,21 @@ class FlutterSettingsSpec extends Specification {
 
     def "module lists that do not fit their column are refused"() {
         given:
-        def problems = new ValidationProblems()
         def tooMany = (1..30).collect { "modules/feature-$it/${'x' * 25}".toString() }
         def settings = new FlutterSettings(APK, tooMany, tooMany, tooMany, ['ok'], 'sign', 'prod', 'test', null, null,
                 null, null, null, false, null, null)
 
         when:
-        settings.validate(problems, DeployTarget.OPENSHIFT)
+        def problems = reported { settings.validate(it, DeployTarget.OPENSHIFT) }
 
         then:
-        problems.list()*.field == ['modules', 'testModules', 'testSubmodules']
-        problems.list()*.message.unique() == ['is too long: all entries together may take at most 1000 bytes']
+        problems*.field == ['modules', 'testModules', 'testSubmodules']
+        problems*.message.unique() == ['is too long: all entries together may take at most 1000 bytes']
     }
 
     def "missing credential #missing is reported"() {
-        given:
-        def problems = new ValidationProblems()
-
-        when:
-        settings.validate(problems, DeployTarget.VM)
-
-        then:
-        problems.list()*.field == missing
+        expect:
+        problems { settings.validate(it, DeployTarget.VM) } == missing
 
         where:
         settings                             || missing
@@ -143,19 +109,8 @@ class FlutterSettingsSpec extends Specification {
         credentials('sign', 'prod', null)    || ['testLicenseCredentialsId']
     }
 
-    def "Flutter platforms are written in lower case"() {
-        expect:
-        FlutterPlatform.values()*.configValue() == ['apk', 'appbundle', 'ios', 'macos', 'linux', 'windows', 'web']
-    }
-
     private static FlutterSettings credentials(String signing, String prod, String test) {
         new FlutterSettings(null, ['app'], ['app'], [], [], signing, prod, test, 'com.bbh', 'app', 'plugin', null, null,
                 false, null, null)
-    }
-
-    private static Map written(FlutterSettings settings) {
-        def tree = new ConfigTree()
-        settings.writeTo(tree)
-        tree.toMap()
     }
 }

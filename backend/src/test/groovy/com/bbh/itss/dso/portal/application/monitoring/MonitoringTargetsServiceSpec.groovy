@@ -31,10 +31,10 @@ class MonitoringTargetsServiceSpec extends Specification {
     def gatewayFull = pipeline(id: 200L, productId: 2L, serviceId: 20L)
     def orphan = pipeline(id: 300L, productId: 9L, serviceId: 90L)
 
-    def "every product and its pipelines are read with the Jenkins the links need"() {
+    def "every product and its pipelines are read with the Jenkins the links need, leaving out pipelines whose product is gone"() {
         given:
         products.findAll() >> [certScanner, payments]
-        pipelines.findAll() >> [guiFull, apiFull, gatewayFull]
+        pipelines.findAll() >> [guiFull, apiFull, gatewayFull, orphan]
 
         when:
         def read = targets.everything()
@@ -47,44 +47,23 @@ class MonitoringTargetsServiceSpec extends Specification {
         read.pipelines()[0].jenkinsJobUrl() == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-full/'
     }
 
-    def "a pipeline whose product is gone is left out instead of failing the whole page"() {
-        given:
-        products.findAll() >> [certScanner]
-        pipelines.findAll() >> [guiFull, orphan]
-
-        when:
-        def read = targets.everything()
-
-        then:
-        read.pipelines()*.pipeline()*.id() == [100L]
-    }
-
-    def "one product is read with its own pipelines only"() {
+    def "one product is read with its own pipelines only, and one pipeline with the product it belongs to"() {
         given:
         products.load(1L) >> Optional.of(certScanner)
         pipelines.findByProductId(1L) >> [guiFull, apiFull]
-
-        when:
-        def read = targets.ofProduct(1L)
-
-        then:
-        read.product().is(certScanner)
-        read.pipelines()*.pipeline()*.id() == [100L, 102L]
-        0 * pipelines.findAll()
-    }
-
-    def "one pipeline is read with the product it belongs to"() {
-        given:
         pipelines.load(100L) >> Optional.of(guiFull)
-        products.load(1L) >> Optional.of(certScanner)
 
         when:
-        def read = targets.ofPipeline(100L)
+        def product = targets.ofProduct(1L)
+        def pipeline = targets.ofPipeline(100L)
 
         then:
-        read.pipeline().pipeline().is(guiFull)
-        read.pipeline().service().name() == 'gui'
-        read.product().is(certScanner)
+        product.product().is(certScanner)
+        product.pipelines()*.pipeline()*.id() == [100L, 102L]
+        0 * pipelines.findAll()
+        pipeline.pipeline().pipeline().is(guiFull)
+        pipeline.pipeline().service().name() == 'gui'
+        pipeline.product().is(certScanner)
     }
 
     def "an unknown #what is reported as not found"() {
@@ -105,31 +84,24 @@ class MonitoringTargetsServiceSpec extends Specification {
         "pipeline's product"   | 'Product 1 does not exist'     | { MonitoringTargetsService it -> it.ofPipeline(100L) }
     }
 
-    def "targets of many products are no targets of one product or one pipeline"() {
+    def "targets of many products are no targets of one product or one pipeline, and always name their platform"() {
         given:
         products.findAll() >> [certScanner, payments]
         pipelines.findAll() >> [guiFull, gatewayFull]
-        def read = targets.everything()
 
         when:
-        read.product()
+        read(targets.everything())
 
         then:
-        thrown(IllegalStateException)
+        def e = thrown(failure)
+        e.message == message
 
-        when:
-        read.pipeline()
-
-        then:
-        thrown(IllegalStateException)
-    }
-
-    def "monitoring targets always name the platform their links are built on"() {
-        when:
-        new MonitoringTargets([], [], null)
-
-        then:
-        def e = thrown(NullPointerException)
-        e.message == 'monitoring targets carry the platform settings their links are built on'
+        where:
+        read << [{ MonitoringTargets it -> it.product() }, { MonitoringTargets it -> it.pipeline() },
+                 { MonitoringTargets it -> new MonitoringTargets([], [], null) }]
+        failure << [IllegalStateException, IllegalStateException, NullPointerException]
+        message << ['these monitoring targets are not those of one product',
+                    'these monitoring targets are not those of one pipeline',
+                    'monitoring targets carry the platform settings their links are built on']
     }
 }

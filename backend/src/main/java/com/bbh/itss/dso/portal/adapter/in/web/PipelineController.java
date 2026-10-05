@@ -1,8 +1,10 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
-import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelineKeysUseCase;
-import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelinesUseCase;
-import com.bbh.itss.dso.portal.application.pipeline.port.in.QueryPipelinesUseCase;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.ServicePipelinesView;
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
+import com.bbh.itss.dso.portal.domain.catalog.DeployTarget;
+import com.bbh.itss.dso.portal.domain.catalog.Service;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,36 +23,31 @@ import java.util.List;
 @RequestMapping("/api")
 public class PipelineController {
 
-    private final QueryPipelinesUseCase queries;
-    private final ManagePipelinesUseCase pipelines;
-    private final ManagePipelineKeysUseCase keys;
+    private final PipelinesUseCase pipelines;
 
-    public PipelineController(QueryPipelinesUseCase queries, ManagePipelinesUseCase pipelines,
-                              ManagePipelineKeysUseCase keys) {
-        this.queries = queries;
+    public PipelineController(PipelinesUseCase pipelines) {
         this.pipelines = pipelines;
-        this.keys = keys;
     }
 
     @GetMapping("/products/{productId}/pipelines")
     public List<ServicePipelinesResponse> listForProduct(@PathVariable long productId) {
-        return queries.listForProduct(productId).stream().map(ServicePipelinesResponse::from).toList();
+        return pipelines.listForProduct(productId).stream().map(ServicePipelinesResponse::of).toList();
     }
 
     @PostMapping("/services/{serviceId}/pipelines")
     @ResponseStatus(HttpStatus.CREATED)
     public PipelineResponse create(@PathVariable long serviceId, @Valid @RequestBody PipelineRequest request) {
-        return PipelineResponse.withKeys(pipelines.create(serviceId, request.toCommand()));
+        return PipelineResponse.withKeys(pipelines.create(serviceId, request.type(), request.toSettings()));
     }
 
     @GetMapping("/pipelines/{id}")
     public PipelineResponse get(@PathVariable long id) {
-        return PipelineResponse.withKeys(queries.get(id));
+        return PipelineResponse.withKeys(pipelines.get(id));
     }
 
     @PutMapping("/pipelines/{id}")
     public PipelineResponse update(@PathVariable long id, @Valid @RequestBody PipelineRequest request) {
-        return PipelineResponse.withKeys(pipelines.update(id, request.toCommand()));
+        return PipelineResponse.withKeys(pipelines.update(id, request.type(), request.toSettings()));
     }
 
     @DeleteMapping("/pipelines/{id}")
@@ -61,11 +58,22 @@ public class PipelineController {
 
     @PostMapping("/pipelines/{id}/keys/revoke")
     public PipelineResponse revokeKey(@PathVariable long id, @Valid @RequestBody RevokeKeyRequest request) {
-        return PipelineResponse.withKeys(keys.revokeKey(id, request.reason()));
+        return PipelineResponse.withKeys(pipelines.revokeKey(id, request.reason()));
     }
 
     @PostMapping("/pipelines/{id}/keys")
     public PipelineResponse issueKey(@PathVariable long id) {
-        return PipelineResponse.withKeys(keys.issueKey(id));
+        return PipelineResponse.withKeys(pipelines.issueKey(id));
+    }
+
+    public record ServicePipelinesResponse(Long serviceId, String serviceName, String description, BuildTool buildTool,
+                                           DeployTarget deployTarget, List<PipelineResponse> pipelines) {
+
+        static ServicePipelinesResponse of(ServicePipelinesView view) {
+            Service service = view.service();
+            return new ServicePipelinesResponse(service.id(), service.name(), service.description(),
+                    service.settings().build().tool(), service.settings().deployment().target(),
+                    view.pipelines().stream().map(PipelineResponse::summary).toList());
+        }
     }
 }

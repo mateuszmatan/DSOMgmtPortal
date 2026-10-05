@@ -3,6 +3,7 @@ package com.bbh.itss.dso.portal.domain.shared;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class ConfigTree {
@@ -18,8 +19,13 @@ public class ConfigTree {
         for (int i = 0; i < keys.length - 1; i++) {
             node = child(node, keys[i]);
         }
-        node.put(keys[keys.length - 1], value);
+        node.put(keys[keys.length - 1],
+                value instanceof Enum<?> constant ? constant.name().toLowerCase(Locale.ROOT) : value);
         return this;
+    }
+
+    public ConfigTree flag(String path, boolean on) {
+        return on ? set(path, true) : this;
     }
 
     public ConfigTree setIfAbsent(String path, Object value) {

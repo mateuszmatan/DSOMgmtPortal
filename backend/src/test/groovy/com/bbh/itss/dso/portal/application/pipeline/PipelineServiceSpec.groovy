@@ -2,9 +2,9 @@ package com.bbh.itss.dso.portal.application.pipeline
 
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase
-import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineCommand
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
+import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey
 import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator
 import com.bbh.itss.dso.portal.domain.pipeline.KeyRevokedException
@@ -15,7 +15,6 @@ import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
-import spock.lang.Subject
 
 import java.time.Clock
 import java.time.Instant
@@ -42,73 +41,56 @@ class PipelineServiceSpec extends Specification {
     }
     PublishPipelineConfigsUseCase publisher = Mock()
     KeyGenerator keys = { -> NEW_KEY } as KeyGenerator
-
-    @Subject
-    def service = new PipelineService(pipelines, products, settings, publisher, keys,
-            Clock.fixed(NOW, ZoneOffset.UTC))
+    def service = new PipelineService(pipelines, products, settings, publisher, keys, Clock.fixed(NOW, ZoneOffset.UTC))
 
     def certScanner = product(id: 1, services: [[name: 'gui', id: 10], [name: 'backend-api', id: 11]])
 
-    def "each service of a product is listed with its pipelines"() {
+    def "each service of a product is listed with its pipelines, and one pipeline comes with its product and service"() {
         given:
         products.load(1L) >> Optional.of(certScanner)
         pipelines.findByProductId(1L) >> [pipeline(id: 100), pipeline(id: 101, type: PipelineType.SAST)]
+        pipelines.load(100L) >> Optional.of(pipeline(id: 100, keys: [activeKey(), revokedKey()]))
 
         when:
         def list = service.listForProduct(1L)
+        def view = service.get(100L)
 
         then:
         list*.service()*.name() == ['gui', 'backend-api']
         list[0].pipelines()*.pipeline()*.id() == [100, 101]
         list[0].pipelines()*.jenkinsUrl() == ['https://jenkins.test', 'https://jenkins.test']
         list[1].pipelines() == []
+        [view.product().code(), view.service().name(), view.pipeline().keys().size(), view.jenkinsUrl()] ==
+                ['CERT', 'gui', 2, 'https://jenkins.test']
+        view.metricsTag() == new MetricsTag('CERT-gui', 'test')
     }
 
-    def "pipelines of an unknown product are not found"() {
-        when:
-        service.listForProduct(1L)
-
-        then:
-        def e = thrown(NotFoundException)
-        e.message == 'Product 1 does not exist'
-    }
-
-    def "a single pipeline comes with its product, service and the Jenkins address"() {
+    def "#action finds no #missing"() {
         given:
-        pipelines.load(100L) >> Optional.of(pipeline(id: 100, keys: [activeKey(), revokedKey()]))
+        pipelines.load(101L) >> Optional.of(pipeline(id: 101, productId: 2))
         products.load(1L) >> Optional.of(certScanner)
+        products.findByServiceId(12L) >> Optional.of(certScanner)
 
         when:
-        def view = service.get(100L)
-
-        then:
-        view.product().code() == 'CERT'
-        view.service().name() == 'gui'
-        view.pipeline().keys().size() == 2
-        view.jenkinsUrl() == 'https://jenkins.test'
-        view.influxProjectTag() == 'CERT-gui'
-        view.influxEnv() == 'test'
-    }
-
-    def "an unknown pipeline is not found"() {
-        when:
-        service.get(100L)
+        call(service)
 
         then:
         def e = thrown(NotFoundException)
-        e.message == 'Pipeline 100 does not exist'
-    }
+        e.message == "$missing does not exist"
+        0 * pipelines.save(_)
+        0 * pipelines.delete(_)
 
-    def "a pipeline whose product is gone is not found"() {
-        given:
-        pipelines.load(100L) >> Optional.of(pipeline(id: 100))
-
-        when:
-        service.get(100L)
-
-        then:
-        def e = thrown(NotFoundException)
-        e.message == 'Product 1 does not exist'
+        where:
+        action                  | missing        | call
+        'listing'               | 'Product 2'    | { it.listForProduct(2L) }
+        'reading'               | 'Pipeline 100' | { it.get(100L) }
+        'reading'               | 'Product 2'    | { it.get(101L) }
+        'starting new services' | 'Service 12'   | { it.createForNewServices(1L, [12L]) }
+        'starting new services' | 'Product 7'    | { it.createForNewServices(7L, [10L]) }
+        'creating'              | 'Service 10'   | { it.create(10L, PipelineType.FULL, pipelineSettings()) }
+        'creating'              | 'Service 12'   | { it.create(12L, PipelineType.FULL, pipelineSettings()) }
+        'deleting'              | 'Pipeline 100' | { it.delete(100L) }
+        'issuing a key'         | 'Pipeline 100' | { it.issueKey(100L) }
     }
 
     def "a pipeline is created with its first key and published"() {
@@ -116,8 +98,8 @@ class PipelineServiceSpec extends Specification {
         products.findByServiceId(10L) >> Optional.of(certScanner)
 
         when:
-        def view = service.create(10L, new PipelineCommand(PipelineType.SECURITY, pipelineSettings(
-                agentLabels: ['linux'], extendedPipelineJob: 'CERT/gui-extended', jenkinsJob: 'DevSecOps/CERT/gui-security')))
+        def view = service.create(10L, PipelineType.SECURITY, pipelineSettings(
+                agentLabels: ['linux'], extendedPipelineJob: 'CERT/gui-extended', jenkinsJob: 'DevSecOps/CERT/gui-security'))
 
         then:
         1 * pipelines.save({ Pipeline p ->
@@ -155,7 +137,7 @@ class PipelineServiceSpec extends Specification {
         views.every { it.pipeline().isEnabled() }
     }
 
-    def "a service that already has a full pipeline keeps the one it has"() {
+    def "a service that already has a full pipeline keeps it, and a save that created no service takes no lock"() {
         given:
         products.load(1L) >> Optional.of(certScanner)
         pipelines.existsForService(10L, PipelineType.FULL) >> true
@@ -167,75 +149,36 @@ class PipelineServiceSpec extends Specification {
         1 * pipelines.save({ Pipeline p -> p.service().serviceId() == 11L }) >> { Pipeline p -> stored(101L, p) }
         0 * pipelines.save({ Pipeline p -> p.service().serviceId() == 10L })
         views*.pipeline()*.id() == [101L]
-    }
 
-    def "a save that created no service starts no pipeline and takes no lock"() {
         when:
-        def views = service.createForNewServices(1L, [])
+        def none = service.createForNewServices(1L, [])
 
         then:
-        views == []
+        none == []
         0 * publisher.lockConfigurations()
         0 * products.load(_)
         0 * pipelines.save(_)
     }
 
-    def "a pipeline cannot start for a service of another product"() {
-        given:
-        products.load(1L) >> Optional.of(certScanner)
-
-        when:
-        service.createForNewServices(1L, [12L])
-
-        then:
-        def e = thrown(NotFoundException)
-        e.message == 'Service 12 does not exist'
-        0 * pipelines.save(_)
-    }
-
-    def "pipelines cannot start for an unknown product"() {
-        when:
-        service.createForNewServices(7L, [10L])
-
-        then:
-        def e = thrown(NotFoundException)
-        e.message == 'Product 7 does not exist'
-    }
-
-    def "a service has at most one pipeline of each type"() {
+    def "#refusal is refused before anything is saved or published"() {
         given:
         products.findByServiceId(10L) >> Optional.of(certScanner)
         pipelines.existsForService(10L, PipelineType.FULL) >> true
+        pipelines.load(100L) >> Optional.of(pipeline(id: 100))
 
         when:
-        service.create(10L, new PipelineCommand(PipelineType.FULL, pipelineSettings()))
+        action(service)
 
         then:
         def e = thrown(ConflictException)
-        e.message == 'Service gui already has a full pipeline'
+        e.message == message
         0 * pipelines.save(_)
         0 * publisher.pipelineChanged(_)
-    }
 
-    def "a pipeline needs an existing service"() {
-        when:
-        service.create(10L, new PipelineCommand(PipelineType.FULL, pipelineSettings()))
-
-        then:
-        def e = thrown(NotFoundException)
-        e.message == 'Service 10 does not exist'
-    }
-
-    def "a product that no longer lists the service does not get a pipeline for it"() {
-        given:
-        products.findByServiceId(12L) >> Optional.of(certScanner)
-
-        when:
-        service.create(12L, new PipelineCommand(PipelineType.FULL, pipelineSettings()))
-
-        then:
-        def e = thrown(NotFoundException)
-        e.message == 'Service 12 does not exist'
+        where:
+        refusal                       | action                                                     || message
+        'a second pipeline of a type' | { it.create(10L, PipelineType.FULL, pipelineSettings()) }  || 'Service gui already has a full pipeline'
+        'a change of the type'        | { it.update(100L, PipelineType.SAST, pipelineSettings()) } || 'The type of a pipeline cannot change; add a new pipeline instead'
     }
 
     def "a pipeline's settings can change and the pipeline is published"() {
@@ -244,9 +187,9 @@ class PipelineServiceSpec extends Specification {
         products.load(1L) >> Optional.of(certScanner)
 
         when:
-        def view = service.update(100L, new PipelineCommand(PipelineType.FULL, pipelineSettings(
+        def view = service.update(100L, PipelineType.FULL, pipelineSettings(
                 agentLabels: ['windows', 'linux'], extendedPipelineJob: 'CERT/x', securityPipelineJob: 'CERT/y',
-                description: 'Nightly')))
+                description: 'Nightly'))
 
         then:
         1 * pipelines.save({ Pipeline p -> p.settings().agentLabels() == ['windows', 'linux'] }) >> { Pipeline p -> p }
@@ -258,36 +201,12 @@ class PipelineServiceSpec extends Specification {
         view.pipeline().settings().securityPipelineJob() == null
     }
 
-    def "a pipeline's type cannot change"() {
-        given:
-        pipelines.load(100L) >> Optional.of(pipeline(id: 100))
-
-        when:
-        service.update(100L, new PipelineCommand(PipelineType.SAST, pipelineSettings()))
-
-        then:
-        thrown(ConflictException)
-        0 * pipelines.save(_)
-        0 * publisher.pipelineChanged(_)
-    }
-
-    def "a pipeline is deleted with its keys"() {
-        given:
-        pipelines.load(100L) >> Optional.of(pipeline(id: 100))
-
-        when:
-        service.delete(100L)
-
-        then:
-        1 * pipelines.delete(100L)
-    }
-
     def "a pipeline is created, changed and deleted only under the configuration lock, taken before anything is read"() {
         given:
         products.load(1L) >> Optional.of(certScanner)
 
         when:
-        service.create(10L, new PipelineCommand(PipelineType.FULL, pipelineSettings()))
+        service.create(10L, PipelineType.FULL, pipelineSettings())
 
         then:
         1 * publisher.lockConfigurations()
@@ -297,7 +216,7 @@ class PipelineServiceSpec extends Specification {
         1 * pipelines.save(_) >> { Pipeline p -> stored(100L, p) }
 
         when:
-        service.update(100L, new PipelineCommand(PipelineType.FULL, pipelineSettings(agentLabels: ['windows'])))
+        service.update(100L, PipelineType.FULL, pipelineSettings(agentLabels: ['windows']))
 
         then:
         1 * publisher.lockConfigurations()
@@ -315,15 +234,6 @@ class PipelineServiceSpec extends Specification {
         then:
         1 * pipelines.load(100L) >> Optional.of(pipeline(id: 100))
         1 * pipelines.delete(100L)
-    }
-
-    def "deleting an unknown pipeline fails"() {
-        when:
-        service.delete(100L)
-
-        then:
-        thrown(NotFoundException)
-        0 * pipelines.delete(_)
     }
 
     def "a key is revoked on the pipeline loaded under a row lock"() {
@@ -362,15 +272,6 @@ class PipelineServiceSpec extends Specification {
         view.pipeline().keys()*.status() == [KeyStatus.ACTIVE, KeyStatus.REVOKED]
     }
 
-    def "keys of an unknown pipeline cannot change"() {
-        when:
-        service.issueKey(100L)
-
-        then:
-        thrown(NotFoundException)
-        0 * pipelines.save(_)
-    }
-
     def "an active key given in any case and with spaces authorizes its pipeline and its use is recorded"() {
         when:
         long pipelineId = service.authorizeKey(" ${KEY.toUpperCase()} ")
@@ -398,30 +299,20 @@ class PipelineServiceSpec extends Specification {
         0 * pipelines.recordKeyUse(*_)
     }
 
-    def "a key invalidated while its use is recorded is refused with the reason it was invalidated"() {
-        given:
-        def revoked = revokedKey(id: 500L, value: KEY, reason: 'Leaked in a build log')
-
+    def "a key whose use was not recorded is refused when it was #outcome meanwhile"() {
         when:
         service.authorizeKey(KEY)
 
         then:
-        2 * pipelines.findKey(KEY) >>> [Optional.of(new IssuedKey(100L, activeKey(id: 500L))),
-                                        Optional.of(new IssuedKey(100L, revoked))]
+        2 * pipelines.findKey(KEY) >>> [Optional.of(new IssuedKey(100L, activeKey(id: 500L))), reread]
         1 * pipelines.recordKeyUse(500L, NOW_MICROS) >> false
-        def e = thrown(KeyRevokedException)
-        e.message.endsWith(': Leaked in a build log')
-    }
+        def e = thrown(failure)
+        e.message.endsWith(message)
 
-    def "a key whose pipeline was deleted while its use is recorded is not found"() {
-        when:
-        service.authorizeKey(KEY)
-
-        then:
-        2 * pipelines.findKey(KEY) >>> [Optional.of(new IssuedKey(100L, activeKey(id: 500L))), Optional.empty()]
-        1 * pipelines.recordKeyUse(500L, NOW_MICROS) >> false
-        def e = thrown(NotFoundException)
-        e.message == 'Unknown DevSecOps pipeline key'
+        where:
+        outcome       | reread                                                                     || failure             | message
+        'invalidated' | Optional.of(new IssuedKey(100L, revokedKey(value: KEY, reason: 'Leaked'))) || KeyRevokedException | ': Leaked'
+        'deleted'     | Optional.empty()                                                           || NotFoundException   | 'Unknown DevSecOps pipeline key'
     }
 
     def "a key that is still active after a use that was not recorded authorizes its pipeline"() {

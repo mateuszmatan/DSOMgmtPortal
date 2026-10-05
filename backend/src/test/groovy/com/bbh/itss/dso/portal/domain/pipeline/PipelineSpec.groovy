@@ -17,22 +17,25 @@ class PipelineSpec extends Specification {
     static final Instant LATER = Instant.parse('2026-10-05T11:00:00Z')
     static final ServiceRef GUI = new ServiceRef(1, 10)
 
-    def generator = new SequentialKeys()
+    int issued
+    KeyGenerator generator = { -> "key-${++issued}".toString() } as KeyGenerator
 
     def "a new pipeline of a service starts with one active key"() {
         when:
-        def pipeline = Pipeline.create(GUI, PipelineType.FULL, pipelineSettings(), generator, NOW)
+        def created = Pipeline.create(GUI, PipelineType.FULL, pipelineSettings(), generator, NOW)
 
         then:
-        pipeline.id() == null
-        pipeline.service() == GUI
-        pipeline.type() == PipelineType.FULL
-        pipeline.version() == 0
-        pipeline.createdAt() == null
-        pipeline.updatedAt() == null
-        pipeline.enabled
-        pipeline.keys() == [new PipelineKey(null, 'key-1', KeyStatus.ACTIVE, NOW, null, null, null)]
-        pipeline.activeKey().get().active
+        created.id() == null
+        created.service() == GUI
+        created.type() == PipelineType.FULL
+        created.version() == 0
+        created.createdAt() == null
+        created.updatedAt() == null
+        created.enabled
+        created.keys() == [new PipelineKey(null, 'key-1', KeyStatus.ACTIVE, NOW, null, null, null)]
+        created.activeKey().get().active
+        pipeline(id: 20, productId: 3, serviceId: 30, version: 7).with { [id(), service(), version(), createdAt(), updatedAt()] } ==
+                [20L, new ServiceRef(3, 30), 7L, Instant.parse('2026-10-01T08:00:00Z'), Instant.parse('2026-10-02T09:30:00Z')]
     }
 
     def "issuing a key revokes the active one as replaced"() {
@@ -67,18 +70,6 @@ class PipelineSpec extends Specification {
         pipeline.keys() == [revoked, revokedKey()]
     }
 
-    def "a pipeline without an active key has nothing to revoke"() {
-        given:
-        def pipeline = pipeline(keys: [revokedKey()])
-
-        when:
-        pipeline.revokeActiveKey('again', LATER)
-
-        then:
-        def e = thrown(ConflictException)
-        e.message == 'The pipeline has no active key to invalidate'
-    }
-
     def "a disabled pipeline is enabled again with a new key"() {
         given:
         def pipeline = pipeline(keys: [revokedKey(reason: 'paused')])
@@ -101,21 +92,20 @@ class PipelineSpec extends Specification {
         new KeyRevokedException(revoked).message == "The DevSecOps pipeline key was invalidated on ${revoked.revokedAt()}"
     }
 
-    def "the key history cannot be changed past the pipeline"() {
+    def "#refusal is refused"() {
         when:
-        pipeline().keys().clear()
+        action()
 
         then:
-        thrown(UnsupportedOperationException)
-    }
+        def e = thrown(failure)
+        e.message == message
 
-    def "a pipeline holds at most one active key"() {
-        when:
-        pipeline(keys: [activeKey(), activeKey(id: 101, value: 'other')])
-
-        then:
-        def e = thrown(IllegalArgumentException)
-        e.message == 'a pipeline has at most one active key'
+        where:
+        refusal                         | action                                                             || failure                       | message
+        'revoking without an active key' | { pipeline(keys: [revokedKey()]).revokeActiveKey('again', LATER) } || ConflictException             | 'The pipeline has no active key to invalidate'
+        'a second active key'           | { pipeline(keys: [activeKey(), activeKey(id: 101, value: 'x')]) }  || IllegalArgumentException      | 'a pipeline has at most one active key'
+        'changing the key history'      | { pipeline().keys().clear() }                                      || UnsupportedOperationException | null
+        'changing the type'             | { pipeline().reconfigure(PipelineType.SAST, pipelineSettings()) }  || ConflictException             | 'The type of a pipeline cannot change; add a new pipeline instead'
     }
 
     def "only the security pipeline keeps the extended pipeline job and only the extended one the security job"() {
@@ -172,31 +162,6 @@ class PipelineSpec extends Specification {
         existing.settings() != tooMany
     }
 
-    def "the type of a pipeline cannot change"() {
-        given:
-        def pipeline = pipeline(type: PipelineType.FULL)
-
-        when:
-        pipeline.reconfigure(PipelineType.SAST, pipelineSettings())
-
-        then:
-        def e = thrown(ConflictException)
-        e.message == 'The type of a pipeline cannot change; add a new pipeline instead'
-        pipeline.type() == PipelineType.FULL
-    }
-
-    def "a restored pipeline keeps its identity, version and timestamps"() {
-        when:
-        def pipeline = pipeline(id: 20, productId: 3, serviceId: 30, version: 7)
-
-        then:
-        pipeline.id() == 20
-        pipeline.service() == new ServiceRef(3, 30)
-        pipeline.version() == 7
-        pipeline.createdAt() == Instant.parse('2026-10-01T08:00:00Z')
-        pipeline.updatedAt() == Instant.parse('2026-10-02T09:30:00Z')
-    }
-
     def "the #type pipeline reads its metrics from project tag #tag"() {
         expect:
         type.influxProjectTag('cert-gui') == tag
@@ -214,15 +179,5 @@ class PipelineSpec extends Specification {
         PipelineType.values().collect { [it.entryPoint(), it.variant()] } == [
                 ['devSecOpsPipeline', 'full'], ['devSecOpsSecurityPipeline', 'security'],
                 ['devSecOpsExtendedPipeline', 'extended'], ['devSecOpsSASTScanningPipeline', 'sast']]
-    }
-
-    static class SequentialKeys implements KeyGenerator {
-
-        int issued
-
-        @Override
-        String newKey() {
-            "key-${++issued}"
-        }
     }
 }

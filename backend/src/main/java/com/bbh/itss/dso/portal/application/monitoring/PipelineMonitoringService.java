@@ -12,7 +12,6 @@ import com.bbh.itss.dso.portal.application.monitoring.port.in.ProductHealth;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.ProductMonitoring;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.ReadMonitoringTargetsUseCase;
 import com.bbh.itss.dso.portal.application.monitoring.port.out.DashboardLinksPort;
-import com.bbh.itss.dso.portal.application.monitoring.port.out.MonitoringStatusPort;
 import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
@@ -42,15 +41,13 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
 
     private final ReadMonitoringTargetsUseCase targets;
     private final PipelineRunsPort runs;
-    private final MonitoringStatusPort metrics;
     private final DashboardLinksPort dashboards;
     private final Clock clock;
 
     public PipelineMonitoringService(ReadMonitoringTargetsUseCase targets, PipelineRunsPort runs,
-                                     MonitoringStatusPort metrics, DashboardLinksPort dashboards, Clock clock) {
+                                     DashboardLinksPort dashboards, Clock clock) {
         this.targets = targets;
         this.runs = runs;
-        this.metrics = metrics;
         this.dashboards = dashboards;
         this.clock = clock;
     }
@@ -58,7 +55,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
     @Override
     @WithoutTransaction
     public MonitoringStatus status() {
-        boolean configured = metrics.configured();
+        boolean configured = runs.configured();
         String error = configured ? MetricsReading.of(this::ping, false).error() : null;
         Optional<String> dashboard = dashboards.url();
         return new MonitoringStatus(configured, configured && error == null, error, dashboard.isPresent(),
@@ -88,7 +85,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         MetricsReading<Map<MetricsTag, PipelineRun>> latest = latestRuns(productPipelines);
         List<PipelineHealth> health = productPipelines.stream()
                 .map(view -> {
-                    PipelineRun run = latest.value().get(tag(view));
+                    PipelineRun run = latest.value().get(view.metricsTag());
                     return new PipelineHealth(view, RunResult.of(view.pipeline(), run), run);
                 })
                 .toList();
@@ -102,7 +99,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         int days = MonitoringRange.parse(range).days();
         PipelineView view = targets.ofPipeline(pipelineId).pipeline();
         Pipeline pipeline = view.pipeline();
-        MetricsTag tag = tag(view);
+        MetricsTag tag = view.metricsTag();
 
         MetricsReading<List<PipelineRun>> recent = MetricsReading.of(() -> runs.recentRuns(tag, days, RECENT_RUNS),
                 List.of());
@@ -116,16 +113,16 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         }
         DoraSummary dora = DoraCalculator.summarize(points.value(), days, Instant.now(clock));
         return new PipelineMonitoring(view, RunResult.of(pipeline, last), last, dora, recentRuns,
-                dashboards.links(tag, days).orElse(null), points.error());
+                dashboards.dashboardUrl(tag, pipeline.type(), days).orElse(null), points.error());
     }
 
     private boolean ping() {
-        metrics.ping();
+        runs.ping();
         return true;
     }
 
     private MetricsReading<Map<MetricsTag, PipelineRun>> latestRuns(List<PipelineView> views) {
-        Set<MetricsTag> tags = views.stream().map(PipelineMonitoringService::tag).collect(Collectors.toSet());
+        Set<MetricsTag> tags = views.stream().map(PipelineView::metricsTag).collect(Collectors.toSet());
         return MetricsReading.of(() -> runs.latestRuns(tags), Map.of());
     }
 
@@ -134,7 +131,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         Map<RunResult, Integer> counts = new EnumMap<>(RunResult.class);
         Instant lastRunAt = null;
         for (PipelineView view : productPipelines) {
-            PipelineRun run = latest.get(tag(view));
+            PipelineRun run = latest.get(view.metricsTag());
             counts.merge(RunResult.of(view.pipeline(), run), 1, Integer::sum);
             if (run != null && (lastRunAt == null || run.time().isAfter(lastRunAt))) {
                 lastRunAt = run.time();
@@ -142,9 +139,5 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         }
         return new ProductHealth(product, productPipelines.size(), RunResult.worst(counts.keySet()), counts,
                 lastRunAt);
-    }
-
-    private static MetricsTag tag(PipelineView view) {
-        return MetricsTag.of(view.service(), view.pipeline());
     }
 }

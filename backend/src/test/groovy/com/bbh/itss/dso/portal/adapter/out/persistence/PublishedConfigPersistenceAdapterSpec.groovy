@@ -26,8 +26,7 @@ import static com.bbh.itss.dso.portal.support.Fixtures.settings
         'spring.datasource.url=jdbc:h2:mem:published-config-adapter;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa'])
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import([PublishedConfigPersistenceAdapter, PipelinePersistenceAdapter, PipelineMapper, ProductPersistenceAdapter,
-        ProductMapper])
+@Import([PublishedConfigPersistenceAdapter, PipelinePersistenceAdapter, ProductPersistenceAdapter])
 class PublishedConfigPersistenceAdapterSpec extends Specification {
 
     static final Instant FIRST = Instant.parse('2026-10-01T08:00:00Z')
@@ -58,54 +57,30 @@ class PublishedConfigPersistenceAdapterSpec extends Specification {
                 pipelineSettings(), { -> 'key-1' }, FIRST))
     }
 
-    def "a pipeline without a published configuration has none to load"() {
+    def "the first configuration of a pipeline is inserted, a later one replaces it, and the library view serves it"() {
         expect:
         adapter.load(pipeline.id()) == Optional.empty()
-    }
 
-    def "the first configuration of a pipeline is inserted and read back"() {
         when:
-        adapter.save(new PublishedConfig(pipeline.id(), '{"pipeline":{"type":"full"}}', FIRST))
-        entities.flush()
-        entities.clear()
+        publish('{"pipeline":{"type":"full"}}', FIRST)
 
         then:
         adapter.load(pipeline.id()).get() == new PublishedConfig(pipeline.id(), '{"pipeline":{"type":"full"}}', FIRST)
-        jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PIPELINE_CONFIG WHERE PIPELINE_ID = ?', Integer, pipeline.id()) == 1
-    }
-
-    def "a later configuration replaces the stored one in the same row"() {
-        given:
-        adapter.save(new PublishedConfig(pipeline.id(), '{"pipeline":{"type":"full"}}', FIRST))
-        entities.flush()
-        entities.clear()
+        jdbc.queryForMap('SELECT KEY_STATUS, CONFIG_JSON FROM DSO_LIBRARY_CONFIG_V WHERE PIPELINE_KEY = ?', 'key-1')
+                .collectEntries { name, value -> [name.toUpperCase(), value] } ==
+                [KEY_STATUS: 'ACTIVE', CONFIG_JSON: '{"pipeline":{"type":"full"}}']
 
         when:
-        adapter.save(new PublishedConfig(pipeline.id(), '{"pipeline":{"type":"sast"}}', LATER))
-        entities.flush()
-        entities.clear()
+        publish('{"pipeline":{"type":"sast"}}', LATER)
 
         then:
         adapter.load(pipeline.id()).get() == new PublishedConfig(pipeline.id(), '{"pipeline":{"type":"sast"}}', LATER)
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PIPELINE_CONFIG WHERE PIPELINE_ID = ?', Integer, pipeline.id()) == 1
     }
 
-    def "the library view serves the published configuration under the active key"() {
-        given:
-        adapter.save(new PublishedConfig(pipeline.id(), '{"pipeline":{"type":"full"}}', FIRST))
-        entities.flush()
-
-        expect:
-        jdbc.queryForMap('SELECT KEY_STATUS, CONFIG_JSON FROM DSO_LIBRARY_CONFIG_V WHERE PIPELINE_KEY = ?', 'key-1')
-                .collectEntries { name, value -> [name.toUpperCase(), value] } ==
-                [KEY_STATUS: 'ACTIVE', CONFIG_JSON: '{"pipeline":{"type":"full"}}']
-    }
-
     def "deleting the pipeline removes its published configuration"() {
         given:
-        adapter.save(new PublishedConfig(pipeline.id(), '{}', FIRST))
-        entities.flush()
-        entities.clear()
+        publish('{}', FIRST)
 
         when:
         pipelines.delete(pipeline.id())
@@ -113,5 +88,11 @@ class PublishedConfigPersistenceAdapterSpec extends Specification {
 
         then:
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PIPELINE_CONFIG', Integer) == 0
+    }
+
+    private void publish(String json, Instant renderedAt) {
+        adapter.save(new PublishedConfig(pipeline.id(), json, renderedAt))
+        entities.flush()
+        entities.clear()
     }
 }

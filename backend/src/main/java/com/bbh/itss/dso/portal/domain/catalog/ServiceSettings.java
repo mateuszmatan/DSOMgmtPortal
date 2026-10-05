@@ -10,24 +10,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
 
-public record ServiceSettings(
-        BuildSettings build,
-        UnitTestSettings unitTests,
-        TestSettings tests,
-        List<TestJob> testJobs,
-        DeploymentSettings deployment,
-        ToolCommand delivery,
-        UrbanCodeSettings urbanCode,
-        List<UrbanCodeApplicationSettings> urbanCodeApplications,
-        Map<Region, SshTarget> sshTargets,
-        Map<Region, OpenShiftTarget> openShiftTargets,
-        AppScanSettings appScan,
-        SonarSettings sonar,
-        NexusIqSettings nexusIq,
-        ScmSettings scm,
-        GoldenFixPolicy goldenFix,
-        MetricsSettings metrics,
-        FlutterSettings flutter) {
+public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, TestSettings tests,
+                              List<TestJob> testJobs, DeploymentSettings deployment, ToolCommand delivery,
+                              UrbanCodeSettings urbanCode, List<UrbanCodeApplicationSettings> urbanCodeApplications,
+                              Map<Region, SshTarget> sshTargets, Map<Region, OpenShiftTarget> openShiftTargets,
+                              AppScanSettings appScan, SonarSettings sonar, NexusIqSettings nexusIq, ScmSettings scm,
+                              GoldenFixPolicy goldenFix, MetricsSettings metrics, FlutterSettings flutter) {
 
     public ServiceSettings {
         Objects.requireNonNull(build, "a service needs its build settings");
@@ -111,12 +99,10 @@ public record ServiceSettings(
             flutter.validate(problems.at("flutter"), target);
         }
         if (target == DeployTarget.VM && tool == BuildTool.MAVEN) {
-            if (build.buildPath() == null) {
-                problems.add("build.buildPath", "is required for Maven on VMs: the Nexus delivery publishes the artifact found there");
-            }
-            if (delivery.tasks().isEmpty()) {
-                problems.add("delivery.tasks", "add the Maven goals that upload the snapshot, for example deploy:deploy-file");
-            }
+            problems.require("build.buildPath", build.buildPath(),
+                    "is required for Maven on VMs: the Nexus delivery publishes the artifact found there");
+            problems.require("delivery.tasks", delivery.tasks(),
+                    "add the Maven goals that upload the snapshot, for example deploy:deploy-file");
         }
         delivery.validate(problems.at("delivery"));
         for (int i = 0; i < testJobs.size(); i++) {

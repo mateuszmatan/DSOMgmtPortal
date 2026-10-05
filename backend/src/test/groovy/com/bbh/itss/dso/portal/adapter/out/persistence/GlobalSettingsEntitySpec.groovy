@@ -1,33 +1,47 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence
 
-import com.bbh.itss.dso.portal.domain.settings.Scanner
+import com.bbh.itss.dso.portal.adapter.RecordMapper
+import com.bbh.itss.dso.portal.adapter.out.persistence.GlobalSettingsEntity.SeverityLimitsEmbeddable
+import com.bbh.itss.dso.portal.adapter.out.persistence.ServiceEntity.GoldenFixPolicyEmbeddable
+import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
+import com.bbh.itss.dso.portal.domain.settings.GlobalSettings
+import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues
+import com.bbh.itss.dso.portal.domain.settings.SeverityLimits
 import org.springframework.test.util.ReflectionTestUtils
 import spock.lang.Specification
 
 import java.time.Instant
 
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.DAST
+import static com.bbh.itss.dso.portal.domain.settings.Scanner.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SAST
+import static com.bbh.itss.dso.portal.domain.settings.Scanner.SCA
+import static com.bbh.itss.dso.portal.support.Fixtures.copy
 
 class GlobalSettingsEntitySpec extends Specification {
 
+    static final Instant UPDATED = Instant.parse('2026-10-04T12:00:00Z')
+
     def entity = new GlobalSettingsEntity()
+    def bbh = GlobalSettingsValues.bbhDefaults()
 
-    def "the settings live under one fixed key and start empty"() {
-        expect:
-        entity.id == 1L
-        GlobalSettingsEntity.ID == 1L
-        entity.platform() == null
-        entity.goldenFix() == null
-        entity.limits() == [:]
-    }
-
-    def "the settings are new until they were first stored"() {
-        expect:
-        entity.isNew()
+    def "the settings live under one fixed key and every section is read back unchanged with the stored version"() {
+        given:
+        ReflectionTestUtils.setField(entity, 'version', 7L)
+        ReflectionTestUtils.setField(entity, 'updatedAt', UPDATED)
 
         when:
-        ReflectionTestUtils.setField(entity, 'createdAt', Instant.parse('2026-10-04T12:00:00Z'))
+        entity.apply(bbh)
+
+        then:
+        entity.id == GlobalSettingsEntity.ID
+        entity.isNew()
+        entity.toDomain() == new GlobalSettings(bbh, 7, UPDATED)
+        entity.toDomain().values().limits().keySet() as List == [SAST, SCA, NEXUS_IQ, DAST]
+        ReflectionTestUtils.getField(entity, 'values').releaseGate().scanners() == [SAST, SCA, NEXUS_IQ, DAST]
+
+        when:
+        ReflectionTestUtils.setField(entity, 'createdAt', UPDATED)
 
         then:
         !entity.isNew()
@@ -35,23 +49,32 @@ class GlobalSettingsEntitySpec extends Specification {
 
     def "unchanged limits are left alone so saving writes no limit rows"() {
         given:
-        def zero = new SeverityLimitsEmbeddable(0, 0, 0)
-        Map<Scanner, SeverityLimitsEmbeddable> stored = Spy(HashMap, constructorArgs: [[(SAST): zero, (DAST): zero]])
+        entity.apply(bbh)
+        Map stored = Spy(HashMap, constructorArgs: [ReflectionTestUtils.getField(entity, 'limits')])
         ReflectionTestUtils.setField(entity, 'limits', stored)
 
         when:
-        entity.limits(new EnumMap<>([(SAST): zero, (DAST): zero]))
+        entity.apply(bbh)
 
         then:
         0 * stored.clear()
         0 * stored.putAll(_)
 
         when:
-        entity.limits([(SAST): new SeverityLimitsEmbeddable(3, 2, 1)])
+        entity.apply(copy(bbh, limits: [(SAST): new SeverityLimits(3, 2, 1)]))
 
         then:
         1 * stored.clear()
         1 * stored.putAll({ it == [(SAST): new SeverityLimitsEmbeddable(3, 2, 1)] })
-        entity.limits() == [(SAST): new SeverityLimitsEmbeddable(3, 2, 1)]
+    }
+
+    def "a GoldenFix policy keeps every value through its columns"() {
+        expect:
+        RecordMapper.map(RecordMapper.map(policy, GoldenFixPolicyEmbeddable), GoldenFixPolicy) == policy
+
+        where:
+        policy << [GoldenFixPolicy.INHERITED,
+                   new GoldenFixPolicy(false, true, 8, ['maven'], ['recommended-non-breaking'], ['legacy'], true, 2, 30,
+                           'mvn verify', 'gradle check', 'npm test', 'pytest', 'flutter test', 'Bot', 'bot@bbh.com', 'UTC')]
     }
 }

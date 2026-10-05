@@ -9,12 +9,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-public record UrbanCodeApplicationSettings(
-        String applicationName,
-        Integer order,
-        List<String> environments,
-        String snapshotName,
-        List<UrbanCodeComponent> components) {
+public record UrbanCodeApplicationSettings(String applicationName, Integer order, List<String> environments,
+                                           String snapshotName, List<UrbanCodeComponent> components) {
 
     public UrbanCodeApplicationSettings {
         applicationName = applicationName == null ? null : applicationName.trim();
@@ -24,9 +20,8 @@ public record UrbanCodeApplicationSettings(
     }
 
     public void validate(ValidationProblems problems) {
-        if (components.isEmpty()) {
-            problems.add("components", "add at least one component: the deployment uploads the components of the application");
-        }
+        problems.require("components", components,
+                "add at least one component: the deployment uploads the components of the application");
         for (int i = 0; i < components.size(); i++) {
             components.get(i).validate(problems.at("components[" + i + "]"));
         }

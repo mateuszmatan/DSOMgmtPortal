@@ -1,45 +1,26 @@
 package com.bbh.itss.dso.portal.domain.catalog
 
-import com.bbh.itss.dso.portal.domain.catalog.BuildTool
-import com.bbh.itss.dso.portal.domain.shared.ConfigTree
 import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
+import static com.bbh.itss.dso.portal.domain.shared.Sections.written
 
 class ToolCommandSpec extends Specification {
 
     static final ToolCommand FULL = new ToolCommand(['clean', 'build'], ['--no-daemon', '-x', 'test'], 'gui',
             '/opt/maven-3.9', ['JAVA_OPTS=-Xmx2g', 'CI=true'])
 
-    def "a command trims its values and keeps repeated tokens in their order"() {
-        when:
-        def command = new ToolCommand([' clean ', '', null, 'build', 'clean'], [' -s ', 'settings.xml', ' -gs ',
-                'settings.xml', ' '], ' gui ', ' ', [' CI=true ', ' '])
-
-        then:
-        command.tasks() == ['clean', 'build', 'clean']
-        command.flags() == ['-s', 'settings.xml', '-gs', 'settings.xml']
-        command.directory() == 'gui'
-        command.mavenHome() == null
-        command.environment() == ['CI=true']
-    }
-
-    def "a command left out entirely is the empty command"() {
+    def "a command trims its values, keeps repeated tokens in their order and may be left out entirely"() {
         expect:
+        new ToolCommand([' clean ', '', null, 'build', 'clean'], [' -s ', 'settings.xml', ' -gs ', 'settings.xml', ' '],
+                ' gui ', ' ', [' CI=true ', ' ']) ==
+                new ToolCommand(['clean', 'build', 'clean'], ['-s', 'settings.xml', '-gs', 'settings.xml'], 'gui', null, ['CI=true'])
         new ToolCommand(null, null, null, null, null) == ToolCommand.NONE
-        ToolCommand.NONE.tasks() == []
-        ToolCommand.NONE.flags() == []
-        ToolCommand.NONE.environment() == []
-    }
-
-    def "a command of tasks and flags only has no directory, Maven installation or environment"() {
-        when:
-        def command = ToolCommand.of(['test', ' jacocoTestReport '], ['--info'])
-
-        then:
-        command == new ToolCommand(['test', 'jacocoTestReport'], ['--info'], null, null, [])
+        ToolCommand.NONE == new ToolCommand([], [], null, null, [])
+        ToolCommand.of(['test', ' jacocoTestReport '], ['--info']) ==
+                new ToolCommand(['test', 'jacocoTestReport'], ['--info'], null, null, [])
         ToolCommand.of(null, null) == ToolCommand.NONE
     }
 
@@ -58,65 +39,19 @@ class ToolCommandSpec extends Specification {
         'an environment'         | new ToolCommand([], [], null, null, ['CI=true'])            || false
     }
 
-    def "a Gradle command is written under <path>.gradle without the Maven installation"() {
-        given:
-        def tree = new ConfigTree()
-
-        when:
-        FULL.writeTo(tree, 'build', GRADLE)
-
-        then:
-        tree.toMap() == [build: [gradle: [tasks: ['clean', 'build'], flags: ['--no-daemon', '-x', 'test'], dir: 'gui',
-                                          env  : [JAVA_OPTS: '-Xmx2g', CI: 'true']]]]
-    }
-
-    def "a Maven command is written under <path>.maven with its goals and Maven installation"() {
-        given:
-        def tree = new ConfigTree()
-
-        when:
-        FULL.writeTo(tree, 'tools.sonar', MAVEN)
-
-        then:
-        tree.toMap() == [tools: [sonar: [maven: [goals  : ['clean', 'build'], flags: ['--no-daemon', '-x', 'test'],
-                                                 dir    : 'gui', mvnPath: '/opt/maven-3.9',
-                                                 env    : [JAVA_OPTS: '-Xmx2g', CI: 'true']]]]]
-    }
-
-    def "a Flutter build runs no Gradle or Maven command, so nothing is written"() {
-        given:
-        def tree = new ConfigTree()
-
-        when:
-        FULL.writeTo(tree, 'build', FLUTTER)
-
-        then:
-        tree.toMap() == [:]
-    }
-
-    def "an empty command writes nothing for any build tool"() {
-        given:
-        def tree = new ConfigTree()
-
-        when:
-        ToolCommand.NONE.writeTo(tree, 'build', tool)
-
-        then:
-        tree.toMap() == [:]
+    def "a #tool command is written as #config"() {
+        expect:
+        written { command.writeTo(it, path, tool) } == config
 
         where:
-        tool << BuildTool.values()
-    }
-
-    def "only the parts that are set are written"() {
-        given:
-        def tree = new ConfigTree()
-
-        when:
-        new ToolCommand(['test'], [], null, '/opt/maven', ['NO_VALUE']).writeTo(tree, 'tests.unitTests', MAVEN)
-
-        then:
-        tree.toMap() == [tests: [unitTests: [maven: [goals: ['test'], mvnPath: '/opt/maven']]]]
+        command                                                                | path              | tool    || config
+        FULL                                                                   | 'build'           | GRADLE  || [build: [gradle: [tasks: ['clean', 'build'], flags: ['--no-daemon', '-x', 'test'], dir: 'gui', env: [JAVA_OPTS: '-Xmx2g', CI: 'true']]]]
+        FULL                                                                   | 'tools.sonar'     | MAVEN   || [tools: [sonar: [maven: [goals: ['clean', 'build'], flags: ['--no-daemon', '-x', 'test'], dir: 'gui', mvnPath: '/opt/maven-3.9', env: [JAVA_OPTS: '-Xmx2g', CI: 'true']]]]]
+        FULL                                                                   | 'build'           | FLUTTER || [:]
+        ToolCommand.NONE                                                       | 'build'           | GRADLE  || [:]
+        ToolCommand.NONE                                                       | 'build'           | MAVEN   || [:]
+        new ToolCommand(['test'], [], null, '/opt/maven', ['NO_VALUE'])        | 'tests.unitTests' | MAVEN   || [tests: [unitTests: [maven: [goals: ['test'], mvnPath: '/opt/maven']]]]
+        new ToolCommand(['build'], [], null, null, ['JUST_A_NAME'])            | 'build'           | GRADLE  || [build: [gradle: [tasks: ['build']]]]
     }
 
     def "the environment becomes the env map, a value keeping any further '=' it contains"() {
@@ -129,16 +64,5 @@ class ToolCommandSpec extends Specification {
         command.environmentMap() == [JAVA_OPTS: '-Dfile.encoding=UTF-8 -Dx=y', EMPTY: '', NAME: 'spaced', CI: 'false']
         command.environmentMap().keySet() as List == ['JAVA_OPTS', 'EMPTY', 'NAME', 'CI']
         ToolCommand.NONE.environmentMap() == [:]
-    }
-
-    def "an environment of entries without '=' writes no env map"() {
-        given:
-        def tree = new ConfigTree()
-
-        when:
-        new ToolCommand(['build'], [], null, null, ['JUST_A_NAME']).writeTo(tree, 'build', GRADLE)
-
-        then:
-        tree.toMap() == [build: [gradle: [tasks: ['build']]]]
     }
 }

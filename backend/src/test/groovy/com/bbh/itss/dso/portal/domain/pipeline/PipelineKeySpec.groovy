@@ -9,8 +9,10 @@ class PipelineKeySpec extends Specification {
     static final Instant ISSUED = Instant.parse('2026-10-01T08:00:00Z')
     static final Instant REVOKED = Instant.parse('2026-10-02T08:00:00Z')
 
-    def "a key trims its revocation reason"() {
+    def "a key trims its revocation reason and is shown by its first eight and last four characters"() {
         expect:
+        new PipelineKey(1L, '0f8fad5b-d9cb-469f-a165-70867728950e', KeyStatus.ACTIVE, ISSUED, null, null, null).hint() ==
+                '0f8fad5b\u2026950e'
         new PipelineKey(1L, 'k', KeyStatus.REVOKED, ISSUED, REVOKED, '  retired  ', null).revokeReason() == 'retired'
         new PipelineKey(1L, 'k', KeyStatus.REVOKED, ISSUED, REVOKED, null, null).revokeReason() == null
     }
@@ -42,12 +44,6 @@ class PipelineKeySpec extends Specification {
         'its value'                 | { new PipelineKey(1L, null, KeyStatus.ACTIVE, ISSUED, null, null, null) }
         'its status'                | { new PipelineKey(1L, 'k', null, ISSUED, null, null, null) }
         'the time it was issued'    | { new PipelineKey(1L, 'k', KeyStatus.ACTIVE, null, null, null, null) }
-    }
-
-    def "a key is shown by its first eight and last four characters"() {
-        expect:
-        new PipelineKey(1L, '0f8fad5b-d9cb-469f-a165-70867728950e', KeyStatus.ACTIVE, ISSUED, null, null, null).hint() ==
-                '0f8fad5b\u2026950e'
     }
 
     def "a key value given by a pipeline is compared trimmed and in lower case: '#value'"() {

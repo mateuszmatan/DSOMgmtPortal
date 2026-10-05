@@ -10,7 +10,7 @@ import java.time.Instant
 
 class InfluxRowsSpec extends Specification {
 
-    def "a run is read from a pivoted pipeline_run row"() {
+    def "a run is read from a pivoted pipeline_run row, missing text as null, and its tag from project and environment"() {
         when:
         def run = InfluxRows.run([_time       : '2026-10-01T10:00:00Z', result: 'unstable', branch: 'develop',
                                   build       : '42', duration_s: '1260.0', commit: 'a1b2c3', job: 'CERT/gui',
@@ -20,22 +20,9 @@ class InfluxRowsSpec extends Specification {
         then:
         run == new PipelineRun(Instant.parse('2026-10-01T10:00:00Z'), RunResult.UNSTABLE, 'develop', 42, 1260,
                 'a1b2c3', 'CERT/gui', 12, 11, 1, 0, 0, null)
-    }
-
-    def "missing text is null"() {
-        when:
-        def run = InfluxRows.run([_time: '2026-10-01T10:00:00Z', branch: ' '])
-
-        then:
-        run.branch() == null
-        run.commit() == null
-        run.result() == RunResult.NO_DATA
-    }
-
-    def "the tag of a row is its project and environment"() {
-        expect:
-        InfluxRows.tag([project: 'CERT-gui', env: 'test', _time: '2026-10-01T10:00:00Z']) ==
-                new MetricsTag('CERT-gui', 'test')
+        InfluxRows.run([_time: '2026-10-01T10:00:00Z', branch: ' ']) == new PipelineRun(
+                Instant.parse('2026-10-01T10:00:00Z'), RunResult.NO_DATA, *([null] * 11))
+        InfluxRows.tag([project: 'CERT-gui', env: 'test', _time: '2026-10-01T10:00:00Z']) == new MetricsTag('CERT-gui', 'test')
     }
 
     def "a DORA point is read from a pivoted dora row, a row without a time is none"() {

@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
-import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineCommand;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import jakarta.validation.constraints.NotEmpty;
@@ -23,8 +22,7 @@ public record PipelineRequest(
         String jenkinsJob,
         @Size(max = 1000) String description) {
 
-    PipelineCommand toCommand() {
-        return new PipelineCommand(type,
-                new PipelineSettings(agentLabels, extendedPipelineJob, securityPipelineJob, jenkinsJob, description));
+    PipelineSettings toSettings() {
+        return new PipelineSettings(agentLabels, extendedPipelineJob, securityPipelineJob, jenkinsJob, description);
     }
 }

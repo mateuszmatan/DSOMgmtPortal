@@ -13,17 +13,17 @@ import org.springframework.transaction.support.TransactionTemplate
 import spock.lang.Specification
 import spock.lang.Subject
 
-import javax.sql.DataSource
 import java.sql.SQLException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import javax.sql.DataSource
 
 @DataJpaTest(properties = [
         'spring.datasource.url=jdbc:h2:mem:publication-lock;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa'])
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import([PublicationLockAdapter, GlobalSettingsPersistenceAdapter, GlobalSettingsMapper])
+@Import([PublicationLockAdapter, GlobalSettingsPersistenceAdapter])
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class PublicationLockAdapterSpec extends Specification {
 
@@ -55,16 +55,14 @@ class PublicationLockAdapterSpec extends Specification {
         jdbc.update('DELETE FROM DSO_GLOBAL_SETTINGS')
     }
 
-    def "the configurations cannot be locked outside a transaction"() {
+    def "the lock needs a transaction and keeps every other connection from changing the global settings until it ends"() {
         when:
         lock.lock()
 
         then:
         def e = thrown(IllegalStateException)
         e.message == 'The pipeline configurations can only be locked inside a transaction'
-    }
 
-    def "the lock keeps every other connection from changing the global settings until the transaction ends"() {
         when:
         boolean changedWhileLocked = transactions.execute {
             lock.lock()

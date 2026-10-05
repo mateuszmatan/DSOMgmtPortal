@@ -15,7 +15,8 @@ import java.util.concurrent.atomic.AtomicInteger
         'spring.datasource.url=jdbc:h2:mem:dso-portal;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000',
         'dso.demo-data=false',
         'dso.influx.token=test-token',
-        'dso.grafana.url=http://grafana.test'])
+        'dso.grafana.dashboard-url=http://grafana.test/d/adzfc54123/devsecops-pipeline-long?orgId=1',
+        'dso.grafana.security-dashboard-url=http://grafana.test/d/ad2trcm/devsecops-security'])
 @ActiveProfiles('local')
 abstract class PortalSpecification extends Specification {
 

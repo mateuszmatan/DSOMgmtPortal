@@ -51,7 +51,7 @@ public class ChangeEvidenceService implements QueryEvidenceUseCase {
         Map<Long, List<Pipeline>> byService = monitored.pipelines().stream()
                 .collect(Collectors.groupingBy(view -> view.service().id(),
                         Collectors.mapping(PipelineView::pipeline, Collectors.toList())));
-        Readings readings = read(monitored.pipelines().stream().map(ChangeEvidenceService::tag)
+        Readings readings = read(monitored.pipelines().stream().map(PipelineView::metricsTag)
                 .collect(Collectors.toSet()));
         List<ServiceEvidence> services = product.services().stream()
                 .map(service -> service(service, byService.getOrDefault(service.id(), List.of()), readings, platform))
@@ -94,10 +94,6 @@ public class ChangeEvidenceService implements QueryEvidenceUseCase {
                 platform.nexusIqServerUrl());
         RunEvidence points = recorded == null ? RunEvidence.none() : recorded;
         return new PipelineEvidence(pipeline, jobUrl, status, points.report(run, service.name(), links));
-    }
-
-    private static MetricsTag tag(PipelineView view) {
-        return MetricsTag.of(view.service(), view.pipeline());
     }
 
     private record Readings(Map<MetricsTag, PipelineRun> latest, Map<MetricsTag, RunEvidence> evidence,

@@ -4,11 +4,8 @@ import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort;
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase;
-import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelineKeysUseCase;
-import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelinesUseCase;
-import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineCommand;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
-import com.bbh.itss.dso.portal.application.pipeline.port.in.QueryPipelinesUseCase;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.ServicePipelinesView;
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort;
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
@@ -32,7 +29,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @UseCase
-public class PipelineService implements ManagePipelinesUseCase, ManagePipelineKeysUseCase, QueryPipelinesUseCase {
+public class PipelineService implements PipelinesUseCase {
 
     private final PipelineRepositoryPort pipelines;
     private final ProductRepositoryPort products;
@@ -72,16 +69,15 @@ public class PipelineService implements ManagePipelinesUseCase, ManagePipelineKe
     }
 
     @Override
-    public PipelineView create(long serviceId, PipelineCommand command) {
+    public PipelineView create(long serviceId, PipelineType type, PipelineSettings settings) {
         publisher.lockConfigurations();
         Product product = products.findByServiceId(serviceId)
                 .orElseThrow(() -> NotFoundException.of("Service", serviceId));
         Service service = product.service(serviceId).orElseThrow(() -> NotFoundException.of("Service", serviceId));
-        if (pipelines.existsForService(serviceId, command.type())) {
-            throw new ConflictException("Service " + service.name() + " already has a " + command.type().variant()
-                    + " pipeline");
+        if (pipelines.existsForService(serviceId, type)) {
+            throw new ConflictException("Service " + service.name() + " already has a " + type.variant() + " pipeline");
         }
-        return PipelineView.of(product, create(product, serviceId, command.type(), command.settings()), jenkinsUrl());
+        return PipelineView.of(product, create(product, serviceId, type, settings), jenkinsUrl());
     }
 
     @Override
@@ -109,10 +105,10 @@ public class PipelineService implements ManagePipelinesUseCase, ManagePipelineKe
     }
 
     @Override
-    public PipelineView update(long id, PipelineCommand command) {
+    public PipelineView update(long id, PipelineType type, PipelineSettings settings) {
         publisher.lockConfigurations();
         Pipeline pipeline = find(id);
-        pipeline.reconfigure(command.type(), command.settings());
+        pipeline.reconfigure(type, settings);
         Pipeline saved = pipelines.save(pipeline);
         publisher.pipelineChanged(saved.id());
         return view(saved);

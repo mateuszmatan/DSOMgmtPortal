@@ -2,14 +2,13 @@ package com.bbh.itss.dso.portal.application.catalog;
 
 import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
-import com.bbh.itss.dso.portal.application.catalog.port.in.ManageProductsUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductCommand;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductSummaryView;
-import com.bbh.itss.dso.portal.application.catalog.port.in.QueryProductsUseCase;
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.out.PipelineCountsPort;
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort;
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase;
-import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelinesUseCase;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
@@ -21,15 +20,15 @@ import java.util.Map;
 import java.util.Set;
 
 @UseCase
-public class ProductCatalogService implements ManageProductsUseCase, QueryProductsUseCase {
+public class ProductCatalogService implements ProductsUseCase {
 
     private final ProductRepositoryPort products;
     private final PipelineCountsPort pipelineCounts;
     private final PublishPipelineConfigsUseCase publisher;
-    private final ManagePipelinesUseCase pipelines;
+    private final PipelinesUseCase pipelines;
 
     public ProductCatalogService(ProductRepositoryPort products, PipelineCountsPort pipelineCounts,
-                                 PublishPipelineConfigsUseCase publisher, ManagePipelinesUseCase pipelines) {
+                                 PublishPipelineConfigsUseCase publisher, PipelinesUseCase pipelines) {
         this.products = products;
         this.pipelineCounts = pipelineCounts;
         this.publisher = publisher;
@@ -60,7 +59,7 @@ public class ProductCatalogService implements ManageProductsUseCase, QueryProduc
     @Override
     public Product create(ProductCommand command) {
         publisher.lockConfigurations();
-        Product saved = saved(Product.create(command.details(), command.appScan(), command.drafts(), products));
+        Product saved = saved(Product.create(command.details(), command.appScan(), command.services(), products));
         return withPipelinesForNewServices(saved, Collections.emptySet());
     }
 
@@ -69,7 +68,7 @@ public class ProductCatalogService implements ManageProductsUseCase, QueryProduc
         publisher.lockConfigurations();
         Product product = find(id);
         Set<Long> known = new HashSet<>(serviceIds(product));
-        product.update(command.version(), command.details(), command.appScan(), command.drafts(), products);
+        product.update(command.version(), command.details(), command.appScan(), command.services(), products);
         return withPipelinesForNewServices(saved(product), known);
     }
 

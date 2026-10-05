@@ -9,12 +9,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public record PipelineSettings(
-        List<String> agentLabels,
-        String extendedPipelineJob,
-        String securityPipelineJob,
-        String jenkinsJob,
-        String description) {
+public record PipelineSettings(List<String> agentLabels, String extendedPipelineJob, String securityPipelineJob,
+                               String jenkinsJob, String description) {
 
     public static final String DEFAULT_AGENT_LABEL = "linux-agent";
 

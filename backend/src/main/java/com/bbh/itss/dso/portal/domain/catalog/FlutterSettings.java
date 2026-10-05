@@ -7,23 +7,12 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.List;
 
-public record FlutterSettings(
-        FlutterPlatform platform,
-        List<String> modules,
-        List<String> testModules,
-        List<String> testSubmodules,
-        List<String> testSubplugins,
-        String signingPasswordCredentialsId,
-        String prodLicenseCredentialsId,
-        String testLicenseCredentialsId,
-        String deliveryGroup,
-        String deliveryArtifact,
-        String deliveryPlugin,
-        String sonarSources,
-        String sonarTests,
-        Boolean sonarFlutterPlugin,
-        String dartAnalyzeCommand,
-        String sonarScannerVersion) {
+public record FlutterSettings(FlutterPlatform platform, List<String> modules, List<String> testModules,
+                              List<String> testSubmodules, List<String> testSubplugins,
+                              String signingPasswordCredentialsId, String prodLicenseCredentialsId,
+                              String testLicenseCredentialsId, String deliveryGroup, String deliveryArtifact,
+                              String deliveryPlugin, String sonarSources, String sonarTests, Boolean sonarFlutterPlugin,
+                              String dartAnalyzeCommand, String sonarScannerVersion) {
 
     public static final FlutterSettings NONE = new FlutterSettings(null, List.of(), List.of(), List.of(), List.of(), null,
             null, null, null, null, null, null, null, false, null, null);
@@ -47,7 +36,7 @@ public record FlutterSettings(
     }
 
     public void writeTo(ConfigTree config) {
-        config.set("flutter.platform", platform == null ? null : platform.configValue())
+        config.set("flutter.platform", platform)
                 .set("tools.flutter.flutterModules", modules)
                 .set("tests.modules", testModules)
                 .set("tests.submodules", testSubmodules)
@@ -62,48 +51,25 @@ public record FlutterSettings(
                 .set("tools.sonar.sources", sonarSources)
                 .set("tools.sonar.tests", sonarTests)
                 .set("tools.sonar.dartAnalyzeCommand", dartAnalyzeCommand)
-                .set("tools.sonar.sonarScannerVersion", sonarScannerVersion);
-        if (sonarFlutterPlugin) {
-            config.set("tools.sonar.flutterPlugin", true);
-        }
+                .set("tools.sonar.sonarScannerVersion", sonarScannerVersion)
+                .flag("tools.sonar.flutterPlugin", sonarFlutterPlugin);
     }
 
     public void validate(ValidationProblems problems, DeployTarget target) {
-        if (modules.isEmpty()) {
-            problems.add("modules", "add at least one module: the build stage prepares each of them");
-        }
-        if (testModules.isEmpty()) {
-            problems.add("testModules", "add at least one test module: the unit tests stage runs them");
-        }
+        problems.require("modules", modules, "add at least one module: the build stage prepares each of them");
+        problems.require("testModules", testModules, "add at least one test module: the unit tests stage runs them");
         StoredList.LINES_1000.check(problems, "modules", modules);
         StoredList.LINES_1000.check(problems, "testModules", testModules);
         StoredList.LINES_1000.check(problems, "testSubmodules", testSubmodules);
         StoredList.LINES_1000.check(problems, "testSubplugins", testSubplugins);
-        validateCredentials(problems);
+        String message = "is required: the Flutter build stage reads this Jenkins credential";
+        problems.require("signingPasswordCredentialsId", signingPasswordCredentialsId, message)
+                .require("prodLicenseCredentialsId", prodLicenseCredentialsId, message)
+                .require("testLicenseCredentialsId", testLicenseCredentialsId, message);
         if (target == DeployTarget.VM) {
             String delivery = "is required for Flutter on VMs: the Nexus delivery uploads the build under it";
-            if (deliveryGroup == null) {
-                problems.add("deliveryGroup", delivery);
-            }
-            if (deliveryArtifact == null) {
-                problems.add("deliveryArtifact", delivery);
-            }
-            if (deliveryPlugin == null) {
-                problems.add("deliveryPlugin", delivery);
-            }
-        }
-    }
-
-    private void validateCredentials(ValidationProblems problems) {
-        String message = "is required: the Flutter build stage reads this Jenkins credential";
-        if (signingPasswordCredentialsId == null) {
-            problems.add("signingPasswordCredentialsId", message);
-        }
-        if (prodLicenseCredentialsId == null) {
-            problems.add("prodLicenseCredentialsId", message);
-        }
-        if (testLicenseCredentialsId == null) {
-            problems.add("testLicenseCredentialsId", message);
+            problems.require("deliveryGroup", deliveryGroup, delivery).require("deliveryArtifact", deliveryArtifact, delivery)
+                    .require("deliveryPlugin", deliveryPlugin, delivery);
         }
     }
 }

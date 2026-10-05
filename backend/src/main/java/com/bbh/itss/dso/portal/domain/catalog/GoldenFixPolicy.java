@@ -7,24 +7,12 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.List;
 
-public record GoldenFixPolicy(
-        Boolean enabled,
-        Boolean onlyDirectDependencies,
-        Integer minThreatLevel,
-        List<String> ecosystems,
-        List<String> goldenVersionTypes,
-        List<String> excludeDirs,
-        Boolean verifyEnabled,
-        Integer verifyMaxAttempts,
-        Integer verifyTimeoutMinutes,
-        String verifyMavenCommand,
-        String verifyGradleCommand,
-        String verifyNpmCommand,
-        String verifyPipCommand,
-        String verifyPubCommand,
-        String commitAuthorName,
-        String commitAuthorEmail,
-        String timeZone) {
+public record GoldenFixPolicy(Boolean enabled, Boolean onlyDirectDependencies, Integer minThreatLevel,
+                              List<String> ecosystems, List<String> goldenVersionTypes, List<String> excludeDirs,
+                              Boolean verifyEnabled, Integer verifyMaxAttempts, Integer verifyTimeoutMinutes,
+                              String verifyMavenCommand, String verifyGradleCommand, String verifyNpmCommand,
+                              String verifyPipCommand, String verifyPubCommand, String commitAuthorName,
+                              String commitAuthorEmail, String timeZone) {
 
     public static final GoldenFixPolicy INHERITED = inherit(null);
 
@@ -83,25 +71,16 @@ public record GoldenFixPolicy(
     }
 
     public void validateComplete(ValidationProblems problems) {
-        require(problems, "onlyDirectDependencies", onlyDirectDependencies);
-        require(problems, "minThreatLevel", minThreatLevel);
-        require(problems, "verifyEnabled", verifyEnabled);
-        require(problems, "verifyMaxAttempts", verifyMaxAttempts);
-        require(problems, "verifyTimeoutMinutes", verifyTimeoutMinutes);
-        require(problems, "commitAuthorName", commitAuthorName);
-        require(problems, "commitAuthorEmail", commitAuthorEmail);
-        if (ecosystems.isEmpty()) {
-            problems.add("ecosystems", "select at least one ecosystem");
-        }
-        if (goldenVersionTypes.isEmpty()) {
-            problems.add("goldenVersionTypes", "add at least one remediation type");
-        }
+        String message = "is required in the global settings";
+        problems.require("onlyDirectDependencies", onlyDirectDependencies, message)
+                .require("minThreatLevel", minThreatLevel, message)
+                .require("verifyEnabled", verifyEnabled, message)
+                .require("verifyMaxAttempts", verifyMaxAttempts, message)
+                .require("verifyTimeoutMinutes", verifyTimeoutMinutes, message)
+                .require("commitAuthorName", commitAuthorName, message)
+                .require("commitAuthorEmail", commitAuthorEmail, message)
+                .require("ecosystems", ecosystems, "select at least one ecosystem")
+                .require("goldenVersionTypes", goldenVersionTypes, "add at least one remediation type");
         validate(problems);
-    }
-
-    private static void require(ValidationProblems problems, String field, Object value) {
-        if (value == null) {
-            problems.add(field, "is required in the global settings");
-        }
     }
 }

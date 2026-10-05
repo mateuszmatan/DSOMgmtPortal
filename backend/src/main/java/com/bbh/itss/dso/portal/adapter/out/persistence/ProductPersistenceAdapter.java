@@ -1,8 +1,8 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
+import com.bbh.itss.dso.portal.adapter.RecordMapper;
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort;
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductSummary;
-import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
 import com.bbh.itss.dso.portal.domain.shared.ConflictException;
@@ -19,35 +19,30 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
 
     private final ProductJpaRepository products;
     private final ServiceJpaRepository services;
-    private final ProductMapper mapper;
-
-    ProductPersistenceAdapter(ProductJpaRepository products, ServiceJpaRepository services, ProductMapper mapper) {
+    ProductPersistenceAdapter(ProductJpaRepository products, ServiceJpaRepository services) {
         this.products = products;
         this.services = services;
-        this.mapper = mapper;
     }
 
     @Override
     public Optional<Product> load(long id) {
-        return products.findById(id).map(mapper::toDomain);
+        return products.findById(id).map(ProductEntity::toDomain);
     }
 
     @Override
     public Optional<Product> findByServiceId(long serviceId) {
-        return services.findWithProductById(serviceId).map(service -> mapper.toDomain(service.product()));
+        return services.findWithProductById(serviceId).map(service -> service.product().toDomain());
     }
 
     @Override
     public List<Product> findAll() {
-        return products.findAllByOrderByNameAsc().stream().map(mapper::toDomain).toList();
+        return products.findAllByOrderByNameAsc().stream().map(ProductEntity::toDomain).toList();
     }
 
     @Override
     public List<ProductSummary> summaries() {
         return products.findAllByOrderByNameAsc().stream()
-                .map(product -> new ProductSummary(product.getId(), product.code(), product.name(),
-                        product.description(), product.ownerTeam(), product.getUpdatedAt()))
-                .toList();
+                .map(product -> RecordMapper.map(ProductSummary.class, product)).toList();
     }
 
     @Override
@@ -58,7 +53,7 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
     @Override
     public Product save(Product product) {
         ProductEntity entity = product.id() == null ? new ProductEntity() : existing(product);
-        mapper.copy(product, entity);
+        entity.apply(product);
         if (product.id() != null) {
             entity.touch();
             Set<Long> kept = product.serviceIds();
@@ -67,8 +62,8 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
             updateKeptServices(product, entity);
         }
         product.services().stream().filter(service -> service.id() == null)
-                .forEach(service -> mapper.copy(service, entity.addService()));
-        return mapper.toDomain(products.saveAndFlush(entity));
+                .forEach(service -> entity.addService().apply(service));
+        return products.saveAndFlush(entity).toDomain();
     }
 
     private void updateKeptServices(Product product, ProductEntity entity) {
@@ -76,19 +71,14 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
         product.services().stream().filter(service -> service.id() != null)
                 .forEach(service -> kept.put(entity.service(service.id()).orElseThrow(), service));
         List<ServiceEntity> moving = kept.entrySet().stream()
-                .filter(entry -> movesUniqueValues(entry.getValue(), entry.getKey())).map(Map.Entry::getKey).toList();
+                .filter(entry -> entry.getKey().holdsOtherUniqueValuesThan(entry.getValue())).map(Map.Entry::getKey)
+                .toList();
         if (!moving.isEmpty()) {
             moving.forEach(ServiceEntity::releaseUniqueValues);
             products.flush();
         }
-        kept.forEach((target, service) -> mapper.copy(service, target));
+        kept.forEach(ServiceEntity::apply);
         products.flush();
-    }
-
-    private static boolean movesUniqueValues(Service service, ServiceEntity target) {
-        MetricsSettings metrics = service.settings().metrics();
-        return target.holdsOtherUniqueValuesThan(service.name(), service.settings().sonar().projectKey(),
-                metrics.influxProject(), metrics.influxEnv());
     }
 
     @Override

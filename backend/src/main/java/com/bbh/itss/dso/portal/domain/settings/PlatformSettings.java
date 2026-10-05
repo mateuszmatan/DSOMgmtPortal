@@ -5,28 +5,14 @@ import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.net.URI;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
-public record PlatformSettings(
-        String jenkinsUrl,
-        String jenkinsLibrary,
-        String asocUrl,
-        String appScanClientLinuxUrl,
-        String appScanClientWindowsUrl,
-        String proxyHost,
-        Integer proxyPort,
-        String proxyUser,
-        String oisHost,
-        String sonarServerUrl,
-        String sonarInstallationName,
-        String nexusIqServerUrl,
-        String nexusIqCredentialsId,
-        String nexusSnapshotRepositoryUrl,
-        String nexusSnapshotRepositoryId,
-        String influxWriteUrl,
-        String influxCredentialsId,
-        String iosBuildAgent) {
+public record PlatformSettings(String jenkinsUrl, String jenkinsLibrary, String asocUrl, String appScanClientLinuxUrl,
+                               String appScanClientWindowsUrl, String proxyHost, Integer proxyPort, String proxyUser,
+                               String oisHost, String sonarServerUrl, String sonarInstallationName,
+                               String nexusIqServerUrl, String nexusIqCredentialsId, String nexusSnapshotRepositoryUrl,
+                               String nexusSnapshotRepositoryId, String influxWriteUrl, String influxCredentialsId,
+                               String iosBuildAgent) {
 
     public PlatformSettings {
         jenkinsUrl = Text.trimToNull(jenkinsUrl);
@@ -56,14 +42,11 @@ public record PlatformSettings(
     }
 
     public Map<String, Object> toConfig() {
-        Map<String, Object> environment = new LinkedHashMap<>();
-        putIfSet(environment, "APPSCAN_SERVER_URL", asocUrl);
-        putIfSet(environment, "APPSCAN_HOST", host(asocUrl));
-        putIfSet(environment, "SA_LINUX_URL", appScanClientLinuxUrl);
-        putIfSet(environment, "SA_WIN_URL", appScanClientWindowsUrl);
-        putIfSet(environment, "PROXY_HOST", proxyHost);
-        putIfSet(environment, "PROXY_PORT", proxyPort == null ? null : String.valueOf(proxyPort));
-        putIfSet(environment, "PROXY_USER", proxyUser);
+        Map<String, Object> environment = new ConfigTree().set("APPSCAN_SERVER_URL", asocUrl)
+                .set("APPSCAN_HOST", host(asocUrl)).set("SA_LINUX_URL", appScanClientLinuxUrl)
+                .set("SA_WIN_URL", appScanClientWindowsUrl).set("PROXY_HOST", proxyHost)
+                .set("PROXY_PORT", proxyPort == null ? null : String.valueOf(proxyPort)).set("PROXY_USER", proxyUser)
+                .toMap();
         return new ConfigTree()
                 .set("jenkinsUrl", jenkinsUrl)
                 .set("jenkinsLibrary", jenkinsLibrary)
@@ -91,12 +74,6 @@ public record PlatformSettings(
         }
         if (proxyHost == null && proxyPort != null) {
             problems.add("proxyHost", "is required with a proxy port");
-        }
-    }
-
-    private static void putIfSet(Map<String, Object> map, String key, String value) {
-        if (value != null) {
-            map.put(key, value);
         }
     }
 

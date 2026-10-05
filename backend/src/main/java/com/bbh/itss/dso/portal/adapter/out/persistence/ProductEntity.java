@@ -1,8 +1,11 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
+import com.bbh.itss.dso.portal.adapter.RecordMapper;
+import com.bbh.itss.dso.portal.domain.catalog.AppScanAccount;
+import com.bbh.itss.dso.portal.domain.catalog.Product;
+import com.bbh.itss.dso.portal.domain.catalog.ProductDetails;
 import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Embedded;
+import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -10,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.EmbeddedColumnNaming;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,25 +25,15 @@ public class ProductEntity extends AuditedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ID")
     private Long id;
 
-    @Column(name = "CODE", nullable = false, length = 50)
     private String code;
-
-    @Column(name = "NAME", nullable = false, length = 200)
     private String name;
-
-    @Column(name = "DESCRIPTION", length = 4000)
     private String description;
-
-    @Column(name = "OWNER_TEAM", length = 200)
     private String ownerTeam;
-
-    @Column(name = "CONTACT_EMAIL", length = 320)
     private String contactEmail;
 
-    @Embedded
+    @EmbeddedColumnNaming("ASOC_%s")
     private AppScanAccountEmbeddable appScanAccount;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -53,38 +47,24 @@ public class ProductEntity extends AuditedEntity {
         return id;
     }
 
-    String code() {
-        return code;
-    }
-
     String name() {
         return name;
     }
 
-    String description() {
-        return description;
+    Product toDomain() {
+        return Product.restore(id, RecordMapper.map(ProductDetails.class, this),
+                RecordMapper.map(appScanAccount, AppScanAccount.class),
+                services.stream().map(ServiceEntity::toDomain).toList(), getVersion(), getCreatedAt(), getUpdatedAt());
     }
 
-    String ownerTeam() {
-        return ownerTeam;
-    }
-
-    String contactEmail() {
-        return contactEmail;
-    }
-
-    AppScanAccountEmbeddable appScanAccount() {
-        return appScanAccount;
-    }
-
-    void details(String code, String name, String description, String ownerTeam, String contactEmail,
-                 AppScanAccountEmbeddable appScanAccount) {
-        this.code = code;
-        this.name = name;
-        this.description = description;
-        this.ownerTeam = ownerTeam;
-        this.contactEmail = contactEmail;
-        this.appScanAccount = appScanAccount;
+    void apply(Product product) {
+        ProductDetails details = product.details();
+        code = details.code();
+        name = details.name();
+        description = details.description();
+        ownerTeam = details.ownerTeam();
+        contactEmail = details.contactEmail();
+        appScanAccount = RecordMapper.map(product.appScanAccount(), AppScanAccountEmbeddable.class);
     }
 
     List<ServiceEntity> services() {
@@ -103,5 +83,9 @@ public class ProductEntity extends AuditedEntity {
 
     void removeService(ServiceEntity service) {
         services.remove(service);
+    }
+
+    @Embeddable
+    public record AppScanAccountEmbeddable(String keyId, String secretCredentialsId) {
     }
 }

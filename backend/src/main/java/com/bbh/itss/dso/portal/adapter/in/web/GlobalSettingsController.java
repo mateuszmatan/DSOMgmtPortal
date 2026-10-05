@@ -19,12 +19,12 @@ public class GlobalSettingsController {
     }
 
     @GetMapping
-    public GlobalSettingsResponse get() {
-        return GlobalSettingsResponse.from(settings.current());
+    public GlobalSettingsDto get() {
+        return GlobalSettingsDto.from(settings.current());
     }
 
     @PutMapping
-    public GlobalSettingsResponse update(@Valid @RequestBody GlobalSettingsRequest request) {
-        return GlobalSettingsResponse.from(settings.update(request.toCommand()));
+    public GlobalSettingsDto update(@Valid @RequestBody GlobalSettingsDto request) {
+        return GlobalSettingsDto.from(settings.update(request.version(), request.toValues()));
     }
 }

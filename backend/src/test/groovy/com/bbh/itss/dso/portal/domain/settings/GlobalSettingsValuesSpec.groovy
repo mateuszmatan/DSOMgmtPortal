@@ -7,42 +7,32 @@ import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException.FieldProble
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
-import static com.bbh.itss.dso.portal.domain.settings.PlatformSettingsSpec.copy
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.DAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SCA
+import static com.bbh.itss.dso.portal.support.Fixtures.copy
 
 class GlobalSettingsValuesSpec extends Specification {
 
-    def bbh = GlobalSettingsValues.bbhDefaults()
+    static final GlobalSettingsValues BBH = GlobalSettingsValues.bbhDefaults()
 
     def "the BBH defaults hold zero limits for every scanner and the DSOEnhanced policy"() {
         expect:
-        bbh.limits().keySet() as List == [SAST, SCA, NEXUS_IQ, DAST]
-        bbh.limits().values().every { it == SeverityLimits.ZERO }
-        bbh.platform().jenkinsUrl() == null
-        bbh.platform().jenkinsLibrary() == 'DevSecOpsJenkinsLibrary'
-        bbh.deployment() == new DeploymentDefaults('deploy.bbh.com', 'tomcat-app-process', 'rdltaapps1.testbbh.com',
+        BBH.limits() == [(SAST): SeverityLimits.ZERO, (SCA): SeverityLimits.ZERO, (NEXUS_IQ): SeverityLimits.ZERO,
+                         (DAST): SeverityLimits.ZERO]
+        BBH.platform().jenkinsUrl() == null
+        BBH.platform().jenkinsLibrary() == 'DevSecOpsJenkinsLibrary'
+        BBH.deployment() == new DeploymentDefaults('deploy.bbh.com', 'tomcat-app-process', 'rdltaapps1.testbbh.com',
                 'qcltaapps1.testbbh.com', 'taadmin', 'scripts/deployment/zero-downtime-deployment.sh',
                 'scripts/deployment/version.properties')
-        bbh.scans() == new ScanSettings(60, 120, 50, 30, true, 40, 30, 60, 60, 30, 30, true, 5)
-        bbh.releaseGate() == new ReleaseGateSettings([SAST, SCA, NEXUS_IQ, DAST], true, 'release-gate.json')
-        bbh.serviceDefaults() == new ServiceDefaults(BuildTool.GRADLE, DeployTarget.VM, '.', 20)
-        with(bbh.goldenFix()) {
-            enabled()
-            onlyDirectDependencies()
-            minThreatLevel() == 2
-            ecosystems() == ['maven', 'npm', 'pypi']
-            goldenVersionTypes() == ['recommended-non-breaking-with-dependencies', 'recommended-non-breaking']
-            excludeDirs() == []
-            verifyEnabled()
-            verifyMaxAttempts() == 3
-            verifyTimeoutMinutes() == 20
-            commitAuthorName() == 'DevSecOps GoldenFix'
-            commitAuthorEmail() == 'devsecops-goldenfix@noreply.local'
-            timeZone() == null
-        }
+        BBH.scans() == new ScanSettings(60, 120, 50, 30, true, 40, 30, 60, 60, 30, 30, true, 5)
+        BBH.releaseGate() == new ReleaseGateSettings([SAST, SCA, NEXUS_IQ, DAST], true, 'release-gate.json')
+        BBH.serviceDefaults() == new ServiceDefaults(BuildTool.GRADLE, DeployTarget.VM, '.', 20)
+        BBH.goldenFix() == new GoldenFixPolicy(true, true, 2, ['maven', 'npm', 'pypi'],
+                ['recommended-non-breaking-with-dependencies', 'recommended-non-breaking'], [], true, 3, 20, null, null,
+                null, null, null, 'DevSecOps GoldenFix', 'devsecops-goldenfix@noreply.local', null)
+        problems(BBH) == []
     }
 
     def "limits are kept in scanner order without missing entries and cannot be changed"() {
@@ -54,12 +44,12 @@ class GlobalSettingsValuesSpec extends Specification {
         limits.put(SAST, new SeverityLimits(0, 5, 10))
 
         when:
-        def values = new GlobalSettingsValues(bbh.platform(), bbh.deployment(), limits, bbh.scans(), bbh.releaseGate(),
-                bbh.serviceDefaults(), bbh.goldenFix())
+        def values = copy(BBH, limits: limits)
 
         then:
         values.limits().keySet() as List == [SAST, DAST]
         values.limits() == [(SAST): new SeverityLimits(0, 5, 10), (DAST): new SeverityLimits(1, 2, 3)]
+        copy(BBH, limits: null).limits() == [:]
 
         when:
         values.limits().put(SCA, SeverityLimits.ZERO)
@@ -68,174 +58,94 @@ class GlobalSettingsValuesSpec extends Specification {
         thrown(UnsupportedOperationException)
     }
 
-    def "no limits at all become an empty map"() {
-        expect:
-        new GlobalSettingsValues(bbh.platform(), bbh.deployment(), null, bbh.scans(), bbh.releaseGate(),
-                bbh.serviceDefaults(), bbh.goldenFix()).limits() == [:]
-    }
-
     def "changing the platform keeps every other value"() {
         given:
-        def platform = bbh.platform().withJenkinsUrl('https://jenkins.bbh.com')
+        def platform = BBH.platform().withJenkinsUrl('https://jenkins.bbh.com')
 
-        when:
-        def changed = bbh.withPlatform(platform)
-
-        then:
-        changed.platform().is(platform)
-        changed == new GlobalSettingsValues(platform, bbh.deployment(), bbh.limits(), bbh.scans(), bbh.releaseGate(),
-                bbh.serviceDefaults(), bbh.goldenFix())
-    }
-
-    def "the BBH defaults are valid"() {
-        given:
-        def problems = new ValidationProblems()
-
-        when:
-        bbh.validate(problems)
-
-        then:
-        problems.isEmpty()
+        expect:
+        BBH.withPlatform(platform) == copy(BBH, platform: platform)
     }
 
     def "validation reports the proxy pair, every scanner without limits and an incomplete GoldenFix policy"() {
         given:
-        def values = new GlobalSettingsValues(copy(bbh.platform(), proxyPort: null), bbh.deployment(),
-                [(SAST): SeverityLimits.ZERO, (SCA): SeverityLimits.ZERO], bbh.scans(), bbh.releaseGate(),
-                bbh.serviceDefaults(), GoldenFixPolicy.inherit(true))
-        def problems = new ValidationProblems()
+        def values = copy(BBH, platform: copy(BBH.platform(), proxyPort: null),
+                limits: [(SAST): SeverityLimits.ZERO, (SCA): SeverityLimits.ZERO], goldenFix: GoldenFixPolicy.inherit(true))
+        def required = ['onlyDirectDependencies', 'minThreatLevel', 'verifyEnabled', 'verifyMaxAttempts',
+                        'verifyTimeoutMinutes', 'commitAuthorName', 'commitAuthorEmail']
 
-        when:
-        values.validate(problems)
-
-        then:
-        problems.list() == [
-                new FieldProblem('platform.proxyPort', 'is required with a proxy host'),
-                new FieldProblem('limits.NEXUS_IQ', 'set the limits of every scanner'),
-                new FieldProblem('limits.DAST', 'set the limits of every scanner'),
-                new FieldProblem('goldenFix.onlyDirectDependencies', 'is required in the global settings'),
-                new FieldProblem('goldenFix.minThreatLevel', 'is required in the global settings'),
-                new FieldProblem('goldenFix.verifyEnabled', 'is required in the global settings'),
-                new FieldProblem('goldenFix.verifyMaxAttempts', 'is required in the global settings'),
-                new FieldProblem('goldenFix.verifyTimeoutMinutes', 'is required in the global settings'),
-                new FieldProblem('goldenFix.commitAuthorName', 'is required in the global settings'),
-                new FieldProblem('goldenFix.commitAuthorEmail', 'is required in the global settings'),
-                new FieldProblem('goldenFix.ecosystems', 'select at least one ecosystem'),
-                new FieldProblem('goldenFix.goldenVersionTypes', 'add at least one remediation type')]
+        expect:
+        problems(values) == [new FieldProblem('platform.proxyPort', 'is required with a proxy host'),
+                             new FieldProblem('limits.NEXUS_IQ', 'set the limits of every scanner'),
+                             new FieldProblem('limits.DAST', 'set the limits of every scanner')] +
+                required.collect { new FieldProblem("goldenFix.$it".toString(), 'is required in the global settings') } +
+                [new FieldProblem('goldenFix.ecosystems', 'select at least one ecosystem'),
+                 new FieldProblem('goldenFix.goldenVersionTypes', 'add at least one remediation type')]
     }
 
-    def "the release gate checks at least one scanner and the line coverage minimum is at least 1"() {
+    def "the release gate checks a scanner, the line coverage minimum is at least 1 and GoldenFix lists fit"() {
         given:
-        def scans = bbh.scans()
-        def values = new GlobalSettingsValues(bbh.platform(), bbh.deployment(), bbh.limits(),
-                new ScanSettings(coverage, scans.sastPrepareTimeoutMinutes(), scans.sastPollTimeoutMinutes(),
-                        scans.sastPollIntervalSeconds(), scans.scaEnabled(), scans.scaPollTimeoutMinutes(),
-                        scans.scaPollIntervalSeconds(), scans.dastPollTimeoutMinutes(), scans.dastPollIntervalSeconds(),
-                        scans.dastReportTimeoutMinutes(), scans.dastReportIntervalSeconds(),
-                        scans.sonarWaitForQualityGate(), scans.sonarQualityGateTimeoutMinutes()),
-                new ReleaseGateSettings(scanners, true, 'release-gate.json'), bbh.serviceDefaults(), bbh.goldenFix())
-        def problems = new ValidationProblems()
+        def values = copy(BBH, scans: copy(BBH.scans(), coverageMinLine: coverage),
+                releaseGate: new ReleaseGateSettings(scanners, true, 'release-gate.json'),
+                goldenFix: copy(BBH.goldenFix(), excludeDirs: excluded))
 
-        when:
-        values.validate(problems)
-
-        then:
-        problems.list()*.field == fields
+        expect:
+        problems(values) == expected
 
         where:
-        coverage | scanners || fields
-        0        | []       || ['scans.coverageMinLine', 'releaseGate.scanners']
-        1        | [SAST]   || []
-        null     | [DAST]   || []
+        coverage | scanners | excluded                                                     || expected
+        0        | []       | []                                                           || [COVERAGE, GATE]
+        1        | [SAST]   | (1..15).collect { "folder-$it/${'x' * 150}".toString() }     || [EXCLUDED]
+        null     | [DAST]   | []                                                           || []
     }
 
-    def "the reasons of the release gate and coverage rules name what the library would do instead"() {
-        given:
-        def problems = new ValidationProblems()
-
-        when:
-        new ReleaseGateSettings([], false, null).validate(problems)
-        new ScanSettings(0, null, null, null, null, null, null, null, null, null, null, null, null).validate(problems)
-
-        then:
-        problems.list()*.message == ['select at least one scanner: without any the library gates on all four',
-                                     'must be at least 1: the library replaces 0 with 60; turn off the coverage requirement of the release gate instead']
-    }
-
-    def "GoldenFix lists of the global policy must fit their columns"() {
-        given:
-        def policy = bbh.goldenFix()
-        def tooLong = (1..15).collect { "folder-$it/${'x' * 150}".toString() }
-        def values = new GlobalSettingsValues(bbh.platform(), bbh.deployment(), bbh.limits(), bbh.scans(),
-                bbh.releaseGate(), bbh.serviceDefaults(), new GoldenFixPolicy(policy.enabled(),
-                policy.onlyDirectDependencies(), policy.minThreatLevel(), policy.ecosystems(),
-                policy.goldenVersionTypes(), tooLong, policy.verifyEnabled(), policy.verifyMaxAttempts(),
-                policy.verifyTimeoutMinutes(), null, null, null, null, null, policy.commitAuthorName(),
-                policy.commitAuthorEmail(), null))
-        def problems = new ValidationProblems()
-
-        when:
-        values.validate(problems)
-
-        then:
-        problems.list()*.field == ['goldenFix.excludeDirs']
-    }
+    static final FieldProblem COVERAGE = new FieldProblem('scans.coverageMinLine',
+            'must be at least 1: the library replaces 0 with 60; turn off the coverage requirement of the release gate instead')
+    static final FieldProblem GATE = new FieldProblem('releaseGate.scanners',
+            'select at least one scanner: without any the library gates on all four')
+    static final FieldProblem EXCLUDED = new FieldProblem('goldenFix.excludeDirs',
+            'is too long: all entries together may take at most 2000 bytes')
 
     def "the library defaults are rendered in the shape and key order of its defaults.yaml"() {
         when:
-        def defaults = bbh.defaultsConfig()
+        def defaults = BBH.defaultsConfig()
+        def zero = [maxCritical: 0, maxHigh: 0, maxMedium: 0]
 
         then:
         defaults.keySet() as List == ['buildTool', 'deployTarget', 'sourceDir', 'coverage', 'tools', 'sast', 'sca',
                                       'dast', 'tests', 'releaseGate', 'goldenFix']
-        defaults.buildTool == 'gradle'
-        defaults.deployTarget == 'vm'
-        defaults.sourceDir == '.'
-        defaults.coverage == [minLine: 60]
-        defaults.tools == [sonar  : [qualityGate: [waitForQualityGate: true, timeoutMinutes: 5]],
-                           nexusIq: [maxCritical: 0, maxHigh: 0, maxMedium: 0]]
-        (defaults.sast as Map).keySet() as List == ['prepareTimeoutMin', 'pollTimeoutMin', 'pollIntervalSec',
-                                                    'maxCritical', 'maxHigh', 'maxMedium']
-        defaults.sast == [prepareTimeoutMin: 120, pollTimeoutMin: 50, pollIntervalSec: 30, maxCritical: 0, maxHigh: 0,
-                          maxMedium: 0]
-        defaults.sca == [enabled: true, pollTimeoutMin: 40, pollIntervalSec: 30, maxCritical: 0, maxHigh: 0, maxMedium: 0]
-        defaults.dast == [pollTimeoutMin: 60, pollIntervalSec: 60, reportTimeoutMin: 30, reportIntervalSec: 30,
-                          maxCritical: 0, maxHigh: 0, maxMedium: 0]
-        defaults.tests == [maxParallel: 20]
+        defaults.subMap(['buildTool', 'deployTarget', 'sourceDir', 'coverage', 'tests']) ==
+                [buildTool: 'gradle', deployTarget: 'vm', sourceDir: '.', coverage: [minLine: 60], tests: [maxParallel: 20]]
+        defaults.tools == [sonar: [qualityGate: [waitForQualityGate: true, timeoutMinutes: 5]], nexusIq: zero]
+        (defaults.sast as Map).keySet() as List == ['prepareTimeoutMin', 'pollTimeoutMin', 'pollIntervalSec'] + zero.keySet()
+        defaults.sast == [prepareTimeoutMin: 120, pollTimeoutMin: 50, pollIntervalSec: 30] + zero
+        defaults.sca == [enabled: true, pollTimeoutMin: 40, pollIntervalSec: 30] + zero
+        defaults.dast == [pollTimeoutMin: 60, pollIntervalSec: 60, reportTimeoutMin: 30, reportIntervalSec: 30] + zero
         defaults.releaseGate == [scanners: ['sast', 'sca', 'niq', 'dast'], requireCoverage: true,
                                  stateFile: 'release-gate.json']
-        defaults.goldenFix == [enabled                : true,
-                               onlyDirectDependencies : true,
-                               minThreatLevel         : 2,
-                               ecosystems             : ['maven', 'npm', 'pypi'],
-                               goldenVersionTypes     : ['recommended-non-breaking-with-dependencies',
-                                                         'recommended-non-breaking'],
-                               verify                 : [enabled: true, maxAttempts: 3, timeoutMinutes: 20],
-                               commitAuthorName       : 'DevSecOps GoldenFix',
-                               commitAuthorEmail      : 'devsecops-goldenfix@noreply.local']
+        defaults.goldenFix == [enabled: true, onlyDirectDependencies: true, minThreatLevel: 2,
+                               ecosystems: ['maven', 'npm', 'pypi'],
+                               goldenVersionTypes: ['recommended-non-breaking-with-dependencies', 'recommended-non-breaking'],
+                               verify: [enabled: true, maxAttempts: 3, timeoutMinutes: 20],
+                               commitAuthorName: 'DevSecOps GoldenFix', commitAuthorEmail: 'devsecops-goldenfix@noreply.local']
     }
 
-    def "the global GoldenFix policy runs GoldenFix by default when it does not say otherwise"() {
-        expect:
-        new GlobalSettingsValues(bbh.platform(), bbh.deployment(), bbh.limits(), bbh.scans(), bbh.releaseGate(),
-                bbh.serviceDefaults(), GoldenFixPolicy.INHERITED).goldenFix().enabled()
-        !new GlobalSettingsValues(bbh.platform(), bbh.deployment(), bbh.limits(), bbh.scans(), bbh.releaseGate(),
-                bbh.serviceDefaults(), GoldenFixPolicy.inherit(false)).goldenFix().enabled()
-    }
-
-    def "each scanner's limits are written to its own section of the defaults"() {
+    def "the global GoldenFix policy runs GoldenFix unless it says otherwise and each scanner's limits get their section"() {
         given:
-        def values = new GlobalSettingsValues(bbh.platform(), bbh.deployment(),
-                [(NEXUS_IQ): new SeverityLimits(1, 4, 9), (DAST): new SeverityLimits(0, 2, 20)], bbh.scans(),
-                bbh.releaseGate(), bbh.serviceDefaults(), bbh.goldenFix())
+        def defaults = copy(BBH, limits: [(NEXUS_IQ): new SeverityLimits(1, 4, 9), (DAST): new SeverityLimits(0, 2, 20)])
+                .defaultsConfig()
 
-        when:
-        def defaults = values.defaultsConfig()
-
-        then:
+        expect:
+        copy(BBH, goldenFix: GoldenFixPolicy.INHERITED).goldenFix().enabled()
+        !copy(BBH, goldenFix: GoldenFixPolicy.inherit(false)).goldenFix().enabled()
         defaults.tools.nexusIq == [maxCritical: 1, maxHigh: 4, maxMedium: 9]
         defaults.dast.subMap(['maxCritical', 'maxHigh', 'maxMedium']) == [maxCritical: 0, maxHigh: 2, maxMedium: 20]
         !defaults.sast.containsKey('maxCritical')
         !defaults.sca.containsKey('maxCritical')
+    }
+
+    private static List<FieldProblem> problems(GlobalSettingsValues values) {
+        def problems = new ValidationProblems()
+        values.validate(problems)
+        problems.list()
     }
 }

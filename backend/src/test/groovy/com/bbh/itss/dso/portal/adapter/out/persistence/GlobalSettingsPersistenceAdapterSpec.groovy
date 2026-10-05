@@ -16,12 +16,13 @@ import static com.bbh.itss.dso.portal.domain.settings.Scanner.DAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SCA
+import static com.bbh.itss.dso.portal.support.Fixtures.copy
 
 @DataJpaTest(properties = [
         'spring.datasource.url=jdbc:h2:mem:settings-adapter;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa'])
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import([GlobalSettingsPersistenceAdapter, GlobalSettingsMapper])
+@Import(GlobalSettingsPersistenceAdapter)
 class GlobalSettingsPersistenceAdapterSpec extends Specification {
 
     @Subject
@@ -33,12 +34,10 @@ class GlobalSettingsPersistenceAdapterSpec extends Specification {
 
     def bbh = GlobalSettingsValues.bbhDefaults()
 
-    def "a database without settings has none to load"() {
+    def "the defaults are stored under the fixed key and read back unchanged"() {
         expect:
         adapter.load() == Optional.empty()
-    }
 
-    def "the defaults are stored under the fixed key and read back unchanged"() {
         when:
         def saved = adapter.save(GlobalSettings.bbhDefaults())
 
@@ -57,9 +56,8 @@ class GlobalSettingsPersistenceAdapterSpec extends Specification {
     def "a change is written over the stored settings as the next version"() {
         given:
         def stored = adapter.save(GlobalSettings.bbhDefaults())
-        def changed = new GlobalSettingsValues(bbh.platform().withJenkinsUrl('https://jenkins.bbh.com'), bbh.deployment(),
-                bbh.limits() + [(SAST): new SeverityLimits(0, 2, 10)], bbh.scans(), bbh.releaseGate(),
-                bbh.serviceDefaults(), bbh.goldenFix())
+        def changed = copy(bbh, platform: bbh.platform().withJenkinsUrl('https://jenkins.bbh.com'),
+                limits: bbh.limits() + [(SAST): new SeverityLimits(0, 2, 10)])
 
         when:
         def saved = adapter.save(stored.change(stored.version(), changed))

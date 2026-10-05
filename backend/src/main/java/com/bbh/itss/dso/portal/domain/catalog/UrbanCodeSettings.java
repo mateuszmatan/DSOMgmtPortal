@@ -5,16 +5,9 @@ import com.bbh.itss.dso.portal.domain.shared.Text;
 
 import java.util.List;
 
-public record UrbanCodeSettings(
-        String siteName,
-        String deployProcess,
-        Boolean skipWait,
-        Boolean deployWithSnapshot,
-        Boolean updateSnapshotComponents,
-        Boolean includeOnlyDeployVersions,
-        Boolean deployOnlyChanged,
-        String deployDescription,
-        String requestProperties) {
+public record UrbanCodeSettings(String siteName, String deployProcess, Boolean skipWait, Boolean deployWithSnapshot,
+                                Boolean updateSnapshotComponents, Boolean includeOnlyDeployVersions,
+                                Boolean deployOnlyChanged, String deployDescription, String requestProperties) {
 
     public static final UrbanCodeSettings DEFAULTS = new UrbanCodeSettings(null, null, false, true, false, true, false,
             null, null);

@@ -1,10 +1,5 @@
 package com.bbh.itss.dso.portal.domain.catalog
 
-import com.bbh.itss.dso.portal.domain.catalog.BuildTool
-import com.bbh.itss.dso.portal.domain.catalog.DeployTarget
-import com.bbh.itss.dso.portal.domain.shared.ConfigSection
-import com.bbh.itss.dso.portal.domain.shared.ConfigTree
-import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.domain.catalog.BitbucketAuthType.BASIC
@@ -16,6 +11,10 @@ import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM
+import static com.bbh.itss.dso.portal.domain.shared.Sections.messages
+import static com.bbh.itss.dso.portal.domain.shared.Sections.problems
+import static com.bbh.itss.dso.portal.domain.shared.Sections.reported
+import static com.bbh.itss.dso.portal.domain.shared.Sections.written
 
 class ConfigSectionsSpec extends Specification {
 
@@ -27,12 +26,7 @@ class ConfigSectionsSpec extends Specification {
         def build = new BuildSettings(MAVEN, ' ', ' /opt/jdk-17 ', null, ' target/cert.jar ', null)
 
         then:
-        build.tool() == MAVEN
-        build.sourceDir() == '.'
-        build.javaPath() == '/opt/jdk-17'
-        !build.autoSetup()
-        build.buildPath() == 'target/cert.jar'
-        build.command() == ToolCommand.NONE
+        build == new BuildSettings(MAVEN, '.', '/opt/jdk-17', false, 'target/cert.jar', ToolCommand.NONE)
         written(build) == [buildTool: 'maven', sourceDir: '.', javaPath: '/opt/jdk-17', build: [buildPath: 'target/cert.jar']]
         new BuildSettings(GRADLE, null, ' ', false, ' ', null).javaPath() == null
         new BuildSettings(GRADLE, null, null, false, ' ', null).buildPath() == null
@@ -50,16 +44,10 @@ class ConfigSectionsSpec extends Specification {
                                      mvnPath: '/opt/maven', env: [MAVEN_OPTS: '-Xmx1g']]]]
     }
 
-    def "automatic build tool setup is written only when it is enabled"() {
+    def "automatic build tool setup is written only when it is enabled, and a Flutter build writes no command"() {
         expect:
         written(new BuildSettings(GRADLE, 'app', null, true, null, ToolCommand.of(['build'], []))) ==
                 [buildTool: 'gradle', sourceDir: 'app', buildToolAutoSetup: true, build: [gradle: [tasks: ['build']]]]
-        written(new BuildSettings(GRADLE, 'app', '/jdk', false, null, ToolCommand.of(['build'], []))) ==
-                [buildTool: 'gradle', sourceDir: 'app', javaPath: '/jdk', build: [gradle: [tasks: ['build']]]]
-    }
-
-    def "a Flutter build writes its artifact path but no Gradle or Maven command"() {
-        expect:
         written(new BuildSettings(FLUTTER, null, null, false, 'build/app.apk', ToolCommand.of(['assemble'], ['-q']))) ==
                 [buildTool: 'flutter', sourceDir: '.', build: [buildPath: 'build/app.apk']]
     }
@@ -83,16 +71,6 @@ class ConfigSectionsSpec extends Specification {
         FLUTTER | '/jdk'   | false     | []        || []
     }
 
-    def "a missing build command is explained in the words of the build tool"() {
-        expect:
-        messages(new BuildSettings(MAVEN, null, '/jdk', false, null, null)) ==
-                ['add the Maven goals of the build, for example clean verify']
-        messages(new BuildSettings(GRADLE, null, '/jdk', false, null, null)) ==
-                ['add the Gradle tasks of the build, for example clean build']
-        messages(new BuildSettings(GRADLE, null, null, false, null, ToolCommand.of(['build'], []))) ==
-                ['set the JDK path or enable automatic build tool setup, the unit tests stage needs one of them']
-    }
-
     def "OpenShift deployment needs the application and artifact names"() {
         expect:
         problems(new DeploymentSettings(OPENSHIFT, ' ', null, 'gui-1.0.jar')) == ['appName', 'artifactName']
@@ -109,9 +87,6 @@ class ConfigSectionsSpec extends Specification {
         def deployment = new DeploymentSettings(OPENSHIFT, ' gui ', ' gui.jar ', ' gui-1.0.0.jar ')
 
         then:
-        deployment.appName() == 'gui'
-        deployment.artifactName() == 'gui.jar'
-        deployment.baseArtifactName() == 'gui-1.0.0.jar'
         written(deployment) == [deployTarget    : 'openshift', appName: 'gui', artifactName: 'gui.jar',
                                 baseArtifactName: 'gui-1.0.0.jar']
         written(new DeploymentSettings(VM, ' ', '', ' ')) == [deployTarget: 'vm']
@@ -124,27 +99,9 @@ class ConfigSectionsSpec extends Specification {
                 null, null, null, null, null, ' ', null, null, ' ', ' ', ' ')
 
         then:
-        appScan.applicationId() == APP_ID
-        appScan.sastScanName() == null
-        appScan.includedDirs() == ['src']
-        appScan.excludedDirs() == []
-        appScan.compile()
-        !appScan.sourceCodeOnly()
-        !appScan.useConfigFile()
-        !appScan.insecureTls()
-        appScan.clientPath() == null
-        appScan.compileCommand() == ToolCommand.NONE
-        !appScan.dastEnabled()
-        appScan.dastScanName() == null
-        appScan.dastTargetUrl() == null
-        appScan.dastPresenceId() == null
+        appScan == new AppScanSettings(APP_ID, null, ['src'], [], true, false, false, false, null, ToolCommand.NONE,
+                false, null, null, null)
         written { appScan.writeTo(it, GRADLE) } == [appId: APP_ID, includedDirs: 'src', dast: [enabled: false]]
-    }
-
-    def "AppScan settings made of the application only equal the defaults"() {
-        expect:
-        AppScanSettings.of(APP_ID) == new AppScanSettings(APP_ID, null, null, null, null, null, null, null, null, null,
-                null, null, null, null)
         written { AppScanSettings.of(APP_ID).writeTo(it, MAVEN) } == [appId: APP_ID, dast: [enabled: false]]
         AppScanSettings.of(null).applicationId() == null
     }
@@ -183,12 +140,9 @@ class ConfigSectionsSpec extends Specification {
 
     def "enabled DAST needs a target URL"() {
         expect:
-        problems { new AppScanSettings(APP_ID, null, [], [], true, false, false, false, null, null, true, null, null, null).validate(it) } ==
-                ['dastTargetUrl']
-        messages { new AppScanSettings(APP_ID, null, [], [], true, false, false, false, null, null, true, null, null, null).validate(it) } ==
-                ['is required when DAST is enabled']
-        problems { new AppScanSettings(APP_ID, null, [], [], true, false, false, false, null, null, true, null, 'https://x', null).validate(it) } ==
-                []
+        reported { dast(null).validate(it) }.collect { [it.field, it.message] } ==
+                [['dastTargetUrl', 'is required when DAST is enabled']]
+        problems { dast('https://x').validate(it) } == []
         problems { AppScanSettings.of(APP_ID).validate(it) } == []
     }
 
@@ -197,15 +151,7 @@ class ConfigSectionsSpec extends Specification {
         def sonar = new SonarSettings(' ', ' cert ', ' ', ' ', ' ', ' ', null, null, null)
 
         then:
-        sonar.projectName() == null
-        sonar.projectKey() == 'cert'
-        sonar.installationName() == null
-        sonar.credentialsId() == null
-        sonar.authTokenCredentialsId() == null
-        sonar.badgeToken() == null
-        !sonar.addBadges()
-        !sonar.fullBadges()
-        sonar.command() == ToolCommand.NONE
+        sonar == new SonarSettings(null, 'cert', null, null, null, null, false, false, ToolCommand.NONE)
         SonarSettings.of(' CertScanner ', 'cert', null) == new SonarSettings('CertScanner', 'cert', null, null, null, null,
                 false, false, ToolCommand.NONE)
         SonarSettings.NONE == new SonarSettings(' ', '', null, null, null, null, false, false, null)
@@ -245,12 +191,17 @@ class ConfigSectionsSpec extends Specification {
         GRADLE  | 'cert' | ['sonarqube']   || []
     }
 
-    def "a missing analysis command is explained in the words of the build tool"() {
+    def "a missing #tool command of the #stage is explained in the words of the build tool"() {
         expect:
-        messages { SonarSettings.of(null, 'cert', null).validate(it, MAVEN) } ==
-                ['add the Maven goals of the analysis, for example sonar:sonar']
-        messages { SonarSettings.of(null, 'cert', null).validate(it, GRADLE) } ==
-                ['add the Gradle tasks of the analysis, for example sonarqube']
+        messages(validation) == [message]
+
+        where:
+        tool     | stage      | validation                                                                  || message
+        'Maven'  | 'build'    | new BuildSettings(MAVEN, null, '/jdk', false, null, null)                   || 'add the Maven goals of the build, for example clean verify'
+        'Gradle' | 'build'    | new BuildSettings(GRADLE, null, '/jdk', false, null, null)                  || 'add the Gradle tasks of the build, for example clean build'
+        'JDK'    | 'build'    | new BuildSettings(GRADLE, null, null, false, null, ToolCommand.of(['build'], [])) || 'set the JDK path or enable automatic build tool setup, the unit tests stage needs one of them'
+        'Maven'  | 'analysis' | { SonarSettings.of(null, 'cert', null).validate(it, MAVEN) }                || 'add the Maven goals of the analysis, for example sonar:sonar'
+        'Gradle' | 'analysis' | { SonarSettings.of(null, 'cert', null).validate(it, GRADLE) }               || 'add the Gradle tasks of the analysis, for example sonarqube'
     }
 
     def "Nexus IQ settings keep each scan pattern once and default the stage to build"() {
@@ -258,11 +209,7 @@ class ConfigSectionsSpec extends Specification {
         def nexusIq = new NexusIqSettings(' cert ', ['**/*.jar', ' ', '**/*.jar', ' **/*.war '], ' ', null, ' ')
 
         then:
-        nexusIq.application() == 'cert'
-        nexusIq.scanPatterns() == ['**/*.jar', '**/*.war']
-        nexusIq.stage() == 'build'
-        !nexusIq.failOnNetworkError()
-        nexusIq.scaScanName() == null
+        nexusIq == new NexusIqSettings('cert', ['**/*.jar', '**/*.war'], 'build', false, null)
         written(nexusIq) == [tools: [nexusIq: [application: 'cert', scanPatterns: ['**/*.jar', '**/*.war'], stage: 'build',
                                                failOnNetworkError: false]]]
         new NexusIqSettings(null, null, null, null, null).scanPatterns() == []
@@ -284,17 +231,7 @@ class ConfigSectionsSpec extends Specification {
         def scm = new ScmSettings(' ', ' ', null, null, ' ', ' ', [' alice ', 'alice', '', 'bob'], ' ', ' ', ' ', ' ')
 
         then:
-        scm.repositoryUrl() == null
-        scm.credentialsId() == null
-        scm.authType() == BASIC
-        scm.type() == null
-        scm.targetBranch() == null
-        scm.cloneUrl() == null
-        scm.reviewers() == ['alice', 'bob']
-        scm.apiUrl() == null
-        scm.workspace() == null
-        scm.projectKey() == null
-        scm.repoSlug() == null
+        scm == new ScmSettings(null, null, BASIC, null, null, null, ['alice', 'bob'], null, null, null, null)
         ScmSettings.NONE == new ScmSettings(null, null, null, null, null, null, null, null, null, null, null)
         ScmSettings.of(" $REPO ", ' bb-creds ') ==
                 new ScmSettings(REPO, 'bb-creds', BASIC, null, null, null, [], null, null, null, null)
@@ -303,15 +240,11 @@ class ConfigSectionsSpec extends Specification {
                 'ta', 'TA', 'cert')
     }
 
-    def "nothing of the repository is written without its URL"() {
+    def "a repository writes every scm.bitbucket key that is set, and nothing without its URL"() {
         expect:
         written(ScmSettings.NONE) == [:]
         written(new ScmSettings(null, 'bb-creds', BEARER, CLOUD, 'main', 'ssh://git@x/r.git', ['alice'],
                 'https://api.bitbucket.org/2.0', 'ta', 'TA', 'cert')) == [:]
-    }
-
-    def "a repository writes every scm.bitbucket key that is set"() {
-        expect:
         written(new ScmSettings(" $REPO ", 'bb-creds', BEARER, SERVER, ' develop ',
                 ' ssh://git@bitbucket.bbh.com:7999/ta/cert.git ', ['alice', '{0b9e-uuid}'],
                 ' https://bitbucket.bbh.com/rest/api/1.0 ', null, ' TA ', ' cert-scanner ')) ==
@@ -328,8 +261,8 @@ class ConfigSectionsSpec extends Specification {
 
     def "a repository needs the credentials GoldenFix pushes with"() {
         expect:
-        problems(ScmSettings.of(REPO, ' ')) == ['credentialsId']
-        messages(ScmSettings.of(REPO, null)) == ['is required to push GoldenFix branches and open pull requests']
+        reported { ScmSettings.of(REPO, ' ').validate(it) }.collect { [it.field, it.message] } ==
+                [['credentialsId', 'is required to push GoldenFix branches and open pull requests']]
         problems(ScmSettings.of(REPO, 'bb-creds')) == []
         problems(ScmSettings.NONE) == []
     }
@@ -350,26 +283,17 @@ class ConfigSectionsSpec extends Specification {
         null                            | null      | null       | 'cert'
     }
 
-    def "metrics are on by default and use the test environment"() {
+    def "metrics are on by default, use the test environment and default the project to the product code and service name"() {
         expect:
-        MetricsSettings.DEFAULTS.enabled()
-        MetricsSettings.DEFAULTS.influxProject() == null
-        MetricsSettings.DEFAULTS.influxEnv() == 'test'
         new MetricsSettings(null, ' ', ' ') == MetricsSettings.DEFAULTS
+        MetricsSettings.DEFAULTS == new MetricsSettings(true, null, 'test')
         new MetricsSettings(false, ' cert ', ' prod ') == new MetricsSettings(false, 'cert', 'prod')
         written(new MetricsSettings(null, 'CERT-gui', null)) == [influx: [enabled: true, project: 'CERT-gui', env: 'test']]
         written(new MetricsSettings(false, null, 'uat')) == [influx: [enabled: false, env: 'uat']]
         problems(MetricsSettings.DEFAULTS) == []
-    }
-
-    def "a missing metrics project defaults to the product code and service name"() {
-        given:
-        def explicit = new MetricsSettings(true, 'cert-scanner', 'uat')
-
-        expect:
         MetricsSettings.DEFAULTS.withDefaultProject('CERT', 'gui') == new MetricsSettings(true, 'CERT-gui', 'test')
         new MetricsSettings(false, null, 'uat').withDefaultProject('CERT', 'gui') == new MetricsSettings(false, 'CERT-gui', 'uat')
-        explicit.withDefaultProject('CERT', 'gui').is(explicit)
+        new MetricsSettings(true, 'cert-scanner', 'uat').with { it.withDefaultProject('CERT', 'gui').is(it) }
     }
 
     def "the AppScan account writes the key ID and the credential holding the secret"() {
@@ -380,43 +304,7 @@ class ConfigSectionsSpec extends Specification {
         problems(new AppScanAccount('bbh_key', null)) == []
     }
 
-    def "enumerated settings are written in lower case"() {
-        expect:
-        BuildTool.values()*.configValue() == ['gradle', 'maven', 'flutter']
-        DeployTarget.values()*.configValue() == ['vm', 'openshift']
-        BitbucketAuthType.values()*.configValue() == ['basic', 'bearer']
-        BitbucketType.values()*.configValue() == ['server', 'cloud']
-    }
-
-    private static Map written(ConfigSection section) {
-        written { section.writeTo(it) }
-    }
-
-    private static Map written(Closure write) {
-        def tree = new ConfigTree()
-        write(tree)
-        tree.toMap()
-    }
-
-    private static List<String> problems(ConfigSection section) {
-        problems { section.validate(it) }
-    }
-
-    private static List<String> problems(Closure validate) {
-        reported(validate)*.field
-    }
-
-    private static List<String> messages(ConfigSection section) {
-        messages { section.validate(it) }
-    }
-
-    private static List<String> messages(Closure validate) {
-        reported(validate)*.message
-    }
-
-    private static List reported(Closure validate) {
-        def problems = new ValidationProblems()
-        validate(problems)
-        problems.list()
+    private static AppScanSettings dast(String targetUrl) {
+        new AppScanSettings(APP_ID, null, [], [], true, false, false, false, null, null, true, null, targetUrl, null)
     }
 }

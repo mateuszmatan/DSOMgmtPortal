@@ -5,13 +5,8 @@ import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
-public record BuildSettings(
-        BuildTool tool,
-        String sourceDir,
-        String javaPath,
-        Boolean autoSetup,
-        String buildPath,
-        ToolCommand command) implements ConfigSection {
+public record BuildSettings(BuildTool tool, String sourceDir, String javaPath, Boolean autoSetup, String buildPath,
+                            ToolCommand command) implements ConfigSection {
 
     public static final String DEFAULT_SOURCE_DIR = ".";
 
@@ -25,11 +20,8 @@ public record BuildSettings(
 
     @Override
     public void writeTo(ConfigTree config) {
-        config.set("buildTool", tool.configValue()).set("sourceDir", sourceDir).set("javaPath", javaPath);
-        if (autoSetup) {
-            config.set("buildToolAutoSetup", true);
-        }
-        config.set("build.buildPath", buildPath);
+        config.set("buildTool", tool).set("sourceDir", sourceDir).set("javaPath", javaPath)
+                .flag("buildToolAutoSetup", autoSetup).set("build.buildPath", buildPath);
         command.writeTo(config, "build", tool);
     }
 
@@ -49,9 +41,8 @@ public record BuildSettings(
     }
 
     private void validateFlutter(ValidationProblems problems) {
-        if (javaPath == null) {
-            problems.add("javaPath", "is required for Flutter: the build and unit test stages set JAVA_HOME from it");
-        }
+        problems.require("javaPath", javaPath,
+                "is required for Flutter: the build and unit test stages set JAVA_HOME from it");
         if (autoSetup) {
             problems.add("autoSetup", "must be off for Flutter: the automatic build tool setup cannot prepare a Flutter build");
         }

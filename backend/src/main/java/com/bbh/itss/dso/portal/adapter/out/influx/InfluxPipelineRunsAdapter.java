@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.adapter.out.influx;
 
-import com.bbh.itss.dso.portal.application.monitoring.port.out.MonitoringStatusPort;
 import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort;
 import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint;
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
@@ -14,7 +13,7 @@ import java.util.Map;
 import java.util.Objects;
 
 @Component
-class InfluxPipelineRunsAdapter implements PipelineRunsPort, MonitoringStatusPort {
+class InfluxPipelineRunsAdapter implements PipelineRunsPort {
 
     private final InfluxQueryClient influx;
 

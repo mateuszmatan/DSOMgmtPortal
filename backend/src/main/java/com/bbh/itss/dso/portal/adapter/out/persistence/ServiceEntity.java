@@ -1,15 +1,26 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
+import com.bbh.itss.dso.portal.adapter.RecordMapper;
+import com.bbh.itss.dso.portal.domain.catalog.BitbucketAuthType;
+import com.bbh.itss.dso.portal.domain.catalog.BitbucketType;
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
+import com.bbh.itss.dso.portal.domain.catalog.DeployTarget;
+import com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform;
 import com.bbh.itss.dso.portal.domain.catalog.Region;
+import com.bbh.itss.dso.portal.domain.catalog.Service;
+import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings;
+import com.bbh.itss.dso.portal.domain.catalog.TestJobType;
+import com.bbh.itss.dso.portal.domain.catalog.TestStage;
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings;
-import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.ElementCollection;
-import jakarta.persistence.Embedded;
+import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -22,8 +33,10 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.EmbeddedColumnNaming;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,49 +48,21 @@ public class ServiceEntity extends AuditedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ID")
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "PRODUCT_ID", nullable = false)
+    @JoinColumn(name = "PRODUCT_ID")
     private ProductEntity product;
 
-    @Column(name = "NAME", nullable = false, length = 100)
     private String name;
-
-    @Column(name = "DESCRIPTION", length = 2000)
     private String description;
-
-    @Column(name = "DISPLAY_ORDER", nullable = false)
     private int displayOrder;
-
-    @Embedded
-    private BuildSettingsEmbeddable build;
-
-    @Embedded
-    private UnitTestSettingsEmbeddable unitTests;
-
-    @Embedded
-    private TestSettingsEmbeddable tests;
+    private SettingsEmbeddable settings;
 
     @ElementCollection
     @CollectionTable(name = "DSO_SERVICE_TEST_JOB", joinColumns = @JoinColumn(name = "SERVICE_ID"))
     @OrderColumn(name = "POSITION")
     private List<TestJobEmbeddable> testJobs = new ArrayList<>();
-
-    @Embedded
-    private DeploymentSettingsEmbeddable deployment;
-
-    @Embedded
-    @AttributeOverride(name = "tasks", column = @Column(name = "DELIVERY_TASKS", length = 1000))
-    @AttributeOverride(name = "flags", column = @Column(name = "DELIVERY_FLAGS", length = 2000))
-    @AttributeOverride(name = "directory", column = @Column(name = "DELIVERY_DIRECTORY", length = 500))
-    @AttributeOverride(name = "mavenHome", column = @Column(name = "DELIVERY_MAVEN_HOME", length = 500))
-    @AttributeOverride(name = "environment", column = @Column(name = "DELIVERY_ENVIRONMENT", length = 4000))
-    private ToolCommandEmbeddable delivery;
-
-    @Embedded
-    private UrbanCodeSettingsEmbeddable urbanCode;
 
     @OneToMany(mappedBy = "service", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
@@ -86,35 +71,14 @@ public class ServiceEntity extends AuditedEntity {
     @ElementCollection
     @CollectionTable(name = "DSO_SERVICE_SSH_TARGET", joinColumns = @JoinColumn(name = "SERVICE_ID"))
     @MapKeyEnumerated(EnumType.STRING)
-    @MapKeyColumn(name = "REGION", length = 10)
+    @MapKeyColumn(name = "REGION")
     private Map<Region, SshTargetEmbeddable> sshTargets = new HashMap<>();
 
     @ElementCollection
     @CollectionTable(name = "DSO_SERVICE_OPENSHIFT_TARGET", joinColumns = @JoinColumn(name = "SERVICE_ID"))
     @MapKeyEnumerated(EnumType.STRING)
-    @MapKeyColumn(name = "REGION", length = 10)
+    @MapKeyColumn(name = "REGION")
     private Map<Region, OpenShiftTargetEmbeddable> openShiftTargets = new HashMap<>();
-
-    @Embedded
-    private AppScanSettingsEmbeddable appScan;
-
-    @Embedded
-    private SonarSettingsEmbeddable sonar;
-
-    @Embedded
-    private NexusIqSettingsEmbeddable nexusIq;
-
-    @Embedded
-    private ScmSettingsEmbeddable scm;
-
-    @Embedded
-    private GoldenFixPolicyEmbeddable goldenFix;
-
-    @Embedded
-    private MetricsSettingsEmbeddable metrics;
-
-    @Embedded
-    private FlutterSettingsEmbeddable flutter;
 
     protected ServiceEntity() {
     }
@@ -135,182 +99,247 @@ public class ServiceEntity extends AuditedEntity {
         return name;
     }
 
-    String description() {
-        return description;
-    }
-
-    int displayOrder() {
-        return displayOrder;
-    }
-
-    boolean holdsOtherUniqueValuesThan(String otherName, String sonarProjectKey, String influxProject,
-                                       String influxEnv) {
-        return !Objects.equals(name, otherName) || !Objects.equals(sonar.projectKey(), sonarProjectKey)
-                || !Objects.equals(metrics.influxProject(), influxProject)
-                || !Objects.equals(metrics.influxEnv(), influxEnv);
-    }
-
-    void releaseUniqueValues() {
-        String placeholder = "~" + getId();
-        name = placeholder;
-        sonar = sonar.withProjectKey(null);
-        metrics = metrics.withInfluxProject(placeholder);
-    }
-
-    void identity(String name, String description, int displayOrder) {
-        this.name = name;
-        this.description = description;
-        this.displayOrder = displayOrder;
-    }
-
-    BuildSettingsEmbeddable build() {
-        return build;
-    }
-
-    void build(BuildSettingsEmbeddable build) {
-        this.build = build;
-    }
-
-    UnitTestSettingsEmbeddable unitTests() {
-        return unitTests;
-    }
-
-    void unitTests(UnitTestSettingsEmbeddable unitTests) {
-        this.unitTests = unitTests;
-    }
-
-    TestSettingsEmbeddable tests() {
-        return tests;
-    }
-
-    void tests(TestSettingsEmbeddable tests) {
-        this.tests = tests;
-    }
-
-    List<TestJobEmbeddable> testJobs() {
-        return List.copyOf(testJobs);
-    }
-
-    void testJobs(List<TestJobEmbeddable> replacement) {
-        if (!testJobs.equals(replacement)) {
-            testJobs.clear();
-            testJobs.addAll(replacement);
-        }
-    }
-
-    DeploymentSettingsEmbeddable deployment() {
-        return deployment;
-    }
-
-    void deployment(DeploymentSettingsEmbeddable deployment) {
-        this.deployment = deployment;
-    }
-
-    ToolCommandEmbeddable delivery() {
-        return delivery;
-    }
-
-    void delivery(ToolCommandEmbeddable delivery) {
-        this.delivery = delivery;
-    }
-
-    UrbanCodeSettingsEmbeddable urbanCode() {
-        return urbanCode;
-    }
-
-    void urbanCode(UrbanCodeSettingsEmbeddable urbanCode) {
-        this.urbanCode = urbanCode;
-    }
-
     List<UrbanCodeApplicationSettings> urbanCodeApplications() {
         return urbanCodeApplications.stream().map(UrbanCodeApplicationEntity::toDomain).toList();
     }
 
-    void urbanCodeApplications(List<UrbanCodeApplicationSettings> replacement) {
-        if (urbanCodeApplications().equals(replacement)) {
-            return;
-        }
-        urbanCodeApplications.clear();
-        for (int position = 0; position < replacement.size(); position++) {
-            urbanCodeApplications.add(new UrbanCodeApplicationEntity(this, position, replacement.get(position)));
-        }
+    Service toDomain() {
+        return new Service(id, name, description, displayOrder, RecordMapper.map(ServiceSettings.class, settings, this));
     }
 
-    Map<Region, SshTargetEmbeddable> sshTargets() {
-        return Map.copyOf(sshTargets);
-    }
-
-    void sshTargets(Map<Region, SshTargetEmbeddable> replacement) {
-        if (!sshTargets.equals(replacement)) {
-            sshTargets.clear();
-            sshTargets.putAll(replacement);
-        }
-    }
-
-    Map<Region, OpenShiftTargetEmbeddable> openShiftTargets() {
-        return Map.copyOf(openShiftTargets);
-    }
-
-    void openShiftTargets(Map<Region, OpenShiftTargetEmbeddable> replacement) {
-        if (!openShiftTargets.equals(replacement)) {
-            openShiftTargets.clear();
-            openShiftTargets.putAll(replacement);
+    void apply(Service service) {
+        ServiceSettings source = service.settings();
+        name = service.name();
+        description = service.description();
+        displayOrder = service.displayOrder();
+        settings = RecordMapper.map(source, SettingsEmbeddable.class);
+        replace(testJobs, source.testJobs().stream().map(job -> RecordMapper.map(job, TestJobEmbeddable.class)).toList());
+        replace(sshTargets, regions(source.sshTargets(), SshTargetEmbeddable.class));
+        replace(openShiftTargets, regions(source.openShiftTargets(), OpenShiftTargetEmbeddable.class));
+        List<UrbanCodeApplicationSettings> applications = source.urbanCodeApplications();
+        if (!applications.equals(urbanCodeApplications())) {
+            urbanCodeApplications.clear();
+            for (int position = 0; position < applications.size(); position++) {
+                urbanCodeApplications.add(new UrbanCodeApplicationEntity(this, position, applications.get(position)));
+            }
         }
     }
 
-    AppScanSettingsEmbeddable appScan() {
-        return appScan;
+    boolean holdsOtherUniqueValuesThan(Service service) {
+        ServiceSettings wanted = service.settings();
+        return !Objects.equals(name, service.name())
+                || !Objects.equals(settings.sonar().projectKey(), wanted.sonar().projectKey())
+                || !Objects.equals(settings.metrics().influxProject(), wanted.metrics().influxProject())
+                || !Objects.equals(settings.metrics().influxEnv(), wanted.metrics().influxEnv());
     }
 
-    void appScan(AppScanSettingsEmbeddable appScan) {
-        this.appScan = appScan;
+    void releaseUniqueValues() {
+        String placeholder = "~" + id;
+        name = placeholder;
+        settings = settings.withoutUniqueValues(placeholder);
     }
 
-    SonarSettingsEmbeddable sonar() {
-        return sonar;
+    private static <T> void replace(List<T> current, List<T> replacement) {
+        if (!current.equals(replacement)) {
+            current.clear();
+            current.addAll(replacement);
+        }
     }
 
-    void sonar(SonarSettingsEmbeddable sonar) {
-        this.sonar = sonar;
+    private static <T> void replace(Map<Region, T> current, Map<Region, T> replacement) {
+        if (!current.equals(replacement)) {
+            current.clear();
+            current.putAll(replacement);
+        }
     }
 
-    NexusIqSettingsEmbeddable nexusIq() {
-        return nexusIq;
+    private static <S, T> Map<Region, T> regions(Map<Region, S> targets, Class<T> type) {
+        Map<Region, T> mapped = new EnumMap<>(Region.class);
+        targets.forEach((region, target) -> mapped.put(region, RecordMapper.map(target, type)));
+        return mapped;
     }
 
-    void nexusIq(NexusIqSettingsEmbeddable nexusIq) {
-        this.nexusIq = nexusIq;
+    @Embeddable
+    public record SettingsEmbeddable(
+            BuildSettingsEmbeddable build,
+            UnitTestSettingsEmbeddable unitTests,
+            TestSettingsEmbeddable tests,
+            DeploymentSettingsEmbeddable deployment,
+            @EmbeddedColumnNaming("DELIVERY_%s") ToolCommandEmbeddable delivery,
+            @EmbeddedColumnNaming("UCD_%s") UrbanCodeSettingsEmbeddable urbanCode,
+            AppScanSettingsEmbeddable appScan,
+            @EmbeddedColumnNaming("SONAR_%s") SonarSettingsEmbeddable sonar,
+            NexusIqSettingsEmbeddable nexusIq,
+            ScmSettingsEmbeddable scm,
+            @EmbeddedColumnNaming("GOLDEN_FIX_%s") GoldenFixPolicyEmbeddable goldenFix,
+            MetricsSettingsEmbeddable metrics,
+            @EmbeddedColumnNaming("FLUTTER_%s") FlutterSettingsEmbeddable flutter) {
+
+        SettingsEmbeddable withoutUniqueValues(String placeholder) {
+            return new SettingsEmbeddable(build, unitTests, tests, deployment, delivery, urbanCode, appScan,
+                    sonar.withProjectKey(null), nexusIq, scm, goldenFix, metrics.withInfluxProject(placeholder), flutter);
+        }
     }
 
-    ScmSettingsEmbeddable scm() {
-        return scm;
+    @Embeddable
+    public record BuildSettingsEmbeddable(
+            @Enumerated(EnumType.STRING) @Column(name = "BUILD_TOOL") BuildTool tool,
+            String sourceDir, String javaPath,
+            @Column(name = "BUILD_TOOL_AUTO_SETUP") Boolean autoSetup,
+            String buildPath,
+            @EmbeddedColumnNaming("BUILD_%s") ToolCommandEmbeddable command) {
     }
 
-    void scm(ScmSettingsEmbeddable scm) {
-        this.scm = scm;
+    @Embeddable
+    public record UnitTestSettingsEmbeddable(
+            @EmbeddedColumnNaming("UNIT_TEST_%s") ToolCommandEmbeddable command,
+            @Column(name = "UNIT_TEST_RESULTS") String resultPattern,
+            @Column(name = "UNIT_TEST_ROOT_DIR") String rootDir,
+            @Column(name = "UNIT_TEST_REPORT_DIR") String reportOutDir,
+            @Column(name = "UNIT_TEST_ALLOW_EMPTY") Boolean allowEmptyResults,
+            String coverageReportPath) {
     }
 
-    GoldenFixPolicyEmbeddable goldenFix() {
-        return goldenFix;
+    @Embeddable
+    public record TestSettingsEmbeddable(@Column(name = "TESTS_MAX_PARALLEL") Integer maxParallel,
+            Integer smokeMaxParallel, Integer regressionMaxParallel, Integer performanceMaxParallel) {
     }
 
-    void goldenFix(GoldenFixPolicyEmbeddable goldenFix) {
-        this.goldenFix = goldenFix;
+    @Embeddable
+    public record TestJobEmbeddable(
+            @Enumerated(EnumType.STRING) TestStage stage,
+            String name,
+            @Enumerated(EnumType.STRING) @Column(name = "JOB_TYPE") TestJobType type,
+            String job, Integer timeoutMinutes, String parameters, String remoteJenkins, String remoteJenkinsUrl,
+            String credentialsId) {
     }
 
-    MetricsSettingsEmbeddable metrics() {
-        return metrics;
+    @Embeddable
+    public record DeploymentSettingsEmbeddable(
+            @Enumerated(EnumType.STRING) @Column(name = "DEPLOY_TARGET") DeployTarget target,
+            String appName, String artifactName, String baseArtifactName) {
     }
 
-    void metrics(MetricsSettingsEmbeddable metrics) {
-        this.metrics = metrics;
+    @Embeddable
+    public record ToolCommandEmbeddable(
+            @Convert(converter = DelimitedListConverter.Tokens.class) List<String> tasks,
+            @Convert(converter = DelimitedListConverter.Tokens.class) List<String> flags,
+            String directory, String mavenHome, List<String> environment) {
     }
 
-    FlutterSettingsEmbeddable flutter() {
-        return flutter;
+    @Embeddable
+    public record UrbanCodeSettingsEmbeddable(String siteName, String deployProcess, Boolean skipWait,
+            Boolean deployWithSnapshot, Boolean updateSnapshotComponents, Boolean includeOnlyDeployVersions,
+            Boolean deployOnlyChanged, String deployDescription, String requestProperties) {
     }
 
-    void flutter(FlutterSettingsEmbeddable flutter) {
-        this.flutter = flutter;
+    @Embeddable
+    public record UrbanCodeComponentEmbeddable(String componentName, String baseDir, String fileIncludePatterns,
+            String fileExcludePatterns, String versionPrefix, @Column(name = "COMPONENT_VERSION") String version,
+            Boolean incrementalVersion) {
+    }
+
+    @Embeddable
+    public record SshTargetEmbeddable(String host, @Column(name = "SSH_USER") String user, String deployDir,
+            String deployScript, String versionFile) {
+    }
+
+    @Embeddable
+    public record OpenShiftTargetEmbeddable(String projectBuild, String buildConfigPath, String dockerFilePath,
+            String buildContext, String addFile, String dockerRepoPush, String dockerRepoPull, String certDir,
+            String nexusAuthFile, String projectDeployment, String deployConfigPath, String configPath,
+            Boolean skipConfigDeploy, String healthCheckUrl, String routeHostname, String deploymentPath,
+            String deploymentRepoUrl, String deploymentRepoBranch, String deploymentRepoCredentialsId) {
+    }
+
+    @Embeddable
+    public record AppScanSettingsEmbeddable(
+            @Column(name = "APPSCAN_APP_ID") String applicationId,
+            String sastScanName,
+            @Column(name = "SAST_INCLUDED_DIRS") List<String> includedDirs,
+            @Column(name = "SAST_EXCLUDED_DIRS") List<String> excludedDirs,
+            @Column(name = "APPSCAN_COMPILE") Boolean compile,
+            @Column(name = "APPSCAN_SOURCE_CODE_ONLY") Boolean sourceCodeOnly,
+            @Column(name = "APPSCAN_USE_CONFIG_FILE") Boolean useConfigFile,
+            @Column(name = "APPSCAN_INSECURE_TLS") Boolean insecureTls,
+            @Column(name = "APPSCAN_CLIENT_PATH") String clientPath,
+            @EmbeddedColumnNaming("APPSCAN_COMPILE_%s") ToolCommandEmbeddable compileCommand,
+            Boolean dastEnabled, String dastScanName, String dastTargetUrl, String dastPresenceId) {
+    }
+
+    @Embeddable
+    public record SonarSettingsEmbeddable(String projectName, String projectKey, String installationName,
+            String credentialsId, String authTokenCredentialsId, String badgeToken, Boolean addBadges,
+            Boolean fullBadges, ToolCommandEmbeddable command) {
+
+        SonarSettingsEmbeddable withProjectKey(String key) {
+            return new SonarSettingsEmbeddable(projectName, key, installationName, credentialsId, authTokenCredentialsId,
+                    badgeToken, addBadges, fullBadges, command);
+        }
+    }
+
+    @Embeddable
+    public record NexusIqSettingsEmbeddable(
+            @Column(name = "NEXUS_IQ_APPLICATION") String application,
+            @Column(name = "NEXUS_IQ_SCAN_PATTERNS") List<String> scanPatterns,
+            @Column(name = "NEXUS_IQ_STAGE") String stage,
+            @Column(name = "NEXUS_IQ_FAIL_ON_NETWORK_ERROR") Boolean failOnNetworkError,
+            String scaScanName) {
+    }
+
+    @Embeddable
+    public record ScmSettingsEmbeddable(
+            String repositoryUrl,
+            @Column(name = "BITBUCKET_CREDENTIALS_ID") String credentialsId,
+            @Enumerated(EnumType.STRING) @Column(name = "BITBUCKET_AUTH_TYPE") BitbucketAuthType authType,
+            @Enumerated(EnumType.STRING) @Column(name = "BITBUCKET_TYPE") BitbucketType type,
+            @Column(name = "BITBUCKET_TARGET_BRANCH") String targetBranch,
+            @Column(name = "BITBUCKET_CLONE_URL") String cloneUrl,
+            @Convert(converter = DelimitedListConverter.Commas.class)
+            @Column(name = "BITBUCKET_REVIEWERS") List<String> reviewers,
+            @Column(name = "BITBUCKET_API_URL") String apiUrl,
+            @Column(name = "BITBUCKET_WORKSPACE") String workspace,
+            @Column(name = "BITBUCKET_PROJECT_KEY") String projectKey,
+            @Column(name = "BITBUCKET_REPO_SLUG") String repoSlug) {
+    }
+
+    @Embeddable
+    public record GoldenFixPolicyEmbeddable(
+            Boolean enabled,
+            @Column(name = "DIRECT_ONLY") Boolean onlyDirectDependencies,
+            Integer minThreatLevel,
+            @Convert(converter = DelimitedListConverter.Commas.class) List<String> ecosystems,
+            @Column(name = "VERSION_TYPES") List<String> goldenVersionTypes,
+            List<String> excludeDirs,
+            @Column(name = "VERIFY") Boolean verifyEnabled,
+            @Column(name = "VERIFY_ATTEMPTS") Integer verifyMaxAttempts,
+            @Column(name = "VERIFY_TIMEOUT") Integer verifyTimeoutMinutes,
+            @Column(name = "VERIFY_MAVEN") String verifyMavenCommand,
+            @Column(name = "VERIFY_GRADLE") String verifyGradleCommand,
+            @Column(name = "VERIFY_NPM") String verifyNpmCommand,
+            @Column(name = "VERIFY_PIP") String verifyPipCommand,
+            @Column(name = "VERIFY_PUB") String verifyPubCommand,
+            @Column(name = "AUTHOR_NAME") String commitAuthorName,
+            @Column(name = "AUTHOR_EMAIL") String commitAuthorEmail,
+            String timeZone) {
+    }
+
+    @Embeddable
+    public record MetricsSettingsEmbeddable(@Column(name = "METRICS_ENABLED") Boolean enabled, String influxProject,
+            String influxEnv) {
+
+        MetricsSettingsEmbeddable withInfluxProject(String project) {
+            return new MetricsSettingsEmbeddable(enabled, project, influxEnv);
+        }
+    }
+
+    @Embeddable
+    public record FlutterSettingsEmbeddable(@Enumerated(EnumType.STRING) FlutterPlatform platform,
+            List<String> modules, List<String> testModules, List<String> testSubmodules, List<String> testSubplugins,
+            @Column(name = "SIGNING_CREDENTIALS_ID") String signingPasswordCredentialsId,
+            String prodLicenseCredentialsId, String testLicenseCredentialsId, String deliveryGroup,
+            String deliveryArtifact, String deliveryPlugin, String sonarSources, String sonarTests,
+            @Column(name = "SONAR_PLUGIN") Boolean sonarFlutterPlugin, String dartAnalyzeCommand,
+            String sonarScannerVersion) {
     }
 }

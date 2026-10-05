@@ -35,15 +35,10 @@ class ProductSpec extends Specification {
                 [draft(name: ' gui ', description: ' '), draft(name: 'backend-api', description: 'REST API')], nobody)
 
         then:
-        product.id() == null
+        [product.id(), product.createdAt(), product.updatedAt(), product.ownerTeam(), product.contactEmail()] ==
+                [null] * 5
         product.version() == 0
-        product.createdAt() == null
-        product.updatedAt() == null
-        product.code() == 'CERT'
-        product.name() == 'CertScanner'
-        product.description() == 'TLS'
-        product.ownerTeam() == null
-        product.contactEmail() == null
+        product.details() == details(description: 'TLS')
         product.appScanAccount() == account()
         product.services()*.name() == ['gui', 'backend-api']
         product.services()*.displayOrder() == [0, 1]
@@ -51,18 +46,11 @@ class ProductSpec extends Specification {
         product.services()*.id() == [null, null]
         product.services()*.settings()*.metrics()*.influxProject() == ['CERT-gui', 'CERT-backend-api']
         product.serviceIds() == [] as Set
+        Product.create(details(), account(), [draft(metrics: new MetricsSettings(true, 'cert-scanner', 'uat'))], nobody)
+                .services()[0].settings().metrics() == new MetricsSettings(true, 'cert-scanner', 'uat')
     }
 
-    def "an explicit metrics project is kept"() {
-        when:
-        def product = Product.create(details(), account(),
-                [draft(metrics: new MetricsSettings(true, 'cert-scanner', 'uat'))], nobody)
-
-        then:
-        product.services()[0].settings().metrics() == new MetricsSettings(true, 'cert-scanner', 'uat')
-    }
-
-    def "a stored product lists its services by display order and name and finds them by id"() {
+    def "a stored product lists its services by display order and name, finds them by id and keeps the list to itself"() {
         given:
         def product = product(id: 5, services: [[name: 'gui', id: 10, displayOrder: 2], [name: 'backend-api', id: 11, displayOrder: 1],
                                                 [name: 'batch', id: 12, displayOrder: 1]])
@@ -75,11 +63,9 @@ class ProductSpec extends Specification {
         product.service(null).isEmpty()
         product.serviceIds() == [11L, 12L, 10L] as Set
         product.details() == details()
-    }
 
-    def "the service list cannot be changed past the product"() {
         when:
-        product(services: [[name: 'gui', id: 10]]).services().add(service())
+        product.services().add(service())
 
         then:
         thrown(UnsupportedOperationException)
@@ -149,37 +135,18 @@ class ProductSpec extends Specification {
         product.services()*.name() == ['gui']
     }
 
-    def "a product code used by another product is refused"() {
+    def "a product #value used by another product is refused"() {
         when:
-        Product.create(details(code: 'CERT'), account(), [draft()],
-                directory(byCode: [CERT: new ProductIdentity(1, 'Certificates')]))
+        Product.create(details(), account(), [draft()], directory(lookup))
 
         then:
         def e = thrown(ConflictException)
-        e.message == 'Product code CERT is already used by Certificates'
-    }
+        e.message == message
 
-    def "a product name used by another product is refused"() {
-        when:
-        Product.create(details(), account(), [draft()],
-                directory(byName: [CertScanner: new ProductIdentity(1, 'certscanner')]))
-
-        then:
-        def e = thrown(ConflictException)
-        e.message == 'A product named certscanner already exists'
-    }
-
-    def "a product keeps its own code and name on update"() {
-        given:
-        def product = product(id: 5, services: [[name: 'gui', id: 10]])
-        def itself = new ProductIdentity(5, 'CertScanner')
-
-        when:
-        product.update(0L, details(), account(), [draft(id: 10, name: 'gui')],
-                directory(byCode: [CERT: itself], byName: [CertScanner: itself]))
-
-        then:
-        notThrown(ConflictException)
+        where:
+        value  | lookup                                                         || message
+        'code' | [byCode: [CERT: new ProductIdentity(1, 'Certificates')]]       || 'Product code CERT is already used by Certificates'
+        'name' | [byName: [CertScanner: new ProductIdentity(1, 'certscanner')]] || 'A product named certscanner already exists'
     }
 
     def "every invalid service is reported at once"() {
@@ -210,6 +177,7 @@ class ProductSpec extends Specification {
         def e = thrown(InvalidRequestException)
         e.problems*.field == ['services[0].metrics.influxProject']
         e.message == 'metrics project CERT-gui (test) is already used by Payments Hub / gateway'
+        gateway.describe() == 'Payments Hub / gateway'
     }
 
     def "a SonarQube key is unique within the product and across products"() {
@@ -227,17 +195,19 @@ class ProductSpec extends Specification {
                                 'another service of this product uses this key']
     }
 
-    def "a product's own services do not clash with themselves on update"() {
+    def "a product's own code, name and services do not clash with themselves on update"() {
         given:
         def product = product(id: 5, services: [[name: 'gui', id: 10, sonar: CERT_SONAR]])
+        def itself = new ProductIdentity(5, 'CertScanner')
         def gui = new ServiceIdentity(10, 'CertScanner', 'gui')
 
         when:
         product.update(0L, details(), account(), [draft(id: 10, name: 'gui', sonar: CERT_SONAR)],
-                directory(byMetrics: ['CERT-gui|test': [gui]], bySonarKey: [cert: [gui]]))
+                directory(byCode: [CERT: itself], byName: [CertScanner: itself], byMetrics: ['CERT-gui|test': [gui]],
+                        bySonarKey: [cert: [gui]]))
 
         then:
-        notThrown(InvalidRequestException)
+        noExceptionThrown()
     }
 
     def "a value used by one of the product's services and by a foreign one names the foreign one"() {
@@ -264,15 +234,13 @@ class ProductSpec extends Specification {
         def e = thrown(InvalidRequestException)
         e.problems*.field == ['code', 'name', 'appScan.keyId', 'services[0].name']
         e.problems*.message.unique() == ['must not be blank']
-    }
 
-    def "a product without an AppScan account is refused"() {
         when:
         Product.create(details(), null, [], nobody)
 
         then:
-        def e = thrown(InvalidRequestException)
-        e.problems*.field == ['appScan.keyId']
+        def missing = thrown(InvalidRequestException)
+        missing.problems*.field == ['appScan.keyId']
     }
 
     def "a service and a draft trim their name and store a blank description as null"() {
@@ -296,10 +264,5 @@ class ProductSpec extends Specification {
 
         where:
         factory << [{ new Service(1L, 'gui', null, 0, null) }, { new ServiceDraft(1L, 'gui', null, null) }]
-    }
-
-    def "a foreign service is described by its product and name"() {
-        expect:
-        new ServiceIdentity(50, 'Payments Hub', 'gateway').describe() == 'Payments Hub / gateway'
     }
 }

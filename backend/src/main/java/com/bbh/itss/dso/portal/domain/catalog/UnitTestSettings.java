@@ -4,13 +4,8 @@ import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
-public record UnitTestSettings(
-        ToolCommand command,
-        String resultPattern,
-        String rootDir,
-        String reportOutDir,
-        Boolean allowEmptyResults,
-        String coverageReportPath) {
+public record UnitTestSettings(ToolCommand command, String resultPattern, String rootDir, String reportOutDir,
+                               Boolean allowEmptyResults, String coverageReportPath) {
 
     public static final UnitTestSettings NONE = new UnitTestSettings(null, null, null, null, false, null);
 
@@ -27,11 +22,9 @@ public record UnitTestSettings(
         command.writeTo(config, "tests.unitTests", tool);
         config.set("tests.unitTests.unitTestResult", resultPattern)
                 .set("tests.unitTests.rootDir", rootDir)
-                .set("tests.unitTests.reportOutDir", reportOutDir);
-        if (allowEmptyResults) {
-            config.set("tests.unitTests.allowEmptyResults", true);
-        }
-        config.set("coverage.reportPath", coverageReportPath);
+                .set("tests.unitTests.reportOutDir", reportOutDir)
+                .flag("tests.unitTests.allowEmptyResults", allowEmptyResults)
+                .set("coverage.reportPath", coverageReportPath);
     }
 
     public void validate(ValidationProblems problems, BuildTool tool) {

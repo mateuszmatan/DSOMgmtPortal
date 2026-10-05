@@ -2,31 +2,26 @@ package com.bbh.itss.dso.portal.application.dsoconfig;
 
 import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
-import com.bbh.itss.dso.portal.application.catalog.port.in.QueryProductsUseCase;
-import com.bbh.itss.dso.portal.application.dsoconfig.port.in.ReadPipelineConfigUseCase;
-import com.bbh.itss.dso.portal.application.dsoconfig.port.in.ReadPublishedConfigUseCase;
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
+import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase;
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.RenderConfigUseCase;
-import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelineKeysUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
-import com.bbh.itss.dso.portal.application.pipeline.port.in.QueryPipelinesUseCase;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
 import com.bbh.itss.dso.portal.domain.dsoconfig.DsoConfigBuilder;
 
 import java.util.Map;
 
 @UseCase
-public class PipelineConfigService implements ReadPipelineConfigUseCase, RenderConfigUseCase {
+public class PipelineConfigService implements RenderConfigUseCase {
 
-    private final ManagePipelineKeysUseCase keys;
-    private final ReadPublishedConfigUseCase published;
-    private final QueryPipelinesUseCase pipelines;
-    private final QueryProductsUseCase products;
+    private final PublishPipelineConfigsUseCase published;
+    private final PipelinesUseCase pipelines;
+    private final ProductsUseCase products;
     private final ManageGlobalSettingsUseCase settings;
 
-    public PipelineConfigService(ManagePipelineKeysUseCase keys, ReadPublishedConfigUseCase published,
-                                 QueryPipelinesUseCase pipelines, QueryProductsUseCase products,
-                                 ManageGlobalSettingsUseCase settings) {
-        this.keys = keys;
+    public PipelineConfigService(PublishPipelineConfigsUseCase published, PipelinesUseCase pipelines,
+                                 ProductsUseCase products, ManageGlobalSettingsUseCase settings) {
         this.published = published;
         this.pipelines = pipelines;
         this.products = products;
@@ -35,7 +30,7 @@ public class PipelineConfigService implements ReadPipelineConfigUseCase, RenderC
 
     @Override
     public Map<String, Object> readByKey(String key) {
-        long pipelineId = keys.authorizeKey(key);
+        long pipelineId = pipelines.authorizeKey(key);
         return published.currentConfig(pipelineId).orElseGet(() -> config(pipelines.get(pipelineId)));
     }
 

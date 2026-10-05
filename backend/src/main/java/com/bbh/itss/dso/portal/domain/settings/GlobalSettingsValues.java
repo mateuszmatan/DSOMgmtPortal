@@ -11,14 +11,10 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
-public record GlobalSettingsValues(
-        PlatformSettings platform,
-        DeploymentDefaults deployment,
-        Map<Scanner, SeverityLimits> limits,
-        ScanSettings scans,
-        ReleaseGateSettings releaseGate,
-        ServiceDefaults serviceDefaults,
-        GoldenFixPolicy goldenFix) {
+public record GlobalSettingsValues(PlatformSettings platform, DeploymentDefaults deployment,
+                                   Map<Scanner, SeverityLimits> limits, ScanSettings scans,
+                                   ReleaseGateSettings releaseGate, ServiceDefaults serviceDefaults,
+                                   GoldenFixPolicy goldenFix) {
 
     public GlobalSettingsValues {
         Map<Scanner, SeverityLimits> ordered = new EnumMap<>(Scanner.class);

@@ -20,19 +20,16 @@ class PipelinePersistenceAdapter implements PipelineRepositoryPort, PipelineCoun
     private final PipelineJpaRepository pipelines;
     private final PipelineKeyJpaRepository keys;
     private final ServiceJpaRepository services;
-    private final PipelineMapper mapper;
-
     PipelinePersistenceAdapter(PipelineJpaRepository pipelines, PipelineKeyJpaRepository keys,
-                               ServiceJpaRepository services, PipelineMapper mapper) {
+                               ServiceJpaRepository services) {
         this.pipelines = pipelines;
         this.keys = keys;
         this.services = services;
-        this.mapper = mapper;
     }
 
     @Override
     public Optional<Pipeline> load(long id) {
-        return pipelines.findWithServiceById(id).map(mapper::toDomain);
+        return pipelines.findWithServiceById(id).map(PipelineEntity::toDomain);
     }
 
     @Override
@@ -47,12 +44,12 @@ class PipelinePersistenceAdapter implements PipelineRepositoryPort, PipelineCoun
 
     @Override
     public List<Pipeline> findByProductId(long productId) {
-        return pipelines.findByProductId(productId).stream().map(mapper::toDomain).toList();
+        return pipelines.findByProductId(productId).stream().map(PipelineEntity::toDomain).toList();
     }
 
     @Override
     public List<Pipeline> findAll() {
-        return pipelines.findAllWithService().stream().map(mapper::toDomain).toList();
+        return pipelines.findAllWithService().stream().map(PipelineEntity::toDomain).toList();
     }
 
     @Override
@@ -63,12 +60,12 @@ class PipelinePersistenceAdapter implements PipelineRepositoryPort, PipelineCoun
     @Override
     public Pipeline save(Pipeline pipeline) {
         PipelineEntity entity = pipeline.id() == null ? created(pipeline) : existing(pipeline);
-        mapper.copy(pipeline, entity);
+        entity.apply(pipeline);
         if (pipeline.id() != null) {
             pipelines.flush();
         }
-        mapper.addIssuedKeys(pipeline, entity);
-        return mapper.toDomain(pipelines.saveAndFlush(entity));
+        entity.addIssuedKeys(pipeline);
+        return pipelines.saveAndFlush(entity).toDomain();
     }
 
     @Override

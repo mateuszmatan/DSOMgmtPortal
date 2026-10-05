@@ -20,9 +20,8 @@ public record ReleaseGateSettings(List<Scanner> scanners, Boolean requireCoverag
     }
 
     public void validate(ValidationProblems problems) {
-        if (scanners.isEmpty()) {
-            problems.add("scanners", "select at least one scanner: without any the library gates on all four");
-        }
+        problems.require("scanners", scanners,
+                "select at least one scanner: without any the library gates on all four");
     }
 
     public void writeTo(ConfigTree defaults) {

@@ -15,26 +15,9 @@ class DoraCalculatorSpec extends Specification {
     static final Instant NOW = Instant.parse('2026-10-04T12:00:00Z')
 
     def "no runs give no metrics, only empty days"() {
-        when:
-        def summary = DoraCalculator.summarize([], 7, NOW)
-
-        then:
-        summary.rangeDays() == 7
-        summary.runs() == 0
-        summary.deployments() == 0
-        summary.deploymentsPerWeek() == 0.0d
-        summary.deploymentFrequencyLevel() == null
-        summary.leadTimeMedianSeconds() == null
-        summary.leadTimeLevel() == null
-        summary.changeFailureRatePercent() == null
-        summary.changeFailureRateLevel() == null
-        summary.meanTimeToRestoreSeconds() == null
-        summary.timeToRestoreLevel() == null
-        summary.restores() == 0
-        summary.failingSince() == null
-        summary.averageDurationSeconds() == null
-        summary.daily()*.date() == (0..6).collect { LocalDate.parse('2026-09-28').plusDays(it) }
-        summary.daily().every { it.runs() == 0 && it.failures() == 0 && it.deployments() == 0 }
+        expect:
+        DoraCalculator.summarize([], 7, NOW) == new DoraSummary(7, 0, 0, 0.0d, null, null, null, null, null, null, null, 0,
+                null, null, (0..6).collect { new DoraSummary.DailyActivity(LocalDate.parse('2026-09-28').plusDays(it), 0, 0, 0) })
     }
 
     def "a month of runs in any order gives the four metrics over its deployments"() {
@@ -92,17 +75,9 @@ class DoraCalculatorSpec extends Specification {
         def summary = DoraCalculator.summarize(points, 30, NOW)
 
         then:
-        summary.runs() == 3
-        summary.deployments() == 0
-        summary.leadTimeMedianSeconds() == null
-        summary.leadTimeLevel() == null
-        summary.changeFailureRatePercent() == null
-        summary.changeFailureRateLevel() == null
-        summary.meanTimeToRestoreSeconds() == null
-        summary.timeToRestoreLevel() == null
-        summary.restores() == 0
-        summary.failingSince() == null
-        summary.averageDurationSeconds() == 600
+        summary.with { [runs(), deployments(), restores(), averageDurationSeconds()] } == [3, 0, 0, 600L]
+        summary.with { [leadTimeMedianSeconds(), leadTimeLevel(), changeFailureRatePercent(), changeFailureRateLevel(),
+                        meanTimeToRestoreSeconds(), timeToRestoreLevel(), failingSince()] }.every { it == null }
         day(summary, '2026-10-02') == [1, 1, 0]
     }
 
@@ -123,33 +98,19 @@ class DoraCalculatorSpec extends Specification {
         summary.changeFailureRatePercent() == 50.0d
     }
 
-    def "runs before the range count in the totals but not per day"() {
-        when:
-        def summary = DoraCalculator.summarize([point('2026-08-01T10:00:00Z', true, false, 60, 60)], 7, NOW)
+    def "runs before the range count only in the totals, a range without days has no rate, and an odd count has the middle median"() {
+        given:
+        def old = DoraCalculator.summarize([point('2026-08-01T10:00:00Z', true, false, 60, 60)], 7, NOW)
+        def none = DoraCalculator.summarize([point('2026-10-04T10:00:00Z', true, false, 60, 60)], 0, NOW)
+        def odd = DoraCalculator.summarize([point('2026-10-01T10:00:00Z', true, false, 100, 1),
+                                            point('2026-10-02T10:00:00Z', true, false, 900, 1),
+                                            point('2026-10-03T10:00:00Z', true, false, 300, 1)], 30, NOW)
 
-        then:
-        summary.runs() == 1
-        summary.daily().sum { it.runs() } == 0
-    }
-
-    def "a range without days has no deployment rate"() {
-        when:
-        def summary = DoraCalculator.summarize([point('2026-10-04T10:00:00Z', true, false, 60, 60)], 0, NOW)
-
-        then:
-        summary.deploymentsPerWeek() == null
-        summary.deploymentFrequencyLevel() == null
-        summary.daily() == []
-    }
-
-    def "an odd number of deployment lead times has the middle one as median"() {
-        when:
-        def summary = DoraCalculator.summarize([point('2026-10-01T10:00:00Z', true, false, 100, 1),
-                                                point('2026-10-02T10:00:00Z', true, false, 900, 1),
-                                                point('2026-10-03T10:00:00Z', true, false, 300, 1)], 30, NOW)
-
-        then:
-        summary.leadTimeMedianSeconds() == 300
+        expect:
+        old.runs() == 1
+        old.daily().sum { it.runs() } == 0
+        none.with { [deploymentsPerWeek(), deploymentFrequencyLevel(), daily()] } == [null, null, []]
+        odd.leadTimeMedianSeconds() == 300
     }
 
     def "#perWeek deployments a week rate #level"() {

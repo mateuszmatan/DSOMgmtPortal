@@ -10,6 +10,10 @@ import java.util.Map;
 
 public interface PipelineRunsPort {
 
+    boolean configured();
+
+    void ping();
+
     Map<MetricsTag, PipelineRun> latestRuns(Collection<MetricsTag> tags);
 
     List<PipelineRun> recentRuns(MetricsTag tag, int days, int limit);
