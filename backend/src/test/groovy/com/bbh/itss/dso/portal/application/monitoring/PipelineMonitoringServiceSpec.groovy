@@ -3,7 +3,6 @@ package com.bbh.itss.dso.portal.application.monitoring
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort
 import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringStatus
 import com.bbh.itss.dso.portal.application.monitoring.port.out.DashboardLinksPort
-import com.bbh.itss.dso.portal.application.monitoring.port.out.MonitoringStatusPort
 import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
@@ -19,7 +18,6 @@ import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
-import spock.lang.Subject
 
 import java.time.Clock
 import java.time.Instant
@@ -43,17 +41,13 @@ class PipelineMonitoringServiceSpec extends Specification {
     ProductRepositoryPort products = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
     PipelineRepositoryPort pipelines = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
     PipelineRunsPort runs = Mock()
-    MonitoringStatusPort metrics = Mock()
     DashboardLinksPort dashboards = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
     ManageGlobalSettingsUseCase settings = Stub() {
         current() >> storedSettings('https://jenkins.test')
     }
 
     def targets = new MonitoringTargetsService(products, pipelines, settings)
-
-    @Subject
-    def monitoring = new PipelineMonitoringService(targets, runs, metrics, dashboards,
-            Clock.fixed(NOW, ZoneOffset.UTC))
+    def monitoring = new PipelineMonitoringService(targets, runs, dashboards, Clock.fixed(NOW, ZoneOffset.UTC))
 
     Product certScanner = product(id: 1L, code: 'CERT', name: 'CertScanner', ownerTeam: 'TA',
             services: [[name: 'gui', id: 10L], [name: 'backend-api', id: 11L]])
@@ -67,39 +61,20 @@ class PipelineMonitoringServiceSpec extends Specification {
         products.load(1L) >> Optional.of(certScanner)
     }
 
-    def "the status says InfluxDB and Grafana are not configured"() {
-        when:
-        def status = monitoring.status()
-
-        then:
-        status == new MonitoringStatus(false, false, null, false, null)
-        0 * metrics.ping()
-    }
-
-    def "the status says InfluxDB answers and where Grafana is"() {
+    def "the status says whether InfluxDB answers and where Grafana is"() {
         given:
-        metrics.configured() >> true
-        dashboards.url() >> Optional.of('https://grafana.bbh.com')
+        runs.configured() >> configured
+        runs.ping() >> { if (failure) { throw new MetricsUnavailableException(failure) } }
+        dashboards.url() >> Optional.ofNullable(grafana)
 
-        when:
-        def status = monitoring.status()
+        expect:
+        monitoring.status() == new MonitoringStatus(configured, reachable, failure, grafana != null, grafana)
 
-        then:
-        1 * metrics.ping()
-        status == new MonitoringStatus(true, true, null, true, 'https://grafana.bbh.com')
-    }
-
-    def "the status reports why InfluxDB cannot be read"() {
-        given:
-        metrics.configured() >> true
-        metrics.ping() >> { throw new MetricsUnavailableException('InfluxDB could not be read: Connection refused') }
-
-        when:
-        def status = monitoring.status()
-
-        then:
-        !status.metricsReachable()
-        status.metricsError() == 'InfluxDB could not be read: Connection refused'
+        where:
+        configured | failure                         | grafana                   || reachable
+        false      | null                            | null                      || false
+        true       | null                            | 'https://grafana.bbh.com' || true
+        true       | 'InfluxDB could not be read: x' | null                      || false
     }
 
     def "the overview rates each product by its worst pipeline"() {
@@ -264,21 +239,23 @@ class PipelineMonitoringServiceSpec extends Specification {
         details.dashboardUrl() == null
     }
 
-    def "when the runs cannot be read the DORA query is skipped"() {
+    def "when the runs cannot be read the DORA query is skipped and the Grafana dashboard is still shown"() {
         given:
-        pipelines.load(100L) >> Optional.of(guiFull)
-        runs.recentRuns(*_) >> { throw new MetricsUnavailableException('InfluxDB could not be read: timeout') }
+        pipelines.load(101L) >> Optional.of(guiSast)
+        runs.recentRuns(*_) >> { throw new MetricsUnavailableException(NOT_CONFIGURED) }
+        dashboards.dashboardUrl(_, _, 90) >> Optional.of('https://grafana/d/x')
 
         when:
-        def details = monitoring.pipeline(100L, '30d')
+        def details = monitoring.pipeline(101L, '90d')
 
         then:
         0 * runs.doraPoints(*_)
         0 * runs.latestRuns(_)
-        details.metricsError() == 'InfluxDB could not be read: timeout'
-        details.status() == NO_DATA
+        details.metricsError() == NOT_CONFIGURED
+        details.status() == DISABLED
         details.recentRuns() == []
         details.dora().runs() == 0
+        details.dashboardUrl() == 'https://grafana/d/x'
     }
 
     def "when only the DORA points cannot be read the runs are still shown"() {
@@ -298,39 +275,21 @@ class PipelineMonitoringServiceSpec extends Specification {
         details.metricsError() == 'InfluxDB could not be read: dora'
     }
 
-    def "without InfluxDB a pipeline still shows its Grafana dashboard"() {
-        given:
-        pipelines.load(101L) >> Optional.of(guiSast)
-        runs.recentRuns(*_) >> { throw new MetricsUnavailableException(NOT_CONFIGURED) }
-        dashboards.dashboardUrl(_, _, 90) >> Optional.of('https://grafana/d/x')
-
-        when:
-        def details = monitoring.pipeline(101L, '90d')
-
-        then:
-        details.status() == DISABLED
-        details.metricsError() == NOT_CONFIGURED
-        details.dashboardUrl() == 'https://grafana/d/x'
-    }
-
-    def "an unknown pipeline is not found"() {
-        when:
-        monitoring.pipeline(999L, '30d')
-
-        then:
-        thrown(NotFoundException)
-    }
-
-    def "a pipeline whose product is gone is not found"() {
+    def "an unknown pipeline or one whose product is gone is not found"() {
         given:
         pipelines.load(200L) >> Optional.of(gatewayFull)
 
         when:
-        monitoring.pipeline(200L, '30d')
+        monitoring.pipeline(id, '30d')
 
         then:
         def e = thrown(NotFoundException)
-        e.message == 'Product 2 does not exist'
+        e.message == message
+
+        where:
+        id   || message
+        999L || 'Pipeline 999 does not exist'
+        200L || 'Product 2 does not exist'
     }
 
     def "a range that is not a number of days is refused before anything is read"() {

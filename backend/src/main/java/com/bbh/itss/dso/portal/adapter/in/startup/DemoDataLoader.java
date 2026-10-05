@@ -1,15 +1,10 @@
 package com.bbh.itss.dso.portal.adapter.in.startup;
 
-import com.bbh.itss.dso.portal.application.catalog.port.in.ManageProductsUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductCommand;
-import com.bbh.itss.dso.portal.application.catalog.port.in.QueryProductsUseCase;
-import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelineKeysUseCase;
-import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelinesUseCase;
-import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineCommand;
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
-import com.bbh.itss.dso.portal.application.pipeline.port.in.QueryPipelinesUseCase;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
-import com.bbh.itss.dso.portal.application.settings.port.in.UpdateGlobalSettingsCommand;
 import com.bbh.itss.dso.portal.domain.catalog.AppScanAccount;
 import com.bbh.itss.dso.portal.domain.catalog.AppScanSettings;
 import com.bbh.itss.dso.portal.domain.catalog.BuildSettings;
@@ -65,21 +60,13 @@ public class DemoDataLoader implements ApplicationRunner {
     private static final String BITBUCKET = "https://bitbucket.bbh.com/projects/%s/repos/%s";
     private static final String DEPLOY_SCRIPT = "scripts/deployment/zero-downtime-deployment.sh";
 
-    private final QueryProductsUseCase products;
-    private final ManageProductsUseCase catalog;
-    private final ManagePipelinesUseCase pipelines;
-    private final QueryPipelinesUseCase pipelineQueries;
-    private final ManagePipelineKeysUseCase keys;
+    private final ProductsUseCase products;
+    private final PipelinesUseCase pipelines;
     private final ManageGlobalSettingsUseCase settings;
 
-    public DemoDataLoader(QueryProductsUseCase products, ManageProductsUseCase catalog, ManagePipelinesUseCase pipelines,
-                          QueryPipelinesUseCase pipelineQueries, ManagePipelineKeysUseCase keys,
-                          ManageGlobalSettingsUseCase settings) {
+    public DemoDataLoader(ProductsUseCase products, PipelinesUseCase pipelines, ManageGlobalSettingsUseCase settings) {
         this.products = products;
-        this.catalog = catalog;
         this.pipelines = pipelines;
-        this.pipelineQueries = pipelineQueries;
-        this.keys = keys;
         this.settings = settings;
     }
 
@@ -90,11 +77,10 @@ public class DemoDataLoader implements ApplicationRunner {
         }
         GlobalSettingsValues global = settings.current().values();
         if (global.platform().jenkinsUrl() == null) {
-            settings.update(UpdateGlobalSettingsCommand.unversioned(
-                    global.withPlatform(global.platform().withJenkinsUrl(DEMO_JENKINS_URL))));
+            settings.update(null, global.withPlatform(global.platform().withJenkinsUrl(DEMO_JENKINS_URL)));
         }
 
-        Product certScanner = catalog.create(ProductCommand.unversioned(new ProductDetails("CERTSCANNER", "CertScanner",
+        Product certScanner = products.create(new ProductCommand(null, new ProductDetails("CERTSCANNER", "CertScanner",
                 "Monitors the validity of TLS certificates across BBH and alerts owners before they expire.",
                 "Technology Architecture", "ta-team@bbh.com"),
                 new AppScanAccount("bbh_b81fbc9f-39c1-8eb4-38b5-b702268969b9", "hcl-app-scan-acount"), List.of(
@@ -102,7 +88,7 @@ public class DemoDataLoader implements ApplicationRunner {
                         "TA", "cert-scanner", "/opt/ta/CertScanner/gui/deployment", true),
                 mavenOpenShift("backend-api", "REST API and certificate scanner", "209f44ac-dd06-4ca0-884e-d944904f8021",
                         "cert-scanner-backend", "TA", "cert-scanner", "ta-certscanner"))));
-        Product payments = catalog.create(ProductCommand.unversioned(new ProductDetails("PAYHUB", "Payments Hub",
+        Product payments = products.create(new ProductCommand(null, new ProductDetails("PAYHUB", "Payments Hub",
                 "Payment orchestration platform: gateway, ledger, notifications and reporting.",
                 "Payments Engineering", "payments-eng@bbh.com"),
                 new AppScanAccount("bbh_1c2d3e4f-0000-4abc-9def-123456789abc", null), List.of(
@@ -125,12 +111,12 @@ public class DemoDataLoader implements ApplicationRunner {
         pipeline(payments, "ledger", PipelineType.FULL);
         pipeline(payments, "notifications", PipelineType.FULL);
         PipelineView retired = pipeline(payments, "mobile-app", PipelineType.SAST);
-        keys.revokeKey(retired.pipeline().id(), "Mobile app moved to the new mobile platform pipeline");
+        pipelines.revokeKey(retired.pipeline().id(), "Mobile app moved to the new mobile platform pipeline");
         log.info("Created demo data: {} and {}", certScanner.name(), payments.name());
     }
 
     private static ServiceDraft gradleVm(String name, String description, String appScanId, String sonarKey,
-                                           String bitbucketProject, String repo, String deployDir, boolean dast) {
+                                         String bitbucketProject, String repo, String deployDir, boolean dast) {
         String title = sonarKey.toUpperCase();
         return new ServiceDraft(null, name, description, new ServiceSettings(
                 new BuildSettings(BuildTool.GRADLE, ".", JDK_17, false, "build/libs/*.jar",
@@ -157,7 +143,7 @@ public class DemoDataLoader implements ApplicationRunner {
     }
 
     private static ServiceDraft mavenOpenShift(String name, String description, String appScanId, String sonarKey,
-                                                 String bitbucketProject, String repo, String namespace) {
+                                               String bitbucketProject, String repo, String namespace) {
         String title = sonarKey.toUpperCase();
         String image = "docker-qc.tools.bbh.com/" + namespace + "/" + name;
         return new ServiceDraft(null, name, description, new ServiceSettings(
@@ -188,7 +174,7 @@ public class DemoDataLoader implements ApplicationRunner {
     }
 
     private static ServiceDraft flutter(String name, String description, String appScanId, String bitbucketProject,
-                                          String repo) {
+                                        String repo) {
         return new ServiceDraft(null, name, description, new ServiceSettings(
                 new BuildSettings(BuildTool.FLUTTER, ".", JDK_17, false, null, null),
                 null, null, List.of(),
@@ -232,16 +218,15 @@ public class DemoDataLoader implements ApplicationRunner {
         String folder = "DevSecOps/" + product.code() + "/";
         String extendedJob = type == PipelineType.SECURITY ? folder + serviceName + "-extended" : null;
         String securityJob = type == PipelineType.EXTENDED ? folder + serviceName + "-security" : null;
-        PipelineCommand command = new PipelineCommand(type, new PipelineSettings(
-                List.of(PipelineSettings.DEFAULT_AGENT_LABEL), extendedJob, securityJob,
-                folder + serviceName + "-" + type.variant(), null));
+        PipelineSettings configured = new PipelineSettings(List.of(PipelineSettings.DEFAULT_AGENT_LABEL), extendedJob,
+                securityJob, folder + serviceName + "-" + type.variant(), null);
         return started(product, service, type)
-                .map(started -> pipelines.update(started.pipeline().id(), command))
-                .orElseGet(() -> pipelines.create(service.id(), command));
+                .map(started -> pipelines.update(started.pipeline().id(), type, configured))
+                .orElseGet(() -> pipelines.create(service.id(), type, configured));
     }
 
     private Optional<PipelineView> started(Product product, Service service, PipelineType type) {
-        return pipelineQueries.listForProduct(product.id()).stream()
+        return pipelines.listForProduct(product.id()).stream()
                 .filter(view -> view.service().id().equals(service.id()))
                 .flatMap(view -> view.pipelines().stream())
                 .filter(view -> view.pipeline().type() == type)

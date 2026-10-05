@@ -12,7 +12,6 @@ import com.bbh.itss.dso.portal.application.monitoring.port.in.ProductHealth;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.ProductMonitoring;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.ReadMonitoringTargetsUseCase;
 import com.bbh.itss.dso.portal.application.monitoring.port.out.DashboardLinksPort;
-import com.bbh.itss.dso.portal.application.monitoring.port.out.MonitoringStatusPort;
 import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
@@ -42,15 +41,13 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
 
     private final ReadMonitoringTargetsUseCase targets;
     private final PipelineRunsPort runs;
-    private final MonitoringStatusPort metrics;
     private final DashboardLinksPort dashboards;
     private final Clock clock;
 
     public PipelineMonitoringService(ReadMonitoringTargetsUseCase targets, PipelineRunsPort runs,
-                                     MonitoringStatusPort metrics, DashboardLinksPort dashboards, Clock clock) {
+                                     DashboardLinksPort dashboards, Clock clock) {
         this.targets = targets;
         this.runs = runs;
-        this.metrics = metrics;
         this.dashboards = dashboards;
         this.clock = clock;
     }
@@ -58,7 +55,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
     @Override
     @WithoutTransaction
     public MonitoringStatus status() {
-        boolean configured = metrics.configured();
+        boolean configured = runs.configured();
         String error = configured ? MetricsReading.of(this::ping, false).error() : null;
         Optional<String> dashboard = dashboards.url();
         return new MonitoringStatus(configured, configured && error == null, error, dashboard.isPresent(),
@@ -120,7 +117,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
     }
 
     private boolean ping() {
-        metrics.ping();
+        runs.ping();
         return true;
     }
 

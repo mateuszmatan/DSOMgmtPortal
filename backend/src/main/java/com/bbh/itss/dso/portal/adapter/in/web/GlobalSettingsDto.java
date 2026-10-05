@@ -2,7 +2,6 @@ package com.bbh.itss.dso.portal.adapter.in.web;
 
 import com.bbh.itss.dso.portal.adapter.Mirrors;
 import com.bbh.itss.dso.portal.adapter.RecordMapper;
-import com.bbh.itss.dso.portal.application.settings.port.in.UpdateGlobalSettingsCommand;
 import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
 import com.bbh.itss.dso.portal.domain.catalog.DeployTarget;
 import com.bbh.itss.dso.portal.domain.settings.DeploymentDefaults;
@@ -48,8 +47,8 @@ public record GlobalSettingsDto(
         return RecordMapper.map(GlobalSettingsDto.class, settings, settings.values());
     }
 
-    UpdateGlobalSettingsCommand toCommand() {
-        return new UpdateGlobalSettingsCommand(version, RecordMapper.map(this, GlobalSettingsValues.class));
+    GlobalSettingsValues toValues() {
+        return RecordMapper.map(this, GlobalSettingsValues.class);
     }
 
     public record PlatformSettingsDto(

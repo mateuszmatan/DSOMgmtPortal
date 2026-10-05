@@ -4,7 +4,6 @@ import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort;
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase;
-import com.bbh.itss.dso.portal.application.dsoconfig.port.in.ReadPublishedConfigUseCase;
 import com.bbh.itss.dso.portal.application.dsoconfig.port.out.ConfigSerializerPort;
 import com.bbh.itss.dso.portal.application.dsoconfig.port.out.PublicationLockPort;
 import com.bbh.itss.dso.portal.application.dsoconfig.port.out.PublishedConfigRepositoryPort;
@@ -27,7 +26,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @UseCase
-public class PipelineConfigPublisher implements PublishPipelineConfigsUseCase, ReadPublishedConfigUseCase {
+public class PipelineConfigPublisher implements PublishPipelineConfigsUseCase {
 
     private final ProductRepositoryPort products;
     private final PipelineRepositoryPort pipelines;

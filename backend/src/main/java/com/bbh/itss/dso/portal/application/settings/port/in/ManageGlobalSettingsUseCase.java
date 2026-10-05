@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.application.settings.port.in;
 
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettings;
+import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues;
 
 public interface ManageGlobalSettingsUseCase {
 
@@ -8,5 +9,5 @@ public interface ManageGlobalSettingsUseCase {
 
     GlobalSettings current();
 
-    GlobalSettings update(UpdateGlobalSettingsCommand command);
+    GlobalSettings update(Long expectedVersion, GlobalSettingsValues values);
 }

@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
-import com.bbh.itss.dso.portal.application.dsoconfig.port.in.ReadPipelineConfigUseCase;
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.RenderConfigUseCase;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -16,19 +15,17 @@ public class DsoConfigController {
 
     static final MediaType YAML = new MediaType("application", "yaml");
 
-    private final ReadPipelineConfigUseCase library;
     private final RenderConfigUseCase configs;
     private final ConfigYaml yaml = new ConfigYaml();
 
-    public DsoConfigController(ReadPipelineConfigUseCase library, RenderConfigUseCase configs) {
-        this.library = library;
+    public DsoConfigController(RenderConfigUseCase configs) {
         this.configs = configs;
     }
 
     @GetMapping("/api/dso/config/{key}")
     public ResponseEntity<?> pipelineConfig(@PathVariable String key,
                                             @RequestParam(defaultValue = "yaml") String format) {
-        return render(library.readByKey(key), format);
+        return render(configs.readByKey(key), format);
     }
 
     @GetMapping("/api/pipelines/{id}/config")

@@ -1,17 +1,15 @@
 package com.bbh.itss.dso.portal.application.dsoconfig
 
-import com.bbh.itss.dso.portal.application.catalog.port.in.QueryProductsUseCase
-import com.bbh.itss.dso.portal.application.dsoconfig.port.in.ReadPublishedConfigUseCase
-import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelineKeysUseCase
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase
+import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView
-import com.bbh.itss.dso.portal.application.pipeline.port.in.QueryPipelinesUseCase
+import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.pipeline.KeyRevokedException
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import spock.lang.Specification
-import spock.lang.Subject
 
 import static com.bbh.itss.dso.portal.support.Fixtures.UPDATED
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
@@ -22,16 +20,13 @@ class PipelineConfigServiceSpec extends Specification {
 
     static final String KEY = '6f1c2d3e-0000-4abc-9def-123456789abc'
 
-    ManagePipelineKeysUseCase keys = Mock()
-    ReadPublishedConfigUseCase published = Mock()
-    QueryPipelinesUseCase pipelines = Mock()
-    QueryProductsUseCase products = Mock()
+    PublishPipelineConfigsUseCase published = Mock()
+    PipelinesUseCase pipelines = Mock()
+    ProductsUseCase products = Mock()
     ManageGlobalSettingsUseCase settings = Stub() {
         current() >> storedSettings('https://jenkins.test')
     }
-
-    @Subject
-    def service = new PipelineConfigService(keys, published, pipelines, products, settings)
+    def service = new PipelineConfigService(published, pipelines, products, settings)
 
     Product certScanner = product(id: 1L, code: 'CERT', services: [[name: 'gui', id: 10L], [name: 'backend-api', id: 11L]])
 
@@ -43,9 +38,9 @@ class PipelineConfigServiceSpec extends Specification {
         def config = service.readByKey(KEY)
 
         then:
-        1 * keys.authorizeKey(KEY) >> 100L
+        1 * pipelines.authorizeKey(KEY) >> 100L
         1 * published.currentConfig(100L) >> Optional.of(current)
-        0 * pipelines._
+        0 * pipelines.get(_)
         0 * products._
         config.is(current)
     }
@@ -55,7 +50,7 @@ class PipelineConfigServiceSpec extends Specification {
         def config = service.readByKey(KEY)
 
         then:
-        1 * keys.authorizeKey(KEY) >> 100L
+        1 * pipelines.authorizeKey(KEY) >> 100L
         1 * published.currentConfig(100L) >> Optional.empty()
         1 * pipelines.get(100L) >> view(PipelineType.FULL)
         config.keySet() as List == ['pipeline', 'platform', 'defaults', 'projects']
@@ -67,7 +62,7 @@ class PipelineConfigServiceSpec extends Specification {
 
     def "an invalidated or unknown key reads no configuration"() {
         given:
-        keys.authorizeKey(KEY) >> { throw failure }
+        pipelines.authorizeKey(KEY) >> { throw failure }
 
         when:
         service.readByKey(KEY)
@@ -75,7 +70,7 @@ class PipelineConfigServiceSpec extends Specification {
         then:
         thrown(failure.class)
         0 * published._
-        0 * pipelines._
+        0 * pipelines.get(_)
 
         where:
         failure << [new KeyRevokedException(pipeline().revokeActiveKey('Service retired', UPDATED)),
@@ -88,7 +83,7 @@ class PipelineConfigServiceSpec extends Specification {
 
         then:
         1 * pipelines.get(100L) >> view(PipelineType.SECURITY)
-        0 * keys._
+        0 * pipelines.authorizeKey(_)
         config.pipeline.type == 'security'
     }
 

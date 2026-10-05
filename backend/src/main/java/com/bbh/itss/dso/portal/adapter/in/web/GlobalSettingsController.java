@@ -25,6 +25,6 @@ public class GlobalSettingsController {
 
     @PutMapping
     public GlobalSettingsDto update(@Valid @RequestBody GlobalSettingsDto request) {
-        return GlobalSettingsDto.from(settings.update(request.toCommand()));
+        return GlobalSettingsDto.from(settings.update(request.version(), request.toValues()));
     }
 }
