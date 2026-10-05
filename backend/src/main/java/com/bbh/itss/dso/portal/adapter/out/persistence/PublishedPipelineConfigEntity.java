@@ -1,4 +1,4 @@
-package com.bbh.itss.dso.portal.dsoconfig;
+package com.bbh.itss.dso.portal.adapter.out.persistence;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -14,7 +14,7 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "DSO_PIPELINE_CONFIG")
-public class PublishedPipelineConfig implements Persistable<Long> {
+public class PublishedPipelineConfigEntity implements Persistable<Long> {
 
     @Id
     @Column(name = "PIPELINE_ID")
@@ -30,20 +30,16 @@ public class PublishedPipelineConfig implements Persistable<Long> {
     @Transient
     private boolean stored;
 
-    protected PublishedPipelineConfig() {
+    protected PublishedPipelineConfigEntity() {
     }
 
-    PublishedPipelineConfig(Long pipelineId) {
+    PublishedPipelineConfigEntity(Long pipelineId) {
         this.pipelineId = pipelineId;
     }
 
-    boolean publish(String renderedJson, Instant now) {
-        if (renderedJson.equals(configJson)) {
-            return false;
-        }
+    void publish(String renderedJson, Instant now) {
         this.configJson = renderedJson;
         this.renderedAt = now;
-        return true;
     }
 
     @PostLoad
@@ -62,15 +58,11 @@ public class PublishedPipelineConfig implements Persistable<Long> {
         return !stored;
     }
 
-    public Long getPipelineId() {
-        return pipelineId;
-    }
-
-    public String getConfigJson() {
+    String getConfigJson() {
         return configJson;
     }
 
-    public Instant getRenderedAt() {
+    Instant getRenderedAt() {
         return renderedAt;
     }
 }

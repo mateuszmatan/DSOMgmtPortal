@@ -1,6 +1,5 @@
-package com.bbh.itss.dso.portal.dsoconfig
+package com.bbh.itss.dso.portal.domain.dsoconfig
 
-import com.bbh.itss.dso.portal.application.settings.port.out.GlobalSettingsRepositoryPort
 import com.bbh.itss.dso.portal.domain.catalog.BuildTool
 import com.bbh.itss.dso.portal.domain.catalog.DeployTarget
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings
@@ -12,8 +11,6 @@ import com.bbh.itss.dso.portal.domain.catalog.SshTarget
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeComponent
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
-import com.bbh.itss.dso.portal.domain.settings.MissingGlobalSettingsException
-import org.yaml.snakeyaml.Yaml
 import spock.lang.Specification
 import spock.lang.Subject
 
@@ -26,12 +23,8 @@ import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
 
 class DsoConfigBuilderSpec extends Specification {
 
-    def settings = Stub(GlobalSettingsRepositoryPort) {
-        load() >> Optional.of(storedSettings('https://jenkins.test'))
-    }
-
     @Subject
-    def builder = new DsoConfigBuilder(settings)
+    def builder = new DsoConfigBuilder(storedSettings('https://jenkins.test').values())
 
     static final Map GUI = [id: 10L, name: 'gui',
                             sonar: SonarSettings.of('CertScanner GUI', 'cert-gui', command(['sonarqube'])),
@@ -143,30 +136,12 @@ class DsoConfigBuilderSpec extends Specification {
         config.defaults.tools.nexusIq == [maxCritical: 0, maxHigh: 0, maxMedium: 0]
     }
 
-    def "rendering without stored global settings is an error of the start-up"() {
-        given:
-        def empty = new DsoConfigBuilder(Stub(GlobalSettingsRepositoryPort) { load() >> Optional.empty() })
-
+    def "the configuration cannot be built without the global settings"() {
         when:
-        empty.globalConfig()
+        new DsoConfigBuilder(null)
 
         then:
-        def e = thrown(MissingGlobalSettingsException)
-        e.message == 'The global settings are missing; the portal creates them at start-up'
-    }
-
-    def "the YAML uses block style and reads back to the same config"() {
-        given:
-        def config = pipelineConfig()
-
-        when:
-        def yaml = builder.toYaml(config)
-
-        then:
-        yaml.startsWith('pipeline:\n  type: full\n  entryPoint: devSecOpsPipeline\n')
-        yaml.contains('  agentNames:\n  - linux-agent\n')
-        !yaml.contains('{')
-        new Yaml().load(yaml) == config
+        thrown(NullPointerException)
     }
 
     private Map<String, Object> pipelineConfig(Map args = [:]) {
