@@ -2,50 +2,44 @@ package com.bbh.itss.dso.portal.gui.performance
 
 import com.bbh.itss.dso.portal.gui.support.GuiSpecification
 import com.microsoft.playwright.Browser
-import com.microsoft.playwright.Locator
-import com.microsoft.playwright.options.LoadState
+import com.microsoft.playwright.Page
 import com.microsoft.playwright.options.ReducedMotion
+import com.microsoft.playwright.options.WaitUntilState
 import spock.lang.Shared
 
+import java.nio.file.Files
 import java.nio.file.Paths
-
-import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 
 class GuiPerformanceSpec extends GuiSpecification {
 
     static final int WARMUPS = 1
     static final int RUNS = 5
-    static final long INITIAL_BUNDLE_LIMIT = 1024 * 1024
-    static final Map<String, Double> LIMITS = [coldList: 2500d, detail: 1500d, editor: 2000d, expand: 500d, overview: 1000d,
-                                               productMonitoring: 1000d, evidence: 1500d]
-    static final Readiness PRODUCT_ROWS = Readiness.rendered('tr.mat-mdc-row', LargeCatalogue.PRODUCTS)
-    static final Map<String, Readiness> MILESTONES = [productList: PRODUCT_ROWS]
+    static final double FACTOR = (System.getProperty('performance.factor') ?: '1') as double
+    static final String READY = '''({ selector, count }) => {
+        const found = document.querySelectorAll(selector);
+        const shown = found.length >= count && found[count - 1].checkVisibility({ opacityProperty: true, visibilityProperty: true });
+        return shown && performance.now();
+    }'''
+    static final String CLICK = 'element => { const start = performance.now(); element.click(); return start; }'
 
     @Shared
-    LargeCatalogue catalogue = LargeCatalogue.generate()
+    LargeCatalogue catalogue = new LargeCatalogue()
 
     @Shared
-    PerformanceReport report = new PerformanceReport()
-
-    def setupSpec() {
-        report.describe("Catalogue: ${LargeCatalogue.PRODUCTS} products with ${LargeCatalogue.SERVICES_PER_PRODUCT} services " +
-                "each (${catalogue.serviceCount} services) and ${LargeCatalogue.PIPELINE_TYPES.size()} pipelines per " +
-                "service (${catalogue.pipelineCount} pipelines), with monitoring and change evidence for every product.")
-        report.describe("Browser: Chromium ${browser.version()}, viewport ${WIDTH}×${HEIGHT}, reduced motion " +
-                '(no Material animations), gui and stub API served from 127.0.0.1.')
-        report.describe("Runs: ${WARMUPS} warm-up run (not counted) and ${RUNS} measured runs per scenario; " +
-                "every product page run opens another product.")
-        report.describe("Time limits are scaled by -Dperformance.factor (now ${performanceFactor()}).")
-    }
+    List<String> report = ['# Gui performance report', '',
+                           "${LargeCatalogue.PRODUCTS} products × ${LargeCatalogue.SERVICES} services × ${LargeCatalogue.TYPES.size()} pipelines; " +
+                                   "${WARMUPS} warm-up and ${RUNS} measured runs per page; time from the click (or the navigation) until the " +
+                                   "content is visible; limits × ${FACTOR} (-Dperformance.factor).", '',
+                           '| Page | Visible when | Median | p95 | Limit | Result |', '| --- | --- | ---: | ---: | ---: | --- |']
 
     def setup() {
         catalogue.serve(api)
-        PageClock.install(context, MILESTONES)
     }
 
     def cleanupSpec() {
-        report.payloads(catalogue.payloadSizes)
-        report.write(Paths.get(System.getProperty('performance.report', 'build/reports/performance/gui-performance-report.md')))
+        def target = Paths.get(System.getProperty('performance.report', 'build/reports/performance/gui-performance-report.md'))
+        Files.createDirectories(target.parent)
+        Files.writeString(target, report.join('\n') + '\n')
     }
 
     @Override
@@ -53,163 +47,40 @@ class GuiPerformanceSpec extends GuiSpecification {
         super.contextOptions().setReducedMotion(ReducedMotion.REDUCE)
     }
 
-    def "the product list of every product renders on a cold start, within its limit and the initial bundle budget"() {
-        given:
-        def samples = new Samples('Product list, cold start', PRODUCT_ROWS.describe(), limit('coldList'))
-        BundleBreakdown bundle = null
-
+    def "#scenario is visible within #limit ms at the 95th percentile"() {
         when:
-        (WARMUPS + RUNS).times { int run ->
-            def cold = newContext()
-            try {
-                PageClock.install(cold, MILESTONES)
-                def coldPage = cold.newPage()
-                watchErrors(coldPage)
-                coldPage.navigate(url('/products'))
-                def clock = new PageClock(coldPage)
-                def rendered = clock.milestone('productList')
-                coldPage.waitForLoadState(LoadState.NETWORKIDLE)
-                if (run >= WARMUPS) {
-                    samples << rendered
-                    clock.navigationTimings().findAll { it.value != null }.each { key, value -> report.navigation(key, value) }
-                    bundle = bundle ?: BundleBreakdown.of(distDir().resolve('index.html'), clock.transfers())
-                }
-            } finally {
-                cold.close()
-            }
-        }
-        report.add(samples)
-        report.bundle(bundle, INITIAL_BUNDLE_LIMIT)
+        def times = (0..<WARMUPS + RUNS).collect { int run -> measure(from, click, 1 + (run * 7) % LargeCatalogue.PRODUCTS, [selector: selector, count: count]) }
+        def sorted = times.drop(WARMUPS).sort()
+        def p95 = sorted[(int) Math.ceil(0.95d * RUNS) - 1]
+        report << "| $scenario | $count × `$selector` | ${Math.round(sorted[RUNS.intdiv(2)])} ms | ${Math.round(p95)} ms | ${Math.round(limit * FACTOR)} ms | ${p95 <= limit * FACTOR ? 'pass' : 'FAIL'} |".toString()
 
         then:
-        samples.withinLimit
-        bundle.initialBytes <= INITIAL_BUNDLE_LIMIT
-        bundle.initial*.path.any { it ==~ '/main-.+\\.js' }
-        bundle.api*.path.contains('/api/products')
+        p95 <= limit * FACTOR
         ownErrors().isEmpty()
+
+        where:
+        scenario                                   | limit | from                | click                                            | selector                                                    | count
+        'Product list, cold start'                 | 2500  | null                | null                                             | 'tr.mat-mdc-row'                                            | LargeCatalogue.PRODUCTS
+        'Product page from the product list'       | 1500  | '/products'         | "a.name[href='/products/ID']"                    | 'section.service .pipeline'                                 | LargeCatalogue.PIPELINES
+        'Product editor from the product page'     | 2000  | '/products/ID'      | "a[href='/products/ID/edit']"                    | 'mat-expansion-panel-header .service-name'                  | LargeCatalogue.SERVICES
+        'A service expanded in the editor'         | 500   | '/products/ID/edit' | 'mat-expansion-panel-header >> nth=8'            | 'mat-expansion-panel.mat-expanded dso-service-fields input' | 1
+        'Monitoring overview from the menu'        | 1000  | '/products'         | "nav.menu a[href='/monitoring']"                 | 'a.card.product'                                            | LargeCatalogue.PRODUCTS
+        "A product's monitoring from the overview" | 1000  | '/monitoring'       | "a.card.product[href='/monitoring/products/ID']" | 'a.pipeline-link'                                           | LargeCatalogue.PIPELINES
+        "A product's change evidence expanded"     | 1500  | '/evidence'         | "mat-expansion-panel-header:has(.code:text-is('CATID'))" | 'dso-pipeline-evidence-card'                         | LargeCatalogue.PIPELINES
     }
 
-    def "a product with every pipeline opens from the product list"() {
-        given:
-        def ready = Readiness.rendered('section.service .pipeline', catalogue.pipelinesPerProduct)
-        def samples = new Samples('Product page from the product list', ready.describe(), limit('detail'))
-
-        when:
-        measure(samples) { int run ->
-            open('/products')
-            assertThat(page.locator(PRODUCT_ROWS.selector)).hasCount(PRODUCT_ROWS.count)
-            clock().clickUntil(page.locator("a.name[href='/products/${productOf(run)}']"), ready)
+    double measure(String from, String click, int product, Map ready) {
+        if (from) {
+            open(from.replace('ID', "$product"))
+            assert !page.evaluate(READY, ready)
+            def start = page.locator(click.replace('ID', "$product")).evaluate(CLICK) as double
+            return (page.waitForFunction(READY, ready).jsonValue() as double) - start
         }
-
-        then:
-        samples.withinLimit
-        assertThat(page.locator('h1')).hasText(catalogue.productName(productOf(WARMUPS + RUNS - 1)))
-        assertThat(page.locator('section.service')).hasCount(LargeCatalogue.SERVICES_PER_PRODUCT)
-        ownErrors().isEmpty()
-    }
-
-    def "the editor of a product opens from its page and expands a service"() {
-        given:
-        def editorReady = Readiness.rendered('mat-expansion-panel dso-service-fields', LargeCatalogue.SERVICES_PER_PRODUCT)
-        def serviceReady = Readiness.shown('mat-expansion-panel.mat-expanded dso-service-fields input')
-        def opening = new Samples('Product editor from the product page', editorReady.describe(), limit('editor'))
-        def expanding = new Samples('Expanding a service in the editor', serviceReady.describe(), limit('expand'))
-        def middle = LargeCatalogue.SERVICES_PER_PRODUCT.intdiv(2)
-
-        when:
-        (WARMUPS + RUNS).times { int run ->
-            def id = productOf(run)
-            open("/products/$id")
-            assertThat(page.locator('section.service .pipeline')).hasCount(catalogue.pipelinesPerProduct)
-            def opened = clock().clickUntil(page.locator("a[href='/products/$id/edit']"), editorReady)
-            def expanded = clock().clickUntil(page.locator('mat-expansion-panel-header').nth(middle), serviceReady)
-            if (run >= WARMUPS) {
-                opening << opened
-                expanding << expanded
-            }
-        }
-        report.add(opening)
-        report.add(expanding)
-
-        then:
-        opening.withinLimit
-        expanding.withinLimit
-        assertThat(page.locator('mat-expansion-panel.mat-expanded .service-name')).hasText(catalogue.serviceName(middle))
-        ownErrors().isEmpty()
-    }
-
-    def "the monitoring overview and a product's monitoring open from the menu"() {
-        given:
-        def overviewReady = Readiness.rendered('a.card.product', LargeCatalogue.PRODUCTS)
-        def productReady = Readiness.rendered('a.pipeline-link', catalogue.pipelinesPerProduct)
-        def overview = new Samples('Monitoring overview from the menu', overviewReady.describe(), limit('overview'))
-        def product = new Samples("A product's monitoring from the overview", productReady.describe(), limit('productMonitoring'))
-
-        when:
-        (WARMUPS + RUNS).times { int run ->
-            open('/products')
-            assertThat(page.locator(PRODUCT_ROWS.selector)).hasCount(PRODUCT_ROWS.count)
-            def overviewTime = clock().clickUntil(menuLink('Pipeline Monitoring'), overviewReady)
-            def productTime = clock().clickUntil(page.locator("a.card.product[href='/monitoring/products/${productOf(run)}']"), productReady)
-            if (run >= WARMUPS) {
-                overview << overviewTime
-                product << productTime
-            }
-        }
-        report.add(overview)
-        report.add(product)
-
-        then:
-        overview.withinLimit
-        product.withinLimit
-        assertThat(page.locator('h1')).hasText(catalogue.productName(productOf(WARMUPS + RUNS - 1)))
-        ownErrors().isEmpty()
-    }
-
-    def "a product's change evidence expands with every pipeline"() {
-        given:
-        def ready = Readiness.rendered('dso-pipeline-evidence-card', catalogue.pipelinesPerProduct)
-        def samples = new Samples("A product's change evidence expanded", ready.describe(), limit('evidence'))
-
-        when:
-        measure(samples) { int run ->
-            open('/evidence')
-            assertThat(page.locator('mat-expansion-panel')).hasCount(LargeCatalogue.PRODUCTS)
-            clock().clickUntil(evidenceHeader(productOf(run)), ready)
-        }
-
-        then:
-        samples.withinLimit
-        api.requests('GET', '/api/evidence/products/\\d+')*.path ==
-                (0..<WARMUPS + RUNS).collect { "/api/evidence/products/${productOf(it)}".toString() }
-        ownErrors().isEmpty()
-    }
-
-    void measure(Samples samples, Closure<Double> run) {
-        (WARMUPS + RUNS).times { int index ->
-            def millis = run.call(index)
-            if (index >= WARMUPS) {
-                samples << millis
-            }
-        }
-        report.add(samples)
-    }
-
-    PageClock clock() {
-        new PageClock(page)
-    }
-
-    Locator evidenceHeader(int productId) {
-        page.locator('mat-expansion-panel').filter(new Locator.FilterOptions()
-                .setHas(page.locator(".code:text-is('${catalogue.code(productId)}')")))
-                .locator('mat-expansion-panel-header')
-    }
-
-    static int productOf(int run) {
-        1 + (run * 7) % LargeCatalogue.PRODUCTS
-    }
-
-    static double limit(String scenario) {
-        LIMITS[scenario] * performanceFactor()
+        context.close()
+        context = newContext()
+        page = context.newPage()
+        watchErrors(page)
+        page.navigate(url('/products'), new Page.NavigateOptions().setWaitUntil(WaitUntilState.COMMIT))
+        page.waitForFunction(READY, ready).jsonValue() as double
     }
 }

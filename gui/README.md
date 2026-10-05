@@ -60,10 +60,10 @@ every feature land in `build/reports/gui/screenshots`.
   Jenkins and build links, InfluxDB missing or unreachable; and failing API calls.
 - Performance (`src/performanceTest`): the stub serves 25 products with 16 services and 4 pipelines each, with
   monitoring and evidence for all of them. The suite times the cold product list, the product page, the editor and
-  a service expansion, the monitoring overview, a product's monitoring and a product's evidence in the browser, one
-  warm-up and five measured runs each, and fails when a p95 passes its limit or the initial bundle passes the
-  `angular.json` warning budget. `-Dperformance.factor=2` doubles the time limits on a slow machine. The report is
-  `build/reports/performance/gui-performance-report.md`.
+  a service expansion, the monitoring overview, a product's monitoring and a product's evidence in the browser, from
+  the click to the content being visible, one warm-up and five measured runs each, and fails when a p95 passes its
+  limit. `-Dperformance.factor=2` doubles the time limits on a slow machine. The table of timings is
+  `build/reports/performance/gui-performance-report.md`; the bundle size is guarded by the `angular.json` budgets.
 
 ## Look and layout
 
