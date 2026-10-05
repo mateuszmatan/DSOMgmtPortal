@@ -658,4 +658,8 @@ export const PIPELINE_TYPES: { value: PipelineType; label: string; description: 
   { value: 'SAST', label: 'SAST scanning', description: 'AppScan static scan of the sources only' },
 ];
 
+export function pipelineTypeLabel(type: PipelineType): string {
+  return PIPELINE_TYPES.find((option) => option.value === type)?.label ?? type;
+}
+
 export const DEFAULT_JENKINS_LIBRARY = 'DevSecOpsJenkinsLibrary';

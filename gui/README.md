@@ -22,8 +22,26 @@ Gradle downloads Node.js 24 into `gui/.gradle/nodejs`.
 | `monitoring/` | Pipeline Monitoring: overview, product pipelines, pipeline details with DORA and Grafana |
 | `evidence/`   | Change Evidence: builds, tests and scans of each pipeline for ServiceNow changes |
 | `settings/`   | Global Settings: tools, policy and defaults of every pipeline |
-| `shared/`     | form controls, dialogs, formatting, Bitbucket links |
+| `shared/`     | field definitions and the field component, form controls, dialogs, formatting, Bitbucket links |
 | `testing/`    | fixtures for the unit tests |
+
+## Forms from field definitions
+
+A form field is written once, as data. `shared/fields.ts` holds the `Field` interface (key, label, the
+`config.yaml` path shown as its hint, span of the 12 column grid, kind, placeholder, hint, error message, select
+options and number range) with the small builders `line`, `mono`, `area`, `check`, `count` and `choice`, and the
+`dso-fields` component that renders a list of them into a `.form-fields` grid: a Material field or checkbox per
+entry, bound to the control of that key in the group it is given. The service editor
+(`products/service-fields.ts`), its child editors and the Global Settings page (`settings/settings-fields.ts`)
+therefore describe their sections as lists of fields; only the parts that are not a plain field (the tool command
+blocks, the test job list, the UrbanCode applications, the OpenShift targets and the toggle groups) have markup of
+their own. Labels and hints go through `chips()`, which turns `` `path` `` into a code chip.
+
+The service editor's vertical menu, the panes it opens and the validity of each section come from
+`SERVICE_SECTIONS` in `products/product-form-model.ts`; the explanation under each pane heading sits next to the
+field definitions. Requests are mapped with `sent()`, which trims every string of a form value and sends a blank
+one as `null`, so each request mapping only names the values that need more than that (lists split into lines or
+words, values kept while they are valid, and the sections that do not apply).
 
 ## Browser tests
 
@@ -82,6 +100,12 @@ A pipeline whose key was invalidated shows a "Regenerate key" text button next t
 and in the key history dialog. It calls `POST /api/pipelines/{id}/keys` without a confirmation, since no working key
 is replaced, and shows the new key; the invalidated keys stay in the history. "Replace key" in the More menu of a
 pipeline with an active key still asks first, because it invalidates the key in use.
+
+## Grafana
+
+The monitoring API sends one `grafana.dashboardUrl` for a pipeline, with the dashboard and its variables already
+set. The pipeline page embeds it in an iframe with `&kiosk` and links the same address as "Open in Grafana". When
+the backend has no `GRAFANA_DASHBOARD_URL` the field is `null` and the page says so instead of embedding anything.
 
 ## Build links
 

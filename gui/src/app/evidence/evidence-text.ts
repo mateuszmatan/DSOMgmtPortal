@@ -1,9 +1,7 @@
 import {
   CheckStatus,
   EvidenceScanner,
-  PIPELINE_TYPES,
   PipelineEvidence,
-  PipelineType,
   ProductEvidence,
   RunEvidence,
   RunResult,
@@ -12,6 +10,7 @@ import {
   TEST_STAGES,
   TestStage,
   TestSuiteEvidence,
+  pipelineTypeLabel,
 } from '../core/models';
 import { formatDuration } from '../shared/formatting';
 
@@ -49,10 +48,6 @@ export const EVIDENCE_SCANNERS: { scanner: EvidenceScanner; label: string }[] = 
   { scanner: 'SONARQUBE', label: 'SonarQube' },
   { scanner: 'NEXUS_IQ', label: 'Nexus IQ' },
 ];
-
-export function pipelineTypeLabel(type: PipelineType): string {
-  return PIPELINE_TYPES.find((option) => option.value === type)?.label ?? type;
-}
 
 export function formatUtc(iso: string | null | undefined): string | null {
   if (!iso) {

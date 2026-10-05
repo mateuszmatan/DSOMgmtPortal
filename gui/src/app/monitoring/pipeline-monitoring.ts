@@ -17,7 +17,7 @@ import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MonitoringApi } from '../core/api';
 import { errorMessage } from '../core/errors';
-import { DoraSummary, PIPELINE_TYPES, PipelineMonitoring, PipelineType } from '../core/models';
+import { DoraSummary, PipelineMonitoring, pipelineTypeLabel } from '../core/models';
 import { DoraLevelBadge } from '../shared/dora-level';
 import { DurationPipe, RelativeTimePipe, formatDuration } from '../shared/formatting';
 import { StatusChip } from '../shared/status-chip';
@@ -102,9 +102,7 @@ export class PipelineMonitoringPage {
   ];
   protected readonly errorMessage = errorMessage;
 
-  protected typeLabel(type: PipelineType): string {
-    return PIPELINE_TYPES.find((option) => option.value === type)?.label ?? type;
-  }
+  protected readonly typeLabel = pipelineTypeLabel;
 
   protected selectRange(range: string): void {
     this.router.navigate([], { relativeTo: this.route, queryParams: { range }, replaceUrl: true });

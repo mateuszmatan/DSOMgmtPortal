@@ -7,7 +7,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { MonitoringApi } from '../core/api';
 import { errorMessage } from '../core/errors';
-import { PIPELINE_TYPES, PipelineHealth, PipelineType, RunResult } from '../core/models';
+import { PipelineHealth, RunResult, pipelineTypeLabel } from '../core/models';
 import { DurationPipe, RelativeTimePipe } from '../shared/formatting';
 import { StatusChip } from '../shared/status-chip';
 import { MetricsBanner } from './metrics-banner';
@@ -63,9 +63,7 @@ export class ProductMonitoringPage {
   ];
   protected readonly errorMessage = errorMessage;
 
-  protected typeLabel(type: PipelineType): string {
-    return PIPELINE_TYPES.find((option) => option.value === type)?.label ?? type;
-  }
+  protected readonly typeLabel = pipelineTypeLabel;
 
   protected open(health: PipelineHealth): void {
     this.router.navigate(['/monitoring/pipelines', health.pipeline.id]);
