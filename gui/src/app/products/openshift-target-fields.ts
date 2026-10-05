@@ -1,61 +1,48 @@
 import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { REGIONS, Region } from '../core/models';
-import { Field, Fields, formRevision } from '../shared/fields';
+import { Field, Fields, check, formRevision, mono } from '../shared/fields';
 import { OpenShiftTargetForm, ServiceForm } from './product-form-model';
 
-const field = (
-  key: string,
-  label: string,
-  code: string,
-  span: number,
-  placeholder = '',
-): Field => ({
-  key,
-  label,
-  code,
-  span,
-  placeholder,
-  mono: true,
-});
-
 export const IMAGE_BUILD: Field[] = [
-  field('projectBuild', 'Build project', 'projectBuildR', 4),
-  field('buildConfigPath', 'BuildConfig file', 'buildConfigPath', 4, 'openshift/buildconfig.yaml'),
-  field('dockerFilePath', 'Dockerfile', 'dockerFilePath', 4, 'openshift/Dockerfile'),
-  field('buildContext', 'Build context', 'buildContext', 6, 'target/docker'),
-  field('addFile', 'File added to the image', 'addFile', 6),
+  mono('projectBuild', 'Build project', 'projectBuildR', 4),
+  mono('buildConfigPath', 'BuildConfig file', 'buildConfigPath', 4, {
+    placeholder: 'openshift/buildconfig.yaml',
+  }),
+  mono('dockerFilePath', 'Dockerfile', 'dockerFilePath', 4, {
+    placeholder: 'openshift/Dockerfile',
+  }),
+  mono('buildContext', 'Build context', 'buildContext', 6, { placeholder: 'target/docker' }),
+  mono('addFile', 'File added to the image', 'addFile', 6),
 ];
 
 const REGISTRY: Field[] = [
-  field('dockerRepoPush', 'Image pushed to', 'qcDockerRepoPush', 6),
-  field('dockerRepoPull', 'Image pulled from', 'qcDockerRepoPull', 6),
-  field('certDir', 'OpenShift certificates folder', 'openshiftCertDir', 6),
-  field('nexusAuthFile', 'Nexus auth file', 'nexus.authfile', 6),
+  mono('dockerRepoPush', 'Image pushed to', 'qcDockerRepoPush', 6),
+  mono('dockerRepoPull', 'Image pulled from', 'qcDockerRepoPull', 6),
+  mono('certDir', 'OpenShift certificates folder', 'openshiftCertDir', 6),
+  mono('nexusAuthFile', 'Nexus auth file', 'nexus.authfile', 6),
 ];
 
 const DEPLOYMENT: Field[] = [
-  field('projectDeployment', 'Deployment project', 'projectDeploymentR', 4),
-  field('deployConfigPath', 'Deployment file', 'deployConfigPath', 4, 'openshift/deployment.yaml'),
-  field('configPath', 'Configuration file', 'configPathR', 4),
-  field('healthCheckUrl', 'Health check path', 'healthCheckUrl', 4, '/actuator/health'),
-  field('routeHostname', 'Route host name', 'routeHostnameR', 4),
-  field('deploymentPath', 'Deployment path', 'deploymentPath', 4),
-  {
-    key: 'skipConfigDeploy',
-    kind: 'check',
-    label: 'Skip deploying the configuration',
-    code: 'skipConfigDeploy',
-  },
+  mono('projectDeployment', 'Deployment project', 'projectDeploymentR', 4),
+  mono('deployConfigPath', 'Deployment file', 'deployConfigPath', 4, {
+    placeholder: 'openshift/deployment.yaml',
+  }),
+  mono('configPath', 'Configuration file', 'configPathR', 4),
+  mono('healthCheckUrl', 'Health check path', 'healthCheckUrl', 4, {
+    placeholder: '/actuator/health',
+  }),
+  mono('routeHostname', 'Route host name', 'routeHostnameR', 4),
+  mono('deploymentPath', 'Deployment path', 'deploymentPath', 4),
+  check('skipConfigDeploy', 'Skip deploying the configuration', 'skipConfigDeploy'),
 ];
 
 const REPOSITORY: Field[] = [
-  {
-    ...field('deploymentRepoUrl', 'Repository URL', 'deploymentRepo.url', 6),
+  mono('deploymentRepoUrl', 'Repository URL', 'deploymentRepo.url', 6, {
     error: 'Must be an http, https, ssh or git@ URL',
-  },
-  field('deploymentRepoBranch', 'Branch', 'deploymentRepo.branch', 3),
-  field('deploymentRepoCredentialsId', 'Credentials ID', 'deploymentRepo.credentials', 3),
+  }),
+  mono('deploymentRepoBranch', 'Branch', 'deploymentRepo.branch', 3),
+  mono('deploymentRepoCredentialsId', 'Credentials ID', 'deploymentRepo.credentials', 3),
 ];
 
 @Component({

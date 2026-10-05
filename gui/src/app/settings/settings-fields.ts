@@ -1,4 +1,13 @@
-import { Field, GRADLE_MAVEN_FLUTTER, VM_OPENSHIFT } from '../shared/fields';
+import {
+  Field,
+  GRADLE_MAVEN_FLUTTER,
+  VM_OPENSHIFT,
+  check,
+  choice,
+  count,
+  line,
+  mono,
+} from '../shared/fields';
 import { SettingsSectionId } from './settings-form-model';
 
 export interface SettingsBlock {
@@ -17,17 +26,8 @@ export interface SettingsSection {
 
 const HOST_ERROR = 'Use letters, digits, dots and hyphens';
 
-const mono = (key: string, label: string, code: string, span: number, rest: Partial<Field> = {}) =>
-  ({ key, label, code, span, mono: true, ...rest }) satisfies Field;
-
-const count = (key: string, label: string, code: string, span = 4): Field => ({
-  key,
-  label,
-  code,
-  span,
-  kind: 'number',
-  min: 1,
-});
+const minutes = (key: string, label: string, code: string, span = 4): Field =>
+  count(key, label, code, span, { min: 1 });
 
 export const SETTINGS_PAGE: SettingsSection[] = [
   {
@@ -163,20 +163,24 @@ export const SETTINGS_PAGE: SettingsSection[] = [
         heading: 'Coverage',
         note: 'The line coverage the unit tests must reach.',
         fields: [
-          {
-            ...count('coverageMinLine', 'Minimum line coverage (%)', 'coverage.minLine'),
+          count('coverageMinLine', 'Minimum line coverage (%)', 'coverage.minLine', 4, {
+            min: 1,
             max: 100,
             hint: '1 to 100',
-          },
+          }),
         ],
       },
       {
         heading: 'SAST',
         note: 'Preparing the sources and waiting for the AppScan static scan.',
         fields: [
-          count('sastPrepareTimeoutMinutes', 'Prepare timeout (minutes)', 'sast.prepareTimeoutMin'),
-          count('sastPollTimeoutMinutes', 'Poll timeout (minutes)', 'sast.pollTimeoutMin'),
-          count('sastPollIntervalSeconds', 'Poll interval (seconds)', 'sast.pollIntervalSec'),
+          minutes(
+            'sastPrepareTimeoutMinutes',
+            'Prepare timeout (minutes)',
+            'sast.prepareTimeoutMin',
+          ),
+          minutes('sastPollTimeoutMinutes', 'Poll timeout (minutes)', 'sast.pollTimeoutMin'),
+          minutes('sastPollIntervalSeconds', 'Poll interval (seconds)', 'sast.pollIntervalSec'),
         ],
       },
       {
@@ -190,17 +194,22 @@ export const SETTINGS_PAGE: SettingsSection[] = [
             span: 4,
             kind: 'check',
           },
-          count('scaPollTimeoutMinutes', 'Poll timeout (minutes)', 'sca.pollTimeoutMin'),
-          count('scaPollIntervalSeconds', 'Poll interval (seconds)', 'sca.pollIntervalSec'),
+          minutes('scaPollTimeoutMinutes', 'Poll timeout (minutes)', 'sca.pollTimeoutMin'),
+          minutes('scaPollIntervalSeconds', 'Poll interval (seconds)', 'sca.pollIntervalSec'),
         ],
       },
       {
         heading: 'DAST',
         note: 'The AppScan dynamic scan of the deployed service and its report.',
         fields: [
-          count('dastPollTimeoutMinutes', 'Poll timeout (minutes)', 'dast.pollTimeoutMin', 3),
-          count('dastPollIntervalSeconds', 'Poll interval (seconds)', 'dast.pollIntervalSec', 3),
-          count('dastReportTimeoutMinutes', 'Report timeout (minutes)', 'dast.reportTimeoutMin', 3),
+          minutes('dastPollTimeoutMinutes', 'Poll timeout (minutes)', 'dast.pollTimeoutMin', 3),
+          minutes('dastPollIntervalSeconds', 'Poll interval (seconds)', 'dast.pollIntervalSec', 3),
+          minutes(
+            'dastReportTimeoutMinutes',
+            'Report timeout (minutes)',
+            'dast.reportTimeoutMin',
+            3,
+          ),
           count(
             'dastReportIntervalSeconds',
             'Report interval (seconds)',
@@ -244,32 +253,10 @@ export const SETTINGS_PAGE: SettingsSection[] = [
       'A new service starts with these values, and a service that leaves one of them out gets it ' +
       'from here. Each service may set its own.',
     fields: [
-      {
-        key: 'buildTool',
-        label: 'Build tool',
-        code: 'buildTool',
-        span: 3,
-        kind: 'select',
-        options: GRADLE_MAVEN_FLUTTER,
-      },
-      {
-        key: 'deployTarget',
-        label: 'Deployment target',
-        code: 'deployTarget',
-        span: 3,
-        kind: 'select',
-        options: VM_OPENSHIFT,
-      },
+      choice('buildTool', 'Build tool', GRADLE_MAVEN_FLUTTER, 'buildTool', 3),
+      choice('deployTarget', 'Deployment target', VM_OPENSHIFT, 'deployTarget', 3),
       mono('sourceDir', 'Source folder', 'sourceDir', 3, { placeholder: '.' }),
-      {
-        key: 'testsMaxParallel',
-        label: 'Parallel test jobs',
-        code: 'tests.maxParallel',
-        span: 3,
-        kind: 'number',
-        min: 1,
-        max: 100,
-      },
+      count('testsMaxParallel', 'Parallel test jobs', 'tests.maxParallel', 3, { min: 1, max: 100 }),
     ],
   },
   {
@@ -282,30 +269,19 @@ export const SETTINGS_PAGE: SettingsSection[] = [
 ];
 
 export const LIMIT_FIELDS: Field[] = [
-  { key: 'maxCritical', label: 'Max critical', kind: 'number', span: 0, min: 0 },
-  { key: 'maxHigh', label: 'Max high', kind: 'number', span: 0, min: 0 },
-  { key: 'maxMedium', label: 'Max medium', kind: 'number', span: 0, min: 0 },
+  count('maxCritical', 'Max critical', '', 0, { min: 0 }),
+  count('maxHigh', 'Max high', '', 0, { min: 0 }),
+  count('maxMedium', 'Max medium', '', 0, { min: 0 }),
 ];
 
 export const RELEASE_GATE_FIELDS: Field[] = [
-  {
-    key: 'requireCoverage',
-    label: 'Require the minimum coverage',
-    code: 'releaseGate.requireCoverage',
-    span: 6,
-    kind: 'check',
-  },
-  {
-    key: 'stateFile',
-    label: 'State file',
-    code: 'releaseGate.stateFile',
-    span: 6,
-    mono: true,
+  check('requireCoverage', 'Require the minimum coverage', 'releaseGate.requireCoverage', 6),
+  mono('stateFile', 'State file', 'releaseGate.stateFile', 6, {
     hint: 'archived with each build',
     error: 'Use a file name such as release-gate.json',
-  },
+  }),
 ];
 
 export const GOLDEN_FIX_ENABLED: Field[] = [
-  { key: 'enabled', label: 'GoldenFix runs by default', code: 'goldenFix.enabled', kind: 'check' },
+  check('enabled', 'GoldenFix runs by default', 'goldenFix.enabled'),
 ];

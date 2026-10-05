@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { GlobalSettings, TEST_STAGES, TestStage } from '../core/models';
 import { addItem } from '../shared/form-controls';
-import { Field, Fields, formRevision } from '../shared/fields';
+import { Field, Fields, area, choice, count, formRevision, line, mono } from '../shared/fields';
 import {
   ServiceForm,
   TestJobForm,
@@ -75,84 +75,54 @@ export class TestJobsFields {
   protected parallelFields(): Field[] {
     const value = this.defaults()?.serviceDefaults.testsMaxParallel;
     return [
-      {
-        key: 'maxParallel',
-        kind: 'number',
-        label: 'Parallel jobs, every stage',
-        span: 4,
+      count('maxParallel', 'Parallel jobs, every stage', 'tests.maxParallel', 4, {
         min: 1,
         max: 100,
-        code: 'tests.maxParallel',
         hint: `left empty: global default${value === undefined ? '' : ` ${value}`}`,
-      },
+      }),
     ];
   }
 
   protected stageParallelField(stage: Stage): Field[] {
     return [
-      {
-        key: stage.parallel,
-        kind: 'number',
-        label: 'Parallel jobs',
-        span: 12,
+      count(stage.parallel, 'Parallel jobs', `tests.${stage.noun}.maxParallel`, 12, {
         min: 1,
         max: 100,
-        code: `tests.${stage.noun}.maxParallel`,
-      },
+      }),
     ];
   }
 
   protected jobFields(job: TestJobForm, stage: Stage): Field[] {
     return [
-      { key: 'name', label: 'Name', span: 3, placeholder: 'smoke', code: 'name' },
-      {
-        key: 'job',
-        label: 'Jenkins job',
-        span: 6,
-        mono: true,
+      line('name', 'Name', 'name', 3, { placeholder: 'smoke' }),
+      mono('job', 'Jenkins job', isJobUrl(job.controls.job.value) ? 'url' : 'job', 6, {
         placeholder: 'CERT/gui-smoke-tests',
-        code: isJobUrl(job.controls.job.value) ? 'url' : 'job',
         hint: 'a job path, or the full URL of a job on another Jenkins',
-      },
-      {
-        key: 'type',
-        kind: 'select',
-        label: 'Runs on',
-        span: 3,
-        code: 'type',
-        options: [
+      }),
+      choice(
+        'type',
+        'Runs on',
+        [
           { value: null, label: 'Library default' },
           { value: 'LOCAL', label: 'This Jenkins' },
           { value: 'REMOTE', label: 'Another Jenkins' },
         ],
-      },
-      {
-        key: 'timeoutMinutes',
-        kind: 'number',
-        label: 'Timeout (minutes)',
-        span: 3,
-        min: 1,
-        max: 1440,
-        code: 'timeoutMin',
-      },
-      {
-        key: 'parameters',
-        kind: 'area',
-        label: 'Parameters',
-        span: 6,
+        'type',
+        3,
+      ),
+      count('timeoutMinutes', 'Timeout (minutes)', 'timeoutMin', 3, { min: 1, max: 1440 }),
+      area('parameters', 'Parameters', 'parameters', 6, {
         mono: true,
         placeholder: 'ENV=rd\nSUITE=critical',
-        code: 'parameters',
         hint: 'One NAME=value per line',
-      },
-      {
-        key: 'stage',
-        kind: 'select',
-        label: 'Stage',
-        span: 3,
-        code: `tests.${stage.noun}.jobs`,
-        options: STAGES.map((option) => ({ value: option.value, label: option.label })),
-      },
+      }),
+      choice(
+        'stage',
+        'Stage',
+        STAGES.map((option) => ({ value: option.value, label: option.label })),
+        `tests.${stage.noun}.jobs`,
+        3,
+      ),
       ...(isRemoteJob(job) ? REMOTE : []),
     ];
   }

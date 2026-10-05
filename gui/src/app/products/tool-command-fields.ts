@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { BuildTool } from '../core/models';
-import { Field, Fields } from '../shared/fields';
+import { Field, Fields, area, mono } from '../shared/fields';
 import { ToolCommandForm } from './product-form-model';
 
 @Component({
@@ -28,52 +28,30 @@ export class ToolCommandFields {
     const maven = this.maven();
     const key = this.key();
     return [
-      {
-        key: 'tasks',
-        label: maven ? 'Maven goals' : 'Gradle tasks',
-        mono: true,
-        placeholder: maven ? this.mavenExample() : this.gradleExample(),
-        code: `${key}.${maven ? 'goals' : 'tasks'}`,
-        hint: 'separated by spaces',
-      },
-      {
-        key: 'directory',
-        label: 'Directory',
-        span: maven ? 3 : 6,
-        mono: true,
-        placeholder: '.',
-        code: `${key}.dir`,
-      },
+      mono(
+        'tasks',
+        maven ? 'Maven goals' : 'Gradle tasks',
+        `${key}.${maven ? 'goals' : 'tasks'}`,
+        6,
+        {
+          placeholder: maven ? this.mavenExample() : this.gradleExample(),
+          hint: 'separated by spaces',
+        },
+      ),
+      mono('directory', 'Directory', `${key}.dir`, maven ? 3 : 6, { placeholder: '.' }),
       ...(maven
-        ? [
-            {
-              key: 'mavenHome',
-              label: 'Maven home',
-              span: 3,
-              mono: true,
-              placeholder: '/opt/maven',
-              code: `${key}.mvnPath`,
-            } satisfies Field,
-          ]
+        ? [mono('mavenHome', 'Maven home', `${key}.mvnPath`, 3, { placeholder: '/opt/maven' })]
         : []),
-      {
-        key: 'flags',
-        kind: 'area',
-        label: 'Flags',
+      area('flags', 'Flags', `${key}.flags`, 6, {
         mono: true,
         placeholder: maven ? '-B' : '--refresh-dependencies',
-        code: `${key}.flags`,
         hint: 'one per line',
-      },
-      {
-        key: 'environment',
-        kind: 'area',
-        label: 'Environment variables',
+      }),
+      area('environment', 'Environment variables', `${key}.env`, 6, {
         mono: true,
         placeholder: 'JAVA_OPTS=-Xmx1g',
-        code: `${key}.env`,
         hint: 'one NAME=value per line',
-      },
+      }),
     ];
   }
 }

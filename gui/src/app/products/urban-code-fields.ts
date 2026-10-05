@@ -3,7 +3,7 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { GlobalSettings } from '../core/models';
 import { addItem } from '../shared/form-controls';
-import { Field, Fields, formRevision } from '../shared/fields';
+import { Field, Fields, area, check, count, formRevision, line, mono } from '../shared/fields';
 import {
   ServiceForm,
   UrbanCodeApplicationForm,
@@ -12,94 +12,45 @@ import {
 } from './product-form-model';
 
 const SWITCHES: Field[] = [
-  { key: 'deployWithSnapshot', label: 'Deploy with a snapshot', code: 'deployWithSnapshot' },
-  {
-    key: 'includeOnlyDeployVersions',
-    label: 'Snapshot holds only the deployed versions',
-    code: 'includeOnlyDeployVersions',
-  },
-  {
-    key: 'updateSnapshotComponents',
-    label: "Update the snapshot's components",
-    code: 'updateSnapshotComp',
-  },
-  { key: 'deployOnlyChanged', label: 'Deploy only changed versions', code: 'deployOnlyChanged' },
-].map((field) => ({ ...field, kind: 'check' as const, span: 6 }));
+  check('deployWithSnapshot', 'Deploy with a snapshot', 'deployWithSnapshot', 6),
+  check(
+    'includeOnlyDeployVersions',
+    'Snapshot holds only the deployed versions',
+    'includeOnlyDeployVersions',
+    6,
+  ),
+  check('updateSnapshotComponents', "Update the snapshot's components", 'updateSnapshotComp', 6),
+  check('deployOnlyChanged', 'Deploy only changed versions', 'deployOnlyChanged', 6),
+];
 
 const TEXTS: Field[] = [
-  {
-    key: 'skipWait',
-    kind: 'check',
-    label: 'Do not wait for the deployment result',
-    code: 'skipWait',
-  },
-  {
-    key: 'deployDescription',
-    kind: 'area',
-    label: 'Deployment description',
-    code: 'deploy.vm.dod.deployDescription',
-  },
-  {
-    key: 'requestProperties',
-    kind: 'area',
-    label: 'Request properties',
+  check('skipWait', 'Do not wait for the deployment result', 'skipWait'),
+  area('deployDescription', 'Deployment description', 'deploy.vm.dod.deployDescription'),
+  area('requestProperties', 'Request properties', 'deploy.vm.dod.requestProperties', 6, {
     mono: true,
-    code: 'deploy.vm.dod.requestProperties',
-  },
+  }),
 ];
 
 const APPLICATION: Field[] = [
-  {
-    key: 'applicationName',
-    label: 'Application name',
-    span: 5,
-    mono: true,
-    code: 'applicationName',
-  },
-  { key: 'order', kind: 'number', label: 'Order', span: 2, min: 1, max: 999, code: 'order' },
-  {
-    key: 'environments',
-    label: 'Environments',
-    span: 5,
-    mono: true,
+  mono('applicationName', 'Application name', 'applicationName', 5),
+  count('order', 'Order', 'order', 2, { min: 1, max: 999 }),
+  mono('environments', 'Environments', 'environments', 5, {
     placeholder: 'DV, RD',
-    code: 'environments',
     hint: 'left empty: all of them',
-  },
-  { key: 'snapshotName', label: 'Snapshot name', code: 'snapshotName' },
+  }),
+  line('snapshotName', 'Snapshot name', 'snapshotName'),
 ];
 
 const COMPONENT: Field[] = [
-  { key: 'componentName', label: 'Component name', span: 4, mono: true, code: 'componentName' },
-  {
-    key: 'baseDir',
-    label: 'Base folder',
-    span: 4,
-    mono: true,
-    placeholder: 'build/libs',
-    code: 'baseDir',
-  },
-  { key: 'versionPrefix', label: 'Version prefix', span: 2, mono: true, code: 'versionPrefix' },
-  { key: 'version', label: 'Version', span: 2, mono: true, code: 'version' },
-  {
-    key: 'fileIncludePatterns',
-    label: 'Files to include',
-    mono: true,
+  mono('componentName', 'Component name', 'componentName', 4),
+  mono('baseDir', 'Base folder', 'baseDir', 4, { placeholder: 'build/libs' }),
+  mono('versionPrefix', 'Version prefix', 'versionPrefix', 2),
+  mono('version', 'Version', 'version', 2),
+  mono('fileIncludePatterns', 'Files to include', 'fileIncludePatterns', 6, {
     placeholder: '*.jar',
-    code: 'fileIncludePatterns',
-  },
-  {
-    key: 'fileExcludePatterns',
-    label: 'Files to exclude',
-    mono: true,
-    code: 'fileExcludePatterns',
-  },
-  {
-    key: 'incrementalVersion',
-    kind: 'check',
-    label: 'Incremental version',
-    code: 'incrementalVersion',
-  },
+  }),
+  mono('fileExcludePatterns', 'Files to exclude', 'fileExcludePatterns', 6),
+  check('incrementalVersion', 'Incremental version', 'incrementalVersion'),
 ];
 
 @Component({
@@ -153,21 +104,17 @@ export class UrbanCodeFields {
 
   protected settingsFields(): Field[] {
     const deployment = this.defaults()?.deployment;
+    const site = deployment?.urbanCodeSiteName;
+    const process = deployment?.urbanCodeDeployProcess;
     return [
-      {
-        key: 'siteName',
-        label: 'Site name',
-        placeholder: deployment?.urbanCodeSiteName ?? '',
-        code: 'deploy.vm.dod.siteName',
-        hint: `left empty: ${deployment?.urbanCodeSiteName ?? 'the global default'}`,
-      },
-      {
-        key: 'deployProcess',
-        label: 'Deployment process',
-        placeholder: deployment?.urbanCodeDeployProcess ?? '',
-        code: 'deploy.vm.dod.deployProcess',
-        hint: `left empty: ${deployment?.urbanCodeDeployProcess ?? 'the global default'}`,
-      },
+      line('siteName', 'Site name', 'deploy.vm.dod.siteName', 6, {
+        placeholder: site ?? '',
+        hint: `left empty: ${site ?? 'the global default'}`,
+      }),
+      line('deployProcess', 'Deployment process', 'deploy.vm.dod.deployProcess', 6, {
+        placeholder: process ?? '',
+        hint: `left empty: ${process ?? 'the global default'}`,
+      }),
       ...SWITCHES,
       ...TEXTS,
     ];
