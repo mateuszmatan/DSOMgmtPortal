@@ -16,5 +16,5 @@ configMapGenerator:
       - INFLUX_URL=
       - INFLUX_ORG=DevSecOps
       - INFLUX_BUCKET=DORA-metrics
-      - GRAFANA_URL=
-      - GRAFANA_ORG_ID=1
+      - GRAFANA_DASHBOARD_URL=
+      - GRAFANA_SECURITY_DASHBOARD_URL=

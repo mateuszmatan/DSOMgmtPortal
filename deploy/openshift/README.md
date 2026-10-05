@@ -22,12 +22,8 @@ docker run --rm -p 8080:8080 dso-portal:0.1.0-SNAPSHOT
 ```
 
 Without a profile the container starts the `local` profile: embedded H2 in `/application/data` with demo data, on
-http://localhost:8080. To run it next to the local InfluxDB and Grafana from `docker-compose.yml`:
-
-```bash
-./gradlew :backend:bootJar
-docker compose --profile app up --build
-```
+http://localhost:8080. Add `-e INFLUX_URL=... -e INFLUX_TOKEN=... -e GRAFANA_DASHBOARD_URL=...` to show the metrics
+from your InfluxDB and Grafana.
 
 ## Deploy to OpenShift
 
@@ -56,9 +52,9 @@ overlay per environment: `rd`, `qc` and `prod`, each starting the Spring profile
    oc create secret generic dso-portal-influx --from-literal=INFLUX_TOKEN='<token>'
    ```
 
-3. Set `INFLUX_URL`, `INFLUX_ORG`, `INFLUX_BUCKET`, `GRAFANA_URL` and `GRAFANA_ORG_ID` in the overlay's
-   `configMapGenerator` (add them next to `SPRING_PROFILES_ACTIVE`). `GRAFANA_URL` must be reachable from the
-   users' browsers, because the monitoring pages embed Grafana panels.
+3. Set `INFLUX_URL` and the Grafana dashboard links in the overlay's `configMapGenerator` (add them next to
+   `SPRING_PROFILES_ACTIVE`). The links must be reachable from the users' browsers, because the monitoring pages
+   embed the dashboards.
 
 4. Apply the overlay:
 
@@ -78,6 +74,8 @@ terminates TLS at the edge and redirects plain HTTP. Memory is limited to 1 GiB 
 | `SPRING_PROFILES_ACTIVE` | ConfigMap | `rd`, `qc` or `prod` |
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Secret `dso-portal-db` | Oracle connection |
 | `DB_POOL_SIZE` | ConfigMap (optional) | Connection pool size, defaults per profile |
-| `INFLUX_URL`, `INFLUX_ORG`, `INFLUX_BUCKET` | ConfigMap | InfluxDB with the DORA metrics |
+| `INFLUX_URL` | ConfigMap | Your InfluxDB with the DORA metrics DSOEnhanced writes |
+| `INFLUX_ORG`, `INFLUX_BUCKET` | ConfigMap (optional) | Default to `DevSecOps` and `DORA-metrics`, as DSOEnhanced writes them |
 | `INFLUX_TOKEN` | Secret `dso-portal-influx` (optional) | InfluxDB read token |
-| `GRAFANA_URL`, `GRAFANA_ORG_ID` | ConfigMap | Grafana for the embedded dashboards |
+| `GRAFANA_DASHBOARD_URL` | ConfigMap | Link to the DSOEnhanced pipeline dashboard on your Grafana |
+| `GRAFANA_SECURITY_DASHBOARD_URL` | ConfigMap (optional) | Link to the DSOEnhanced security dashboard, used for SECURITY and SAST pipelines |
