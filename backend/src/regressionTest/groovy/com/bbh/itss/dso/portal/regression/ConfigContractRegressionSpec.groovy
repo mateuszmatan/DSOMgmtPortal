@@ -10,6 +10,7 @@ import static com.bbh.itss.dso.portal.support.ApiJson.fullOpenShiftService
 import static com.bbh.itss.dso.portal.support.ApiJson.openShiftTarget
 import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
+import static com.bbh.itss.dso.portal.support.ApiJson.service
 
 class ConfigContractRegressionSpec extends PortalSpecification {
 
@@ -51,6 +52,54 @@ class ConfigContractRegressionSpec extends PortalSpecification {
         productConfig.status == 200
         matchesExpected('pipeline-config.yaml', pipelineConfig.body)
         matchesExpected('product-config.yaml', productConfig.body)
+    }
+
+    def "the Bitbucket repository keys GoldenFix pull requests use are rendered only when they are set"() {
+        given:
+        def created = createProduct(product(code: uniqueCode('BITBUCKET'), name: "Bitbucket Hub ${uniqueCode()}",
+                services: [service(name: 'server', scm: [repositoryUrl: 'https://bitbucket.bbh.com/scm/pay/payhub.git',
+                                                         credentialsId: 'bitbucket-http-credentials', type: 'SERVER',
+                                                         apiUrl       : 'https://bitbucket.bbh.com/rest/api/1.0',
+                                                         projectKey   : 'PAY', repoSlug: 'payhub']),
+                           service(name: 'cloud', scm: [repositoryUrl: 'https://bitbucket.org/bbh/payhub-mobile',
+                                                        credentialsId: 'bitbucket-cloud-token', authType: 'BEARER',
+                                                        type         : 'CLOUD', workspace: 'bbh',
+                                                        repoSlug     : 'payhub-mobile']),
+                           service(name: 'plain', scm: [repositoryUrl: 'https://bitbucket.bbh.com/projects/PAY/repos/plain',
+                                                        credentialsId: 'bitbucket-http-credentials'])]))
+        def server = createPipeline(created.services[0].id as long, pipeline(type: 'FULL'))
+
+        when:
+        def projects = api.get("/api/products/$created.id/config?format=json").json.projects
+        def library = api.get("/api/dso/config/$server.activeKey.value?format=json").json
+
+        then:
+        created.services*.scm*.subMap(['apiUrl', 'workspace', 'projectKey', 'repoSlug']) == [
+                [apiUrl: 'https://bitbucket.bbh.com/rest/api/1.0', workspace: null, projectKey: 'PAY', repoSlug: 'payhub'],
+                [apiUrl: null, workspace: 'bbh', projectKey: null, repoSlug: 'payhub-mobile'],
+                [apiUrl: null, workspace: null, projectKey: null, repoSlug: null]]
+        projects.server.scm.bitbucket == [url       : 'https://bitbucket.bbh.com/scm/pay/payhub.git',
+                                          credentialsId: 'bitbucket-http-credentials', authType: 'basic', type: 'server',
+                                          apiUrl    : 'https://bitbucket.bbh.com/rest/api/1.0', projectKey: 'PAY',
+                                          repoSlug  : 'payhub']
+        projects.cloud.scm.bitbucket == [url          : 'https://bitbucket.org/bbh/payhub-mobile',
+                                         credentialsId: 'bitbucket-cloud-token', authType: 'bearer', type: 'cloud',
+                                         workspace    : 'bbh', repoSlug: 'payhub-mobile']
+        projects.plain.scm.bitbucket == [url          : 'https://bitbucket.bbh.com/projects/PAY/repos/plain',
+                                         credentialsId: 'bitbucket-http-credentials', authType: 'basic']
+        library.projects.keySet() == ['server'] as Set
+        library.projects.server.scm == projects.server.scm
+    }
+
+    def "Bitbucket repository keys without a repository URL are refused"() {
+        when:
+        def response = api.post('/api/products', product(code: uniqueCode('NOREPO'), name: "No Repo ${uniqueCode()}",
+                services: [service(scm: [workspace: 'bbh', repoSlug: 'payhub'])]))
+
+        then:
+        response.status == 400
+        response.json.errors.collect { [it.field, it.message] } == [['services[0].scm.repositoryUrl',
+                'is required when the Bitbucket API URL, workspace, project key or repository slug is set']]
     }
 
     def "the global part of the configuration keeps the shape of the library's defaults"() {

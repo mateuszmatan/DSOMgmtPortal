@@ -1,10 +1,10 @@
 package com.bbh.itss.dso.portal.dsoconfig;
 
-import com.bbh.itss.dso.portal.catalog.ProductRepository;
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
-import com.bbh.itss.dso.portal.pipeline.KeyRevokedException;
-import com.bbh.itss.dso.portal.pipeline.Pipeline;
-import com.bbh.itss.dso.portal.pipeline.PipelineService;
+import com.bbh.itss.dso.portal.application.catalog.port.in.QueryProductsUseCase;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelineKeysUseCase;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.QueryPipelinesUseCase;
+import com.bbh.itss.dso.portal.domain.pipeline.KeyRevokedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -23,11 +23,14 @@ public class DsoConfigController {
 
     static final MediaType YAML = new MediaType("application", "yaml");
 
-    private final PipelineService pipelines;
-    private final ProductRepository products;
+    private final ManagePipelineKeysUseCase keys;
+    private final QueryPipelinesUseCase pipelines;
+    private final QueryProductsUseCase products;
     private final DsoConfigBuilder builder;
 
-    public DsoConfigController(PipelineService pipelines, ProductRepository products, DsoConfigBuilder builder) {
+    public DsoConfigController(ManagePipelineKeysUseCase keys, QueryPipelinesUseCase pipelines,
+                               QueryProductsUseCase products, DsoConfigBuilder builder) {
+        this.keys = keys;
         this.pipelines = pipelines;
         this.products = products;
         this.builder = builder;
@@ -37,22 +40,20 @@ public class DsoConfigController {
     @Transactional
     public ResponseEntity<?> pipelineConfig(@PathVariable String key,
                                             @RequestParam(defaultValue = "yaml") String format) {
-        Pipeline pipeline = pipelines.resolveKey(key);
-        return render(builder.pipelineConfig(pipeline), format);
+        return render(config(keys.resolveKey(key)), format);
     }
 
     @GetMapping("/api/pipelines/{id}/config")
     @Transactional(readOnly = true)
-    public ResponseEntity<?> pipelineConfigPreview(@PathVariable Long id,
+    public ResponseEntity<?> pipelineConfigPreview(@PathVariable long id,
                                                    @RequestParam(defaultValue = "yaml") String format) {
-        return render(builder.pipelineConfig(pipelines.pipeline(id)), format);
+        return render(config(pipelines.get(id)), format);
     }
 
     @GetMapping("/api/products/{id}/config")
     @Transactional(readOnly = true)
-    public ResponseEntity<?> productConfig(@PathVariable Long id, @RequestParam(defaultValue = "yaml") String format) {
-        return render(builder.productConfig(products.findById(id).orElseThrow(() -> NotFoundException.of("Product", id))),
-                format);
+    public ResponseEntity<?> productConfig(@PathVariable long id, @RequestParam(defaultValue = "yaml") String format) {
+        return render(builder.productConfig(products.get(id)), format);
     }
 
     @GetMapping("/api/settings/config")
@@ -65,6 +66,10 @@ public class DsoConfigController {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
         detail.setTitle("Pipeline key invalidated");
         return detail;
+    }
+
+    private Map<String, Object> config(PipelineView view) {
+        return builder.pipelineConfig(view.product(), view.service(), view.pipeline());
     }
 
     private ResponseEntity<?> render(Map<String, Object> config, String format) {

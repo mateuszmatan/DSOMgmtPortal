@@ -1,44 +1,47 @@
 package com.bbh.itss.dso.portal.demo;
 
-import com.bbh.itss.dso.portal.adapter.in.web.GoldenFixPolicyDto;
+import com.bbh.itss.dso.portal.application.catalog.port.in.ManageProductsUseCase;
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductCommand;
+import com.bbh.itss.dso.portal.application.catalog.port.in.QueryProductsUseCase;
+import com.bbh.itss.dso.portal.application.catalog.port.in.ServiceCommand;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelineKeysUseCase;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelinesUseCase;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineCommand;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
 import com.bbh.itss.dso.portal.application.settings.port.in.UpdateGlobalSettingsCommand;
-import com.bbh.itss.dso.portal.catalog.AppScanAccount;
-import com.bbh.itss.dso.portal.catalog.AppScanSettings;
-import com.bbh.itss.dso.portal.catalog.BuildSettings;
-import com.bbh.itss.dso.portal.catalog.DeploymentSettings;
-import com.bbh.itss.dso.portal.catalog.FlutterPlatform;
-import com.bbh.itss.dso.portal.catalog.FlutterSettings;
-import com.bbh.itss.dso.portal.catalog.MetricsSettings;
-import com.bbh.itss.dso.portal.catalog.NexusIqSettings;
-import com.bbh.itss.dso.portal.catalog.OpenShiftTarget;
-import com.bbh.itss.dso.portal.catalog.ProductCatalogService;
-import com.bbh.itss.dso.portal.catalog.ProductRepository;
-import com.bbh.itss.dso.portal.catalog.ProductRequest;
-import com.bbh.itss.dso.portal.catalog.ProductResponse;
-import com.bbh.itss.dso.portal.catalog.ScmSettings;
-import com.bbh.itss.dso.portal.catalog.ServiceRequest;
-import com.bbh.itss.dso.portal.catalog.ServiceResponse;
-import com.bbh.itss.dso.portal.catalog.SonarSettings;
-import com.bbh.itss.dso.portal.catalog.SshTarget;
-import com.bbh.itss.dso.portal.catalog.TestJob;
-import com.bbh.itss.dso.portal.catalog.TestJobType;
-import com.bbh.itss.dso.portal.catalog.TestSettings;
-import com.bbh.itss.dso.portal.catalog.TestStage;
-import com.bbh.itss.dso.portal.catalog.ToolCommand;
-import com.bbh.itss.dso.portal.catalog.UnitTestSettings;
-import com.bbh.itss.dso.portal.catalog.UrbanCodeApplicationSettings;
-import com.bbh.itss.dso.portal.catalog.UrbanCodeComponent;
-import com.bbh.itss.dso.portal.catalog.UrbanCodeSettings;
+import com.bbh.itss.dso.portal.domain.catalog.AppScanAccount;
+import com.bbh.itss.dso.portal.domain.catalog.AppScanSettings;
+import com.bbh.itss.dso.portal.domain.catalog.BuildSettings;
 import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
 import com.bbh.itss.dso.portal.domain.catalog.DeployTarget;
+import com.bbh.itss.dso.portal.domain.catalog.DeploymentSettings;
+import com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform;
+import com.bbh.itss.dso.portal.domain.catalog.FlutterSettings;
 import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy;
+import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings;
+import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings;
+import com.bbh.itss.dso.portal.domain.catalog.OpenShiftTarget;
+import com.bbh.itss.dso.portal.domain.catalog.Product;
+import com.bbh.itss.dso.portal.domain.catalog.ProductDetails;
 import com.bbh.itss.dso.portal.domain.catalog.Region;
+import com.bbh.itss.dso.portal.domain.catalog.ScmSettings;
+import com.bbh.itss.dso.portal.domain.catalog.Service;
+import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings;
+import com.bbh.itss.dso.portal.domain.catalog.SonarSettings;
+import com.bbh.itss.dso.portal.domain.catalog.SshTarget;
+import com.bbh.itss.dso.portal.domain.catalog.TestJob;
+import com.bbh.itss.dso.portal.domain.catalog.TestJobType;
+import com.bbh.itss.dso.portal.domain.catalog.TestSettings;
+import com.bbh.itss.dso.portal.domain.catalog.TestStage;
+import com.bbh.itss.dso.portal.domain.catalog.ToolCommand;
+import com.bbh.itss.dso.portal.domain.catalog.UnitTestSettings;
+import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings;
+import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeComponent;
+import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeSettings;
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings;
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues;
-import com.bbh.itss.dso.portal.pipeline.PipelineRequest;
-import com.bbh.itss.dso.portal.pipeline.PipelineResponse;
-import com.bbh.itss.dso.portal.pipeline.PipelineService;
-import com.bbh.itss.dso.portal.pipeline.PipelineType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -60,22 +63,24 @@ public class DemoDataLoader implements ApplicationRunner {
     private static final String BITBUCKET = "https://bitbucket.bbh.com/projects/%s/repos/%s";
     private static final String DEPLOY_SCRIPT = "scripts/deployment/zero-downtime-deployment.sh";
 
-    private final ProductRepository products;
-    private final ProductCatalogService catalog;
-    private final PipelineService pipelines;
+    private final QueryProductsUseCase products;
+    private final ManageProductsUseCase catalog;
+    private final ManagePipelinesUseCase pipelines;
+    private final ManagePipelineKeysUseCase keys;
     private final ManageGlobalSettingsUseCase settings;
 
-    public DemoDataLoader(ProductRepository products, ProductCatalogService catalog, PipelineService pipelines,
-                          ManageGlobalSettingsUseCase settings) {
+    public DemoDataLoader(QueryProductsUseCase products, ManageProductsUseCase catalog, ManagePipelinesUseCase pipelines,
+                          ManagePipelineKeysUseCase keys, ManageGlobalSettingsUseCase settings) {
         this.products = products;
         this.catalog = catalog;
         this.pipelines = pipelines;
+        this.keys = keys;
         this.settings = settings;
     }
 
     @Override
     public void run(ApplicationArguments args) {
-        if (products.count() > 0) {
+        if (!products.list(null).isEmpty()) {
             return;
         }
         GlobalSettingsValues global = settings.current().values();
@@ -84,18 +89,18 @@ public class DemoDataLoader implements ApplicationRunner {
                     global.withPlatform(global.platform().withJenkinsUrl(DEMO_JENKINS_URL))));
         }
 
-        ProductResponse certScanner = catalog.create(new ProductRequest("CERTSCANNER", "CertScanner",
+        Product certScanner = catalog.create(ProductCommand.unversioned(new ProductDetails("CERTSCANNER", "CertScanner",
                 "Monitors the validity of TLS certificates across BBH and alerts owners before they expire.",
-                "Technology Architecture", "ta-team@bbh.com",
-                new AppScanAccount("bbh_b81fbc9f-39c1-8eb4-38b5-b702268969b9", "hcl-app-scan-acount"), null, List.of(
+                "Technology Architecture", "ta-team@bbh.com"),
+                new AppScanAccount("bbh_b81fbc9f-39c1-8eb4-38b5-b702268969b9", "hcl-app-scan-acount"), List.of(
                 gradleVm("gui", "Angular front end", "209f44ac-dd06-4ca0-884e-d944904f8020", "cert-scanner-gui",
                         "TA", "cert-scanner", "/opt/ta/CertScanner/gui/deployment", true),
                 mavenOpenShift("backend-api", "REST API and certificate scanner", "209f44ac-dd06-4ca0-884e-d944904f8021",
                         "cert-scanner-backend", "TA", "cert-scanner", "ta-certscanner"))));
-        ProductResponse payments = catalog.create(new ProductRequest("PAYHUB", "Payments Hub",
+        Product payments = catalog.create(ProductCommand.unversioned(new ProductDetails("PAYHUB", "Payments Hub",
                 "Payment orchestration platform: gateway, ledger, notifications and reporting.",
-                "Payments Engineering", "payments-eng@bbh.com",
-                new AppScanAccount("bbh_1c2d3e4f-0000-4abc-9def-123456789abc", null), null, List.of(
+                "Payments Engineering", "payments-eng@bbh.com"),
+                new AppScanAccount("bbh_1c2d3e4f-0000-4abc-9def-123456789abc", null), List.of(
                 mavenOpenShift("gateway", "Public payment API", "3a1b2c3d-1111-4a5b-8c9d-0e1f2a3b4c5d",
                         "payhub-gateway", "PAY", "payhub-gateway", "pay-payhub"),
                 gradleVm("ledger", "Double-entry ledger", "3a1b2c3d-2222-4a5b-8c9d-0e1f2a3b4c5d", "payhub-ledger",
@@ -114,15 +119,15 @@ public class DemoDataLoader implements ApplicationRunner {
         pipeline(payments, "gateway", PipelineType.EXTENDED);
         pipeline(payments, "ledger", PipelineType.FULL);
         pipeline(payments, "notifications", PipelineType.FULL);
-        PipelineResponse retired = pipeline(payments, "mobile-app", PipelineType.SAST);
-        pipelines.revokeKey(retired.id(), "Mobile app moved to the new mobile platform pipeline");
+        PipelineView retired = pipeline(payments, "mobile-app", PipelineType.SAST);
+        keys.revokeKey(retired.pipeline().id(), "Mobile app moved to the new mobile platform pipeline");
         log.info("Created demo data: {} and {}", certScanner.name(), payments.name());
     }
 
-    private static ServiceRequest gradleVm(String name, String description, String appScanId, String sonarKey,
+    private static ServiceCommand gradleVm(String name, String description, String appScanId, String sonarKey,
                                            String bitbucketProject, String repo, String deployDir, boolean dast) {
         String title = sonarKey.toUpperCase();
-        return new ServiceRequest(null, name, description,
+        return new ServiceCommand(null, name, description, new ServiceSettings(
                 new BuildSettings(BuildTool.GRADLE, ".", JDK_17, false, "build/libs/*.jar",
                         ToolCommand.of(List.of("clean", "build", "bootJar"), List.of("--refresh-dependencies"))),
                 new UnitTestSettings(ToolCommand.of(List.of("test", "jacocoTestReport"), List.of()),
@@ -141,16 +146,16 @@ public class DemoDataLoader implements ApplicationRunner {
                 SonarSettings.of(title, sonarKey, ToolCommand.of(List.of("sonarqube"), List.of())),
                 NexusIqSettings.of(sonarKey, List.of("**/build/libs/*.jar")),
                 ScmSettings.of(BITBUCKET.formatted(bitbucketProject, repo), "bitbucket-http-credentials"),
-                GoldenFixPolicyDto.from(GoldenFixPolicy.INHERITED),
+                GoldenFixPolicy.INHERITED,
                 new MetricsSettings(true, null, "test"),
-                null);
+                null));
     }
 
-    private static ServiceRequest mavenOpenShift(String name, String description, String appScanId, String sonarKey,
+    private static ServiceCommand mavenOpenShift(String name, String description, String appScanId, String sonarKey,
                                                  String bitbucketProject, String repo, String namespace) {
         String title = sonarKey.toUpperCase();
         String image = "docker-qc.tools.bbh.com/" + namespace + "/" + name;
-        return new ServiceRequest(null, name, description,
+        return new ServiceCommand(null, name, description, new ServiceSettings(
                 new BuildSettings(BuildTool.MAVEN, ".", JDK_17, false, "target/*.jar",
                         new ToolCommand(List.of("clean", "verify"), List.of("-B", "-U"), null, null,
                                 List.of("MAVEN_OPTS=-Xms512m -Xmx1g"))),
@@ -172,14 +177,14 @@ public class DemoDataLoader implements ApplicationRunner {
                 SonarSettings.of(title, sonarKey, ToolCommand.of(List.of("sonar:sonar"), List.of())),
                 NexusIqSettings.of(sonarKey, List.of("**/target/*.jar")),
                 ScmSettings.of(BITBUCKET.formatted(bitbucketProject, repo), "bitbucket-http-credentials"),
-                GoldenFixPolicyDto.from(GoldenFixPolicy.INHERITED),
+                GoldenFixPolicy.INHERITED,
                 new MetricsSettings(true, null, "test"),
-                null);
+                null));
     }
 
-    private static ServiceRequest flutter(String name, String description, String appScanId, String bitbucketProject,
+    private static ServiceCommand flutter(String name, String description, String appScanId, String bitbucketProject,
                                           String repo) {
-        return new ServiceRequest(null, name, description,
+        return new ServiceCommand(null, name, description, new ServiceSettings(
                 new BuildSettings(BuildTool.FLUTTER, ".", null, false, null, null),
                 null, null, List.of(),
                 new DeploymentSettings(DeployTarget.VM, null, null, null),
@@ -188,13 +193,13 @@ public class DemoDataLoader implements ApplicationRunner {
                 null,
                 null,
                 ScmSettings.of(BITBUCKET.formatted(bitbucketProject, repo), "bitbucket-http-credentials"),
-                GoldenFixPolicyDto.from(GoldenFixPolicy.inherit(false)),
+                GoldenFixPolicy.inherit(false),
                 new MetricsSettings(true, null, "test"),
                 new FlutterSettings(FlutterPlatform.APK, List.of("core", "payments"), List.of("core", "payments"),
                         List.of("core", "payments"), List.of("secure_storage"), "payhub-mobile-signing-password",
                         "payhub-mobile-prod-licence", "payhub-mobile-test-licence", "com.bbh.payhub", "payhub-mobile",
                         "org.apache.maven.plugins:maven-deploy-plugin:3.1.2:deploy-file", "lib", "test", false, null,
-                        null));
+                        null)));
     }
 
     private static AppScanSettings appScan(String appScanId, String scanName, boolean dast) {
@@ -216,13 +221,13 @@ public class DemoDataLoader implements ApplicationRunner {
                         repo + "/performance-tests", 120, null, null, null, null));
     }
 
-    private PipelineResponse pipeline(ProductResponse product, String serviceName, PipelineType type) {
-        ServiceResponse service = product.services().stream().filter(s -> s.name().equals(serviceName)).findFirst()
+    private PipelineView pipeline(Product product, String serviceName, PipelineType type) {
+        Service service = product.services().stream().filter(s -> s.name().equals(serviceName)).findFirst()
                 .orElseThrow();
         String folder = "DevSecOps/" + product.code() + "/";
         String extendedJob = type == PipelineType.SECURITY ? folder + serviceName + "-extended" : null;
         String securityJob = type == PipelineType.EXTENDED ? folder + serviceName + "-security" : null;
-        return pipelines.create(service.id(), new PipelineRequest(type, List.of("linux-agent"), extendedJob, securityJob,
-                folder + serviceName + "-" + type.variant(), null));
+        return pipelines.create(service.id(), new PipelineCommand(type, new PipelineSettings(List.of("linux-agent"),
+                extendedJob, securityJob, folder + serviceName + "-" + type.variant(), null)));
     }
 }

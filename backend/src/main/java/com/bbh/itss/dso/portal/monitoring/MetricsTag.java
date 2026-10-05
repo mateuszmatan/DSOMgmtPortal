@@ -1,10 +1,10 @@
 package com.bbh.itss.dso.portal.monitoring;
 
-import com.bbh.itss.dso.portal.pipeline.Pipeline;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
 
 public record MetricsTag(String project, String env) {
 
-    public static MetricsTag of(Pipeline pipeline) {
-        return new MetricsTag(pipeline.influxProjectTag(), pipeline.influxEnv());
+    public static MetricsTag of(PipelineView view) {
+        return new MetricsTag(view.influxProjectTag(), view.influxEnv());
     }
 }

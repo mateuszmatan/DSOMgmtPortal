@@ -1,6 +1,6 @@
 package com.bbh.itss.dso.portal.monitoring;
 
-import com.bbh.itss.dso.portal.pipeline.Pipeline;
+import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 
 import java.util.Collection;
 import java.util.List;

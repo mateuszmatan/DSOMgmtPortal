@@ -38,8 +38,7 @@ class ArchitectureSpec extends Specification {
     static final String WEB = 'com.bbh.itss.dso.portal.adapter.in.web..'
     static final String PERSISTENCE = 'com.bbh.itss.dso.portal.adapter.out.persistence..'
     static final String INFLUX = 'com.bbh.itss.dso.portal.adapter.out.influx..'
-    static final String[] LEGACY = ['com.bbh.itss.dso.portal.catalog..', 'com.bbh.itss.dso.portal.pipeline..',
-                                    'com.bbh.itss.dso.portal.dsoconfig..', 'com.bbh.itss.dso.portal.monitoring..',
+    static final String[] LEGACY = ['com.bbh.itss.dso.portal.dsoconfig..', 'com.bbh.itss.dso.portal.monitoring..',
                                     'com.bbh.itss.dso.portal.evidence..', 'com.bbh.itss.dso.portal.demo..']
     static final String[] FRAMEWORKS = ['jakarta..', 'org.springframework..', 'org.hibernate..', 'tools.jackson..',
                                         'com.fasterxml..', 'org.slf4j..']

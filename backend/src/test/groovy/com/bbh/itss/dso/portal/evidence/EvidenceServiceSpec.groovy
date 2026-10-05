@@ -1,11 +1,16 @@
 package com.bbh.itss.dso.portal.evidence
 
+import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort
+import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView
+import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
-import com.bbh.itss.dso.portal.catalog.NexusIqSettings
-import com.bbh.itss.dso.portal.catalog.ProductRepository
-import com.bbh.itss.dso.portal.catalog.ScmSettings
-import com.bbh.itss.dso.portal.catalog.SonarSettings
-import com.bbh.itss.dso.portal.catalog.TestStage
+import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings
+import com.bbh.itss.dso.portal.domain.catalog.Product
+import com.bbh.itss.dso.portal.domain.catalog.ScmSettings
+import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
+import com.bbh.itss.dso.portal.domain.catalog.TestStage
+import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import com.bbh.itss.dso.portal.evidence.EvidenceDtos.BuildEvidence
@@ -19,8 +24,6 @@ import com.bbh.itss.dso.portal.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.monitoring.PipelineMetricsRepository
 import com.bbh.itss.dso.portal.monitoring.PipelineRun
 import com.bbh.itss.dso.portal.monitoring.RunResult
-import com.bbh.itss.dso.portal.pipeline.PipelineRepository
-import com.bbh.itss.dso.portal.pipeline.PipelineType
 import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
 import spock.lang.Subject
@@ -33,7 +36,7 @@ import static com.bbh.itss.dso.portal.support.Fixtures.command
 import static com.bbh.itss.dso.portal.support.Fixtures.deployment
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
-import static com.bbh.itss.dso.portal.support.Fixtures.service
+import static com.bbh.itss.dso.portal.support.Fixtures.revokedKey
 import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
 
 class EvidenceServiceSpec extends Specification {
@@ -42,8 +45,8 @@ class EvidenceServiceSpec extends Specification {
     static final String GUI_JOB = 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-full/'
     static final String APPSCAN = "https://bbh.cloud.appscan.com/main/myapps/$APP_ID/scans"
 
-    ProductRepository products = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
-    PipelineRepository pipelines = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
+    ProductRepositoryPort products = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
+    PipelineRepositoryPort pipelines = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
     PipelineMetricsRepository runs = Mock()
     RunEvidenceRepository evidence = Mock()
     ManageGlobalSettingsUseCase settings = Stub() {
@@ -53,18 +56,18 @@ class EvidenceServiceSpec extends Specification {
     @Subject
     def evidenceService = new EvidenceService(products, pipelines, runs, evidence, settings)
 
-    def certScanner = product(id: 1, code: 'CERT', name: 'CertScanner', description: 'Scans certificates',
-            ownerTeam: 'TA', contactEmail: 'ta@bbh.com')
-    def gui = service(certScanner, name: 'gui', id: 10, description: 'Angular GUI',
-            sonar: SonarSettings.of('CertScanner GUI', 'cert-gui', command(['sonarqube'])),
-            nexusIq: NexusIqSettings.of('cert-gui', ['**/build/libs/*.war']),
-            scm: ScmSettings.of('https://bitbucket.bbh.com/scm/cert/gui.git', 'bitbucket-token'),
-            deployment: deployment(artifactName: 'cert-gui.war'))
-    def api = service(certScanner, name: 'backend-api', id: 11)
-    def batch = service(certScanner, name: 'batch', id: 12)
-    def guiFull = pipeline(gui, id: 100, jenkinsJob: 'DevSecOps/CERT/gui-full')
-    def guiSast = pipeline(gui, id: 101, type: PipelineType.SAST)
-    def apiFull = pipeline(api, id: 102)
+    Product certScanner = product(id: 1L, code: 'CERT', name: 'CertScanner', description: 'Scans certificates',
+            ownerTeam: 'TA', contactEmail: 'ta@bbh.com', services: [
+            [name: 'gui', id: 10L, description: 'Angular GUI',
+             sonar: SonarSettings.of('CertScanner GUI', 'cert-gui', command(['sonarqube'])),
+             nexusIq: NexusIqSettings.of('cert-gui', ['**/build/libs/*.war']),
+             scm: ScmSettings.of('https://bitbucket.bbh.com/scm/cert/gui.git', 'bitbucket-token'),
+             deployment: deployment(artifactName: 'cert-gui.war')],
+            [name: 'backend-api', id: 11L],
+            [name: 'batch', id: 12L]])
+    Pipeline guiFull = pipeline(id: 100L, serviceId: 10L, jenkinsJob: 'DevSecOps/CERT/gui-full')
+    Pipeline guiSast = pipeline(id: 101L, serviceId: 10L, type: PipelineType.SAST, keys: [revokedKey(reason: 'retired')])
+    Pipeline apiFull = pipeline(id: 102L, serviceId: 11L)
 
     def guiTag = new MetricsTag('CERT-gui', 'test')
     def guiSastTag = new MetricsTag('CERT-guisast', 'test')
@@ -87,8 +90,7 @@ class EvidenceServiceSpec extends Specification {
             row('stage_event', stage: 'Build', status: 'PASS', order: '1', duration_s: '120')])
 
     def setup() {
-        guiSast.revokeActiveKey('retired')
-        products.findById(1L) >> Optional.of(certScanner)
+        products.load(1L) >> Optional.of(certScanner)
         pipelines.findByProductId(1L) >> [guiFull, guiSast, apiFull]
     }
 
@@ -197,9 +199,8 @@ class EvidenceServiceSpec extends Specification {
 
     def "a product without pipelines needs no query"() {
         given:
-        def payments = product(id: 2, code: 'PAY', name: 'Payments Hub')
-        service(payments, name: 'gateway', id: 20)
-        products.findById(2L) >> Optional.of(payments)
+        products.load(2L) >> Optional.of(product(id: 2L, code: 'PAY', name: 'Payments Hub',
+                services: [[name: 'gateway', id: 20L]]))
 
         when:
         def result = evidenceService.product(2L)
@@ -262,7 +263,7 @@ class EvidenceServiceSpec extends Specification {
 
     def "a pipeline with job #pipelineJob whose run reported #runJob under Jenkins #jenkinsUrl links #jobUrl and build #buildUrl"() {
         given:
-        def linked = pipeline(gui, id: 100, jenkinsJob: pipelineJob)
+        def linked = view(pipeline(id: 100L, serviceId: 10L, jenkinsJob: pipelineJob))
         def run = new PipelineRun(FINISHED, RunResult.SUCCESS, 'main', 42L, 60L, null, runJob, null, null, null, null, null,
                 null)
         def platform = GlobalSettingsValues.bbhDefaults().platform().withJenkinsUrl(jenkinsUrl)
@@ -291,12 +292,16 @@ class EvidenceServiceSpec extends Specification {
         def platform = GlobalSettingsValues.bbhDefaults().platform().withJenkinsUrl('https://jenkins.test')
 
         when:
-        def found = EvidenceService.pipeline(guiFull, run, new RunPoints([]), platform)
+        def found = EvidenceService.pipeline(view(guiFull), run, new RunPoints([]), platform)
 
         then:
         found.status() == RunResult.FAILURE
         found.jenkinsJobUrl() == GUI_JOB
         found.run().build() == new BuildEvidence(null, FINISHED, RunResult.FAILURE, null, null, null, null, null, null,
                 null, null)
+    }
+
+    private PipelineView view(Pipeline pipeline) {
+        PipelineView.of(certScanner, pipeline, 'https://jenkins.test')
     }
 }

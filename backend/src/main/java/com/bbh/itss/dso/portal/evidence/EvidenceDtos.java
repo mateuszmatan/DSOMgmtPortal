@@ -1,8 +1,8 @@
 package com.bbh.itss.dso.portal.evidence;
 
-import com.bbh.itss.dso.portal.catalog.TestStage;
+import com.bbh.itss.dso.portal.domain.catalog.TestStage;
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import com.bbh.itss.dso.portal.monitoring.RunResult;
-import com.bbh.itss.dso.portal.pipeline.PipelineType;
 
 import java.time.Instant;
 import java.util.List;

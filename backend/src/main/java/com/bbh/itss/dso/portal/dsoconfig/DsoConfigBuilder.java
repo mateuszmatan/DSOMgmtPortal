@@ -1,15 +1,15 @@
 package com.bbh.itss.dso.portal.dsoconfig;
 
 import com.bbh.itss.dso.portal.application.settings.port.out.GlobalSettingsRepositoryPort;
-import com.bbh.itss.dso.portal.catalog.Product;
-import com.bbh.itss.dso.portal.catalog.ServiceDefinition;
+import com.bbh.itss.dso.portal.domain.catalog.Product;
+import com.bbh.itss.dso.portal.domain.catalog.Service;
+import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings;
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettings;
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues;
 import com.bbh.itss.dso.portal.domain.settings.MissingGlobalSettingsException;
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.pipeline.Pipeline;
-import com.bbh.itss.dso.portal.pipeline.PipelineSettings;
-import com.bbh.itss.dso.portal.pipeline.PipelineType;
 import org.springframework.stereotype.Component;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -37,24 +37,24 @@ public class DsoConfigBuilder {
     public Map<String, Object> productConfig(Product product) {
         GlobalSettingsValues global = globalSettings();
         Map<String, Object> projects = new LinkedHashMap<>();
-        product.getServices().forEach(service -> projects.put(service.getName(), serviceTree(service, global).toMap(KEY_ORDER)));
+        product.services().forEach(service ->
+                projects.put(service.name(), serviceTree(product, service, global).toMap(KEY_ORDER)));
         return Map.of("projects", projects);
     }
 
-    public Map<String, Object> pipelineConfig(Pipeline pipeline) {
+    public Map<String, Object> pipelineConfig(Product product, Service service, Pipeline pipeline) {
         GlobalSettingsValues global = globalSettings();
-        ServiceDefinition service = pipeline.getService();
-        PipelineSettings pipelineSettings = pipeline.getSettings();
-        ConfigTree serviceTree = serviceTree(service, global);
-        if (pipeline.getType() == PipelineType.SECURITY) {
+        PipelineSettings pipelineSettings = pipeline.settings();
+        ConfigTree serviceTree = serviceTree(product, service, global);
+        if (pipeline.type() == PipelineType.SECURITY) {
             serviceTree.set("jenkins.pipeline.extendedPipeline", pipelineSettings.extendedPipelineJob());
         }
 
         Map<String, Object> pipelineSection = new LinkedHashMap<>();
-        pipelineSection.put("type", pipeline.getType().variant());
-        pipelineSection.put("entryPoint", pipeline.getType().entryPoint());
-        pipelineSection.put("product", service.getProduct().getCode());
-        pipelineSection.put("projectNames", service.getName());
+        pipelineSection.put("type", pipeline.type().variant());
+        pipelineSection.put("entryPoint", pipeline.type().entryPoint());
+        pipelineSection.put("product", product.code());
+        pipelineSection.put("projectNames", service.name());
         pipelineSection.put("agentNames", pipelineSettings.agentLabels());
         if (pipelineSettings.securityPipelineJob() != null) {
             pipelineSection.put("securityPipeline", pipelineSettings.securityPipelineJob());
@@ -64,7 +64,7 @@ public class DsoConfigBuilder {
         root.put("pipeline", pipelineSection);
         root.put("platform", global.platform().toConfig());
         root.put("defaults", global.defaultsConfig());
-        root.put("projects", Map.of(service.getName(), serviceTree.toMap(KEY_ORDER)));
+        root.put("projects", Map.of(service.name(), serviceTree.toMap(KEY_ORDER)));
         return root;
     }
 
@@ -90,10 +90,10 @@ public class DsoConfigBuilder {
         return settings.load().map(GlobalSettings::values).orElseThrow(MissingGlobalSettingsException::new);
     }
 
-    private static ConfigTree serviceTree(ServiceDefinition service, GlobalSettingsValues global) {
+    private static ConfigTree serviceTree(Product product, Service service, GlobalSettingsValues global) {
         ConfigTree tree = new ConfigTree();
         global.platform().writeProjectDefaults(tree);
-        service.writeTo(tree);
+        product.writeConfig(service, tree);
         global.deployment().fillIn(tree);
         return tree;
     }

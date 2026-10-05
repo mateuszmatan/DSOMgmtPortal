@@ -1,10 +1,12 @@
 package com.bbh.itss.dso.portal.dsoconfig
 
+import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort
+import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.out.GlobalSettingsRepositoryPort
-import com.bbh.itss.dso.portal.catalog.ProductChanged
-import com.bbh.itss.dso.portal.pipeline.PipelineChanged
-import com.bbh.itss.dso.portal.pipeline.PipelineRepository
-import com.bbh.itss.dso.portal.pipeline.PipelineType
+import com.bbh.itss.dso.portal.domain.catalog.Product
+import com.bbh.itss.dso.portal.domain.catalog.Service
+import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import spock.lang.Specification
 import spock.lang.Subject
 import tools.jackson.databind.json.JsonMapper
@@ -14,14 +16,14 @@ import java.time.Instant
 import static com.bbh.itss.dso.portal.support.ApiJson.parse
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
-import static com.bbh.itss.dso.portal.support.Fixtures.service
 import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
 
 class PipelineConfigPublisherSpec extends Specification {
 
     static final Instant EARLIER = Instant.parse('2026-10-01T08:00:00Z')
 
-    PipelineRepository pipelines = Mock()
+    ProductRepositoryPort products = Mock()
+    PipelineRepositoryPort pipelines = Mock()
     PublishedPipelineConfigRepository published = Mock()
     GlobalSettingsRepositoryPort settings = Stub() {
         load() >> Optional.of(storedSettings())
@@ -30,28 +32,33 @@ class PipelineConfigPublisherSpec extends Specification {
     def json = JsonMapper.builder().build()
 
     @Subject
-    def publisher = new PipelineConfigPublisher(pipelines, published, builder, json)
+    def publisher = new PipelineConfigPublisher(products, pipelines, published, builder, json)
 
-    def certScanner = product(id: 1)
-    def gui = service(certScanner, name: 'gui', id: 10)
-    def api = service(certScanner, name: 'backend-api', id: 11)
-    def guiFull = pipeline(gui, id: 100)
-    def guiSecurity = pipeline(gui, id: 101, type: PipelineType.SECURITY, extendedPipelineJob: 'CERT/gui-extended')
-    def apiFull = pipeline(api, id: 102)
+    Product certScanner = product(id: 1L, services: [[name: 'gui', id: 10L], [name: 'backend-api', id: 11L]])
+    Service gui = certScanner.services()[0]
+    Pipeline guiFull = pipeline(id: 100L, serviceId: 10L)
+    Pipeline guiSecurity = pipeline(id: 101L, serviceId: 10L, type: PipelineType.SECURITY,
+            extendedPipelineJob: 'CERT/gui-extended')
+    Pipeline apiFull = pipeline(id: 102L, serviceId: 11L)
+
+    def setup() {
+        products.load(1L) >> Optional.of(certScanner)
+        products.findAll() >> [certScanner]
+    }
 
     def "a changed pipeline publishes its configuration as JSON in a new row"() {
         given:
         def before = Instant.now()
 
         when:
-        publisher.onPipelineChanged(new PipelineChanged(100L))
+        publisher.pipelineChanged(100L)
 
         then:
-        1 * pipelines.findWithServiceById(100L) >> Optional.of(guiFull)
+        1 * pipelines.load(100L) >> Optional.of(guiFull)
         1 * published.findById(100L) >> Optional.empty()
         1 * published.save({ PublishedPipelineConfig config ->
             config.pipelineId == 100L && config.id == 100L && config.isNew() &&
-                    config.configJson == json.writeValueAsString(builder.pipelineConfig(guiFull)) &&
+                    config.configJson == json.writeValueAsString(builder.pipelineConfig(certScanner, gui, guiFull)) &&
                     !config.renderedAt.isBefore(before.minusSeconds(1)) && !config.renderedAt.isAfter(Instant.now())
         })
     }
@@ -59,11 +66,11 @@ class PipelineConfigPublisherSpec extends Specification {
     def "the published JSON is the configuration the pipeline's key serves"() {
         given:
         PublishedPipelineConfig saved = null
-        pipelines.findWithServiceById(101L) >> Optional.of(guiSecurity)
+        pipelines.load(101L) >> Optional.of(guiSecurity)
         published.findById(101L) >> Optional.empty()
 
         when:
-        publisher.onPipelineChanged(new PipelineChanged(101L))
+        publisher.pipelineChanged(101L)
 
         then:
         1 * published.save(_) >> { PublishedPipelineConfig config -> saved = config }
@@ -79,20 +86,20 @@ class PipelineConfigPublisherSpec extends Specification {
 
     def "a pipeline that no longer exists publishes nothing"() {
         when:
-        publisher.onPipelineChanged(new PipelineChanged(100L))
+        publisher.pipelineChanged(100L)
 
         then:
-        1 * pipelines.findWithServiceById(100L) >> Optional.empty()
+        1 * pipelines.load(100L) >> Optional.empty()
         0 * published._
     }
 
     def "an unchanged configuration is neither saved nor stamped again"() {
         given:
-        def stored = stored(100L, json.writeValueAsString(builder.pipelineConfig(guiFull)))
-        pipelines.findWithServiceById(100L) >> Optional.of(guiFull)
+        def stored = stored(100L, json.writeValueAsString(builder.pipelineConfig(certScanner, gui, guiFull)))
+        pipelines.load(100L) >> Optional.of(guiFull)
 
         when:
-        publisher.onPipelineChanged(new PipelineChanged(100L))
+        publisher.pipelineChanged(100L)
 
         then:
         1 * published.findById(100L) >> Optional.of(stored)
@@ -103,15 +110,15 @@ class PipelineConfigPublisherSpec extends Specification {
     def "a stored configuration that changed is updated in place, written when the transaction commits"() {
         given:
         def stored = stored(100L, '{"pipeline":{"type":"full"}}')
-        pipelines.findWithServiceById(100L) >> Optional.of(guiFull)
+        pipelines.load(100L) >> Optional.of(guiFull)
 
         when:
-        publisher.onPipelineChanged(new PipelineChanged(100L))
+        publisher.pipelineChanged(100L)
 
         then:
         1 * published.findById(100L) >> Optional.of(stored)
         0 * published.save(_)
-        stored.configJson == json.writeValueAsString(builder.pipelineConfig(guiFull))
+        stored.configJson == json.writeValueAsString(builder.pipelineConfig(certScanner, gui, guiFull))
         stored.renderedAt.isAfter(EARLIER)
     }
 
@@ -121,7 +128,7 @@ class PipelineConfigPublisherSpec extends Specification {
         published.findById(_) >> Optional.empty()
 
         when:
-        publisher.onProductChanged(new ProductChanged(1L))
+        publisher.productChanged(1L)
 
         then:
         1 * pipelines.findByProductId(1L) >> [guiFull, guiSecurity, apiFull]
@@ -131,24 +138,28 @@ class PipelineConfigPublisherSpec extends Specification {
         parse(saved[2].configJson).projects.keySet() as List == ['backend-api']
     }
 
-    def "a pipeline or product changed through the port is published like the announced change"() {
-        given:
-        published.findById(_) >> Optional.empty()
-
+    def "a product that no longer exists publishes nothing"() {
         when:
-        publisher.pipelineChanged(101L)
         publisher.productChanged(2L)
 
         then:
-        1 * pipelines.findWithServiceById(101L) >> Optional.of(guiSecurity)
-        1 * pipelines.findByProductId(2L) >> [apiFull]
-        1 * published.save({ it.pipelineId == 101L })
-        1 * published.save({ it.pipelineId == 102L })
+        1 * products.load(2L) >> Optional.empty()
+        0 * pipelines._
+        0 * published._
+    }
+
+    def "a pipeline whose service has left its product publishes nothing"() {
+        when:
+        publisher.pipelineChanged(103L)
+
+        then:
+        1 * pipelines.load(103L) >> Optional.of(pipeline(id: 103L, serviceId: 12L))
+        0 * published._
     }
 
     def "changed global settings publish every pipeline, writing only what changed"() {
         given:
-        def unchanged = stored(100L, json.writeValueAsString(builder.pipelineConfig(guiFull)))
+        def unchanged = stored(100L, json.writeValueAsString(builder.pipelineConfig(certScanner, gui, guiFull)))
         def outdated = stored(101L, '{}')
         published.findById(100L) >> Optional.of(unchanged)
         published.findById(101L) >> Optional.of(outdated)
@@ -158,7 +169,7 @@ class PipelineConfigPublisherSpec extends Specification {
         publisher.settingsChanged()
 
         then:
-        1 * pipelines.findAllWithService() >> [guiFull, guiSecurity, apiFull]
+        1 * pipelines.findAll() >> [guiFull, guiSecurity, apiFull]
         1 * published.save({ it.pipelineId == 102L })
         0 * published.save(_)
         unchanged.renderedAt == EARLIER
@@ -175,7 +186,7 @@ class PipelineConfigPublisherSpec extends Specification {
 
         then:
         count == 2
-        1 * pipelines.findAllWithService() >> [guiFull, apiFull]
+        1 * pipelines.findAll() >> [guiFull, apiFull]
         1 * published.save({ it.pipelineId == 100L })
         1 * published.save({ it.pipelineId == 102L })
     }
@@ -186,7 +197,7 @@ class PipelineConfigPublisherSpec extends Specification {
 
         then:
         count == 0
-        1 * pipelines.findAllWithService() >> []
+        1 * pipelines.findAll() >> []
         0 * published._
     }
 

@@ -1,6 +1,6 @@
 package com.bbh.itss.dso.portal.evidence
 
-import com.bbh.itss.dso.portal.catalog.TestStage
+import com.bbh.itss.dso.portal.domain.catalog.TestStage
 import com.bbh.itss.dso.portal.evidence.EvidenceDtos.CoverageEvidence
 import com.bbh.itss.dso.portal.evidence.EvidenceDtos.ReleaseGateEvidence
 import com.bbh.itss.dso.portal.evidence.EvidenceDtos.ScanEvidence

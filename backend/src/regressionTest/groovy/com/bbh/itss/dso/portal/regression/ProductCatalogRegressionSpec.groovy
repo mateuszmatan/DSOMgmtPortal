@@ -54,7 +54,10 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         given:
         def code = uniqueCode()
         def services = [fullMavenService(metrics: [enabled: true, influxProject: "$code-ledger".toString(), influxEnv: 'uat'],
-                                         sonar: fullMavenService().sonar + [projectKey: "$code-ledger".toString()]),
+                                         sonar: fullMavenService().sonar + [projectKey: "$code-ledger".toString()],
+                                         scm: fullMavenService().scm + [apiUrl    : 'https://bitbucket.bbh.com/rest/api/1.0',
+                                                                        workspace : 'bbh', projectKey: 'LED',
+                                                                        repoSlug  : 'ledger']),
                         fullOpenShiftService(), fullFlutterService()]
 
         when:
