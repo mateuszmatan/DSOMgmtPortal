@@ -10,11 +10,11 @@ class GoldenFixPolicySpec extends Specification {
             ['recommended-non-breaking', 'next-no-violations'], ['docs', 'examples'], true, 3, 30, 'mvn -B verify',
             './gradlew build', 'npm test', 'pytest', 'flutter test', 'GoldenFix', 'goldenfix@bbh.com', 'Europe/Warsaw')
 
-    def "an inherited policy only says whether GoldenFix runs"() {
+    def "an inherited policy leaves every value, also whether GoldenFix runs, to the global settings"() {
         expect:
-        GoldenFixPolicy.INHERITED == GoldenFixPolicy.inherit(true)
+        GoldenFixPolicy.INHERITED == GoldenFixPolicy.inherit(null)
         with(GoldenFixPolicy.INHERITED) {
-            enabled()
+            enabled() == null
             onlyDirectDependencies() == null
             minThreatLevel() == null
             ecosystems() == []
@@ -33,15 +33,16 @@ class GoldenFixPolicySpec extends Specification {
             timeZone() == null
         }
         !GoldenFixPolicy.inherit(false).enabled()
+        GoldenFixPolicy.inherit(true).enabled()
     }
 
-    def "GoldenFix stays on unless it is switched off, and blank values are unset"() {
+    def "a service that does not say whether GoldenFix runs follows the global default, and blank values are unset"() {
         when:
         def policy = new GoldenFixPolicy(null, null, null, [' maven ', 'maven', ' '], null, [' docs ', ''], null, null, null,
                 ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ')
 
         then:
-        policy.enabled()
+        policy.enabled() == null
         policy.ecosystems() == ['maven']
         policy.goldenVersionTypes() == []
         policy.excludeDirs() == ['docs']
@@ -57,10 +58,18 @@ class GoldenFixPolicySpec extends Specification {
                 null, null) == GoldenFixPolicy.inherit(false)
     }
 
-    def "an inherited policy writes only whether GoldenFix runs"() {
+    def "a policy that inherits everything writes nothing, one that switches GoldenFix writes only that"() {
         expect:
-        written(GoldenFixPolicy.INHERITED) == [goldenFix: [enabled: true]]
+        written(GoldenFixPolicy.INHERITED) == [:]
         written(GoldenFixPolicy.inherit(false)) == [goldenFix: [enabled: false]]
+        written(GoldenFixPolicy.inherit(true)) == [goldenFix: [enabled: true]]
+    }
+
+    def "the global policy runs GoldenFix unless it is switched off"() {
+        expect:
+        GoldenFixPolicy.INHERITED.enabledByDefault() == GoldenFixPolicy.inherit(true)
+        GoldenFixPolicy.inherit(false).enabledByDefault() == GoldenFixPolicy.inherit(false)
+        COMPLETE.enabledByDefault().is(COMPLETE)
     }
 
     def "every value that is set is written under goldenFix"() {

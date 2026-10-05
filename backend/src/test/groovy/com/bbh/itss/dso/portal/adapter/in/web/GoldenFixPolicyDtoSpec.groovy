@@ -19,15 +19,16 @@ class GoldenFixPolicyDtoSpec extends Specification {
         expect:
         GoldenFixPolicyDto.from(COMPLETE).toDomain() == COMPLETE
         GoldenFixPolicyDto.from(GoldenFixPolicy.inherit(false)).toDomain() == GoldenFixPolicy.inherit(false)
+        GoldenFixPolicyDto.from(GoldenFixPolicy.INHERITED).toDomain() == GoldenFixPolicy.INHERITED
     }
 
-    def "a request keeps GoldenFix on unless it is switched off, and blank values are unset before validation"() {
+    def "a request that does not say whether GoldenFix runs follows the global default, and blank values are unset before validation"() {
         when:
         def dto = new GoldenFixPolicyDto(null, null, null, [' maven ', 'maven', ' '], null, [' docs ', ''], null, null,
                 null, ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ')
 
         then:
-        dto.enabled()
+        dto.enabled() == null
         dto.ecosystems() == ['maven']
         dto.goldenVersionTypes() == []
         dto.excludeDirs() == ['docs']

@@ -43,7 +43,7 @@ class DsoConfigBuilderSpec extends Specification {
         then:
         projects.keySet() as List == ['gui', 'backend-api']
         projects.gui.keySet() as List == ['appId', 'buildTool', 'deployTarget', 'sourceDir', 'javaPath', 'asoc', 'influx',
-                                          'tools', 'dast', 'build', 'goldenFix']
+                                          'tools', 'dast', 'build']
         projects['backend-api'].appName == 'cert-api'
         projects['backend-api'].buildTool == 'maven'
         projects['backend-api'].build == [maven: [goals: ['clean', 'verify']]]
