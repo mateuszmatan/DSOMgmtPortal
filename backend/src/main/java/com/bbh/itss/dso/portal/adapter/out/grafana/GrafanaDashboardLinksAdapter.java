@@ -1,69 +1,37 @@
 package com.bbh.itss.dso.portal.adapter.out.grafana;
 
-import com.bbh.itss.dso.portal.adapter.out.influx.InfluxProperties;
 import com.bbh.itss.dso.portal.application.monitoring.port.out.DashboardLinksPort;
-import com.bbh.itss.dso.portal.domain.monitoring.DashboardLinks;
-import com.bbh.itss.dso.portal.domain.monitoring.DashboardPanel;
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.util.UriUtils;
 
 import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @Component
 class GrafanaDashboardLinksAdapter implements DashboardLinksPort {
 
     private final GrafanaProperties grafana;
-    private final InfluxProperties influx;
 
-    GrafanaDashboardLinksAdapter(GrafanaProperties grafana, InfluxProperties influx) {
+    GrafanaDashboardLinksAdapter(GrafanaProperties grafana) {
         this.grafana = grafana;
-        this.influx = influx;
     }
 
     @Override
     public Optional<String> url() {
-        return grafana.configured() ? Optional.of(grafana.url()) : Optional.empty();
+        return Optional.ofNullable(grafana.dashboardUrl());
     }
 
     @Override
-    public Optional<DashboardLinks> links(MetricsTag tag, int rangeDays) {
-        if (!grafana.configured()) {
-            return Optional.empty();
-        }
-        String base = grafana.url().replaceAll("/+$", "");
-        String path = "/" + grafana.dashboardUid() + "/" + grafana.dashboardSlug();
-        Map<String, String> query = new LinkedHashMap<>();
-        query.put("orgId", String.valueOf(grafana.orgId()));
-        query.put("var-project", tag.project());
-        query.put("var-env", tag.env());
-        query.put("var-bucket", influx.bucket());
-        if (grafana.datasourceUid() != null) {
-            query.put("var-datasource", grafana.datasourceUid());
-        }
-        query.put("from", "now-" + rangeDays + "d");
-        query.put("to", "now");
-        query.put("theme", grafana.theme());
-
-        List<DashboardPanel> panels = grafana.panels().stream()
-                .map(panel -> new DashboardPanel(panel.id(), panel.title(), panel.width(),
-                        url(base + "/d-solo" + path, query, panel.id())))
-                .toList();
-        return Optional.of(new DashboardLinks(url(base + "/d" + path, query, null), panels));
-    }
-
-    private static String url(String path, Map<String, String> query, Integer panelId) {
-        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(path);
-        query.forEach((name, value) ->
-                builder.queryParam(name, UriUtils.encodeQueryParam(value, StandardCharsets.UTF_8)));
-        if (panelId != null) {
-            builder.queryParam("panelId", panelId);
-        }
-        return builder.build(true).toUriString();
+    public Optional<String> dashboardUrl(MetricsTag tag, PipelineType type, int rangeDays) {
+        boolean security = type == PipelineType.SECURITY || type == PipelineType.SAST;
+        return url().map(pipelineDashboard -> {
+            String link = security && grafana.securityDashboardUrl() != null ? grafana.securityDashboardUrl()
+                    : pipelineDashboard;
+            return link + (link.contains("?") ? "&" : "?") + "var-project="
+                    + UriUtils.encodeQueryParam(tag.project(), StandardCharsets.UTF_8)
+                    + "&from=now-" + rangeDays + "d&to=now";
+        });
     }
 }

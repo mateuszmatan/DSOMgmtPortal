@@ -8,7 +8,6 @@ import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.domain.catalog.Product
-import com.bbh.itss.dso.portal.domain.monitoring.DashboardLinks
 import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsUnavailableException
@@ -221,11 +220,10 @@ class PipelineMonitoringServiceSpec extends Specification {
         thrown(NotFoundException)
     }
 
-    def "a pipeline's details show its runs, DORA metrics and Grafana panels"() {
+    def "a pipeline's details show its runs, DORA metrics and Grafana dashboard"() {
         given:
         def tag = tag(guiFull)
         def newest = run('2026-10-04T09:00:00Z', SUCCESS)
-        def links = new DashboardLinks('https://grafana/d/x', [])
         pipelines.load(100L) >> Optional.of(guiFull)
 
         when:
@@ -234,7 +232,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         then:
         1 * runs.recentRuns(tag, 30, 25) >> [newest, run('2026-10-03T09:00:00Z', FAILURE)]
         1 * runs.doraPoints(tag, 30) >> [new DoraPoint(newest.time(), true, false, 3600, 600)]
-        1 * dashboards.links(tag, 30) >> Optional.of(links)
+        1 * dashboards.dashboardUrl(tag, guiFull.type(), 30) >> Optional.of('https://grafana/d/x')
         0 * runs.latestRuns(_)
         details.pipeline().pipeline().keys().size() == 1
         details.pipeline().jenkinsJobUrl() == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-full/'
@@ -244,7 +242,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         details.dora().runs() == 1
         details.dora().daily().size() == 30
         details.dora().daily().last().date().toString() == '2026-10-04'
-        details.dashboards() == links
+        details.dashboardUrl() == 'https://grafana/d/x'
         details.metricsError() == null
     }
 
@@ -263,7 +261,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         details.lastRun() == old
         details.status() == FAILURE
         details.dora().runs() == 0
-        details.dashboards() == null
+        details.dashboardUrl() == null
     }
 
     def "when the runs cannot be read the DORA query is skipped"() {
@@ -300,12 +298,11 @@ class PipelineMonitoringServiceSpec extends Specification {
         details.metricsError() == 'InfluxDB could not be read: dora'
     }
 
-    def "without InfluxDB a pipeline still shows its Grafana panels"() {
+    def "without InfluxDB a pipeline still shows its Grafana dashboard"() {
         given:
-        def links = new DashboardLinks('https://grafana/d/x', [])
         pipelines.load(101L) >> Optional.of(guiSast)
         runs.recentRuns(*_) >> { throw new MetricsUnavailableException(NOT_CONFIGURED) }
-        dashboards.links(_, 90) >> Optional.of(links)
+        dashboards.dashboardUrl(_, _, 90) >> Optional.of('https://grafana/d/x')
 
         when:
         def details = monitoring.pipeline(101L, '90d')
@@ -313,7 +310,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         then:
         details.status() == DISABLED
         details.metricsError() == NOT_CONFIGURED
-        details.dashboards() == links
+        details.dashboardUrl() == 'https://grafana/d/x'
     }
 
     def "an unknown pipeline is not found"() {

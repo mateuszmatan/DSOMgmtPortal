@@ -1,69 +1,42 @@
 package com.bbh.itss.dso.portal.adapter.out.grafana
 
-import com.bbh.itss.dso.portal.adapter.out.influx.InfluxProperties
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import spock.lang.Specification
 
 class GrafanaDashboardLinksAdapterSpec extends Specification {
 
-    def tag = new MetricsTag('CERT-gui', 'test')
-    def influx = new InfluxProperties('http://influx', 'DevSecOps', 'DORA-metrics', 'token', '365d')
+    static final String PIPELINE = 'https://grafana.bbh.com/d/adzfc54123/devsecops-pipeline-long'
+    static final String SECURITY = 'https://grafana.bbh.com/d/ad2trcm/devsecops-security?orgId=2'
 
-    def "without a Grafana URL there are no links"() {
+    def tag = new MetricsTag('CERT gui', 'test')
+
+    def "without the pipeline dashboard there are no links"() {
         given:
-        def adapter = new GrafanaDashboardLinksAdapter(
-                new GrafanaProperties(url, 1, 'dso-portal-dora', 'devsecops-pipeline-dora', 'light', 'dso-influxdb',
-                        null), influx)
+        def adapter = new GrafanaDashboardLinksAdapter(new GrafanaProperties(url, SECURITY))
 
         expect:
         adapter.url().isEmpty()
-        adapter.links(tag, 30).isEmpty()
+        adapter.dashboardUrl(tag, PipelineType.SECURITY, 30).isEmpty()
 
         where:
         url << [null, '  ']
     }
 
-    def "the dashboard and each panel are linked with the pipeline's tags and range"() {
+    def "the #type pipeline links #dashboard with its project and range"() {
         given:
-        def adapter = new GrafanaDashboardLinksAdapter(new GrafanaProperties('https://grafana.bbh.com//', 3,
-                'dso-portal-dora', 'devsecops-pipeline-dora', 'dark', ' dso-influxdb ', null),
-                new InfluxProperties('http://influx', 'DevSecOps', 'DORA-metrics-qc', 'token', '365d'))
-        def query = 'orgId=3&var-project=CERT-gui&var-env=test&var-bucket=DORA-metrics-qc&' +
-                'var-datasource=dso-influxdb&from=now-90d&to=now&theme=dark'
-
-        when:
-        def links = adapter.links(tag, 90).orElseThrow()
-
-        then:
-        adapter.url() == Optional.of('https://grafana.bbh.com//')
-        links.dashboardUrl() == "https://grafana.bbh.com/d/dso-portal-dora/devsecops-pipeline-dora?$query"
-        links.panels()*.id() == (1..8).toList()
-        links.panels()*.width() == [6, 6, 4, 8, 12, 6, 6, 12]
-        links.panels()[0].title() == 'Deployment frequency'
-        links.panels()[0].url() ==
-                "https://grafana.bbh.com/d-solo/dso-portal-dora/devsecops-pipeline-dora?$query&panelId=1"
-    }
-
-    def "tag values are encoded in the links"() {
-        given:
-        def adapter = new GrafanaDashboardLinksAdapter(
-                new GrafanaProperties('http://grafana', 1, 'uid', 'slug', 'light', null,
-                        null), new InfluxProperties('http://influx', 'DevSecOps', 'DORA metrics&qc', 'token', '365d'))
+        def adapter = new GrafanaDashboardLinksAdapter(new GrafanaProperties(" $PIPELINE ", security))
 
         expect:
-        adapter.links(new MetricsTag('CERT gui', 'test&prod'), 7).orElseThrow().dashboardUrl() ==
-                'http://grafana/d/uid/slug?orgId=1&var-project=CERT%20gui&var-env=test%26prod&' +
-                'var-bucket=DORA%20metrics%26qc&from=now-7d&to=now&theme=light'
-    }
+        adapter.url() == Optional.of(PIPELINE)
+        adapter.dashboardUrl(tag, type, 90).orElseThrow() == link.toString()
 
-    def "configured panels replace the default ones"() {
-        given:
-        def custom = [new GrafanaProperties.Panel(12, 'Lead time by branch', 12)]
-
-        expect:
-        new GrafanaProperties('http://grafana', 1, 'uid', 'slug', 'light', null, custom).panels() == custom
-        new GrafanaProperties('http://grafana', 1, 'uid', 'slug', 'light', null, []).panels() ==
-                GrafanaProperties.DEFAULT_PANELS
-        new GrafanaProperties('http://grafana', 1, 'uid', 'slug', 'light', ' ', []).datasourceUid() == null
+        where:
+        type                  | security || dashboard            | link
+        PipelineType.FULL     | SECURITY || 'the pipeline one'   | "$PIPELINE?var-project=CERT%20gui&from=now-90d&to=now"
+        PipelineType.EXTENDED | SECURITY || 'the pipeline one'   | "$PIPELINE?var-project=CERT%20gui&from=now-90d&to=now"
+        PipelineType.SECURITY | SECURITY || 'the security one'   | "$SECURITY&var-project=CERT%20gui&from=now-90d&to=now"
+        PipelineType.SAST     | SECURITY || 'the security one'   | "$SECURITY&var-project=CERT%20gui&from=now-90d&to=now"
+        PipelineType.SAST     | ' '      || 'the pipeline one'   | "$PIPELINE?var-project=CERT%20gui&from=now-90d&to=now"
     }
 }

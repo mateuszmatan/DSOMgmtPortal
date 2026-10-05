@@ -9,8 +9,6 @@ import com.bbh.itss.dso.portal.application.monitoring.port.in.ProductHealth
 import com.bbh.itss.dso.portal.application.monitoring.port.in.ProductMonitoring
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView
 import com.bbh.itss.dso.portal.domain.catalog.Product
-import com.bbh.itss.dso.portal.domain.monitoring.DashboardLinks
-import com.bbh.itss.dso.portal.domain.monitoring.DashboardPanel
 import com.bbh.itss.dso.portal.domain.monitoring.DoraCalculator
 import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun
@@ -100,9 +98,7 @@ class MonitoringControllerSpec extends Specification {
     def "pipeline details cover 30 days unless another range is asked for"() {
         given:
         def summary = DoraCalculator.summarize([new DoraPoint(FINISHED, true, false, 3600, 600)], 7, FINISHED)
-        def links = new DashboardLinks('https://grafana/d/x', [new DashboardPanel(1, 'Deployment frequency', 6,
-                'https://grafana/d-solo/x?panelId=1')])
-        def details = new PipelineMonitoring(guiFull, RunResult.SUCCESS, run, summary, [run], links, null)
+        def details = new PipelineMonitoring(guiFull, RunResult.SUCCESS, run, summary, [run], 'https://grafana/d/x', null)
 
         when:
         def standard = mvc.perform(get('/api/monitoring/pipelines/100')).andReturn().response
@@ -120,8 +116,7 @@ class MonitoringControllerSpec extends Specification {
             status == 'SUCCESS'
             lastRun.build == 42
             recentRuns*.build == [42]
-            grafana == [dashboardUrl: 'https://grafana/d/x', panels: [[id : 1, title: 'Deployment frequency', width: 6,
-                                                                        url: 'https://grafana/d-solo/x?panelId=1']]]
+            grafana == [dashboardUrl: 'https://grafana/d/x']
             dora.keySet() == ['rangeDays', 'runs', 'deployments', 'deploymentsPerWeek', 'deploymentFrequencyLevel',
                               'leadTimeMedianSeconds', 'leadTimeLevel', 'changeFailureRatePercent',
                               'changeFailureRateLevel', 'meanTimeToRestoreSeconds', 'timeToRestoreLevel', 'restores',
@@ -132,7 +127,7 @@ class MonitoringControllerSpec extends Specification {
         }
     }
 
-    def "without InfluxDB and Grafana the details carry the reason and no panels"() {
+    def "without InfluxDB and Grafana the details carry the reason and no dashboard"() {
         given:
         def details = new PipelineMonitoring(guiFull, RunResult.NO_DATA, null,
                 DoraCalculator.summarize([], 30, FINISHED), [], null, 'InfluxDB is not configured for the portal')

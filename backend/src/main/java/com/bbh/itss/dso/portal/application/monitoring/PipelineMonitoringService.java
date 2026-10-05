@@ -116,7 +116,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         }
         DoraSummary dora = DoraCalculator.summarize(points.value(), days, Instant.now(clock));
         return new PipelineMonitoring(view, RunResult.of(pipeline, last), last, dora, recentRuns,
-                dashboards.links(tag, days).orElse(null), points.error());
+                dashboards.dashboardUrl(tag, pipeline.type(), days).orElse(null), points.error());
     }
 
     private boolean ping() {

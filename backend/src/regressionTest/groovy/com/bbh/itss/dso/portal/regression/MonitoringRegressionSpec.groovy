@@ -11,6 +11,8 @@ import static com.bbh.itss.dso.portal.support.ApiJson.service
 
 class MonitoringRegressionSpec extends PortalSpecification {
 
+    static final String PIPELINE_DASHBOARD = 'http://grafana.test/d/adzfc54123/devsecops-pipeline-long?orgId=1'
+
     String code
     Map monitored
     Map guiFull
@@ -45,7 +47,7 @@ class MonitoringRegressionSpec extends PortalSpecification {
 
         then:
         status == [influxConfigured: true, influxReachable: true, influxError: null, grafanaConfigured: true,
-                   grafanaUrl: 'http://grafana.test']
+                   grafanaUrl: PIPELINE_DASHBOARD]
         influx.requests.last().authorization == 'Token test-token'
     }
 
@@ -75,7 +77,7 @@ class MonitoringRegressionSpec extends PortalSpecification {
         monitoring.pipelines[1].lastRun == null
     }
 
-    def "a pipeline's details hold its runs, DORA metrics and Grafana panels"() {
+    def "a pipeline's details hold its runs, DORA metrics and Grafana dashboard"() {
         when:
         def details = api.get("/api/monitoring/pipelines/$guiFull.id?range=30d").json
 
@@ -99,9 +101,15 @@ class MonitoringRegressionSpec extends PortalSpecification {
             failingSince == null
             daily.size() == 30
         }
-        details.grafana.panels.size() == 8
-        details.grafana.dashboardUrl.contains(
-                "var-project=$code-gui&var-env=test&var-bucket=DORA-metrics&var-datasource=dso-influxdb&from=now-30d")
+        details.grafana == [dashboardUrl: "$PIPELINE_DASHBOARD&var-project=$code-gui&from=now-30d&to=now".toString()]
+    }
+
+    def "security and SAST pipelines link the security dashboard"() {
+        when:
+        def details = api.get("/api/monitoring/pipelines/$guiSast.id?range=7d").json
+
+        then:
+        details.grafana == [dashboardUrl: "http://grafana.test/d/ad2trcm/devsecops-security?var-project=$code-guisast&from=now-7d&to=now".toString()]
     }
 
     def "a pipeline without runs in the range shows the last one before it"() {
@@ -135,7 +143,7 @@ class MonitoringRegressionSpec extends PortalSpecification {
         overview.products.find { it.code == code }.statusCounts == [NO_DATA: 2, DISABLED: 1]
         details.status == 'NO_DATA'
         details.metricsError.startsWith('InfluxDB could not be read')
-        details.grafana.panels.size() == 8
+        details.grafana.dashboardUrl.startsWith(PIPELINE_DASHBOARD)
     }
 
     def "a range that is not a number of days is refused"() {
