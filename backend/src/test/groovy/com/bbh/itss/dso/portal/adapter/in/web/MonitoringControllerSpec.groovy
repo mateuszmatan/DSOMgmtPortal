@@ -92,6 +92,7 @@ class MonitoringControllerSpec extends Specification {
             pipelines[0].pipeline.jenkinsJobUrl == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-full/'
             pipelines[0].lastRun == [time       : '2026-10-04T09:00:00Z', result: 'SUCCESS', branch: 'develop', build: 42,
                                      durationSeconds: 600, commit: 'a1b2c3d', job: 'DevSecOps/CERT/gui-full',
+                                     buildUrl   : 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-full/42/',
                                      stagesTotal: 12, passed: 11, warned: 1, failed: 0, blocked: 0, skipped: 0]
         }
     }

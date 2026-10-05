@@ -11,8 +11,10 @@ public record PipelineMonitoringResponse(PipelineResponse pipeline, RunResult st
 
     static PipelineMonitoringResponse from(PipelineMonitoring monitoring) {
         return new PipelineMonitoringResponse(PipelineResponse.monitored(monitoring.pipeline()), monitoring.status(),
-                PipelineRunResponse.from(monitoring.lastRun()), DoraSummaryResponse.from(monitoring.dora()),
-                monitoring.recentRuns().stream().map(PipelineRunResponse::from).toList(),
+                PipelineRunResponse.from(monitoring.lastRun(), monitoring.pipeline()),
+                DoraSummaryResponse.from(monitoring.dora()),
+                monitoring.recentRuns().stream().map(run -> PipelineRunResponse.from(run, monitoring.pipeline()))
+                        .toList(),
                 GrafanaLinksResponse.from(monitoring.dashboards()), monitoring.metricsError());
     }
 }

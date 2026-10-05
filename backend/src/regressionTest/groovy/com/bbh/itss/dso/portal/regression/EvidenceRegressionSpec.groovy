@@ -136,6 +136,35 @@ class EvidenceRegressionSpec extends PortalSpecification {
         influx.requests.count { it.body.query.contains('"security_findings"') } == 1
     }
 
+    def "the build links follow the job that recorded the run, not the job the pipeline was given"() {
+        given:
+        def settings = api.get('/api/settings').json as Map
+        assert api.put('/api/settings', settings + [platform: settings.platform +
+                [jenkinsUrl: 'https://jenkins.bbh.com/']]).status == 200
+        def branchJob = "DevSecOps/$code/gui/develop"
+        influx.reset()
+        influx.addRun(project: "$code-gui", time: finished, result: 'SUCCESS', build: 57, job: branchJob)
+
+        when:
+        def full = api.get("/api/evidence/products/$evidenced.id").json.services[0].pipelines[0]
+        def monitored = api.get("/api/monitoring/pipelines/$guiFull.id").json
+
+        then: 'the multibranch build of the branch job, not build 57 of the configured project'
+        String build = "https://jenkins.bbh.com/job/DevSecOps/job/$code/job/gui/job/develop/57/"
+        full.jenkinsJobUrl == JOB
+        full.run.build.job == branchJob
+        full.run.build.url == build
+        full.run.build.reportUrl == build + 'Pipeline_20Report/'
+        full.run.build.testReportUrl == build + 'testReport/'
+        full.run.build.artifactsUrl == build + 'artifact/'
+        monitored.lastRun.buildUrl == build
+        monitored.recentRuns*.buildUrl == [build]
+
+        cleanup:
+        def current = api.get('/api/settings').json
+        api.put('/api/settings', settings + [version: current.version])
+    }
+
     def "a run that recorded nothing besides its result still links its build"() {
         given:
         influx.reset()

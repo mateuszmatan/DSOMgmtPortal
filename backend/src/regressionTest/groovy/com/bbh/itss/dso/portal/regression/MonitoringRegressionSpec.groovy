@@ -83,6 +83,7 @@ class MonitoringRegressionSpec extends PortalSpecification {
         details.metricsError == null
         details.status == 'SUCCESS'
         details.recentRuns*.result == ['SUCCESS', 'FAILURE', 'SUCCESS', 'FAILURE']
+        details.recentRuns*.buildUrl.every { it == null }
         details.pipeline.keys == []
         details.pipeline.activeKey.value == null
         details.pipeline.activeKey.hint == "${guiFull.activeKey.value.take(8)}\u2026${guiFull.activeKey.value[-4..-1]}"

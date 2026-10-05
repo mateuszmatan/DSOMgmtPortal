@@ -7,6 +7,6 @@ public record PipelineHealthResponse(PipelineResponse pipeline, RunResult status
 
     static PipelineHealthResponse from(PipelineHealth health) {
         return new PipelineHealthResponse(PipelineResponse.monitored(health.pipeline()), health.status(),
-                PipelineRunResponse.from(health.lastRun()));
+                PipelineRunResponse.from(health.lastRun(), health.pipeline()));
     }
 }

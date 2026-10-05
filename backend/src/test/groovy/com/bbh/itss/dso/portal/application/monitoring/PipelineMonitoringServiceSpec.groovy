@@ -50,8 +50,10 @@ class PipelineMonitoringServiceSpec extends Specification {
         current() >> storedSettings('https://jenkins.test')
     }
 
+    def targets = new MonitoringTargetsService(products, pipelines, settings)
+
     @Subject
-    def monitoring = new PipelineMonitoringService(products, pipelines, settings, runs, metrics, dashboards,
+    def monitoring = new PipelineMonitoringService(targets, runs, metrics, dashboards,
             Clock.fixed(NOW, ZoneOffset.UTC))
 
     Product certScanner = product(id: 1L, code: 'CERT', name: 'CertScanner', ownerTeam: 'TA',

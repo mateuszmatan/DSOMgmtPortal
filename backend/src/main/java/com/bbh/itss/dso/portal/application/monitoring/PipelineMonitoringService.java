@@ -1,21 +1,20 @@
 package com.bbh.itss.dso.portal.application.monitoring;
 
-import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
-import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort;
+import com.bbh.itss.dso.portal.application.WithoutTransaction;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitorPipelinesUseCase;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringOverview;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringStatus;
+import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringTargets;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.PipelineHealth;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.PipelineMonitoring;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.ProductHealth;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.ProductMonitoring;
+import com.bbh.itss.dso.portal.application.monitoring.port.in.ReadMonitoringTargetsUseCase;
 import com.bbh.itss.dso.portal.application.monitoring.port.out.DashboardLinksPort;
 import com.bbh.itss.dso.portal.application.monitoring.port.out.MonitoringStatusPort;
 import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
-import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort;
-import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.monitoring.DoraCalculator;
 import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint;
@@ -26,7 +25,6 @@ import com.bbh.itss.dso.portal.domain.monitoring.MonitoringRange;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -35,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @UseCase
@@ -43,20 +40,15 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
 
     static final int RECENT_RUNS = 25;
 
-    private final ProductRepositoryPort products;
-    private final PipelineRepositoryPort pipelines;
-    private final ManageGlobalSettingsUseCase settings;
+    private final ReadMonitoringTargetsUseCase targets;
     private final PipelineRunsPort runs;
     private final MonitoringStatusPort metrics;
     private final DashboardLinksPort dashboards;
     private final Clock clock;
 
-    public PipelineMonitoringService(ProductRepositoryPort products, PipelineRepositoryPort pipelines,
-                                     ManageGlobalSettingsUseCase settings, PipelineRunsPort runs,
+    public PipelineMonitoringService(ReadMonitoringTargetsUseCase targets, PipelineRunsPort runs,
                                      MonitoringStatusPort metrics, DashboardLinksPort dashboards, Clock clock) {
-        this.products = products;
-        this.pipelines = pipelines;
-        this.settings = settings;
+        this.targets = targets;
         this.runs = runs;
         this.metrics = metrics;
         this.dashboards = dashboards;
@@ -64,7 +56,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
     }
 
     @Override
-    @ReadOnly
+    @WithoutTransaction
     public MonitoringStatus status() {
         boolean configured = metrics.configured();
         String error = configured ? MetricsReading.of(this::ping, false).error() : null;
@@ -74,31 +66,25 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
     }
 
     @Override
-    @ReadOnly
+    @WithoutTransaction
     public MonitoringOverview overview() {
-        List<Product> all = products.findAll();
-        Map<Long, Product> byId = all.stream().collect(Collectors.toMap(Product::id, Function.identity()));
-        List<PipelineView> views = pipelines.findAll().stream()
-                .filter(pipeline -> byId.containsKey(pipeline.service().productId()))
-                .map(pipeline -> PipelineView.of(byId.get(pipeline.service().productId()), pipeline, null))
-                .toList();
+        MonitoringTargets monitored = targets.everything();
+        List<PipelineView> views = monitored.pipelines();
         MetricsReading<Map<MetricsTag, PipelineRun>> latest = latestRuns(views);
         Map<Long, List<PipelineView>> byProduct = views.stream()
                 .collect(Collectors.groupingBy(view -> view.product().id()));
-        List<ProductHealth> health = all.stream()
+        List<ProductHealth> health = monitored.products().stream()
                 .map(product -> health(product, byProduct.getOrDefault(product.id(), List.of()), latest.value()))
                 .toList();
         return new MonitoringOverview(health, latest.error());
     }
 
     @Override
-    @ReadOnly
+    @WithoutTransaction
     public ProductMonitoring product(long productId) {
-        Product product = products.load(productId).orElseThrow(() -> NotFoundException.of("Product", productId));
-        String jenkinsUrl = settings.current().jenkinsUrl();
-        List<PipelineView> productPipelines = pipelines.findByProductId(productId).stream()
-                .map(pipeline -> PipelineView.of(product, pipeline, jenkinsUrl))
-                .toList();
+        MonitoringTargets monitored = targets.ofProduct(productId);
+        Product product = monitored.product();
+        List<PipelineView> productPipelines = monitored.pipelines();
         MetricsReading<Map<MetricsTag, PipelineRun>> latest = latestRuns(productPipelines);
         List<PipelineHealth> health = productPipelines.stream()
                 .map(view -> {
@@ -111,14 +97,11 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
     }
 
     @Override
-    @ReadOnly
+    @WithoutTransaction
     public PipelineMonitoring pipeline(long pipelineId, String range) {
         int days = MonitoringRange.parse(range).days();
-        Pipeline pipeline = pipelines.load(pipelineId)
-                .orElseThrow(() -> NotFoundException.of("Pipeline", pipelineId));
-        Product product = products.load(pipeline.service().productId())
-                .orElseThrow(() -> NotFoundException.of("Product", pipeline.service().productId()));
-        PipelineView view = PipelineView.of(product, pipeline, settings.current().jenkinsUrl());
+        PipelineView view = targets.ofPipeline(pipelineId).pipeline();
+        Pipeline pipeline = view.pipeline();
         MetricsTag tag = tag(view);
 
         MetricsReading<List<PipelineRun>> recent = MetricsReading.of(() -> runs.recentRuns(tag, days, RECENT_RUNS),

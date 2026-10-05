@@ -3,6 +3,7 @@ package com.bbh.itss.dso.portal.application.pipeline.port.in;
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
+import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 
 import java.util.Objects;
@@ -23,6 +24,10 @@ public record PipelineView(Product product, Service service, Pipeline pipeline, 
 
     public String jenkinsJobUrl() {
         return pipeline.settings().jenkinsJobUrl(jenkinsUrl);
+    }
+
+    public String buildUrl(PipelineRun run) {
+        return run == null ? null : run.buildUrl(jenkinsUrl, pipeline.settings().jenkinsJob());
     }
 
     public String influxProjectTag() {

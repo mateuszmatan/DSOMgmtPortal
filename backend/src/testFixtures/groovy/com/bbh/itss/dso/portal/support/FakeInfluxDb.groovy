@@ -70,6 +70,7 @@ class FakeInfluxDb implements AutoCloseable {
         String result = args.result ?: 'SUCCESS'
         runs << new Run(project: args.project, env: args.env ?: 'test', variant: args.variant ?: 'full',
                 time: args.time as Instant ?: Instant.now(), result: result, branch: args.branch ?: 'develop',
+                job: args.job as String,
                 build: args.build as Long ?: runs.size() + 1, durationSeconds: args.durationSeconds as Long ?: 600,
                 deployment: args.containsKey('deployment') ? args.deployment : result == 'SUCCESS',
                 leadTimeSeconds: args.leadTimeSeconds as Long ?: 3600)
@@ -191,7 +192,7 @@ class FakeInfluxDb implements AutoCloseable {
 
     private static List<String> runValues(Run run) {
         [run.time.toString(), run.project, run.env, run.variant, run.result, run.branch, run.build as String,
-         run.durationSeconds as String, 'a1b2c3d4e5f6', "${run.project}/${run.variant}".toString(), '12',
+         run.durationSeconds as String, 'a1b2c3d4e5f6', run.job ?: "${run.project}/${run.variant}".toString(), '12',
          run.result == 'SUCCESS' ? '12' : '11', run.result == 'UNSTABLE' ? '1' : '0', run.result == 'FAILURE' ? '1' : '0',
          '0', '0']
     }
@@ -228,5 +229,6 @@ class FakeInfluxDb implements AutoCloseable {
         Long durationSeconds
         boolean deployment
         Long leadTimeSeconds
+        String job
     }
 }
