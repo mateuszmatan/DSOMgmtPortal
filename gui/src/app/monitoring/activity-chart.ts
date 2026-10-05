@@ -114,10 +114,10 @@ const dayFormat = new Intl.DateTimeFormat('en', {
       fill: rgba(26, 95, 180, 0.06);
     }
     .success {
-      fill: #34a853;
+      fill: var(--dso-run-success);
     }
     .failure {
-      fill: #d93025;
+      fill: var(--dso-run-failure);
     }
     .deployment {
       fill: #1a73e8;
@@ -141,10 +141,10 @@ const dayFormat = new Intl.DateTimeFormat('en', {
       height: 10px;
     }
     .legend i.success {
-      background: #34a853;
+      background: var(--dso-run-success);
     }
     .legend i.failure {
-      background: #d93025;
+      background: var(--dso-run-failure);
     }
     .legend i.deployment {
       background: #1a73e8;

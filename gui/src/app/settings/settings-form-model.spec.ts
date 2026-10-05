@@ -2,7 +2,6 @@ import { GlobalSettingsValues } from '../core/models';
 import { globalSettings } from '../testing/fixtures';
 import { applyFieldProblems, controlAt } from '../shared/form-controls';
 import {
-  SETTINGS_SECTIONS,
   createSettingsForm,
   firstInvalidSection,
   patchSettings,

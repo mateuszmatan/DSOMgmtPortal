@@ -31,23 +31,7 @@
     height: 10px;
   }
 
-  .success {
-    background: #34a853;
-  }
-  .unstable {
-    background: #f9ab00;
-  }
-  .failure {
-    background: #d93025;
-  }
-  .aborted,
-  .not_built {
-    background: #9aa0a6;
-  }
-  .no_data {
-    background: #dadce0;
-  }
-  .disabled {
+  i.disabled {
     background: repeating-linear-gradient(135deg, #f28b82 0 3px, #fce8e6 3px 6px);
   }
 }
@@ -78,13 +62,13 @@
   }
 
   &.overall-success {
-    border-left-color: #34a853;
+    border-left-color: var(--dso-run-success);
   }
   &.overall-unstable {
-    border-left-color: #f9ab00;
+    border-left-color: var(--dso-run-unstable);
   }
   &.overall-failure {
-    border-left-color: #d93025;
+    border-left-color: var(--dso-run-failure);
   }
   &.overall-disabled {
     border-left-color: #f28b82;

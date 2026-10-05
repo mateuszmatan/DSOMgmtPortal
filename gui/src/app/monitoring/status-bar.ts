@@ -20,13 +20,13 @@ export const STATUS_ORDER: { status: RunResult; label: string }[] = [
     <div class="bar" role="img" [attr.aria-label]="summary()">
       @for (segment of segments(); track segment.status) {
         <span
-          class="segment"
+          class="segment swatch"
           [class]="segment.status.toLowerCase()"
           [style.flex-grow]="segment.count"
           [matTooltip]="segment.count + ' ' + segment.label.toLowerCase()"
         ></span>
       } @empty {
-        <span class="segment no_data" style="flex-grow: 1"></span>
+        <span class="segment swatch no_data" style="flex-grow: 1"></span>
       }
     </div>
   `,
@@ -41,25 +41,6 @@ export const STATUS_ORDER: { status: RunResult; label: string }[] = [
     .segment {
       flex-basis: 0;
       min-width: 6px;
-    }
-    .success {
-      background: #34a853;
-    }
-    .unstable {
-      background: #f9ab00;
-    }
-    .failure {
-      background: #d93025;
-    }
-    .aborted,
-    .not_built {
-      background: #9aa0a6;
-    }
-    .no_data {
-      background: #dadce0;
-    }
-    .disabled {
-      background: repeating-linear-gradient(135deg, #f28b82 0 4px, #fce8e6 4px 8px);
     }
   `,
 })

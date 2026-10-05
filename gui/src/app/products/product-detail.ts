@@ -8,7 +8,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
-import { catchError, filter, finalize, of, switchMap, tap } from 'rxjs';
+import { Observable, catchError, filter, finalize, of, switchMap, tap } from 'rxjs';
 import { PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import {
@@ -140,31 +140,23 @@ export class ProductDetail {
   }
 
   protected showProductConfig(product: Product): void {
-    this.products.config(product.id).subscribe({
-      next: (code) =>
-        this.openCode({
-          title: `config.yaml of ${product.name}`,
-          subtitle:
-            'Every service of the product in the format of the DevSecOps library, with the BBH defaults filled in.',
-          code,
-          fileName: `${product.code.toLowerCase()}-config.yaml`,
-        }),
-      error: (error) => this.notifier.error(error),
-    });
+    this.showCode(this.products.config(product.id), (code) => ({
+      title: `config.yaml of ${product.name}`,
+      subtitle:
+        'Every service of the product in the format of the DevSecOps library, with the BBH defaults filled in.',
+      code,
+      fileName: `${product.code.toLowerCase()}-config.yaml`,
+    }));
   }
 
   protected showPipelineConfig(pipeline: Pipeline): void {
-    this.pipelines.config(pipeline.id).subscribe({
-      next: (code) =>
-        this.openCode({
-          title: `Configuration of the ${pipeline.serviceName} ${pipeline.type.toLowerCase()} pipeline`,
-          subtitle:
-            "What the DevSecOps library receives for this pipeline's key. Showing it here does not count as a use of the key.",
-          code,
-          fileName: `${pipeline.productCode.toLowerCase()}-${pipeline.serviceName}-${pipeline.type.toLowerCase()}.yaml`,
-        }),
-      error: (error) => this.notifier.error(error),
-    });
+    this.showCode(this.pipelines.config(pipeline.id), (code) => ({
+      title: `Configuration of the ${pipeline.serviceName} ${pipeline.type.toLowerCase()} pipeline`,
+      subtitle:
+        "What the DevSecOps library receives for this pipeline's key. Showing it here does not count as a use of the key.",
+      code,
+      fileName: `${pipeline.productCode.toLowerCase()}-${pipeline.serviceName}-${pipeline.type.toLowerCase()}.yaml`,
+    }));
   }
 
   protected showJenkinsfile(pipeline: Pipeline): void {
@@ -355,6 +347,13 @@ export class ProductDetail {
         return { ...service, pipelines };
       }),
     );
+  }
+
+  private showCode(source: Observable<string>, data: (code: string) => CodeDialogData): void {
+    source.subscribe({
+      next: (code) => this.openCode(data(code)),
+      error: (error) => this.notifier.error(error),
+    });
   }
 
   private openCode(data: CodeDialogData): void {

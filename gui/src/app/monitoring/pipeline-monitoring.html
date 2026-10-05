@@ -133,13 +133,13 @@
               <dt>Stages</dt>
               <dd>
                 <div class="stage-bar">
-                  <span class="passed" [style.flex-grow]="run.passed ?? 0"></span>
-                  <span class="warned" [style.flex-grow]="run.warned ?? 0"></span>
+                  <span class="swatch passed" [style.flex-grow]="run.passed ?? 0"></span>
+                  <span class="swatch warned" [style.flex-grow]="run.warned ?? 0"></span>
                   <span
-                    class="failed"
+                    class="swatch failed"
                     [style.flex-grow]="(run.failed ?? 0) + (run.blocked ?? 0)"
                   ></span>
-                  <span class="skipped" [style.flex-grow]="run.skipped ?? 0"></span>
+                  <span class="swatch skipped" [style.flex-grow]="run.skipped ?? 0"></span>
                 </div>
                 <div class="muted small">
                   {{ run.passed ?? 0 }} passed · {{ run.warned ?? 0 }} warned ·
