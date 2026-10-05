@@ -28,7 +28,7 @@ import { BuildTool, DeployTarget, FieldProblem, GlobalSettings, Product } from '
 import { Notifier } from '../core/notifier';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
-import { revalidateAll } from '../shared/form-controls';
+import { addItem, revalidateAll } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import {
   ServiceForm,
@@ -159,7 +159,8 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   }
 
   protected addService(): void {
-    this.form.controls.services.push(
+    addItem(
+      this.form.controls.services,
       createServiceForm(undefined, this.settings()?.serviceDefaults),
     );
     this.expanded.set(this.form.controls.services.length - 1);

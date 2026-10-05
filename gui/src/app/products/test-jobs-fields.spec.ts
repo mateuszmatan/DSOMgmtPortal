@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GlobalSettings, TestJob } from '../core/models';
 import { applyFieldProblems } from '../shared/form-controls';
+import { fieldOf, inputOf, text } from '../testing/dom';
 import { globalSettings, service } from '../testing/fixtures';
 import { ServiceForm, createServiceForm } from './product-form-model';
 import { TestJobsFields } from './test-jobs-fields';
@@ -45,11 +46,9 @@ describe('TestJobsFields', () => {
   it('takes the parameters as one NAME=value per line in a text area', async () => {
     await render([job({ stage: 'REGRESSION', parameters: 'ENV=rd\nSUITE=critical' })]);
 
-    const textarea = page().querySelector<HTMLTextAreaElement>(
-      'textarea[formControlName=parameters]',
-    )!;
+    const textarea = inputOf(page(), 'Parameters') as unknown as HTMLTextAreaElement;
     expect(textarea.value).toBe('ENV=rd\nSUITE=critical');
-    expect(textarea.closest('mat-form-field')?.textContent).toContain(
+    expect(text(textarea.closest('mat-form-field'))).toContain(
       'parameters · One NAME=value per line',
     );
 
@@ -58,7 +57,7 @@ describe('TestJobsFields', () => {
     textarea.dispatchEvent(new Event('blur'));
     await fixture.whenStable();
 
-    expect(textarea.closest('mat-form-field')?.textContent).toContain(
+    expect(text(textarea.closest('mat-form-field'))).toContain(
       'Write each parameter as NAME=value: SUITE critical',
     );
   });
@@ -78,7 +77,7 @@ describe('TestJobsFields', () => {
     expect(sections()[2].querySelector('.list-empty')?.textContent).toBe(
       'No performance test jobs.',
     );
-    expect(page().textContent).toContain('tests.maxParallel · left empty: global default 20');
+    expect(text(page())).toContain('tests.maxParallel · left empty: global default 20');
   });
 
   it('adds, moves and removes jobs within a stage', async () => {
@@ -148,16 +147,14 @@ describe('TestJobsFields', () => {
     ]);
 
     const items = [...page().querySelectorAll('.list-item')];
-    expect(items[0].querySelector('[formControlName=remoteJenkins]')).toBeNull();
-    expect(items[1].querySelector<HTMLInputElement>('[formControlName=remoteJenkins]')?.value).toBe(
-      'qa',
-    );
+    expect(fieldOf(items[0], 'Remote Jenkins')).toBeNull();
+    expect(inputOf(items[1], 'Remote Jenkins').value).toBe('qa');
   });
 
   it('names the job field after a job given as a URL', async () => {
     await render([job({ job: 'https://jenkins-qa.bbh.com/job/smoke/' })], null);
 
-    expect(page().querySelector('.list-item')?.textContent).toContain('url · a job path');
-    expect(page().textContent).toContain('left empty: global default');
+    expect(text(page().querySelector('.list-item'))).toContain('url · a job path');
+    expect(text(page())).toContain('left empty: global default');
   });
 });

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GlobalSettings } from '../core/models';
+import { text } from '../testing/dom';
 import { globalSettings, service } from '../testing/fixtures';
 import { ServiceForm, applyFieldProblems, createServiceForm } from './product-form-model';
 import { UrbanCodeFields } from './urban-code-fields';
@@ -36,7 +37,7 @@ describe('UrbanCodeFields', () => {
     expect(applications()[0].querySelector('strong')?.textContent).toBe('CERT-GUI');
     expect(page().querySelector('.count')?.textContent).toBe('1');
     expect(applications()[0].querySelectorAll('.component').length).toBe(1);
-    expect(page().textContent).toContain('deploy.vm.dod.siteName · left empty:');
+    expect(text(page())).toContain('deploy.vm.dod.siteName · left empty:');
   });
 
   it('adds and removes applications and components', async () => {
@@ -69,7 +70,7 @@ describe('UrbanCodeFields', () => {
     await click(button(applications()[1], 'Remove'));
     await click(button(applications()[0], 'Remove'));
     expect(page().querySelector('.list-empty')?.textContent).toContain('No application');
-    expect(page().textContent).toContain('left empty: the global default');
+    expect(text(page())).toContain('left empty: the global default');
   });
 
   it('shows a problem the API reports for the whole list', async () => {

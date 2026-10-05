@@ -1,106 +1,66 @@
-import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
-import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { REGIONS, Region } from '../core/models';
-import { errorText } from '../shared/form-errors';
+import { Field, Fields, formRevision } from '../shared/fields';
 import { OpenShiftTargetForm, ServiceForm } from './product-form-model';
 
-type TargetKey = keyof OpenShiftTargetForm['controls'];
+const field = (
+  key: string,
+  label: string,
+  code: string,
+  span: number,
+  placeholder = '',
+): Field => ({
+  key,
+  label,
+  code,
+  span,
+  placeholder,
+  mono: true,
+});
 
-interface TargetField {
-  key: Exclude<TargetKey, 'skipConfigDeploy'>;
-  label: string;
-  config: string;
-  span: number;
-  placeholder?: string;
-  pattern?: string;
-}
-
-const IMAGE_BUILD: TargetField[] = [
-  { key: 'projectBuild', label: 'Build project', config: 'projectBuildR', span: 4 },
-  {
-    key: 'buildConfigPath',
-    label: 'BuildConfig file',
-    config: 'buildConfigPath',
-    span: 4,
-    placeholder: 'openshift/buildconfig.yaml',
-  },
-  {
-    key: 'dockerFilePath',
-    label: 'Dockerfile',
-    config: 'dockerFilePath',
-    span: 4,
-    placeholder: 'openshift/Dockerfile',
-  },
-  {
-    key: 'buildContext',
-    label: 'Build context',
-    config: 'buildContext',
-    span: 6,
-    placeholder: 'target/docker',
-  },
-  { key: 'addFile', label: 'File added to the image', config: 'addFile', span: 6 },
+export const IMAGE_BUILD: Field[] = [
+  field('projectBuild', 'Build project', 'projectBuildR', 4),
+  field('buildConfigPath', 'BuildConfig file', 'buildConfigPath', 4, 'openshift/buildconfig.yaml'),
+  field('dockerFilePath', 'Dockerfile', 'dockerFilePath', 4, 'openshift/Dockerfile'),
+  field('buildContext', 'Build context', 'buildContext', 6, 'target/docker'),
+  field('addFile', 'File added to the image', 'addFile', 6),
 ];
 
-const REGISTRY: TargetField[] = [
-  { key: 'dockerRepoPush', label: 'Image pushed to', config: 'qcDockerRepoPush', span: 6 },
-  { key: 'dockerRepoPull', label: 'Image pulled from', config: 'qcDockerRepoPull', span: 6 },
-  { key: 'certDir', label: 'OpenShift certificates folder', config: 'openshiftCertDir', span: 6 },
-  { key: 'nexusAuthFile', label: 'Nexus auth file', config: 'nexus.authfile', span: 6 },
+const REGISTRY: Field[] = [
+  field('dockerRepoPush', 'Image pushed to', 'qcDockerRepoPush', 6),
+  field('dockerRepoPull', 'Image pulled from', 'qcDockerRepoPull', 6),
+  field('certDir', 'OpenShift certificates folder', 'openshiftCertDir', 6),
+  field('nexusAuthFile', 'Nexus auth file', 'nexus.authfile', 6),
 ];
 
-const DEPLOYMENT: TargetField[] = [
-  { key: 'projectDeployment', label: 'Deployment project', config: 'projectDeploymentR', span: 4 },
+const DEPLOYMENT: Field[] = [
+  field('projectDeployment', 'Deployment project', 'projectDeploymentR', 4),
+  field('deployConfigPath', 'Deployment file', 'deployConfigPath', 4, 'openshift/deployment.yaml'),
+  field('configPath', 'Configuration file', 'configPathR', 4),
+  field('healthCheckUrl', 'Health check path', 'healthCheckUrl', 4, '/actuator/health'),
+  field('routeHostname', 'Route host name', 'routeHostnameR', 4),
+  field('deploymentPath', 'Deployment path', 'deploymentPath', 4),
   {
-    key: 'deployConfigPath',
-    label: 'Deployment file',
-    config: 'deployConfigPath',
-    span: 4,
-    placeholder: 'openshift/deployment.yaml',
+    key: 'skipConfigDeploy',
+    kind: 'check',
+    label: 'Skip deploying the configuration',
+    code: 'skipConfigDeploy',
   },
-  { key: 'configPath', label: 'Configuration file', config: 'configPathR', span: 4 },
-  {
-    key: 'healthCheckUrl',
-    label: 'Health check path',
-    config: 'healthCheckUrl',
-    span: 4,
-    placeholder: '/actuator/health',
-  },
-  { key: 'routeHostname', label: 'Route host name', config: 'routeHostnameR', span: 4 },
-  { key: 'deploymentPath', label: 'Deployment path', config: 'deploymentPath', span: 4 },
 ];
 
-const REPOSITORY: TargetField[] = [
+const REPOSITORY: Field[] = [
   {
-    key: 'deploymentRepoUrl',
-    label: 'Repository URL',
-    config: 'deploymentRepo.url',
-    span: 6,
-    pattern: 'Must be an http, https, ssh or git@ URL',
+    ...field('deploymentRepoUrl', 'Repository URL', 'deploymentRepo.url', 6),
+    error: 'Must be an http, https, ssh or git@ URL',
   },
-  { key: 'deploymentRepoBranch', label: 'Branch', config: 'deploymentRepo.branch', span: 3 },
-  {
-    key: 'deploymentRepoCredentialsId',
-    label: 'Credentials ID',
-    config: 'deploymentRepo.credentials',
-    span: 3,
-  },
+  field('deploymentRepoBranch', 'Branch', 'deploymentRepo.branch', 3),
+  field('deploymentRepoCredentialsId', 'Credentials ID', 'deploymentRepo.credentials', 3),
 ];
 
 @Component({
   selector: 'dso-openshift-target-fields',
-  imports: [
-    NgTemplateOutlet,
-    ReactiveFormsModule,
-    MatButtonToggleModule,
-    MatCheckboxModule,
-    MatFormFieldModule,
-    MatInputModule,
-  ],
+  imports: [MatButtonToggleModule, Fields],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <mat-button-toggle-group
@@ -132,42 +92,15 @@ const REPOSITORY: TargetField[] = [
     <div class="form-fields">
       @if (region() === 'RD' || hasImageBuild(t)) {
         <h5 class="sub-heading span-12">Image build</h5>
-        @for (field of imageBuild; track field.key) {
-          <ng-container *ngTemplateOutlet="textField; context: { $implicit: field, t }" />
-        }
+        <dso-fields [group]="t" [fields]="imageBuild" />
       }
       <h5 class="sub-heading span-12">Image registry</h5>
-      @for (field of registry; track field.key) {
-        <ng-container *ngTemplateOutlet="textField; context: { $implicit: field, t }" />
-      }
+      <dso-fields [group]="t" [fields]="registry" />
       <h5 class="sub-heading span-12">Deployment</h5>
-      @for (field of deployment; track field.key) {
-        <ng-container *ngTemplateOutlet="textField; context: { $implicit: field, t }" />
-      }
-      <mat-checkbox class="span-12" [formControl]="t.controls.skipConfigDeploy"
-        >Skip deploying the configuration (<code>skipConfigDeploy</code>)</mat-checkbox
-      >
+      <dso-fields [group]="t" [fields]="deployment" />
       <h5 class="sub-heading span-12">Deployment repository</h5>
-      @for (field of repository; track field.key) {
-        <ng-container *ngTemplateOutlet="textField; context: { $implicit: field, t }" />
-      }
+      <dso-fields [group]="t" [fields]="repository" />
     </div>
-
-    <ng-template #textField let-field let-t="t">
-      <mat-form-field [class]="'span-' + field.span">
-        <mat-label>{{ field.label }}</mat-label>
-        <input
-          matInput
-          [formControl]="t.controls[field.key]"
-          [placeholder]="field.placeholder ?? ''"
-          class="mono"
-        />
-        <mat-hint
-          ><code>{{ field.config }}</code></mat-hint
-        >
-        <mat-error>{{ errorText(t.controls[field.key], field.pattern) }}</mat-error>
-      </mat-form-field>
-    </ng-template>
   `,
   styles: `
     :host {
@@ -190,19 +123,21 @@ const REPOSITORY: TargetField[] = [
 export class OpenShiftTargetFields {
   readonly form = input.required<ServiceForm>();
 
+  private readonly changes = formRevision(this.form);
+
   protected readonly regions = REGIONS;
   protected readonly region = signal<Region>('RD');
   protected readonly imageBuild = IMAGE_BUILD;
   protected readonly registry = REGISTRY;
   protected readonly deployment = DEPLOYMENT;
   protected readonly repository = REPOSITORY;
-  protected readonly errorText = errorText;
 
   protected target(region: Region): OpenShiftTargetForm {
+    this.changes();
     return this.form().controls.openShiftTargets.controls[region];
   }
 
   protected hasImageBuild(target: OpenShiftTargetForm): boolean {
-    return IMAGE_BUILD.some((field) => !!target.controls[field.key].value.trim());
+    return IMAGE_BUILD.some((field) => !!target.get(field.key)?.value.trim());
   }
 }

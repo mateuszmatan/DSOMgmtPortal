@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AbstractControl, FormArray, FormGroup } from '@angular/forms';
 import { BuildTool, DeployTarget, GlobalSettings, Service } from '../core/models';
 import { wholeNumber } from '../shared/form-controls';
+import { checkboxOf, fieldOf, text } from '../testing/dom';
 import { globalSettings, service } from '../testing/fixtures';
 import { ServiceForm, createServiceForm } from './product-form-model';
 import { ServiceFields } from './service-fields';
@@ -25,7 +26,7 @@ describe('ServiceFields', () => {
 
   const page = () => fixture.nativeElement as HTMLElement;
   const pane = () => page().querySelector<HTMLElement>('.pane')!;
-  const hints = () => [...pane().querySelectorAll('mat-hint')].map((hint) => hint.textContent);
+  const hints = () => [...pane().querySelectorAll('mat-hint')].map((hint) => text(hint));
 
   async function open(label: string) {
     const item = [...page().querySelectorAll<HTMLButtonElement>('.rail-item')].find(
@@ -139,39 +140,35 @@ describe('ServiceFields', () => {
   });
 
   describe('Build', () => {
-    const field = (name: string) =>
-      pane().querySelector(`[formControlName=${name}]`)?.closest('mat-form-field') as HTMLElement;
+    const field = (label: string) => fieldOf(pane(), label)!;
 
     it('asks for the JDK of a Flutter build and turns automatic setup off', async () => {
       await render(service({ build: { ...service().build, autoSetup: true, javaPath: null } }));
       await open('Build');
-      expect(field('javaPath').textContent).toContain(
+      expect(field('JDK path').textContent).toContain(
         'unless the build tool is set up automatically',
       );
 
       form.controls.build.controls.tool.setValue('FLUTTER');
       await fixture.whenStable();
-      expect(field('javaPath').textContent).toContain('JAVA_HOME of the Flutter build stages');
+      expect(field('JDK path').textContent).toContain('JAVA_HOME of the Flutter build stages');
 
       form.controls.build.controls.javaPath.markAsTouched();
       await fixture.whenStable();
-      expect(field('javaPath').textContent).toContain('Required');
-      expect(
-        pane().querySelector<HTMLInputElement>('mat-checkbox[formControlName=autoSetup] input')
-          ?.disabled,
-      ).toBe(true);
+      expect(field('JDK path').textContent).toContain('Required');
+      expect(checkboxOf(pane(), 'Set up the build tool automatically').disabled).toBe(true);
       expect(pane().querySelector('.note')?.textContent).toContain('needs the JDK path');
     });
 
     it('names the artifact the Nexus delivery uploads for Maven on virtual machines', async () => {
       await render();
       await open('Build');
-      expect(field('buildPath').textContent).toContain('what the build produces');
+      expect(field('Artifact path').textContent).toContain('what the build produces');
 
       form.controls.build.controls.tool.setValue('MAVEN');
       await fixture.whenStable();
 
-      expect(field('buildPath').textContent).toContain(
+      expect(field('Artifact path').textContent).toContain(
         'the artifact the Nexus snapshot delivery uploads',
       );
     });

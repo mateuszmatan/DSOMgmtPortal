@@ -1,11 +1,8 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { GlobalSettings, TestStage } from '../core/models';
-import { errorText } from '../shared/form-errors';
+import { GlobalSettings, TEST_STAGES, TestStage } from '../core/models';
+import { addItem } from '../shared/form-controls';
+import { Field, Fields, formRevision } from '../shared/fields';
 import {
   ServiceForm,
   TestJobForm,
@@ -16,41 +13,53 @@ import {
 
 type StageParallel = 'smokeMaxParallel' | 'regressionMaxParallel' | 'performanceMaxParallel';
 
-const STAGES: { value: TestStage; label: string; noun: string; parallel: StageParallel }[] = [
-  { value: 'SMOKE', label: 'Smoke tests', noun: 'smoke', parallel: 'smokeMaxParallel' },
+interface Stage {
+  value: TestStage;
+  label: string;
+  noun: string;
+  parallel: StageParallel;
+}
+
+const STAGES: Stage[] = TEST_STAGES.map((value) => {
+  const noun = value.toLowerCase();
+  return {
+    value,
+    label: `${noun.charAt(0).toUpperCase()}${noun.slice(1)} tests`,
+    noun,
+    parallel: `${noun}MaxParallel` as StageParallel,
+  };
+});
+
+const REMOTE: Field[] = [
   {
-    value: 'REGRESSION',
-    label: 'Regression tests',
-    noun: 'regression',
-    parallel: 'regressionMaxParallel',
+    key: 'remoteJenkins',
+    label: 'Remote Jenkins',
+    span: 3,
+    placeholder: 'perf-jenkins',
+    code: 'remoteJenkins',
   },
   {
-    value: 'PERFORMANCE',
-    label: 'Performance tests',
-    noun: 'performance',
-    parallel: 'performanceMaxParallel',
+    key: 'remoteJenkinsUrl',
+    label: 'Remote Jenkins URL',
+    span: 6,
+    placeholder: 'https://perf-jenkins.bbh.com',
+    code: 'remoteJenkinsUrl',
+    error: 'Must be an http or https URL',
   },
+  { key: 'credentialsId', label: 'Credentials ID', span: 3, mono: true, code: 'credentialsId' },
 ];
 
 @Component({
   selector: 'dso-test-jobs-fields',
-  imports: [
-    ReactiveFormsModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-  ],
+  imports: [MatButtonModule, Fields],
   changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './test-jobs-fields.html',
   styles: `
     :host {
       display: block;
     }
-    code {
-      font-size: 11.5px;
-    }
     .parallel {
+      display: grid;
       width: 150px;
     }
   `,
@@ -59,19 +68,104 @@ export class TestJobsFields {
   readonly form = input.required<ServiceForm>();
   readonly defaults = input<GlobalSettings | null>(null);
 
+  private readonly changes = formRevision(this.form);
+
   protected readonly stages = STAGES;
-  protected readonly errorText = errorText;
-  protected readonly isRemoteJob = isRemoteJob;
-  protected readonly isJobUrl = isJobUrl;
+
+  protected parallelFields(): Field[] {
+    const value = this.defaults()?.serviceDefaults.testsMaxParallel;
+    return [
+      {
+        key: 'maxParallel',
+        kind: 'number',
+        label: 'Parallel jobs, every stage',
+        span: 4,
+        min: 1,
+        max: 100,
+        code: 'tests.maxParallel',
+        hint: `left empty: global default${value === undefined ? '' : ` ${value}`}`,
+      },
+    ];
+  }
+
+  protected stageParallelField(stage: Stage): Field[] {
+    return [
+      {
+        key: stage.parallel,
+        kind: 'number',
+        label: 'Parallel jobs',
+        span: 12,
+        min: 1,
+        max: 100,
+        code: `tests.${stage.noun}.maxParallel`,
+      },
+    ];
+  }
+
+  protected jobFields(job: TestJobForm, stage: Stage): Field[] {
+    return [
+      { key: 'name', label: 'Name', span: 3, placeholder: 'smoke', code: 'name' },
+      {
+        key: 'job',
+        label: 'Jenkins job',
+        span: 6,
+        mono: true,
+        placeholder: 'CERT/gui-smoke-tests',
+        code: isJobUrl(job.controls.job.value) ? 'url' : 'job',
+        hint: 'a job path, or the full URL of a job on another Jenkins',
+      },
+      {
+        key: 'type',
+        kind: 'select',
+        label: 'Runs on',
+        span: 3,
+        code: 'type',
+        options: [
+          { value: null, label: 'Library default' },
+          { value: 'LOCAL', label: 'This Jenkins' },
+          { value: 'REMOTE', label: 'Another Jenkins' },
+        ],
+      },
+      {
+        key: 'timeoutMinutes',
+        kind: 'number',
+        label: 'Timeout (minutes)',
+        span: 3,
+        min: 1,
+        max: 1440,
+        code: 'timeoutMin',
+      },
+      {
+        key: 'parameters',
+        kind: 'area',
+        label: 'Parameters',
+        span: 6,
+        mono: true,
+        placeholder: 'ENV=rd\nSUITE=critical',
+        code: 'parameters',
+        hint: 'One NAME=value per line',
+      },
+      {
+        key: 'stage',
+        kind: 'select',
+        label: 'Stage',
+        span: 3,
+        code: `tests.${stage.noun}.jobs`,
+        options: STAGES.map((option) => ({ value: option.value, label: option.label })),
+      },
+      ...(isRemoteJob(job) ? REMOTE : []),
+    ];
+  }
 
   protected jobsOf(stage: TestStage): TestJobForm[] {
+    this.changes();
     return this.form().controls.testJobs.controls.filter(
       (job) => job.controls.stage.value === stage,
     );
   }
 
   protected add(stage: TestStage): void {
-    this.form().controls.testJobs.push(createTestJobForm({ stage }));
+    addItem(this.form().controls.testJobs, createTestJobForm({ stage }));
     this.form().markAsDirty();
   }
 
@@ -105,10 +199,5 @@ export class TestJobsFields {
 
   protected isLast(job: TestJobForm): boolean {
     return this.jobsOf(job.controls.stage.value).at(-1) === job;
-  }
-
-  protected parallelDefault(): string {
-    const value = this.defaults()?.serviceDefaults.testsMaxParallel;
-    return value === undefined ? 'global default' : `global default ${value}`;
   }
 }
