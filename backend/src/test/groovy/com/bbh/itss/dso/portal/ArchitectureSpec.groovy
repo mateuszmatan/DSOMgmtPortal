@@ -23,8 +23,6 @@ import spock.lang.Specification
 
 import java.util.function.Predicate
 
-import static com.tngtech.archunit.base.DescribedPredicate.not
-import static com.tngtech.archunit.core.domain.properties.CanBeAnnotated.Predicates.annotatedWith
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices
@@ -54,113 +52,37 @@ class ArchitectureSpec extends Specification {
         portal.size() > 100
     }
 
-    def "every class of the portal lives in the domain, the application, an adapter or the configuration"() {
+    def "#rule.description"() {
         expect:
-        holds classes().that().doNotHaveFullyQualifiedName(DsoPortalApplication.name)
-                .should().resideInAnyPackage(DOMAIN, APPLICATION, ADAPTER, CONFIG)
-    }
+        holds rule
 
-    def "the Spring Boot application is the only class at the root of the portal"() {
-        expect:
-        holds classes().that().resideInAPackage('com.bbh.itss.dso.portal')
-                .should().haveFullyQualifiedName(DsoPortalApplication.name)
-    }
-
-    def "every namespace of the portal starts with com.bbh.itss.dso"() {
-        expect:
-        holds classes().should().resideInAPackage('com.bbh.itss.dso..')
-    }
-
-    def "the domain depends on nothing but Java and itself"() {
-        expect:
-        holds classes().that().resideInAPackage(DOMAIN)
-                .should().onlyDependOnClassesThat().resideInAnyPackage('java..', DOMAIN)
-    }
-
-    def "the application layer depends on nothing but Java, the domain and itself"() {
-        expect:
-        holds classes().that().resideInAPackage(APPLICATION)
-                .should().onlyDependOnClassesThat().resideInAnyPackage('java..', DOMAIN, APPLICATION)
-    }
-
-    def "neither the domain nor the application layer knows a framework"() {
-        expect:
-        holds noClasses().that().resideInAnyPackage(DOMAIN, APPLICATION)
-                .should().dependOnClassesThat().resideInAnyPackage(FRAMEWORKS)
-    }
-
-    def "driving adapters never reach driven adapters"() {
-        expect:
-        holds noClasses().that().resideInAPackage(ADAPTER_IN)
-                .should().dependOnClassesThat().resideInAPackage(ADAPTER_OUT)
-    }
-
-    def "driven adapters never reach driving adapters"() {
-        expect:
-        holds noClasses().that().resideInAPackage(ADAPTER_OUT)
-                .should().dependOnClassesThat().resideInAPackage(ADAPTER_IN)
-    }
-
-    def "driving adapters call the application only through its in ports"() {
-        expect:
-        holds noClasses().that().resideInAPackage(ADAPTER_IN)
-                .should().dependOnClassesThat().resideInAPackage('com.bbh.itss.dso.portal.application..port.out..')
-    }
-
-    def "controllers and their advice live in the web adapter"() {
-        expect:
-        holds classes().that(describedAs('are controllers or controller advice') { JavaClass type ->
+        where:
+        rule << [
+                classes().that().doNotHaveFullyQualifiedName(DsoPortalApplication.name)
+                        .should().resideInAnyPackage(DOMAIN, APPLICATION, ADAPTER, CONFIG),
+                classes().that().resideInAPackage('com.bbh.itss.dso.portal').should().haveFullyQualifiedName(DsoPortalApplication.name),
+                classes().should().resideInAPackage('com.bbh.itss.dso..'),
+                classes().that().resideInAPackage(DOMAIN).should().onlyDependOnClassesThat().resideInAnyPackage('java..', DOMAIN),
+                classes().that().resideInAPackage(APPLICATION)
+                        .should().onlyDependOnClassesThat().resideInAnyPackage('java..', DOMAIN, APPLICATION),
+                noClasses().that().resideInAnyPackage(DOMAIN, APPLICATION).should().dependOnClassesThat().resideInAnyPackage(FRAMEWORKS),
+                noClasses().that().resideInAPackage(ADAPTER_IN).should().dependOnClassesThat().resideInAPackage(ADAPTER_OUT),
+                noClasses().that().resideInAPackage(ADAPTER_OUT).should().dependOnClassesThat().resideInAPackage(ADAPTER_IN),
+                noClasses().that().resideInAPackage(ADAPTER_IN)
+                        .should().dependOnClassesThat().resideInAPackage('com.bbh.itss.dso.portal.application..port.out..'),
+                classes().that(describedAs('are controllers or controller advice') { JavaClass type ->
                     [RestController, RestControllerAdvice, Controller].any { type.isAnnotatedWith(it) }
-                })
-                .should().resideInAPackage(WEB)
-    }
-
-    def "entities, embeddables, converters and Spring Data repositories live in the persistence adapter"() {
-        expect:
-        holds classes().that(describedAs('are persistence types') { JavaClass type ->
-                    [Entity, Embeddable, MappedSuperclass, Converter].any { type.isAnnotatedWith(it) } ||
-                            type.isAssignableTo(Repository)
-                })
-                .should().resideInAPackage(PERSISTENCE)
-    }
-
-    def "only the InfluxDB adapter makes HTTP calls"() {
-        expect:
-        holds noClasses().that().resideOutsideOfPackage(INFLUX)
-                .should().dependOnClassesThat().resideInAnyPackage('org.springframework.web.client..', 'java.net.http..')
-    }
-
-    def "the bounded contexts of the domain do not depend on each other in a cycle"() {
-        expect:
-        holds slices().matching('com.bbh.itss.dso.portal.domain.(*)..').should().beFreeOfCycles()
-    }
-
-    def "the application packages form no cycle, so contexts meet only through their ports"() {
-        expect:
-        holds slices().matching('com.bbh.itss.dso.portal.application.(**)').should().beFreeOfCycles()
-    }
-
-    def "the adapter packages form no cycle"() {
-        expect:
-        holds slices().matching('com.bbh.itss.dso.portal.adapter.(**)').should().beFreeOfCycles()
-    }
-
-    def "every use case lives in the application layer and implements one of its in ports"() {
-        expect:
-        holds classes().that().areAnnotatedWith(UseCase)
-                .should().resideInAPackage(APPLICATION)
-                .andShould(implementAnInPort())
-    }
-
-    def "nothing outside a use case depends on a use case class, only on its in ports"() {
-        expect:
-        holds noClasses().that(not(annotatedWith(UseCase)))
-                .should().dependOnClassesThat().areAnnotatedWith(UseCase)
-    }
-
-    def "use cases call other use cases only through their in ports"() {
-        expect:
-        holds classes().that().areAnnotatedWith(UseCase).should(notDependOnOtherUseCases())
+                }).should().resideInAPackage(WEB),
+                classes().that(describedAs('are persistence types') { JavaClass type ->
+                    [Entity, Embeddable, MappedSuperclass, Converter].any { type.isAnnotatedWith(it) } || type.isAssignableTo(Repository)
+                }).should().resideInAPackage(PERSISTENCE),
+                noClasses().that().resideOutsideOfPackage(INFLUX)
+                        .should().dependOnClassesThat().resideInAnyPackage('org.springframework.web.client..', 'java.net.http..'),
+                slices().matching('com.bbh.itss.dso.portal.domain.(*)..').should().beFreeOfCycles(),
+                slices().matching('com.bbh.itss.dso.portal.application.(**)').should().beFreeOfCycles(),
+                slices().matching('com.bbh.itss.dso.portal.adapter.(**)').should().beFreeOfCycles(),
+                classes().that().areAnnotatedWith(UseCase).should().resideInAPackage(APPLICATION).andShould(implementAnInPort()),
+                classes().should(notDependOnOtherUseCases())]
     }
 
     private boolean holds(ArchRule rule) {
@@ -184,11 +106,11 @@ class ArchitectureSpec extends Specification {
     }
 
     private static ArchCondition<JavaClass> notDependOnOtherUseCases() {
-        new ArchCondition<JavaClass>('not depend on other use case classes') {
+        new ArchCondition<JavaClass>('not depend on use case classes other than themselves') {
             @Override
-            void check(JavaClass useCase, ConditionEvents events) {
-                useCase.directDependenciesFromSelf
-                        .findAll { it.targetClass != useCase && it.targetClass.isAnnotatedWith(UseCase) }
+            void check(JavaClass type, ConditionEvents events) {
+                type.directDependenciesFromSelf
+                        .findAll { it.targetClass != type && it.targetClass.isAnnotatedWith(UseCase) }
                         .each { events.add(SimpleConditionEvent.violated(it, it.description)) }
             }
         }

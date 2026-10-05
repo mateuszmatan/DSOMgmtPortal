@@ -28,15 +28,7 @@ class RunEvidenceSpec extends Specification {
     def links = EvidenceLinks.of('https://jenkins.test/job/gui/42/', 'https://bbh.cloud.appscan.com', 'app-1',
             'https://tools.bbh.com/sonar', 'cert-gui', 'https://tools.bbh.com/IQ')
 
-    def "the evidence of a run is empty without points and the measurements read are the library's"() {
-        expect:
-        new RunEvidence([]).isEmpty()
-        !new RunEvidence([point('stage_event', stage: 'Build')]).isEmpty()
-        RunEvidence.MEASUREMENTS == ['security_findings', 'policy_status', 'code_coverage', 'test_execution',
-                                   'release_gate', 'vulnerabilities', 'stage_event']
-    }
-
-    def "the points are copied, so later changes to the list do not change the evidence"() {
+    def "the evidence copies its points, is empty without them and reads the library's measurements"() {
         given:
         List<EvidencePoint> points = []
         def evidence = new RunEvidence(points)
@@ -47,20 +39,12 @@ class RunEvidenceSpec extends Specification {
         then:
         evidence.isEmpty()
         evidence.releaseGate() == null
+        new RunEvidence([point('release_gate', allowed: 'yes')]).stages() == []
+        new RunEvidence([point('stage_event', stage: 'Build')]).releaseGate() == null
         RunEvidence.none().isEmpty()
-    }
-
-    def "the module's line coverage is read against the required minimum"() {
-        given:
-        def points = new RunEvidence([
-                point('code_coverage', module: 'gui', measured: 'yes', line_pct: '82.5', required: '60.0', covered: '825',
-                        total: '1000', met: '1'),
-                point('code_coverage', module: 'backend-api', measured: 'yes', line_pct: '40.0', required: '60.0',
-                        covered: '40', total: '100', met: '0')])
-
-        expect:
-        points.coverage('gui') == new CoverageEvidence(PASS, 82.5d, 60.0d, 825L, 1000L)
-        points.coverage('backend-api') == new CoverageEvidence(WARN, 40.0d, 60.0d, 40L, 100L)
+        !new RunEvidence([point('stage_event', stage: 'Build')]).isEmpty()
+        RunEvidence.MEASUREMENTS == ['security_findings', 'policy_status', 'code_coverage', 'test_execution',
+                                   'release_gate', 'vulnerabilities', 'stage_event']
     }
 
     def "coverage met #met, measured #measured and policy status #policy is #status"() {
@@ -90,42 +74,33 @@ class RunEvidenceSpec extends Specification {
         '1'   | 'yes'    | 'unknown'     || PASS
     }
 
-    def "coverage that was not measured keeps only the required minimum"() {
-        given:
-        def points = new RunEvidence([point('code_coverage', module: 'gui', measured: 'no', line_pct: '0.0', required: '60',
-                covered: '0', total: '0', met: '0')])
-
+    def "coverage read from #rows.size() rows is #evidence.status()"() {
         expect:
-        points.coverage('gui') == new CoverageEvidence(SKIP, null, 60.0d, null, null)
-    }
+        new RunEvidence(rows).coverage('gui') == evidence
 
-    def "a run without coverage has no data, unless the policy reported it"() {
-        expect:
-        new RunEvidence([]).coverage('gui') == new CoverageEvidence(NO_DATA, null, null, null, null)
-        new RunEvidence([point('policy_status', scanner: 'coverage', status: 'WARN'),
-                       point('policy_status', scanner: 'sast', status: 'FAIL')]).coverage('gui') ==
-                new CoverageEvidence(WARN, null, null, null, null)
-    }
-
-    def "a single coverage row is read even when the run named its module differently"() {
-        expect:
-        new RunEvidence([point('code_coverage', module: '', line_pct: '91', required: '60', met: '1', covered: '91',
-                total: '100')]).coverage('gui') == new CoverageEvidence(PASS, 91.0d, 60.0d, 91L, 100L)
-    }
-
-    def "several coverage rows of other modules give no coverage"() {
-        expect:
-        new RunEvidence([point('code_coverage', module: 'batch', line_pct: '91', met: '1'),
-                       point('code_coverage', module: 'backend-api', line_pct: '50', met: '0')]).coverage('gui') ==
-                new CoverageEvidence(NO_DATA, null, null, null, null)
-    }
-
-    def "a run without tests reports every suite without data in stage order"() {
-        expect:
-        new RunEvidence([]).testSuites('gui') == [
-                new TestSuiteEvidence(TestStage.SMOKE, NO_DATA, null, null, null, null, null),
-                new TestSuiteEvidence(TestStage.REGRESSION, NO_DATA, null, null, null, null, null),
-                new TestSuiteEvidence(TestStage.PERFORMANCE, NO_DATA, null, null, null, null, null)]
+        where:
+        rows << [[point('code_coverage', module: 'gui', measured: 'yes', line_pct: '82.5', required: '60.0', covered: '825',
+                        total: '1000', met: '1'),
+                  point('code_coverage', module: 'backend-api', measured: 'yes', line_pct: '40.0', required: '60.0',
+                        covered: '40', total: '100', met: '0')],
+                 [point('code_coverage', module: 'gui', measured: 'yes', line_pct: '40.0', required: '60.0',
+                        covered: '40', total: '100', met: '0')],
+                 [point('code_coverage', module: 'gui', measured: 'no', line_pct: '0.0', required: '60', covered: '0',
+                        total: '0', met: '0')],
+                 [],
+                 [point('policy_status', scanner: 'coverage', status: 'WARN'),
+                  point('policy_status', scanner: 'sast', status: 'FAIL')],
+                 [point('code_coverage', module: '', line_pct: '91', required: '60', met: '1', covered: '91',
+                        total: '100')],
+                 [point('code_coverage', module: 'batch', line_pct: '91', met: '1'),
+                  point('code_coverage', module: 'backend-api', line_pct: '50', met: '0')]]
+        evidence << [new CoverageEvidence(PASS, 82.5d, 60.0d, 825L, 1000L),
+                     new CoverageEvidence(WARN, 40.0d, 60.0d, 40L, 100L),
+                     new CoverageEvidence(SKIP, null, 60.0d, null, null),
+                     new CoverageEvidence(NO_DATA, null, null, null, null),
+                     new CoverageEvidence(WARN, null, null, null, null),
+                     new CoverageEvidence(PASS, 91.0d, 60.0d, 91L, 100L),
+                     new CoverageEvidence(NO_DATA, null, null, null, null)]
     }
 
     def "each suite is read from the module's test jobs and the stage that ran them"() {
@@ -171,31 +146,34 @@ class RunEvidenceSpec extends Specification {
         failedCount << [null, '', 'none']
     }
 
-    def "test jobs of other modules, or without a suite, are not read"() {
+    def "test jobs of other modules or without a suite are not read, but the only row of a suite is, in stage order"() {
         given:
         def points = new RunEvidence([
                 point('test_execution', module: 'backend-api', suite: 'Smoke tests', total: '3', failed: '0'),
                 point('test_execution', module: 'batch', suite: 'Smoke tests', total: '4', failed: '0'),
-                point('test_execution', module: 'gui', total: '9', failed: '0')])
+                point('test_execution', module: 'gui', total: '9', failed: '0'),
+                point('test_execution', module: 'cert-gui', suite: 'Regression tests', total: '7', passed: '7',
+                        failed: '0')])
+
+        def none = TestStage.values().collect { new TestSuiteEvidence(it, NO_DATA, null, null, null, null, null) }
 
         expect:
-        points.testSuites('gui')*.jobs() == [null, null, null]
+        new RunEvidence([]).testSuites('gui') == none
+        points.testSuites('gui') == [none[0], new TestSuiteEvidence(TestStage.REGRESSION, PASS, 7L, 7L, 0L, null, null), none[2]]
     }
 
-    def "the only test job row of a suite is read whatever its module"() {
-        expect:
-        new RunEvidence([point('test_execution', module: 'cert-gui', suite: 'Regression tests', total: '7', passed: '7',
-                failed: '0')]).testSuites('gui')[1] ==
-                new TestSuiteEvidence(TestStage.REGRESSION, PASS, 7L, 7L, 0L, null, null)
-    }
-
-    def "a run without scans reports each scanner without data, with its link"() {
+    def "a run without scans reports each scanner without data, with its link, unless the policy did not require it"() {
         expect:
         new RunEvidence([]).scans('gui', links) == [
                 new ScanEvidence(SAST, NO_DATA, null, null, null, null, null, null, null, APPSCAN),
                 new ScanEvidence(DAST, NO_DATA, null, null, null, null, null, null, null, APPSCAN),
                 new ScanEvidence(SONARQUBE, NO_DATA, null, null, null, null, null, null, null, SONAR),
                 new ScanEvidence(NEXUS_IQ, NO_DATA, null, null, null, null, null, null, null, NEXUS_IQ_URL)]
+        new RunEvidence([]).scans('gui', EvidenceLinks.of(null, null, null, null, null, null))*.link() ==
+                [null, null, null, null]
+        new RunEvidence([point('policy_status', scanner: 'dast', status: 'NOT_REQUIRED'),
+                         point('policy_status', scanner: 'iast', status: 'SKIP')]).scans('gui', links)*.status() ==
+                [NO_DATA, NOT_REQUIRED, NO_DATA, SKIP]
     }
 
     def "findings are read against the limits, Nexus IQ and SonarQube counts from the vulnerabilities"() {
@@ -221,19 +199,6 @@ class RunEvidenceSpec extends Specification {
                 new ScanEvidence(NEXUS_IQ, FAIL, 1L, 3L, 4L, 6L, 0L, 2L, 8L, NEXUS_IQ_URL)]
     }
 
-    def "a scanner the policy did not require has no findings"() {
-        given:
-        def points = new RunEvidence([point('policy_status', scanner: 'dast', status: 'NOT_REQUIRED'),
-                                    point('policy_status', scanner: 'iast', status: 'SKIP')])
-
-        when:
-        def scans = points.scans('gui', links)
-
-        then:
-        scans[1] == new ScanEvidence(DAST, NOT_REQUIRED, null, null, null, null, null, null, null, APPSCAN)
-        scans[3] == new ScanEvidence(NEXUS_IQ, SKIP, null, null, null, null, null, null, null, NEXUS_IQ_URL)
-    }
-
     def "findings of the module are chosen among several, and a single row of another name is taken"() {
         given:
         def several = new RunEvidence([
@@ -248,19 +213,6 @@ class RunEvidenceSpec extends Specification {
         several.scans('gui', links)[0].with { [status(), critical()] } == [PASS, 0L]
         several.scans('gui', links)[1].with { [status(), critical()] } == [NO_DATA, null]
         single.scans('gui', links)[0].with { [status(), critical()] } == [WARN, 1L]
-    }
-
-    def "without links the scans link nowhere"() {
-        given:
-        def none = EvidenceLinks.of(null, null, null, null, null, null)
-
-        expect:
-        new RunEvidence([]).scans('gui', none)*.link() == [null, null, null, null]
-    }
-
-    def "a run without a release gate decision has none"() {
-        expect:
-        new RunEvidence([point('stage_event', stage: 'Build')]).releaseGate() == null
     }
 
     def "the release gate tag allowed #allowed with violations #violations and reason #reason reads as #evidence"() {
@@ -293,11 +245,6 @@ class RunEvidenceSpec extends Specification {
                 new StageEvidence('Unit tests', PASS, 120L, null),
                 new StageEvidence('SAST', WARN, 300L, 'High findings above the limit'),
                 new StageEvidence('Cleanup', NO_DATA, null, null)]
-    }
-
-    def "a run without stage events has no stages"() {
-        expect:
-        new RunEvidence([point('release_gate', allowed: 'yes')]).stages() == []
     }
 
     def "the value #value reads as the number #number and the decimal #decimal"() {

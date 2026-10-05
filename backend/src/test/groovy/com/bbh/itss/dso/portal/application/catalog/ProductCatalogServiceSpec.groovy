@@ -82,13 +82,8 @@ class ProductCatalogServiceSpec extends Specification {
         given:
         products.load(5L) >> Optional.of(product(id: 5, services: [[name: 'gui', id: 10]]))
 
-        when:
-        def product = catalog.get(5L)
-
-        then:
-        product.id() == 5
-        product.services()*.name() == ['gui']
-        product.services()[0].settings().metrics().influxProject() == 'CERT-gui'
+        expect:
+        catalog.get(5L).services()[0].settings().metrics().influxProject() == 'CERT-gui'
     }
 
     def "an unknown product is not found, changed or deleted"() {
@@ -144,20 +139,6 @@ class ProductCatalogServiceSpec extends Specification {
         []                                            || []
     }
 
-    def "the repository answers who already uses a product code"() {
-        given:
-        products.findProductByCode('CERT') >> Optional.of(new ProductDirectory.ProductIdentity(1L, 'Certificates'))
-
-        when:
-        catalog.create(command())
-
-        then:
-        def e = thrown(ConflictException)
-        e.message == 'Product code CERT is already used by Certificates'
-        0 * products.save(_)
-        0 * publisher.productChanged(_)
-    }
-
     def "every invalid service is reported at once and nothing is stored"() {
         given:
         products.findServicesBySonarProjectKey('cert') >> [new ProductDirectory.ServiceIdentity(50L, 'Payments Hub', 'gateway')]
@@ -199,21 +180,36 @@ class ProductCatalogServiceSpec extends Specification {
         updated.services()[0].description() == 'REST API'
     }
 
-    def "an update based on an older version is refused"() {
+    def "#refusal is refused before anything is stored"() {
         given:
-        products.load(5L) >> Optional.of(product(id: 5, version: 1))
+        products.findProductByCode('CERT') >> Optional.of(new ProductDirectory.ProductIdentity(1L, 'Certificates'))
+        products.load(1L) >> Optional.of(product(id: 1, version: 1))
 
         when:
-        catalog.update(5L, command(version: 3L))
+        action(catalog)
 
         then:
         def e = thrown(ConflictException)
-        e.message == ConflictException.STALE_VERSION
+        e.message == message
         0 * products.save(_)
         0 * publisher.productChanged(_)
+
+        where:
+        refusal                       | action                                    || message
+        'a product code in use'       | { it.create(command()) }                  || 'Product code CERT is already used by Certificates'
+        'an update of an old version' | { it.update(1L, command(version: 3L)) }   || ConflictException.STALE_VERSION
     }
 
-    def "a product is read for a change only once every pipeline configuration is locked"() {
+    def "a new product, a change and a deletion take the configuration lock before they read or write anything"() {
+        when:
+        catalog.create(command())
+
+        then:
+        1 * publisher.lockConfigurations()
+
+        then:
+        1 * products.save(_) >> { Product p -> stored(9L, p) }
+
         when:
         catalog.update(5L, command(version: 0L))
 
@@ -228,17 +224,6 @@ class ProductCatalogServiceSpec extends Specification {
 
         then:
         1 * publisher.productChanged(5L)
-    }
-
-    def "a new product and a deletion take the configuration lock before they read or write anything"() {
-        when:
-        catalog.create(command())
-
-        then:
-        1 * publisher.lockConfigurations()
-
-        then:
-        1 * products.save(_) >> { Product p -> stored(9L, p) }
 
         when:
         catalog.delete(5L)

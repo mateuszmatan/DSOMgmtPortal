@@ -44,36 +44,24 @@ class PipelineServiceSpec extends Specification {
 
     def certScanner = product(id: 1, services: [[name: 'gui', id: 10], [name: 'backend-api', id: 11]])
 
-    def "each service of a product is listed with its pipelines"() {
+    def "each service of a product is listed with its pipelines, and one pipeline comes with its product and service"() {
         given:
         products.load(1L) >> Optional.of(certScanner)
         pipelines.findByProductId(1L) >> [pipeline(id: 100), pipeline(id: 101, type: PipelineType.SAST)]
+        pipelines.load(100L) >> Optional.of(pipeline(id: 100, keys: [activeKey(), revokedKey()]))
 
         when:
         def list = service.listForProduct(1L)
+        def view = service.get(100L)
 
         then:
         list*.service()*.name() == ['gui', 'backend-api']
         list[0].pipelines()*.pipeline()*.id() == [100, 101]
         list[0].pipelines()*.jenkinsUrl() == ['https://jenkins.test', 'https://jenkins.test']
         list[1].pipelines() == []
-    }
-
-    def "a single pipeline comes with its product, service and the Jenkins address"() {
-        given:
-        pipelines.load(100L) >> Optional.of(pipeline(id: 100, keys: [activeKey(), revokedKey()]))
-        products.load(1L) >> Optional.of(certScanner)
-
-        when:
-        def view = service.get(100L)
-
-        then:
-        view.product().code() == 'CERT'
-        view.service().name() == 'gui'
-        view.pipeline().keys().size() == 2
-        view.jenkinsUrl() == 'https://jenkins.test'
-        view.influxProjectTag() == 'CERT-gui'
-        view.influxEnv() == 'test'
+        [view.product().code(), view.service().name(), view.pipeline().keys().size(), view.jenkinsUrl()] ==
+                ['CERT', 'gui', 2, 'https://jenkins.test']
+        [view.influxProjectTag(), view.influxEnv()] == ['CERT-gui', 'test']
     }
 
     def "#action finds no #missing"() {
@@ -148,7 +136,7 @@ class PipelineServiceSpec extends Specification {
         views.every { it.pipeline().isEnabled() }
     }
 
-    def "a service that already has a full pipeline keeps the one it has"() {
+    def "a service that already has a full pipeline keeps it, and a save that created no service takes no lock"() {
         given:
         products.load(1L) >> Optional.of(certScanner)
         pipelines.existsForService(10L, PipelineType.FULL) >> true
@@ -160,32 +148,36 @@ class PipelineServiceSpec extends Specification {
         1 * pipelines.save({ Pipeline p -> p.service().serviceId() == 11L }) >> { Pipeline p -> stored(101L, p) }
         0 * pipelines.save({ Pipeline p -> p.service().serviceId() == 10L })
         views*.pipeline()*.id() == [101L]
-    }
 
-    def "a save that created no service starts no pipeline and takes no lock"() {
         when:
-        def views = service.createForNewServices(1L, [])
+        def none = service.createForNewServices(1L, [])
 
         then:
-        views == []
+        none == []
         0 * publisher.lockConfigurations()
         0 * products.load(_)
         0 * pipelines.save(_)
     }
 
-    def "a service has at most one pipeline of each type"() {
+    def "#refusal is refused before anything is saved or published"() {
         given:
         products.findByServiceId(10L) >> Optional.of(certScanner)
         pipelines.existsForService(10L, PipelineType.FULL) >> true
+        pipelines.load(100L) >> Optional.of(pipeline(id: 100))
 
         when:
-        service.create(10L, PipelineType.FULL, pipelineSettings())
+        action(service)
 
         then:
         def e = thrown(ConflictException)
-        e.message == 'Service gui already has a full pipeline'
+        e.message == message
         0 * pipelines.save(_)
         0 * publisher.pipelineChanged(_)
+
+        where:
+        refusal                       | action                                                     || message
+        'a second pipeline of a type' | { it.create(10L, PipelineType.FULL, pipelineSettings()) }  || 'Service gui already has a full pipeline'
+        'a change of the type'        | { it.update(100L, PipelineType.SAST, pipelineSettings()) } || 'The type of a pipeline cannot change; add a new pipeline instead'
     }
 
     def "a pipeline's settings can change and the pipeline is published"() {
@@ -206,19 +198,6 @@ class PipelineServiceSpec extends Specification {
         view.pipeline().settings().description() == 'Nightly'
         view.pipeline().settings().extendedPipelineJob() == null
         view.pipeline().settings().securityPipelineJob() == null
-    }
-
-    def "a pipeline's type cannot change"() {
-        given:
-        pipelines.load(100L) >> Optional.of(pipeline(id: 100))
-
-        when:
-        service.update(100L, PipelineType.SAST, pipelineSettings())
-
-        then:
-        thrown(ConflictException)
-        0 * pipelines.save(_)
-        0 * publisher.pipelineChanged(_)
     }
 
     def "a pipeline is created, changed and deleted only under the configuration lock, taken before anything is read"() {

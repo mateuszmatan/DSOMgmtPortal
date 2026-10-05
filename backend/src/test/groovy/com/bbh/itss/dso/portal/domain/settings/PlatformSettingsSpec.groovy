@@ -5,6 +5,8 @@ import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException.FieldProble
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.support.Fixtures.copy
+
 class PlatformSettingsSpec extends Specification {
 
     static final String LINUX_CLIENT = 'https://tools.bbh.com/nexus/repository/releases/com/bbh/appscan/SAClientUtil/' +
@@ -38,15 +40,6 @@ class PlatformSettingsSpec extends Specification {
                                PROXY_USER        : 'PROXY_ASOCJenk']
     }
 
-    def "the Jenkins URL comes first once it is set"() {
-        when:
-        def config = bbh.withJenkinsUrl('https://jenkins.bbh.com').toConfig()
-
-        then:
-        (config.keySet() as List).first() == 'jenkinsUrl'
-        config.jenkinsUrl == 'https://jenkins.bbh.com'
-    }
-
     def "the AppScan host is #host for the AppScan URL #url"() {
         expect:
         copy(bbh, asocUrl: url).toConfig().environment.APPSCAN_HOST == host
@@ -59,7 +52,7 @@ class PlatformSettingsSpec extends Specification {
         'https:///no-host'                     || null
     }
 
-    def "a platform without AppScan or proxy has no environment"() {
+    def "a platform without AppScan or proxy has no environment, and without a port only host and user are passed"() {
         given:
         def bare = copy(bbh, asocUrl: null, appScanClientLinuxUrl: null, appScanClientWindowsUrl: null, proxyHost: null,
                 proxyPort: null, proxyUser: null, oisHost: null, nexusSnapshotRepositoryUrl: null,
@@ -67,10 +60,6 @@ class PlatformSettingsSpec extends Specification {
 
         expect:
         bare.toConfig() == [jenkinsLibrary: 'DevSecOpsJenkinsLibrary']
-    }
-
-    def "without a proxy port only the proxy host and user are passed on"() {
-        expect:
         copy(bbh, proxyPort: null).toConfig().environment.subMap(['PROXY_HOST', 'PROXY_PORT', 'PROXY_USER']) ==
                 [PROXY_HOST: 'tstproxy.bbh.com', PROXY_USER: 'PROXY_ASOCJenk']
     }
@@ -87,41 +76,32 @@ class PlatformSettingsSpec extends Specification {
                 'https://tools.bbh.com/IQ', 'nexusiqP', null, null, null, null, 'mac002.bbh.com')
     }
 
-    def "changing the Jenkins URL keeps every other value"() {
+    def "changing the Jenkins URL keeps every other value and puts the URL first"() {
         when:
         def changed = bbh.withJenkinsUrl('  https://jenkins.bbh.com/  ')
 
         then:
-        changed.jenkinsUrl() == 'https://jenkins.bbh.com/'
         changed == copy(bbh, jenkinsUrl: 'https://jenkins.bbh.com/')
+        (changed.toConfig().keySet() as List).first() == 'jenkinsUrl'
         bbh.jenkinsUrl() == null
         changed.withJenkinsUrl(' ').jenkinsUrl() == null
     }
 
-    def "every project entry names the tool servers and credentials"() {
+    def "every project entry names the tool servers and credentials that are set"() {
         given:
         def tree = new ConfigTree()
+        def bare = new ConfigTree()
 
         when:
         bbh.writeProjectDefaults(tree)
+        copy(bbh, influxWriteUrl: null, influxCredentialsId: null).writeProjectDefaults(bare)
 
         then:
         tree.toMap() == [asoc  : [url: 'https://bbh.cloud.appscan.com'],
                          influx: [url: INFLUX_WRITE, credentialsId: 'influxdb-token'],
                          tools : [sonar  : [serverUrl: 'https://tools.bbh.com/sonar', installationName: 'SonarQube'],
                                   nexusIq: [serverUrl: 'https://tools.bbh.com/IQ', credentialsId: 'nexusiqP']]]
-    }
-
-    def "project defaults skip what is not set"() {
-        given:
-        def tree = new ConfigTree()
-
-        when:
-        copy(bbh, influxWriteUrl: null, influxCredentialsId: null).writeProjectDefaults(tree)
-
-        then:
-        !tree.toMap().containsKey('influx')
-        tree.get('asoc.url') == 'https://bbh.cloud.appscan.com'
+        bare.toMap() == tree.toMap().findAll { it.key != 'influx' }
     }
 
     def "a proxy host #proxyHost with port #proxyPort reports #problems"() {
@@ -140,12 +120,5 @@ class PlatformSettingsSpec extends Specification {
         null               | null      || []
         'tstproxy.bbh.com' | null      || [new FieldProblem('platform.proxyPort', 'is required with a proxy host')]
         null               | 8080      || [new FieldProblem('platform.proxyHost', 'is required with a proxy port')]
-    }
-
-    static <T extends Record> T copy(Map changes, T record) {
-        def components = record.class.recordComponents
-        def args = components.collect { changes.containsKey(it.name) ? changes[it.name] : it.accessor.invoke(record) }
-        record.class.declaredConstructors.find { it.parameterCount == components.length }
-                .newInstance(args as Object[]) as T
     }
 }

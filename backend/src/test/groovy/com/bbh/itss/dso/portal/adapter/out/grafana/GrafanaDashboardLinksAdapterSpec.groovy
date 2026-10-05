@@ -11,25 +11,15 @@ class GrafanaDashboardLinksAdapterSpec extends Specification {
 
     def tag = new MetricsTag('CERT gui', 'test')
 
-    def "without the pipeline dashboard there are no links"() {
-        given:
-        def adapter = new GrafanaDashboardLinksAdapter(new GrafanaProperties(url, SECURITY))
-
-        expect:
-        adapter.url().isEmpty()
-        adapter.dashboardUrl(tag, PipelineType.SECURITY, 30).isEmpty()
-
-        where:
-        url << [null, '  ']
-    }
-
-    def "the #type pipeline links #dashboard with its project and range"() {
+    def "the #type pipeline links #dashboard with its project and range, and nothing without the pipeline dashboard"() {
         given:
         def adapter = new GrafanaDashboardLinksAdapter(new GrafanaProperties(" $PIPELINE ", security))
 
         expect:
         adapter.url() == Optional.of(PIPELINE)
         adapter.dashboardUrl(tag, type, 90).orElseThrow() == link.toString()
+        [null, '  '].every { new GrafanaDashboardLinksAdapter(new GrafanaProperties(it, SECURITY)).dashboardUrl(tag, type, 30).isEmpty() }
+        new GrafanaDashboardLinksAdapter(new GrafanaProperties(null, SECURITY)).url().isEmpty()
 
         where:
         type                  | security || dashboard            | link

@@ -1,8 +1,9 @@
 package com.bbh.itss.dso.portal.domain.catalog
 
-import com.bbh.itss.dso.portal.domain.shared.ConfigTree
-import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
+
+import static com.bbh.itss.dso.portal.domain.shared.Sections.reported
+import static com.bbh.itss.dso.portal.domain.shared.Sections.written
 
 class GoldenFixPolicySpec extends Specification {
 
@@ -13,56 +14,11 @@ class GoldenFixPolicySpec extends Specification {
     def "an inherited policy leaves every value, also whether GoldenFix runs, to the global settings"() {
         expect:
         GoldenFixPolicy.INHERITED == GoldenFixPolicy.inherit(null)
-        with(GoldenFixPolicy.INHERITED) {
-            enabled() == null
-            onlyDirectDependencies() == null
-            minThreatLevel() == null
-            ecosystems() == []
-            goldenVersionTypes() == []
-            excludeDirs() == []
-            verifyEnabled() == null
-            verifyMaxAttempts() == null
-            verifyTimeoutMinutes() == null
-            verifyMavenCommand() == null
-            verifyGradleCommand() == null
-            verifyNpmCommand() == null
-            verifyPipCommand() == null
-            verifyPubCommand() == null
-            commitAuthorName() == null
-            commitAuthorEmail() == null
-            timeZone() == null
-        }
-        !GoldenFixPolicy.inherit(false).enabled()
+        GoldenFixPolicy.INHERITED == new GoldenFixPolicy(*([null] * 3), [], [], [], *([null] * 11))
+        new GoldenFixPolicy(null, null, null, [' maven ', 'maven', ' '], null, [' docs ', ''], null, null, null,
+                *([' '] * 8)) == new GoldenFixPolicy(*([null] * 3), ['maven'], [], ['docs'], *([null] * 11))
+        new GoldenFixPolicy(false, *([null] * 16)) == GoldenFixPolicy.inherit(false)
         GoldenFixPolicy.inherit(true).enabled()
-    }
-
-    def "a service that does not say whether GoldenFix runs follows the global default, and blank values are unset"() {
-        when:
-        def policy = new GoldenFixPolicy(null, null, null, [' maven ', 'maven', ' '], null, [' docs ', ''], null, null, null,
-                ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ')
-
-        then:
-        policy.enabled() == null
-        policy.ecosystems() == ['maven']
-        policy.goldenVersionTypes() == []
-        policy.excludeDirs() == ['docs']
-        policy.verifyMavenCommand() == null
-        policy.verifyGradleCommand() == null
-        policy.verifyNpmCommand() == null
-        policy.verifyPipCommand() == null
-        policy.verifyPubCommand() == null
-        policy.commitAuthorName() == null
-        policy.commitAuthorEmail() == null
-        policy.timeZone() == null
-        new GoldenFixPolicy(false, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null) == GoldenFixPolicy.inherit(false)
-    }
-
-    def "a policy that inherits everything writes nothing, one that switches GoldenFix writes only that"() {
-        expect:
-        written(GoldenFixPolicy.INHERITED) == [:]
-        written(GoldenFixPolicy.inherit(false)) == [goldenFix: [enabled: false]]
-        written(GoldenFixPolicy.inherit(true)) == [goldenFix: [enabled: true]]
     }
 
     def "the global policy runs GoldenFix unless it is switched off"() {
@@ -72,7 +28,7 @@ class GoldenFixPolicySpec extends Specification {
         COMPLETE.enabledByDefault().is(COMPLETE)
     }
 
-    def "every value that is set is written under goldenFix"() {
+    def "every value that is set is written under goldenFix, and only those"() {
         when:
         def goldenFix = written(COMPLETE).goldenFix
 
@@ -87,56 +43,27 @@ class GoldenFixPolicySpec extends Specification {
         goldenFix.keySet() as List == ['enabled', 'onlyDirectDependencies', 'minThreatLevel', 'ecosystems',
                                        'goldenVersionTypes', 'excludeDirs', 'verify', 'commitAuthorName', 'commitAuthorEmail',
                                        'timeZone']
+        written(GoldenFixPolicy.INHERITED) == [:]
+        written(GoldenFixPolicy.inherit(false)) == [goldenFix: [enabled: false]]
+        written(new GoldenFixPolicy(true, null, null, [], [], [], null, null, null, null, ' ./gradlew check ', null,
+                null, null, null, null, null)) == [goldenFix: [enabled: true, verify: [commands: [gradle: './gradlew check']]]]
     }
 
-    def "a service that changes one verify command keeps the library's default for the others"() {
-        given:
-        def policy = new GoldenFixPolicy(true, null, null, [], [], [], null, null, null, null, ' ./gradlew check ', null,
-                null, null, null, null, null)
-
-        expect:
-        written(policy) == [goldenFix: [enabled: true, verify: [commands: [gradle: './gradlew check']]]]
-    }
-
-    def "a complete policy satisfies the global settings"() {
-        expect:
-        problems(COMPLETE) == []
-    }
-
-    def "the global settings must set every value the library needs"() {
-        given:
-        def problems = new ValidationProblems()
-
+    def "the global settings must set every value the library needs, but not the commands, folders and time zone"() {
         when:
-        GoldenFixPolicy.INHERITED.validateComplete(problems.at('goldenFix'))
+        def problems = complete(GoldenFixPolicy.INHERITED)
 
         then:
-        problems.list()*.field == ['goldenFix.onlyDirectDependencies', 'goldenFix.minThreatLevel', 'goldenFix.verifyEnabled',
-                                   'goldenFix.verifyMaxAttempts', 'goldenFix.verifyTimeoutMinutes',
-                                   'goldenFix.commitAuthorName', 'goldenFix.commitAuthorEmail', 'goldenFix.ecosystems',
-                                   'goldenFix.goldenVersionTypes']
-        problems.list()*.message == ['is required in the global settings'] * 7 +
+        problems*.field == ['onlyDirectDependencies', 'minThreatLevel', 'verifyEnabled', 'verifyMaxAttempts',
+                            'verifyTimeoutMinutes', 'commitAuthorName', 'commitAuthorEmail', 'ecosystems', 'goldenVersionTypes']
+        problems*.message == ['is required in the global settings'] * 7 +
                 ['select at least one ecosystem', 'add at least one remediation type']
+        complete(COMPLETE) == []
+        complete(new GoldenFixPolicy(true, true, 1, ['pub'], ['recommended-non-breaking'], [], false, 1, 1, null, null,
+                null, null, null, 'GoldenFix', 'goldenfix@bbh.com', null)) == []
     }
 
-    def "verify commands, excluded folders and the time zone may stay unset in the global settings"() {
-        given:
-        def policy = new GoldenFixPolicy(true, true, 1, ['pub'], ['recommended-non-breaking'], [], false, 1, 1, null, null,
-                null, null, null, 'GoldenFix', 'goldenfix@bbh.com', null)
-
-        expect:
-        problems(policy) == []
-    }
-
-    private static Map written(GoldenFixPolicy policy) {
-        def tree = new ConfigTree()
-        policy.writeTo(tree)
-        tree.toMap()
-    }
-
-    private static List<String> problems(GoldenFixPolicy policy) {
-        def problems = new ValidationProblems()
-        policy.validateComplete(problems)
-        problems.list()*.field
+    private static List complete(GoldenFixPolicy policy) {
+        reported { policy.validateComplete(it) }
     }
 }

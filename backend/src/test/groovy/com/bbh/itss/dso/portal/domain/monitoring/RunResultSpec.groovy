@@ -24,7 +24,7 @@ class RunResultSpec extends Specification {
         'RUNNING'   || RunResult.NO_DATA
     }
 
-    def "a pipeline's status is its latest run unless it is disabled"() {
+    def "a pipeline's status is its latest run unless it is disabled, and a run is known by the time it finished"() {
         given:
         def enabled = pipeline()
         def disabled = pipeline(keys: [revokedKey(reason: 'retired')])
@@ -35,6 +35,12 @@ class RunResultSpec extends Specification {
         RunResult.of(enabled, failed) == RunResult.FAILURE
         RunResult.of(enabled, null) == RunResult.NO_DATA
         RunResult.of(disabled, failed) == RunResult.DISABLED
+
+        when:
+        new PipelineRun(null, RunResult.SUCCESS, *([null] * 11))
+
+        then:
+        thrown(NullPointerException)
     }
 
     def "the worst of #statuses is #worst"() {
@@ -50,13 +56,5 @@ class RunResultSpec extends Specification {
         [RunResult.DISABLED, RunResult.NO_DATA]                    || RunResult.NO_DATA
         [RunResult.DISABLED]                                       || RunResult.DISABLED
         [RunResult.NOT_BUILT, RunResult.SUCCESS]                   || RunResult.NOT_BUILT
-    }
-
-    def "a run is known by the time it finished"() {
-        when:
-        new PipelineRun(null, RunResult.SUCCESS, null, null, null, null, null, null, null, null, null, null, null)
-
-        then:
-        thrown(NullPointerException)
     }
 }

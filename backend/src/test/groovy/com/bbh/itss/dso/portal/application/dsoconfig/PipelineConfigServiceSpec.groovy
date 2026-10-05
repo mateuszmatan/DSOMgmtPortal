@@ -77,27 +77,17 @@ class PipelineConfigServiceSpec extends Specification {
                     new NotFoundException('Unknown DevSecOps pipeline key')]
     }
 
-    def "the portal previews a pipeline's configuration by its id"() {
+    def "the portal previews a pipeline's, a product's and the settings' configuration"() {
         when:
-        def config = service.pipelineConfig(100L)
+        def pipeline = service.pipelineConfig(100L)
+        def product = service.productConfig(1L)
 
         then:
         1 * pipelines.get(100L) >> view(PipelineType.SECURITY)
-        0 * pipelines.authorizeKey(_)
-        config.pipeline.type == 'security'
-    }
-
-    def "a product's configuration lists all of its services"() {
-        when:
-        def config = service.productConfig(1L)
-
-        then:
         1 * products.get(1L) >> certScanner
-        config.projects.keySet() as List == ['gui', 'backend-api']
-    }
-
-    def "the settings configuration holds the platform and the defaults"() {
-        expect:
+        0 * pipelines.authorizeKey(_)
+        pipeline.pipeline.type == 'security'
+        product.projects.keySet() as List == ['gui', 'backend-api']
         service.settingsConfig().keySet() as List == ['platform', 'defaults']
     }
 

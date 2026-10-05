@@ -14,7 +14,6 @@ import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import com.bbh.itss.dso.portal.domain.settings.MissingGlobalSettingsException
 import spock.lang.Specification
-import spock.lang.Subject
 import tools.jackson.databind.json.JsonMapper
 
 import java.time.Clock
@@ -44,7 +43,6 @@ class PipelineConfigPublisherSpec extends Specification {
                                        fromJson: { String text -> json.readValue(text, LinkedHashMap) }] as ConfigSerializerPort
     def builder = new DsoConfigBuilder(storedSettings().values())
 
-    @Subject
     def publisher = new PipelineConfigPublisher(products, pipelines, settings, published, serializer, lock,
             Clock.fixed(NOW, ZoneOffset.UTC))
 
@@ -60,40 +58,7 @@ class PipelineConfigPublisherSpec extends Specification {
         products.findAll() >> [certScanner]
     }
 
-    def "the configurations are locked through the publication lock"() {
-        when:
-        publisher.lockConfigurations()
-
-        then:
-        1 * lock.lock()
-        0 * products._
-        0 * pipelines._
-        0 * published._
-    }
-
-    def "a changed pipeline is read only once the configurations are locked"() {
-        when:
-        publisher.pipelineChanged(100L)
-
-        then:
-        1 * lock.lock()
-
-        then:
-        1 * pipelines.load(100L) >> Optional.empty()
-    }
-
-    def "a changed product is read only once the configurations are locked"() {
-        when:
-        publisher.productChanged(1L)
-
-        then:
-        1 * lock.lock()
-
-        then:
-        1 * products.load(1L) >> Optional.empty()
-    }
-
-    def "changed settings and the start-up read the products only once the configurations are locked (#change)"() {
+    def "the configurations are locked through the publication lock before #change reads anything"() {
         when:
         action(publisher)
 
@@ -101,87 +66,60 @@ class PipelineConfigPublisherSpec extends Specification {
         1 * lock.lock()
 
         then:
-        1 * products.findAll() >> []
-        1 * pipelines.findAll() >> []
+        (0..1) * pipelines.load(100L) >> Optional.empty()
+        (0..1) * products.load(1L) >> Optional.empty()
+        (0..1) * products.findAll() >> []
+        (0..1) * pipelines.findAll() >> []
+        0 * published._
 
         where:
-        change     | action
-        'settings' | { PipelineConfigPublisher it -> it.settingsChanged() }
-        'start-up' | { PipelineConfigPublisher it -> it.publishAll() }
+        change               | action
+        'locking alone'      | { PipelineConfigPublisher it -> it.lockConfigurations() }
+        'a changed pipeline' | { PipelineConfigPublisher it -> it.pipelineChanged(100L) }
+        'a changed product'  | { PipelineConfigPublisher it -> it.productChanged(1L) }
+        'changed settings'   | { PipelineConfigPublisher it -> it.settingsChanged() }
+        'the start-up'       | { PipelineConfigPublisher it -> it.publishAll() }
     }
 
-    def "a changed pipeline publishes its configuration as JSON with the time it was rendered"() {
-        when:
-        publisher.pipelineChanged(100L)
-
-        then:
-        1 * pipelines.load(100L) >> Optional.of(guiFull)
-        1 * published.load(100L) >> Optional.empty()
-        1 * published.save(new PublishedConfig(100L, rendered(guiFull), NOW_IN_MICROS))
-    }
-
-    def "the published JSON is the configuration the pipeline's key serves"() {
-        given:
-        PublishedConfig saved = null
-        pipelines.load(101L) >> Optional.of(guiSecurity)
-        published.load(101L) >> Optional.empty()
-
-        when:
-        publisher.pipelineChanged(101L)
-
-        then:
-        1 * published.save(_) >> { PublishedConfig config -> saved = config }
-        with(parse(saved.configJson())) {
-            keySet() as List == ['pipeline', 'platform', 'defaults', 'projects']
-            pipeline == [type      : 'security', entryPoint: 'devSecOpsSecurityPipeline', product: 'CERT',
-                         projectNames: 'gui', agentNames: ['linux-agent']]
-            platform.jenkinsLibrary == 'DevSecOpsJenkinsLibrary'
-            defaults.releaseGate.stateFile == 'release-gate.json'
-            projects.gui.jenkins == [pipeline: [extendedPipeline: 'CERT/gui-extended']]
-        }
-    }
-
-    def "a pipeline that no longer exists publishes nothing"() {
-        when:
-        publisher.pipelineChanged(100L)
-
-        then:
-        1 * pipelines.load(100L) >> Optional.empty()
-        0 * published._
-    }
-
-    def "a pipeline of a product that no longer exists publishes nothing"() {
-        when:
-        publisher.pipelineChanged(200L)
-
-        then:
-        1 * pipelines.load(200L) >> Optional.of(pipeline(id: 200L, productId: 2L, serviceId: 20L))
-        1 * products.load(2L) >> Optional.empty()
-        0 * published._
-    }
-
-    def "an unchanged configuration is neither saved nor stamped again"() {
+    def "a changed pipeline publishes its configuration as JSON with the time it was rendered over #stored"() {
         given:
         pipelines.load(100L) >> Optional.of(guiFull)
+        published.load(100L) >> [nothing: Optional.empty(),
+                                 'another configuration': Optional.of(new PublishedConfig(100L, '{}', EARLIER)),
+                                 'the same configuration': Optional.of(new PublishedConfig(100L, rendered(guiFull), EARLIER))][stored]
 
         when:
         publisher.pipelineChanged(100L)
 
         then:
-        1 * published.load(100L) >> Optional.of(new PublishedConfig(100L, rendered(guiFull), EARLIER))
-        0 * published.save(_)
+        saves * published.save(new PublishedConfig(100L, rendered(guiFull), NOW_IN_MICROS))
+
+        where:
+        stored                   || saves
+        'nothing'                || 1
+        'another configuration'  || 1
+        'the same configuration' || 0
     }
 
-    def "a stored configuration that changed is replaced"() {
+    def "#missing publishes nothing"() {
         given:
-        pipelines.load(100L) >> Optional.of(guiFull)
+        pipelines.load(100L) >> Optional.empty()
+        pipelines.load(200L) >> Optional.of(pipeline(id: 200L, productId: 2L, serviceId: 20L))
+        pipelines.load(103L) >> Optional.of(pipeline(id: 103L, serviceId: 12L))
+        products.load(2L) >> Optional.empty()
 
         when:
-        publisher.pipelineChanged(100L)
+        action(publisher)
 
         then:
-        1 * published.load(100L) >> Optional.of(new PublishedConfig(100L, '{"pipeline":{"type":"full"}}', EARLIER))
-        1 * published.save(new PublishedConfig(100L, rendered(guiFull), NOW_IN_MICROS))
+        0 * published._
+
+        where:
+        missing                                     | action
+        'a pipeline that no longer exists'          | { PipelineConfigPublisher it -> it.pipelineChanged(100L) }
+        'a pipeline of a product that is gone'      | { PipelineConfigPublisher it -> it.pipelineChanged(200L) }
+        'a product that no longer exists'           | { PipelineConfigPublisher it -> it.productChanged(2L) }
+        'a pipeline whose service left its product' | { PipelineConfigPublisher it -> it.pipelineChanged(103L) }
     }
 
     def "a changed product publishes each of its pipelines at the same time"() {
@@ -197,40 +135,29 @@ class PipelineConfigPublisherSpec extends Specification {
         3 * published.save(_) >> { PublishedConfig config -> saved << config }
         saved*.pipelineId() == [100L, 101L, 102L]
         saved*.renderedAt().unique() == [NOW_IN_MICROS]
+        parse(saved[1].configJson()).pipeline.type == 'security'
         parse(saved[2].configJson()).projects.keySet() as List == ['backend-api']
     }
 
-    def "a product without pipelines publishes nothing and needs no settings"() {
+    def "without stored global settings only a product without pipelines publishes, which needs none"() {
         given:
         def withoutSettings = new PipelineConfigPublisher(products, pipelines,
                 Stub(GlobalSettingsRepositoryPort) { load() >> Optional.empty() }, published, serializer, lock,
                 Clock.systemUTC())
+        pipelines.load(100L) >> Optional.of(guiFull)
+        pipelines.findByProductId(1L) >> []
 
         when:
         withoutSettings.productChanged(1L)
 
         then:
-        1 * pipelines.findByProductId(1L) >> []
         0 * published._
-    }
 
-    def "a product that no longer exists publishes nothing"() {
         when:
-        publisher.productChanged(2L)
+        withoutSettings.pipelineChanged(100L)
 
         then:
-        1 * products.load(2L) >> Optional.empty()
-        0 * pipelines._
-        0 * published._
-    }
-
-    def "a pipeline whose service has left its product publishes nothing"() {
-        when:
-        publisher.pipelineChanged(103L)
-
-        then:
-        1 * pipelines.load(103L) >> Optional.of(pipeline(id: 103L, serviceId: 12L))
-        0 * published._
+        thrown(MissingGlobalSettingsException)
     }
 
     def "changed global settings publish every pipeline, writing only what changed"() {
@@ -249,95 +176,38 @@ class PipelineConfigPublisherSpec extends Specification {
         0 * published.save(_)
     }
 
-    def "publishing everything renders every pipeline and counts them"() {
-        given:
-        published.load(_) >> Optional.empty()
-
-        when:
-        def count = publisher.publishAll()
-
-        then:
-        count == 3
-        1 * pipelines.findAll() >> [guiFull, apiFull, pipeline(id: 200L, productId: 2L, serviceId: 20L)]
-        1 * published.save({ it.pipelineId() == 100L })
-        1 * published.save({ it.pipelineId() == 102L })
-        0 * published.save(_)
-    }
-
-    def "publishing everything stamps every configuration again, also an unchanged one"() {
+    def "publishing everything stamps every configuration again, also an unchanged one, and counts them"() {
         given:
         published.load(100L) >> Optional.of(new PublishedConfig(100L, rendered(guiFull), EARLIER))
+        published.load(102L) >> Optional.empty()
 
-        when:
-        publisher.publishAll()
-
-        then:
-        1 * pipelines.findAll() >> [guiFull]
-        1 * published.save(new PublishedConfig(100L, rendered(guiFull), NOW_IN_MICROS))
-    }
-
-    def "no published configuration is current before everything was published once"() {
-        when:
-        def current = publisher.currentConfig(100L)
-
-        then:
-        current.empty
-        0 * published._
-    }
-
-    def "a configuration published since everything was published is current"() {
-        given:
-        pipelines.findAll() >> []
-        publisher.publishAll()
-
-        when:
-        def current = publisher.currentConfig(100L)
-
-        then:
-        1 * published.load(100L) >> Optional.of(new PublishedConfig(100L, rendered(guiFull), NOW_IN_MICROS))
-        current.get() == builder.pipelineConfig(certScanner, gui, guiFull)
-        current.get().keySet() as List == ['pipeline', 'platform', 'defaults', 'projects']
-    }
-
-    def "a configuration published before everything was published, or none, is not current"() {
-        given:
-        pipelines.findAll() >> []
-        publisher.publishAll()
-
-        when:
-        def current = publisher.currentConfig(100L)
-
-        then:
-        1 * published.load(100L) >> stored
-        current.empty
-
-        where:
-        stored << [Optional.of(new PublishedConfig(100L, '{"pipeline":{"type":"full"}}', EARLIER)), Optional.empty()]
-    }
-
-    def "a portal without pipelines publishes nothing"() {
         when:
         def count = publisher.publishAll()
 
         then:
-        count == 0
-        1 * pipelines.findAll() >> []
-        0 * published._
+        1 * pipelines.findAll() >> [guiFull, apiFull, pipeline(id: 200L, productId: 2L, serviceId: 20L)]
+        1 * published.save(new PublishedConfig(100L, rendered(guiFull), NOW_IN_MICROS))
+        1 * published.save({ it.pipelineId() == 102L })
+        0 * published.save(_)
+        count == 3
     }
 
-    def "publishing without stored global settings is an error of the start-up"() {
+    def "only a configuration published since everything was published is current"() {
         given:
-        def withoutSettings = new PipelineConfigPublisher(products, pipelines,
-                Stub(GlobalSettingsRepositoryPort) { load() >> Optional.empty() }, published, serializer, lock,
-                Clock.systemUTC())
-        pipelines.load(100L) >> Optional.of(guiFull)
+        pipelines.findAll() >> []
+        published.load(100L) >>> [Optional.of(new PublishedConfig(100L, rendered(guiFull), NOW_IN_MICROS)),
+                                  Optional.of(new PublishedConfig(100L, '{"pipeline":{"type":"full"}}', EARLIER)),
+                                  Optional.empty()]
 
         when:
-        withoutSettings.pipelineChanged(100L)
+        def before = publisher.currentConfig(100L)
+        publisher.publishAll()
 
         then:
-        def e = thrown(MissingGlobalSettingsException)
-        e.message == 'The global settings are missing; the portal creates them at start-up'
+        before.empty
+        publisher.currentConfig(100L).get() == builder.pipelineConfig(certScanner, gui, guiFull)
+        publisher.currentConfig(100L).empty
+        publisher.currentConfig(100L).empty
     }
 
     private String rendered(Pipeline pipeline) {

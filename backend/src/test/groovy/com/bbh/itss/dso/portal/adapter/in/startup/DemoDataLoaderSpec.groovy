@@ -44,15 +44,15 @@ class DemoDataLoaderSpec extends Specification {
         0 * pipelines._
     }
 
-    def "an empty database gets two products with pipelines, one of them invalidated, and a Jenkins to link"() {
+    def "an empty database gets two products with pipelines, one of them invalidated, and a Jenkins to link unless one is set: #jenkinsUrl"() {
         given:
-        demoCatalog()
+        demoCatalog(jenkinsUrl)
 
         when:
         loader.run(null)
 
         then:
-        1 * settings.update(null, { it.platform().jenkinsUrl() == 'https://jenkins.bbh.com' })
+        updates * settings.update(null, { it.platform().jenkinsUrl() == 'https://jenkins.bbh.com' })
         1 * pipelines.revokeKey(9L, 'Mobile app moved to the new mobile platform pipeline')
         created*.details()*.code() == ['CERTSCANNER', 'PAYHUB']
         created*.services()*.size() == [2, 4]
@@ -63,20 +63,14 @@ class DemoDataLoaderSpec extends Specification {
         requested.find { it[1] == EXTENDED }[2].securityPipelineJob() == 'DevSecOps/PAYHUB/gateway-security'
         requested[0][2].jenkinsJob() == 'DevSecOps/CERTSCANNER/gui-full'
         requested.collect { it[2].agentLabels() }.unique() == [['linux-agent']]
+
+        where:
+        jenkinsUrl             || updates
+        null                   || 1
+        'https://jenkins.test' || 0
     }
 
-    def "a Jenkins already set in the global settings is kept"() {
-        given:
-        demoCatalog('https://jenkins.test')
-
-        when:
-        loader.run(null)
-
-        then:
-        0 * settings.update(*_)
-    }
-
-    private void demoCatalog(String jenkinsUrl = null) {
+    private void demoCatalog(String jenkinsUrl) {
         products.list(null) >> []
         settings.current() >> storedSettings(jenkinsUrl)
         products.create(_) >> { ProductCommand command -> store(command) }

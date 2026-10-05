@@ -24,27 +24,21 @@ class FluxCsvSpec extends Specification {
         FluxCsv.parse(csv) == [[table: '0', project: 'CERT-gui', build: '12'], [table: '1', project: 'CERT-api', branch: 'main']]
     }
 
-    def "a repeated header is not a row"() {
-        expect:
-        FluxCsv.parse('project,build\nCERT-gui,1\nproject,build\nCERT-api,2') == [[project: 'CERT-gui', build: '1'],
-                                                                              [project: 'CERT-api', build: '2']]
-    }
-
-    def "columns without a name and cells beyond the header are dropped"() {
-        expect:
-        FluxCsv.parse(',project,build\n,CERT-gui,1,extra\n,CERT-api') == [[project: 'CERT-gui', build: '1'], [project: 'CERT-api']]
-    }
-
     def "quoted cells may hold commas and quotes"() {
         expect:
         FluxCsv.splitLine('a,"b, c","say ""hi""",') == ['a', 'b, c', 'say "hi"', '']
     }
 
-    def "no CSV means no rows: '#csv'"() {
+    def "#description"() {
         expect:
-        FluxCsv.parse(csv) == []
+        FluxCsv.parse(csv) == rows
 
         where:
-        csv << [null, '', '\r\n']
+        description                                      | csv                                                 || rows
+        'no CSV means no rows'                           | null                                                || []
+        'an empty CSV means no rows'                     | ''                                                  || []
+        'a CSV of an empty line means no rows'           | '\r\n'                                              || []
+        'a repeated header is not a row'                 | 'project,build\nCERT-gui,1\nproject,build\nCERT-api,2' || [[project: 'CERT-gui', build: '1'], [project: 'CERT-api', build: '2']]
+        'columns without a name and extra cells are dropped' | ',project,build\n,CERT-gui,1,extra\n,CERT-api'     || [[project: 'CERT-gui', build: '1'], [project: 'CERT-api']]
     }
 }

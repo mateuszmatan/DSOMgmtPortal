@@ -105,28 +105,21 @@ class DsoConfigBuilderSpec extends Specification {
         !config.projects.gui.containsKey('jenkins')
     }
 
-    def "the security pipeline names the extended pipeline job it starts"() {
+    def "the #type pipeline names the job it works with"() {
         when:
-        def config = pipelineConfig(type: PipelineType.SECURITY, extendedPipelineJob: 'CERT/gui-extended')
+        def config = pipelineConfig(type: type, extendedPipelineJob: extended, securityPipelineJob: security)
 
         then:
-        config.pipeline.type == 'security'
-        config.pipeline.entryPoint == 'devSecOpsSecurityPipeline'
-        config.projects.gui.jenkins == [pipeline: [extendedPipeline: 'CERT/gui-extended']]
-    }
+        config.pipeline.type == type.variant()
+        config.pipeline.entryPoint == type.entryPoint()
+        config.pipeline.securityPipeline == pipelineEntry
+        config.projects.gui.jenkins == projectEntry
 
-    def "the extended pipeline names the security pipeline job whose results it reads"() {
-        when:
-        def config = pipelineConfig(type: PipelineType.EXTENDED, securityPipelineJob: 'CERT/gui-security')
-
-        then:
-        config.pipeline.securityPipeline == 'CERT/gui-security'
-        !config.projects.gui.containsKey('jenkins')
-    }
-
-    def "a security pipeline without an extended job writes no jenkins section"() {
-        expect:
-        !pipelineConfig(type: PipelineType.SECURITY).projects.gui.containsKey('jenkins')
+        where:
+        type                  | extended            | security            || pipelineEntry       | projectEntry
+        PipelineType.SECURITY | 'CERT/gui-extended' | null                || null                | [pipeline: [extendedPipeline: 'CERT/gui-extended']]
+        PipelineType.EXTENDED | null                | 'CERT/gui-security' || 'CERT/gui-security' | null
+        PipelineType.SECURITY | null                | null                || null                | null
     }
 
     def "the global configuration holds the platform and the library defaults"() {
@@ -138,9 +131,7 @@ class DsoConfigBuilderSpec extends Specification {
         config.defaults.keySet() as List == ['buildTool', 'deployTarget', 'sourceDir', 'coverage', 'tools', 'sast', 'sca',
                                              'dast', 'tests', 'releaseGate', 'goldenFix']
         config.defaults.tools.nexusIq == [maxCritical: 0, maxHigh: 0, maxMedium: 0]
-    }
 
-    def "the configuration cannot be built without the global settings"() {
         when:
         new DsoConfigBuilder(null)
 

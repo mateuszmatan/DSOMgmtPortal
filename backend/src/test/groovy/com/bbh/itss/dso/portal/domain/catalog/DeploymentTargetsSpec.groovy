@@ -1,22 +1,19 @@
 package com.bbh.itss.dso.portal.domain.catalog
 
-import com.bbh.itss.dso.portal.domain.catalog.Region
-import com.bbh.itss.dso.portal.domain.shared.ConfigTree
 import spock.lang.Specification
+
+import static com.bbh.itss.dso.portal.domain.shared.Sections.written
+import static com.bbh.itss.dso.portal.support.Fixtures.copy
 
 class DeploymentTargetsSpec extends Specification {
 
     static final UrbanCodeComponent GUI_COMPONENT = new UrbanCodeComponent('cert-gui', 'build/libs', '*.war', '*-plain.war',
             'gui-', '1.0.0', false)
 
-    def "regions are written in lower case"() {
-        expect:
-        Region.values()*.configKey() == ['rd', 'qc']
-    }
-
-    def "an SSH target trims its values and writes the ones that are set in the library's order"() {
+    def "an SSH target trims its values, writes the ones that are set in the library's order and is empty without any"() {
         when:
         def target = new SshTarget(' rdltaapps1.testbbh.com ', ' dsoadm ', ' /opt/cert ', ' deploy.sh ', ' version.txt ')
+        def blank = new SshTarget(' ', '', null, ' ', null)
 
         then:
         target.toConfig() == [host        : 'rdltaapps1.testbbh.com', user: 'dsoadm', deployDir: '/opt/cert',
@@ -24,16 +21,10 @@ class DeploymentTargetsSpec extends Specification {
         target.toConfig().keySet() as List == ['host', 'user', 'deployDir', 'deployScript', 'versionFile']
         !target.isEmpty()
         new SshTarget(null, null, '/opt/cert', null, null).toConfig() == [deployDir: '/opt/cert']
-    }
-
-    def "an SSH target of blank values is empty"() {
-        when:
-        def target = new SshTarget(' ', '', null, ' ', null)
-
-        then:
-        target == new SshTarget(null, null, null, null, null)
-        target.isEmpty()
-        target.toConfig() == [:]
+        blank == new SshTarget(null, null, null, null, null)
+        blank.isEmpty()
+        blank.toConfig() == [:]
+        Region.values()*.configKey() == ['rd', 'qc']
     }
 
     def "OpenShift field #field is written as #config"() {
@@ -98,25 +89,10 @@ class DeploymentTargetsSpec extends Specification {
         openShift(skipConfigDeploy: false).isEmpty()
     }
 
-    def "UrbanCode settings default to deploying a snapshot of only the deployed versions and waiting for it"() {
-        when:
-        def defaults = new UrbanCodeSettings(' ', ' ', null, null, null, null, null, ' ', ' ')
-
-        then:
-        defaults == UrbanCodeSettings.DEFAULTS
-        defaults.siteName() == null
-        defaults.deployProcess() == null
-        !defaults.skipWait()
-        defaults.deployWithSnapshot()
-        !defaults.updateSnapshotComponents()
-        defaults.includeOnlyDeployVersions()
-        !defaults.deployOnlyChanged()
-        defaults.deployDescription() == null
-        defaults.requestProperties() == null
-    }
-
-    def "UrbanCode settings write nothing without applications"() {
+    def "UrbanCode settings default to deploying a snapshot of only the deployed versions and write nothing without applications"() {
         expect:
+        new UrbanCodeSettings(' ', ' ', null, null, null, null, null, ' ', ' ') == UrbanCodeSettings.DEFAULTS
+        UrbanCodeSettings.DEFAULTS == new UrbanCodeSettings(null, null, false, true, false, true, false, null, null)
         written { UrbanCodeSettings.DEFAULTS.writeTo(it, []) } == [:]
         written { fullUrbanCode().writeTo(it, []) } == [:]
     }
@@ -148,7 +124,7 @@ class DeploymentTargetsSpec extends Specification {
         dod.applications*.applicationName == ['Cert', 'Cert Batch']
     }
 
-    def "an UrbanCode application trims its values and keeps each environment once"() {
+    def "an UrbanCode application trims its values, keeps each environment once and copies its components"() {
         given:
         def components = [GUI_COMPONENT]
 
@@ -157,14 +133,8 @@ class DeploymentTargetsSpec extends Specification {
         components << new UrbanCodeComponent('other', null, null, null, null, null, null)
 
         then:
-        app.applicationName() == 'Cert'
-        app.order() == 3
-        app.environments() == ['RD', 'QC']
-        app.snapshotName() == null
-        app.components() == [GUI_COMPONENT]
-        new UrbanCodeApplicationSettings(null, null, null, null, null).applicationName() == null
-        new UrbanCodeApplicationSettings(null, null, null, null, null).components() == []
-        new UrbanCodeApplicationSettings(null, null, null, null, null).environments() == []
+        app == new UrbanCodeApplicationSettings('Cert', 3, ['RD', 'QC'], null, [GUI_COMPONENT])
+        new UrbanCodeApplicationSettings(null, null, null, null, null) == new UrbanCodeApplicationSettings(null, null, [], null, [])
     }
 
     def "an UrbanCode application is written with its components"() {
@@ -185,16 +155,9 @@ class DeploymentTargetsSpec extends Specification {
         def component = new UrbanCodeComponent(' cert-gui ', ' ', ' ', ' ', ' ', ' ', null)
 
         then:
-        component.componentName() == 'cert-gui'
-        component.baseDir() == null
-        component.fileIncludePatterns() == null
-        component.fileExcludePatterns() == null
-        component.versionPrefix() == null
-        component.version() == null
-        component.incrementalVersion()
+        component == new UrbanCodeComponent('cert-gui', null, null, null, null, null, true)
         component.toConfig() == [componentName: 'cert-gui', incrementalVersion: true]
         component.toConfig().keySet() as List == ['componentName', 'incrementalVersion']
-        new UrbanCodeComponent(null, null, null, null, null, null, false).componentName() == null
         !new UrbanCodeComponent(null, null, null, null, null, null, false).incrementalVersion()
         GUI_COMPONENT.toConfig().keySet() as List == ['componentName', 'baseDir', 'fileIncludePatterns',
                                                        'fileExcludePatterns', 'versionPrefix', 'version', 'incrementalVersion']
@@ -204,19 +167,7 @@ class DeploymentTargetsSpec extends Specification {
         new UrbanCodeSettings(' BBH-RD ', ' Deploy Cert ', true, false, true, false, true, ' Deployed by Jenkins ', ' key=value ')
     }
 
-    private static OpenShiftTarget openShift(Map args) {
-        new OpenShiftTarget(args.projectBuild as String, args.buildConfigPath as String, args.dockerFilePath as String,
-                args.buildContext as String, args.addFile as String, args.dockerRepoPush as String,
-                args.dockerRepoPull as String, args.certDir as String, args.nexusAuthFile as String,
-                args.projectDeployment as String, args.deployConfigPath as String, args.configPath as String,
-                args.skipConfigDeploy as Boolean, args.healthCheckUrl as String, args.routeHostname as String,
-                args.deploymentPath as String, args.deploymentRepoUrl as String, args.deploymentRepoBranch as String,
-                args.deploymentRepoCredentialsId as String)
-    }
-
-    private static Map written(Closure write) {
-        def tree = new ConfigTree()
-        write(tree)
-        tree.toMap()
+    private static OpenShiftTarget openShift(Map fields) {
+        copy(fields, new OpenShiftTarget(*([null] * 19)))
     }
 }

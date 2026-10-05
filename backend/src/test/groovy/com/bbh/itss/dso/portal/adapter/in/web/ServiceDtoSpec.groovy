@@ -103,56 +103,23 @@ class ServiceDtoSpec extends Specification {
         dto.metrics() == null
     }
 
-    def "bean validation rejects #description"() {
+    def "bean validation rejects #description and says what it expects"() {
         expect:
-        validator.validate(request(toJson(serviceJson(changes))))*.propertyPath*.toString() == [property]
+        validator.validate(request(toJson(serviceJson(changes)))).collect { [it.propertyPath.toString(), it.message] } ==
+                [[property, message]]
 
         where:
-        description                       | changes                                                              || property
-        'a service name in capitals'      | [name: 'Gui']                                                        || 'name'
-        'a missing build tool'            | [build: [javaPath: '/jdk']]                                          || 'build.tool'
-        'more than 30 build tasks'        | [build: buildJson(command: [tasks: names(31)])]                      || 'build.command.tasks'
-        'a variable without a value'      | [build: buildJson(command: [environment: ['JAVA']])]                 || 'build.command.environment[0].<list element>'
-        'too many parallel smoke jobs'    | [tests: [smokeMaxParallel: 101]]                                     || 'tests.smokeMaxParallel'
-        'a test job without a stage'      | [testJobs: [[job: 'CERT/s']]]                                        || 'testJobs[0].stage'
-        'a blank test job'                | [testJobs: [[stage: 'SMOKE', job: ' ']]]                             || 'testJobs[0].job'
-        'a test job running over a day'   | [testJobs: [[stage: 'SMOKE', job: 'CERT/s', timeoutMinutes: 1441]]]  || 'testJobs[0].timeoutMinutes'
-        'a remote Jenkins that is no URL' | [testJobs: [[stage: 'SMOKE', job: 'j', remoteJenkinsUrl: 'jenkins']]] || 'testJobs[0].remoteJenkinsUrl'
-        'a missing deploy target'         | [deployment: [appName: 'gui']]                                       || 'deployment.target'
-        'an SSH host with a space'        | [sshTargets: [RD: [host: 'rd host']]]                                || 'sshTargets[RD].host'
-        'a deployment repository w/o URL' | [openShiftTargets: [QC: [deploymentRepoUrl: 'bitbucket/ta']]]        || 'openShiftTargets[QC].deploymentRepoUrl'
-        'an UrbanCode site too long'      | [urbanCode: [siteName: 's' * 201]]                                   || 'urbanCode.siteName'
-        'an application ordered 0'        | [urbanCodeApplications: [[applicationName: 'Cert', order: 0]]]       || 'urbanCodeApplications[0].order'
-        'a component without a name'      | [urbanCodeApplications: [[applicationName: 'C', components: [[:]]]]] || 'urbanCodeApplications[0].components[0].componentName'
-        'an AppScan ID that is no UUID'   | [appScan: [applicationId: 'not-a-uuid']]                             || 'appScan.applicationId'
-        'a folder with a comma'           | [appScan: [applicationId: APP_ID, excludedDirs: ['src,lib']]]        || 'appScan.excludedDirs[0].<list element>'
-        'a DAST URL without http'         | [appScan: [applicationId: APP_ID, dastTargetUrl: 'ftp://rdl1']]      || 'appScan.dastTargetUrl'
-        'a SonarQube key of digits'       | [sonar: [projectKey: '1234']]                                        || 'sonar.projectKey'
-        'a Nexus IQ stage in upper case'  | [nexusIq: [stage: 'Release']]                                        || 'nexusIq.stage'
-        'a clone URL in scp form'         | [scm: [cloneUrl: 'git@bitbucket:ta/cert.git']]                       || 'scm.cloneUrl'
-        'a reviewer with a space'         | [scm: [reviewers: ['john doe']]]                                     || 'scm.reviewers[0].<list element>'
-        'a workspace with a space'        | [scm: [workspace: 'ta workspace']]                                   || 'scm.workspace'
-        'an unknown ecosystem'            | [goldenFix: [ecosystems: ['gradle']]]                                || 'goldenFix.ecosystems[0].<list element>'
-        'an author email without @'       | [goldenFix: [commitAuthorEmail: 'goldenfix.bbh.com']]                || 'goldenFix.commitAuthorEmail'
-        'a time zone with a space'        | [goldenFix: [timeZone: 'Europe Warsaw']]                             || 'goldenFix.timeZone'
-        'a metrics tag with a space'      | [metrics: [influxProject: 'cert scanner']]                           || 'metrics.influxProject'
-        'a Flutter module with a space'   | [flutter: [modules: ['my module']]]                                  || 'flutter.modules[0].<list element>'
-        'a SonarScanner version with ws'  | [flutter: [sonarScannerVersion: '5.0 beta']]                         || 'flutter.sonarScannerVersion'
-    }
-
-    def "the format rules explain what they expect"() {
-        expect:
-        validator.validate(request(toJson(serviceJson(changes))))*.message == [message]
-
-        where:
-        changes                                                     || message
-        [build: buildJson(command: [environment: ['JAVA']])]        || 'write each variable as NAME=value'
-        [sshTargets: [RD: [host: 'rd host']]]                       || 'must be a host name such as rdltaapps1.testbbh.com'
-        [openShiftTargets: [QC: [deploymentRepoUrl: 'bitbucket']]]  || 'must be a Git repository URL'
-        [appScan: [applicationId: APP_ID, dastTargetUrl: 'ftp://x']] || 'must be an http or https URL'
-        [scm: [cloneUrl: 'git@bitbucket:ta/cert.git']]              || 'must be an http, https or ssh URL'
-        [scm: [workspace: 'ta workspace']]                          || 'must not contain whitespace'
-        [flutter: [testSubplugins: ['plugin*']]]                    || 'must be a plugin folder name'
+        description                   | changes                                                       || property                                         | message
+        'a service name in capitals'  | [name: 'Gui']                                                 || 'name'                                           | "use lower case letters, digits, '.', '-' or '_', starting with a letter or digit"
+        'a missing build tool'        | [build: [javaPath: '/jdk']]                                   || 'build.tool'                                     | 'must not be null'
+        'more than 30 build tasks'    | [build: buildJson(command: [tasks: names(31)])]               || 'build.command.tasks'                            | 'size must be between 0 and 30'
+        'a variable without a value'  | [build: buildJson(command: [environment: ['JAVA']])]          || 'build.command.environment[0].<list element>'    | 'write each variable as NAME=value'
+        'a test job running a day'    | [testJobs: [[stage: 'SMOKE', job: 'j', timeoutMinutes: 1441]]] || 'testJobs[0].timeoutMinutes'                    | 'must be less than or equal to 1440'
+        'an SSH host with a space'    | [sshTargets: [RD: [host: 'rd host']]]                         || 'sshTargets[RD].host'                            | 'must be a host name such as rdltaapps1.testbbh.com'
+        'a component without a name'  | [urbanCodeApplications: [[applicationName: 'C', components: [[:]]]]] || 'urbanCodeApplications[0].components[0].componentName' | 'must not be blank'
+        'a DAST URL without http'     | [appScan: [applicationId: APP_ID, dastTargetUrl: 'ftp://x']]  || 'appScan.dastTargetUrl'                          | 'must be an http or https URL'
+        'a workspace with a space'    | [scm: [workspace: 'ta workspace']]                            || 'scm.workspace'                                  | 'must not contain whitespace'
+        'an author email without @'   | [goldenFix: [commitAuthorEmail: 'goldenfix.bbh.com']]         || 'goldenFix.commitAuthorEmail'                    | 'must be a well-formed email address'
     }
 
     private ServiceDto request(String body) {

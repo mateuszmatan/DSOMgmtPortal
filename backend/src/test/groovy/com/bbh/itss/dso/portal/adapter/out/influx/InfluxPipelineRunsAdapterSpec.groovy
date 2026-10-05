@@ -6,7 +6,6 @@ import com.bbh.itss.dso.portal.domain.monitoring.MetricsUnavailableException
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult
 import org.springframework.web.client.RestClient
 import spock.lang.Specification
-import spock.lang.Subject
 
 import java.time.Instant
 
@@ -15,27 +14,20 @@ class InfluxPipelineRunsAdapterSpec extends Specification {
     InfluxQueryClient influx = Spy(constructorArgs: [
             new InfluxProperties('http://influx', 'DevSecOps', 'DORA-metrics', 't', '180d'), RestClient.builder()])
 
-    @Subject
     def adapter = new InfluxPipelineRunsAdapter(influx)
 
     def gui = new MetricsTag('CERT-gui', 'test')
     def guiSast = new MetricsTag('CERT-guisast', 'test')
 
-    def "it is configured when the client is"() {
-        expect:
-        adapter.configured()
-        !new InfluxPipelineRunsAdapter(unconfigured()).configured()
-    }
-
-    def "a ping queries the buckets"() {
+    def "it is configured when the client is, and a ping queries the buckets or gives the reason it failed"() {
         when:
         adapter.ping()
 
         then:
+        adapter.configured()
+        !new InfluxPipelineRunsAdapter(unconfigured()).configured()
         1 * influx.query('buckets() |> limit(n: 1)') >> []
-    }
 
-    def "a ping that fails gives the reason"() {
         when:
         adapter.ping()
 
@@ -45,20 +37,12 @@ class InfluxPipelineRunsAdapterSpec extends Specification {
         e.message == 'InfluxDB could not be read: Connection refused'
     }
 
-    def "no pipelines need no query"() {
-        when:
-        def runs = adapter.latestRuns([])
-
-        then:
-        runs == [:]
-        0 * influx.query(_)
-    }
-
-    def "the latest run of each pipeline is read in one query"() {
+    def "the latest run of each pipeline is read in one query, and no pipelines need none"() {
         when:
         def runs = adapter.latestRuns([gui, guiSast, new MetricsTag('CERT-gui', 'uat')] as LinkedHashSet)
 
         then:
+        adapter.latestRuns([]) == [:]
         1 * influx.query('''\
             from(bucket: "DORA-metrics")
               |> range(start: -180d)
@@ -75,14 +59,6 @@ class InfluxPipelineRunsAdapterSpec extends Specification {
         runs.keySet() == [gui, guiSast] as Set
         runs[guiSast].result() == RunResult.FAILURE
         runs[gui].time() == Instant.parse('2026-10-01T10:00:00Z')
-    }
-
-    def "the project names are escaped as Flux strings"() {
-        when:
-        adapter.latestRuns([new MetricsTag('CERT-"gui"${x}\\', 'test')])
-
-        then:
-        1 * influx.query({ String flux -> flux.contains('set: ["CERT-\\"gui\\"\\${x}\\\\"]') }) >> []
     }
 
     def "recent runs are read newest first for one pipeline"() {
@@ -106,10 +82,12 @@ class InfluxPipelineRunsAdapterSpec extends Specification {
 
     def "the project and the environment of a pipeline are escaped as Flux strings"() {
         when:
+        adapter.latestRuns([new MetricsTag('CERT-"gui"${x}\\', 'test')])
         adapter.recentRuns(new MetricsTag('CERT-gui" or true or "', 'te"st'), 30, 25)
         adapter.doraPoints(new MetricsTag('CERT-gui" or true or "', 'te"st'), 30)
 
         then:
+        1 * influx.query({ String flux -> flux.contains('set: ["CERT-\\"gui\\"\\${x}\\\\"]') }) >> []
         2 * influx.query({ String flux ->
             flux.contains('r.project == "CERT-gui\\" or true or \\"" and r.env == "te\\"st"')
         }) >> []
@@ -171,18 +149,6 @@ class InfluxPipelineRunsAdapterSpec extends Specification {
         reading << [{ it.latestRuns([]) }, { it.latestRuns([new MetricsTag('CERT-gui', 'test')]) },
                     { it.recentRuns(new MetricsTag('CERT-gui', 'test'), 30, 25) },
                     { it.doraPoints(new MetricsTag('CERT-gui', 'test'), 30) }, { it.ping() }]
-    }
-
-    def "a failed query gives the reason"() {
-        given:
-        influx.query(_) >> { throw new IllegalStateException('401 Unauthorized') }
-
-        when:
-        adapter.latestRuns([gui])
-
-        then:
-        def e = thrown(MetricsUnavailableException)
-        e.message == 'InfluxDB could not be read: 401 Unauthorized'
     }
 
     private InfluxQueryClient unconfigured() {

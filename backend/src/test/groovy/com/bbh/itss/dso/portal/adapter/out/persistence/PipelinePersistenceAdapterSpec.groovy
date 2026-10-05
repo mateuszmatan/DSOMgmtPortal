@@ -17,7 +17,6 @@ import org.springframework.context.annotation.Import
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.jdbc.core.JdbcTemplate
 import spock.lang.Specification
-import spock.lang.Subject
 
 import java.time.Instant
 
@@ -40,7 +39,6 @@ class PipelinePersistenceAdapterSpec extends Specification {
     static final Instant REISSUED = Instant.parse('2026-10-02T09:30:00Z')
     static final Instant USED = Instant.parse('2026-10-03T10:15:00Z')
 
-    @Subject
     @Autowired
     PipelinePersistenceAdapter adapter
 
@@ -53,7 +51,8 @@ class PipelinePersistenceAdapterSpec extends Specification {
     @Autowired
     JdbcTemplate jdbc
 
-    Keys generator = new Keys()
+    int issued
+    KeyGenerator generator = { -> "key-${++issued}".toString() } as KeyGenerator
 
     Product cert
 
@@ -70,41 +69,24 @@ class PipelinePersistenceAdapterSpec extends Specification {
         def loaded = adapter.load(saved.id()).get()
 
         then:
-        saved.id() != null
         saved.version() == 0
         saved.createdAt() != null
         loaded.service() == ref(cert, 0)
         loaded.type() == FULL
         loaded.settings() == pipelineSettings(agentLabels: ['linux', 'docker'], jenkinsJob: 'CERT/gui',
                 description: 'Main')
-        loaded.keys().size() == 1
-        with(loaded.keys()[0]) {
-            id() == saved.keys()[0].id()
-            value() == 'key-1'
-            status() == KeyStatus.ACTIVE
-            issuedAt() == ISSUED
-            revokedAt() == null
-            revokeReason() == null
-            lastUsedAt() == null
-        }
+        loaded.keys() == saved.keys()
+        loaded.keys()*.value() == ['key-1']
+        loaded.keys()[0].status() == KeyStatus.ACTIVE
+        loaded.keys()[0].issuedAt() == ISSUED
         jdbc.queryForMap('SELECT PIPELINE_TYPE, AGENT_LABELS, EXTENDED_PIPELINE_JOB, JENKINS_JOB FROM DSO_PIPELINE') ==
                 [PIPELINE_TYPE: 'FULL', AGENT_LABELS: 'linux,docker', EXTENDED_PIPELINE_JOB: null,
                  JENKINS_JOB: 'CERT/gui']
     }
 
-    def "a pipeline needs a stored service"() {
-        when:
-        adapter.save(Pipeline.create(new ServiceRef(cert.id(), 999_999L), FULL, pipelineSettings(), generator, ISSUED))
-
-        then:
-        def problem = thrown(NotFoundException)
-        problem.message.contains('999999')
-    }
-
     def "a reconfigured pipeline keeps its keys"() {
         given:
-        def stored = adapter.save(Pipeline.create(ref(cert, 0), SECURITY, pipelineSettings(), generator, ISSUED))
-        entities.clear()
+        def stored = stored(ref(cert, 0), SECURITY)
         def pipeline = adapter.load(stored.id()).get()
 
         when:
@@ -120,10 +102,9 @@ class PipelinePersistenceAdapterSpec extends Specification {
         loaded.keys()*.id() == stored.keys()*.id()
     }
 
-    def "a new key replaces the active key, which stays in the history as revoked"() {
+    def "a new key replaces the active key, which stays in the history as revoked and is still found"() {
         given:
-        def stored = adapter.save(Pipeline.create(ref(cert, 0), FULL, pipelineSettings(), generator, ISSUED))
-        entities.clear()
+        def stored = stored(ref(cert, 0))
         def pipeline = adapter.loadForUpdate(stored.id()).get()
 
         when:
@@ -133,54 +114,15 @@ class PipelinePersistenceAdapterSpec extends Specification {
         def loaded = adapter.load(stored.id()).get()
 
         then:
-        saved.keys()*.value() == ['key-2', 'key-1']
+        loaded.keys() == saved.keys()
         loaded.keys()*.value() == ['key-2', 'key-1']
         loaded.keys()*.status() == [KeyStatus.ACTIVE, KeyStatus.REVOKED]
         loaded.keys()[1].id() == stored.keys()[0].id()
         loaded.keys()[1].revokedAt() == REISSUED
         loaded.keys()[1].revokeReason() == Pipeline.REPLACED_REASON
         loaded.keys()[0].issuedAt() == REISSUED
-        loaded.activeKey().get().value() == 'key-2'
-    }
-
-    def "a revoked key disables the pipeline"() {
-        given:
-        def stored = adapter.save(Pipeline.create(ref(cert, 0), FULL, pipelineSettings(), generator, ISSUED))
-        entities.clear()
-        def pipeline = adapter.loadForUpdate(stored.id()).get()
-
-        when:
-        pipeline.revokeActiveKey('Service retired', REISSUED)
-        adapter.save(pipeline)
-        entities.clear()
-        def loaded = adapter.load(stored.id()).get()
-
-        then:
-        !loaded.enabled
-        loaded.keys()[0].status() == KeyStatus.REVOKED
-        loaded.keys()[0].revokeReason() == 'Service retired'
-        loaded.keys()[0].revokedAt() == REISSUED
-    }
-
-    def "any key of a pipeline is found with the pipeline it was issued for"() {
-        given:
-        def stored = adapter.save(Pipeline.create(ref(cert, 0), FULL, pipelineSettings(), generator, ISSUED))
-        def pipeline = adapter.load(stored.id()).get()
-        pipeline.issueKey(generator, REISSUED)
-        def saved = adapter.save(pipeline)
-        entities.clear()
-
-        when:
-        def replaced = adapter.findKey('key-1').get()
-        def active = adapter.findKey('key-2').get()
-
-        then:
-        replaced.pipelineId() == stored.id()
-        replaced.key() == saved.keys()[1]
-        replaced.key().status() == KeyStatus.REVOKED
-        active.pipelineId() == stored.id()
-        active.key() == saved.keys()[0]
-        active.key().status() == KeyStatus.ACTIVE
+        ['key-1', 'key-2'].collect { adapter.findKey(it).get() }*.pipelineId() == [stored.id()] * 2
+        adapter.findKey('key-2').get().key() == saved.keys()[0]
         adapter.findKey('key-3').empty
         adapter.load(999_999L).empty
         adapter.loadForUpdate(999_999L).empty
@@ -188,23 +130,18 @@ class PipelinePersistenceAdapterSpec extends Specification {
 
     def "a key use is recorded on active keys only and never changes their status"() {
         given:
-        def stored = adapter.save(Pipeline.create(ref(cert, 0), FULL, pipelineSettings(), generator, ISSUED))
-        def pipeline = adapter.load(stored.id()).get()
+        def pipeline = stored(ref(cert, 0))
         pipeline.issueKey(generator, REISSUED)
         def saved = adapter.save(pipeline)
         def (active, revoked) = saved.keys()*.id()
 
         when:
-        def recordedActive = adapter.recordKeyUse(active, USED)
-        def recordedRevoked = adapter.recordKeyUse(revoked, USED)
-        def recordedMissing = adapter.recordKeyUse(999_999L, USED)
+        def recorded = [active, revoked, 999_999L].collect { adapter.recordKeyUse(it, USED) }
         entities.clear()
-        def loaded = adapter.load(stored.id()).get()
+        def loaded = adapter.load(saved.id()).get()
 
         then:
-        recordedActive
-        !recordedRevoked
-        !recordedMissing
+        recorded == [true, false, false]
         loaded.keys()*.lastUsedAt() == [USED, null]
         loaded.keys()*.status() == [KeyStatus.ACTIVE, KeyStatus.REVOKED]
         loaded.version() == saved.version()
@@ -212,7 +149,7 @@ class PipelinePersistenceAdapterSpec extends Specification {
 
     def "a pipeline never holds a second active key"() {
         given:
-        def stored = adapter.save(Pipeline.create(ref(cert, 0), FULL, pipelineSettings(), generator, ISSUED))
+        def stored = stored(ref(cert, 0))
         entities.flush()
 
         when:
@@ -223,104 +160,81 @@ class PipelinePersistenceAdapterSpec extends Specification {
         thrown(DataIntegrityViolationException)
     }
 
-    def "a pipeline keeps any number of revoked keys beside its active key"() {
+    def "a revoked key disables the pipeline, which keeps any number of revoked keys beside its active key"() {
         given:
-        def stored = adapter.save(Pipeline.create(ref(cert, 0), FULL, pipelineSettings(), generator, ISSUED))
-        def pipeline = adapter.load(stored.id()).get()
+        def pipeline = stored(ref(cert, 0))
         pipeline.issueKey(generator, REISSUED)
-        pipeline.issueKey(generator, USED)
-        adapter.save(pipeline)
-        pipeline = adapter.load(stored.id()).get()
+        pipeline = adapter.save(pipeline)
         pipeline.revokeActiveKey('Service retired', USED)
-        adapter.save(pipeline)
-        pipeline = adapter.load(stored.id()).get()
-        pipeline.issueKey(generator, USED)
         adapter.save(pipeline)
         entities.clear()
 
-        expect:
-        adapter.load(stored.id()).get().keys()*.status().countBy { it } ==
-                [(KeyStatus.ACTIVE): 1, (KeyStatus.REVOKED): 3]
+        when:
+        def revoked = adapter.load(pipeline.id()).get()
+        def latest = revoked.keys()[0]
+        def enabled = revoked.enabled
+        revoked.issueKey(generator, USED)
+        adapter.save(revoked)
+        entities.clear()
+
+        then:
+        !enabled
+        latest.revokeReason() == 'Service retired'
+        latest.revokedAt() == USED
+        adapter.load(pipeline.id()).get().keys()*.status().countBy { it } == [(KeyStatus.ACTIVE): 1, (KeyStatus.REVOKED): 2]
         jdbc.queryForObject("SELECT COUNT(*) FROM DSO_PIPELINE_KEY WHERE STATUS = 'ACTIVE'", Integer) == 1
     }
 
-    def "pipelines are listed per product and overall in service and type order"() {
+    def "pipelines are listed and counted per product and overall in service and type order"() {
         given:
         def other = products.save(Product.create(details(code: 'ABC', name: 'Abacus'), account(), [draft('core')],
                 products))
-        def apiSast = adapter.save(Pipeline.create(ref(cert, 1), SAST, pipelineSettings(), generator, ISSUED))
-        def guiSecurity = adapter.save(Pipeline.create(ref(cert, 0), SECURITY, pipelineSettings(), generator, ISSUED))
-        def guiFull = adapter.save(Pipeline.create(ref(cert, 0), FULL, pipelineSettings(), generator, ISSUED))
-        def core = adapter.save(Pipeline.create(ref(other, 0), FULL, pipelineSettings(), generator, ISSUED))
+        def apiSast = stored(ref(cert, 1), SAST)
+        def guiSecurity = stored(ref(cert, 0), SECURITY)
+        def guiFull = stored(ref(cert, 0))
+        def core = stored(ref(other, 0))
+        apiSast.revokeActiveKey('Retired', REISSUED)
+        adapter.save(apiSast)
         entities.clear()
 
         expect:
         adapter.findByProductId(cert.id())*.id() == [guiFull.id(), guiSecurity.id(), apiSast.id()]
-        adapter.findByProductId(other.id())*.id() == [core.id()]
         adapter.findByProductId(999_999L).empty
         adapter.findAll()*.id() == [core.id(), guiFull.id(), guiSecurity.id(), apiSast.id()]
         adapter.findAll()*.service() == [ref(other, 0), ref(cert, 0), ref(cert, 0), ref(cert, 1)]
+        adapter.existsForService(cert.services()[0].id(), FULL)
+        !adapter.existsForService(cert.services()[0].id(), SAST)
+        !adapter.existsForService(cert.services()[1].id(), FULL)
+        adapter.pipelinesPerProduct() == [(cert.id()): 3L, (other.id()): 1L]
+        adapter.activePipelinesPerProduct() == [(cert.id()): 2L, (other.id()): 1L]
     }
 
-    def "a service has at most one pipeline of each type"() {
+    def "a pipeline #change is not written"() {
         given:
-        adapter.save(Pipeline.create(ref(cert, 0), FULL, pipelineSettings(), generator, ISSUED))
-        def gui = cert.services()[0].id()
-        def api = cert.services()[1].id()
-
-        expect:
-        adapter.existsForService(gui, FULL)
-        !adapter.existsForService(gui, SAST)
-        !adapter.existsForService(api, FULL)
-    }
-
-    def "the counts per product tell all pipelines from those with an active key"() {
-        given:
-        def other = products.save(Product.create(details(code: 'ABC', name: 'Abacus'), account(), [draft('core')],
-                products))
-        adapter.save(Pipeline.create(ref(cert, 0), FULL, pipelineSettings(), generator, ISSUED))
-        def revoked = adapter.save(Pipeline.create(ref(cert, 1), SAST, pipelineSettings(), generator, ISSUED))
-        def reissued = adapter.save(Pipeline.create(ref(other, 0), FULL, pipelineSettings(), generator, ISSUED))
-        revoked.revokeActiveKey('Retired', REISSUED)
-        adapter.save(revoked)
-        reissued.issueKey(generator, REISSUED)
-        adapter.save(reissued)
-        entities.clear()
-
-        expect:
-        adapter.pipelinesPerProduct() == [(cert.id()): 2L, (other.id()): 1L]
-        adapter.activePipelinesPerProduct() == [(cert.id()): 1L, (other.id()): 1L]
-    }
-
-    def "a pipeline read at another version than the stored one is not written"() {
-        given:
-        def stored = adapter.save(Pipeline.create(ref(cert, 0), FULL, pipelineSettings(), generator, ISSUED))
+        def stored = stored(ref(cert, 0))
         def stale = Pipeline.restore(stored.id(), stored.service(), FULL, pipelineSettings(agentLabels: ['stale']),
-                stored.keys(), stored.version() + 1, stored.createdAt(), stored.updatedAt())
+                stored.keys(), stored.version() + versionShift, stored.createdAt(), stored.updatedAt())
+        if (deleted) {
+            adapter.delete(stored.id())
+        }
 
         when:
-        adapter.save(stale)
+        adapter.save(service ? Pipeline.create(service, FULL, pipelineSettings(), generator, ISSUED) : stale)
 
         then:
-        thrown(ConflictException)
-        adapter.load(stored.id()).get().settings() == pipelineSettings()
-    }
+        def problem = thrown(failure)
+        problem.message.contains(message)
 
-    def "a pipeline deleted in the meantime cannot be written"() {
-        given:
-        def stored = adapter.save(Pipeline.create(ref(cert, 0), FULL, pipelineSettings(), generator, ISSUED))
-        adapter.delete(stored.id())
-
-        when:
-        adapter.save(stored)
-
-        then:
-        thrown(ConflictException)
+        where:
+        change                                | versionShift | deleted | service                      || failure            | message
+        'read at another version than stored' | 1            | false   | null                         || ConflictException  | 'changed by someone else'
+        'deleted in the meantime'             | 0            | true    | null                         || ConflictException  | 'changed by someone else'
+        'of a service that was never stored'  | 0            | false   | new ServiceRef(1L, 999_999L) || NotFoundException  | '999999'
     }
 
     def "deleting a pipeline removes its keys"() {
         given:
-        def stored = adapter.save(Pipeline.create(ref(cert, 0), FULL, pipelineSettings(), generator, ISSUED))
+        def stored = stored(ref(cert, 0))
         stored.issueKey(generator, REISSUED)
         adapter.save(stored)
 
@@ -335,21 +249,17 @@ class PipelinePersistenceAdapterSpec extends Specification {
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PIPELINE_KEY', Integer) == 0
     }
 
+    private Pipeline stored(ServiceRef service, PipelineType type = FULL) {
+        def saved = adapter.save(Pipeline.create(service, type, pipelineSettings(), generator, ISSUED))
+        entities.clear()
+        saved
+    }
+
     private static ServiceDraft draft(String name) {
         new ServiceDraft(null, name, null, settings())
     }
 
     private static ServiceRef ref(Product product, int service) {
         new ServiceRef(product.id(), product.services()[service].id())
-    }
-
-    static class Keys implements KeyGenerator {
-
-        int issued
-
-        @Override
-        String newKey() {
-            "key-${++issued}"
-        }
     }
 }

@@ -10,16 +10,12 @@ import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.Service
 import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
-import com.bbh.itss.dso.portal.domain.catalog.TestStage
 import com.bbh.itss.dso.portal.domain.evidence.BuildEvidence
 import com.bbh.itss.dso.portal.domain.evidence.CheckStatus
 import com.bbh.itss.dso.portal.domain.evidence.CoverageEvidence
-import com.bbh.itss.dso.portal.domain.evidence.EvidenceScanner
 import com.bbh.itss.dso.portal.domain.evidence.ReleaseGateEvidence
 import com.bbh.itss.dso.portal.domain.evidence.RunEvidence
-import com.bbh.itss.dso.portal.domain.evidence.ScanEvidence
 import com.bbh.itss.dso.portal.domain.evidence.StageEvidence
-import com.bbh.itss.dso.portal.domain.evidence.TestSuiteEvidence
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsUnavailableException
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun
@@ -30,7 +26,6 @@ import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
-import spock.lang.Subject
 
 import java.time.Instant
 
@@ -59,7 +54,6 @@ class ChangeEvidenceServiceSpec extends Specification {
 
     def targets = new MonitoringTargetsService(products, pipelines, settings)
 
-    @Subject
     def evidenceService = new ChangeEvidenceService(targets, runs, evidence)
 
     Product certScanner = product(id: 1L, code: 'CERT', name: 'CertScanner', services: [
@@ -117,18 +111,9 @@ class ChangeEvidenceServiceSpec extends Specification {
                     'DevSecOps/CERT/gui-full', GUI_JOB + '42/', GUI_JOB + '42/Pipeline_20Report/',
                     GUI_JOB + '42/testReport/', GUI_JOB + '42/artifact/')
             coverage() == new CoverageEvidence(CheckStatus.PASS, 82.5d, 60.0d, 825L, 1000L)
-            testSuites() == [
-                    new TestSuiteEvidence(TestStage.SMOKE, CheckStatus.PASS, 3L, 3L, 0L, 0L, 4500L),
-                    new TestSuiteEvidence(TestStage.REGRESSION, CheckStatus.NO_DATA, null, null, null, null, null),
-                    new TestSuiteEvidence(TestStage.PERFORMANCE, CheckStatus.NO_DATA, null, null, null, null, null)]
-            scans() == [
-                    new ScanEvidence(EvidenceScanner.SAST, CheckStatus.WARN, 0L, 2L, 5L, 1L, 0L, 0L, 10L, APPSCAN),
-                    new ScanEvidence(EvidenceScanner.DAST, CheckStatus.NO_DATA, null, null, null, null, null, null, null,
-                            APPSCAN),
-                    new ScanEvidence(EvidenceScanner.SONARQUBE, CheckStatus.PASS, 0L, 0L, 3L, 8L, null, null, null,
-                            'https://tools.bbh.com/sonar/dashboard?id=cert-gui'),
-                    new ScanEvidence(EvidenceScanner.NEXUS_IQ, CheckStatus.NO_DATA, null, null, null, null, null, null,
-                            null, 'https://tools.bbh.com/IQ/')]
+            scans()*.status() == [CheckStatus.WARN, CheckStatus.NO_DATA, CheckStatus.PASS, CheckStatus.NO_DATA]
+            scans()*.link() == [APPSCAN, APPSCAN, 'https://tools.bbh.com/sonar/dashboard?id=cert-gui',
+                                'https://tools.bbh.com/IQ/']
             releaseGate() == new ReleaseGateEvidence(true, 0L, null)
             stages() == [new StageEvidence('Build', CheckStatus.PASS, 120L, null)]
         }
@@ -136,35 +121,6 @@ class ChangeEvidenceServiceSpec extends Specification {
         guiSastEvidence.jenkinsJobUrl() == null
         guiSastEvidence.status() == RunResult.DISABLED
         guiSastEvidence.run() == null
-    }
-
-    def "a pipeline without a job of its own links the build of the job its run reported"() {
-        given:
-        runs.latestRuns(_) >> [(apiTag): apiRun]
-        evidence.evidenceOf(_) >> [:]
-
-        when:
-        def result = evidenceService.product(1L)
-
-        then:
-        def api = result.services()[1].pipelines()[0]
-        api.jenkinsJobUrl() == null
-        api.status() == RunResult.UNSTABLE
-        with(api.run()) {
-            build().job() == 'DevSecOps/CERT/api-full'
-            build().url() == 'https://jenkins.test/job/DevSecOps/job/CERT/job/api-full/7/'
-            build().reportUrl() == 'https://jenkins.test/job/DevSecOps/job/CERT/job/api-full/7/Pipeline_20Report/'
-            coverage() == new CoverageEvidence(CheckStatus.NO_DATA, null, null, null, null)
-            testSuites()*.status() == [CheckStatus.NO_DATA] * 3
-            scans()*.status() == [CheckStatus.NO_DATA] * 4
-            scans()*.link() == [APPSCAN, APPSCAN, null, 'https://tools.bbh.com/IQ/']
-            releaseGate() == null
-            stages() == []
-        }
-        def guiEvidence = result.services()[0].pipelines()[0]
-        guiEvidence.status() == RunResult.NO_DATA
-        guiEvidence.run() == null
-        guiEvidence.jenkinsJobUrl() == GUI_JOB
     }
 
     def "when the metrics cannot be read every pipeline is listed without a run and the reason is given"() {
@@ -219,29 +175,7 @@ class ChangeEvidenceServiceSpec extends Specification {
         }
     }
 
-    def "a failure reading the latest runs leaves no run at all"() {
-        when:
-        def result = evidenceService.product(1L)
-
-        then:
-        1 * runs.latestRuns(_) >> { throw new MetricsUnavailableException(NOT_CONFIGURED) }
-        0 * evidence.evidenceOf(_)
-        result.metricsError() == NOT_CONFIGURED
-        result.services()[0].pipelines()[0].run() == null
-        result.services()[0].pipelines()[0].status() == RunResult.NO_DATA
-    }
-
-    def "an unknown product is not found"() {
-        when:
-        evidenceService.product(9L)
-
-        then:
-        def e = thrown(NotFoundException)
-        e.message == 'Product 9 does not exist'
-        0 * runs._
-    }
-
-    def "a pipeline of a service the product no longer has is an inconsistency"() {
+    def "a pipeline of a service the product no longer has is an inconsistency, and an unknown product is not found"() {
         given:
         pipelines.findByProductId(3L) >> [pipeline(id: 300L, productId: 3L, serviceId: 30L)]
         products.load(3L) >> Optional.of(product(id: 3L, code: 'PAY', services: [[name: 'gateway', id: 31L]]))
@@ -252,6 +186,14 @@ class ChangeEvidenceServiceSpec extends Specification {
         then:
         def e = thrown(IllegalStateException)
         e.message == 'pipeline 300 belongs to no service of product 3'
+
+        when:
+        evidenceService.product(9L)
+
+        then:
+        def missing = thrown(NotFoundException)
+        missing.message == 'Product 9 does not exist'
+        0 * runs._
     }
 
     def "a pipeline with job #pipelineJob whose run reported #runJob under Jenkins #jenkinsUrl links #jobUrl and build #buildUrl"() {

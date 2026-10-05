@@ -108,31 +108,21 @@ class PipelineMonitoringServiceSpec extends Specification {
         overview.products()[2].overall() == NO_DATA
     }
 
-    def "a pipeline whose product is gone is left out of the overview"() {
+    def "without InfluxDB the overview still lists every pipeline and leaves out those whose product is gone"() {
         given:
         products.findAll() >> [certScanner]
-        pipelines.findAll() >> [guiFull, gatewayFull]
+        pipelines.findAll() >> [guiFull, guiSast, apiFull, gatewayFull]
 
         when:
         def overview = monitoring.overview()
 
         then:
-        1 * runs.latestRuns([tag(guiFull)] as Set) >> [:]
-        overview.products()[0].pipelineCount() == 1
-    }
-
-    def "without InfluxDB the overview still lists every pipeline"() {
-        given:
-        products.findAll() >> [certScanner]
-        pipelines.findAll() >> [guiFull, guiSast, apiFull]
-        runs.latestRuns(_) >> { throw new MetricsUnavailableException(NOT_CONFIGURED) }
-
-        when:
-        def overview = monitoring.overview()
-
-        then:
+        1 * runs.latestRuns([tag(guiFull), tag(guiSast), tag(apiFull)] as Set) >> {
+            throw new MetricsUnavailableException(NOT_CONFIGURED)
+        }
         overview.metricsError() == NOT_CONFIGURED
         overview.products()[0].statusCounts() == [(NO_DATA): 2, (DISABLED): 1]
+        overview.products()[0].pipelineCount() == 3
     }
 
     def "without any pipeline the overview reports only what the metrics store says"() {
@@ -173,7 +163,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         product.metricsError() == null
     }
 
-    def "a product whose runs cannot be read reports why"() {
+    def "a product whose runs cannot be read reports why and an unknown product is not found"() {
         given:
         pipelines.findByProductId(1L) >> [guiFull]
         runs.latestRuns(_) >> { throw new MetricsUnavailableException('InfluxDB could not be read: timeout') }
@@ -185,9 +175,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         product.pipelines()*.status() == [NO_DATA]
         product.overall() == NO_DATA
         product.metricsError() == 'InfluxDB could not be read: timeout'
-    }
 
-    def "an unknown product is not found"() {
         when:
         monitoring.product(9L)
 

@@ -4,6 +4,7 @@ import com.bbh.itss.dso.portal.adapter.RecordMapper
 import com.bbh.itss.dso.portal.adapter.out.persistence.GlobalSettingsEntity.SeverityLimitsEmbeddable
 import com.bbh.itss.dso.portal.adapter.out.persistence.ServiceEntity.GoldenFixPolicyEmbeddable
 import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
+import com.bbh.itss.dso.portal.domain.settings.GlobalSettings
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues
 import com.bbh.itss.dso.portal.domain.settings.SeverityLimits
 import org.springframework.test.util.ReflectionTestUtils
@@ -15,6 +16,7 @@ import static com.bbh.itss.dso.portal.domain.settings.Scanner.DAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SCA
+import static com.bbh.itss.dso.portal.support.Fixtures.copy
 
 class GlobalSettingsEntitySpec extends Specification {
 
@@ -23,33 +25,26 @@ class GlobalSettingsEntitySpec extends Specification {
     def entity = new GlobalSettingsEntity()
     def bbh = GlobalSettingsValues.bbhDefaults()
 
-    def "the settings live under one fixed key and are new until they were first stored"() {
-        expect:
-        entity.id == GlobalSettingsEntity.ID
-        entity.isNew()
-
-        when:
-        ReflectionTestUtils.setField(entity, 'createdAt', UPDATED)
-
-        then:
-        !entity.isNew()
-    }
-
-    def "every section is copied into the columns and read back unchanged with the stored version"() {
+    def "the settings live under one fixed key and every section is read back unchanged with the stored version"() {
         given:
         ReflectionTestUtils.setField(entity, 'version', 7L)
         ReflectionTestUtils.setField(entity, 'updatedAt', UPDATED)
 
         when:
         entity.apply(bbh)
-        def read = entity.toDomain()
 
         then:
-        read.values() == bbh
-        read.version() == 7
-        read.updatedAt() == UPDATED
-        read.values().limits().keySet() as List == [SAST, SCA, NEXUS_IQ, DAST]
+        entity.id == GlobalSettingsEntity.ID
+        entity.isNew()
+        entity.toDomain() == new GlobalSettings(bbh, 7, UPDATED)
+        entity.toDomain().values().limits().keySet() as List == [SAST, SCA, NEXUS_IQ, DAST]
         ReflectionTestUtils.getField(entity, 'values').releaseGate().scanners() == [SAST, SCA, NEXUS_IQ, DAST]
+
+        when:
+        ReflectionTestUtils.setField(entity, 'createdAt', UPDATED)
+
+        then:
+        !entity.isNew()
     }
 
     def "unchanged limits are left alone so saving writes no limit rows"() {
@@ -66,8 +61,7 @@ class GlobalSettingsEntitySpec extends Specification {
         0 * stored.putAll(_)
 
         when:
-        entity.apply(new GlobalSettingsValues(bbh.platform(), bbh.deployment(), [(SAST): new SeverityLimits(3, 2, 1)],
-                bbh.scans(), bbh.releaseGate(), bbh.serviceDefaults(), bbh.goldenFix()))
+        entity.apply(copy(bbh, limits: [(SAST): new SeverityLimits(3, 2, 1)]))
 
         then:
         1 * stored.clear()

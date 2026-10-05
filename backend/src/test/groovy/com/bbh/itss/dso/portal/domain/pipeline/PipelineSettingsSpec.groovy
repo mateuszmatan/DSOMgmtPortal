@@ -8,39 +8,9 @@ class PipelineSettingsSpec extends Specification {
 
     def both = new PipelineSettings(['linux'], 'CERT/gui-extended', 'CERT/gui-security', 'DevSecOps/CERT/gui', 'Nightly')
 
-    def "the #type pipeline keeps extended job #extended and security job #security"() {
-        when:
-        def settings = both.forType(type)
-
-        then:
-        settings.extendedPipelineJob() == extended
-        settings.securityPipelineJob() == security
-        settings.agentLabels() == ['linux']
-        settings.jenkinsJob() == 'DevSecOps/CERT/gui'
-        settings.description() == 'Nightly'
-
-        where:
-        type                  || extended            | security
-        PipelineType.SECURITY || 'CERT/gui-extended' | null
-        PipelineType.EXTENDED || null                | 'CERT/gui-security'
-        PipelineType.FULL     || null                | null
-        PipelineType.SAST     || null                | null
-    }
-
-    def "the pipeline a new service starts with runs on the default agent and no Jenkins job of its own"() {
-        when:
-        def settings = PipelineSettings.forNewService()
-
-        then:
-        settings.agentLabels() == ['linux-agent']
-        settings.jenkinsJob() == null
-        settings.extendedPipelineJob() == null
-        settings.securityPipelineJob() == null
-        settings.description() == null
-    }
-
-    def "blank settings are stored as null and agent labels cleaned"() {
+    def "blank settings are stored as null, agent labels cleaned, and a new service starts on the default agent"() {
         expect:
+        PipelineSettings.forNewService() == new PipelineSettings(['linux-agent'], null, null, null, null)
         new PipelineSettings([' linux ', '', 'linux', 'docker'], ' ', '  ', ' DevSecOps/gui ', '\t') ==
                 new PipelineSettings(['linux', 'docker'], null, null, 'DevSecOps/gui', null)
         new PipelineSettings(null, null, null, null, null).agentLabels() == []

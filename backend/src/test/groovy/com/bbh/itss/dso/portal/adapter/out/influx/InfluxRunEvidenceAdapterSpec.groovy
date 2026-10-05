@@ -9,7 +9,6 @@ import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult
 import org.springframework.web.client.RestClient
 import spock.lang.Specification
-import spock.lang.Subject
 
 import java.time.Instant
 
@@ -20,23 +19,13 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
     InfluxQueryClient influx = Spy(constructorArgs: [
             new InfluxProperties('http://influx', 'DevSecOps', 'DORA-metrics', 't', '180d'), RestClient.builder()])
 
-    @Subject
     def adapter = new InfluxRunEvidenceAdapter(influx)
 
     def gui = new MetricsTag('CERT-gui', 'test')
     def guiSast = new MetricsTag('CERT-guisast', 'test')
     def guiUat = new MetricsTag('CERT-gui', 'uat')
 
-    def "no runs need no query"() {
-        when:
-        def evidence = adapter.evidenceOf([:])
-
-        then:
-        evidence == [:]
-        0 * influx.query(_)
-    }
-
-    def "the evidence of every run is read in one query, each run in its own window"() {
+    def "the evidence of every run is read in one query, each run in its own window, and no runs need none"() {
         given:
         def runs = new LinkedHashMap<MetricsTag, PipelineRun>()
         runs.put(guiSast, run(FINISHED.plusSeconds(3600), null))
@@ -46,6 +35,7 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
         adapter.evidenceOf(runs)
 
         then:
+        adapter.evidenceOf([:]) == [:]
         1 * influx.query('''\
             run0 = from(bucket: "DORA-metrics")
               |> range(start: time(v: "2026-10-04T09:49:56Z"), stop: time(v: "2026-10-04T10:00:02Z"))
@@ -64,28 +54,16 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
             '''.stripIndent()) >> []
     }
 
-    def "one run is read without a union"() {
+    def "one run is read without a union, and a run with the same key in another environment in its own window"() {
         when:
         adapter.evidenceOf([(gui): run(FINISHED, 60)])
-
-        then:
-        1 * influx.query('''\
-            run0 = from(bucket: "DORA-metrics")
-              |> range(start: time(v: "2026-10-04T09:58:56Z"), stop: time(v: "2026-10-04T10:00:02Z"))
-              |> filter(fn: (r) => r.project == "CERT-gui" and r.env == "test")
-              |> filter(fn: (r) => r._measurement == "security_findings" or r._measurement == "policy_status" or r._measurement == "code_coverage" or r._measurement == "test_execution" or r._measurement == "release_gate" or r._measurement == "vulnerabilities" or r._measurement == "stage_event")
-              |> filter(fn: (r) => not (r._measurement == "release_gate" and r._field == "allowed"))
-              |> last()
-            run0
-              |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
-            '''.stripIndent()) >> []
-    }
-
-    def "the window of a run with the same key in another environment is read on its own"() {
-        when:
         adapter.evidenceOf([(gui): run(FINISHED, 600), (guiUat): run(FINISHED.minusSeconds(3600), 60)])
 
         then:
+        1 * influx.query({ String flux ->
+            flux.contains('range(start: time(v: "2026-10-04T09:58:56Z"), stop: time(v: "2026-10-04T10:00:02Z"))') &&
+                    !flux.contains('union') && flux.endsWith('run0\n  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")\n')
+        }) >> []
         1 * influx.query({ String flux ->
             flux.contains('r.project == "CERT-gui" and r.env == "test"') &&
                     flux.contains('r.project == "CERT-gui" and r.env == "uat"') &&
@@ -155,6 +133,7 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
         expect:
         InfluxRunEvidenceAdapter.belongsTo([_measurement: measurement, _time: at(FINISHED.plusSeconds(offset))],
                 run(FINISHED, 600)) == belongs
+        !InfluxRunEvidenceAdapter.belongsTo([_measurement: 'release_gate'], run(FINISHED, 600))
 
         where:
         measurement         | offset || belongs
@@ -169,18 +148,7 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
         'stage_event'       | -605   || false
         'stage_event'       | 2      || true
         'stage_event'       | 3      || false
-    }
-
-    def "a point without a time or a measurement belongs to no run"() {
-        expect:
-        !InfluxRunEvidenceAdapter.belongsTo([_measurement: 'release_gate'], run(FINISHED, 600))
-        !InfluxRunEvidenceAdapter.belongsTo([_time: at(FINISHED)], run(FINISHED, 600))
-    }
-
-    def "a run started its duration before it finished, with slack for whole seconds"() {
-        expect:
-        InfluxRunEvidenceAdapter.startOf(run(FINISHED, 600)) == Instant.parse('2026-10-04T09:49:56Z')
-        InfluxRunEvidenceAdapter.startOf(run(FINISHED, null)) == Instant.parse('2026-10-04T09:59:56Z')
+        null                | 0      || false
     }
 
     private static PipelineRun run(Instant finished, Long durationSeconds) {

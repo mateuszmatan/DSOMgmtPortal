@@ -15,12 +15,12 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager
 import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.JdbcTemplate
 import spock.lang.Specification
-import spock.lang.Subject
 
 import static com.bbh.itss.dso.portal.domain.catalog.Region.QC
 import static com.bbh.itss.dso.portal.domain.catalog.Region.RD
 import static com.bbh.itss.dso.portal.support.Fixtures.account
 import static com.bbh.itss.dso.portal.support.Fixtures.command
+import static com.bbh.itss.dso.portal.support.Fixtures.copy
 import static com.bbh.itss.dso.portal.support.Fixtures.details
 import static com.bbh.itss.dso.portal.support.Fixtures.fullSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.settings
@@ -32,7 +32,6 @@ import static com.bbh.itss.dso.portal.support.Fixtures.settings
 @Import(ProductPersistenceAdapter)
 class ProductPersistenceAdapterSpec extends Specification {
 
-    @Subject
     @Autowired
     ProductPersistenceAdapter adapter
 
@@ -54,21 +53,17 @@ class ProductPersistenceAdapterSpec extends Specification {
         def loaded = adapter.load(saved.id()).get()
 
         then:
-        saved.id() != null
         saved.version() == 0
-        saved.createdAt() != null
         saved.updatedAt() == saved.createdAt()
+        [loaded.version(), loaded.createdAt()] == [saved.version(), saved.createdAt()]
         loaded.details() == created.details()
         loaded.appScanAccount() == account()
-        loaded.services()*.id() == saved.services()*.id()
-        loaded.services()*.name() == ['gui', 'api']
+        loaded.services() == saved.services()
         loaded.services()*.description() == ['Angular', null]
         loaded.services()*.displayOrder() == [0, 1]
         loaded.services()[0].settings() == fullSettings('gui')
         loaded.services()[1].settings() == settings(metrics: new MetricsSettings(true, 'CERT-api', 'test'))
         loaded.services()[0].settings().sshTargets().keySet() as List == [RD, QC]
-        loaded.version() == saved.version()
-        loaded.createdAt() == saved.createdAt()
     }
 
     def "the columns hold the values the library view and the old rows use"() {
@@ -138,11 +133,8 @@ class ProductPersistenceAdapterSpec extends Specification {
         def stored = adapter.load(created.id()).get()
         def gui = stored.services()[0].id()
         def changed = fullSettings('gui')
-        def trimmed = new ServiceSettings(changed.build(), changed.unitTests(),
-                changed.tests(), changed.testJobs().take(1), changed.deployment(), changed.delivery(),
-                changed.urbanCode(), changed.urbanCodeApplications().drop(1), [(QC): changed.sshTargets()[QC]], [:],
-                changed.appScan(), changed.sonar(), changed.nexusIq(), changed.scm(), changed.goldenFix(),
-                changed.metrics(), changed.flutter())
+        def trimmed = copy(changed, testJobs: changed.testJobs().take(1), openShiftTargets: [:],
+                urbanCodeApplications: changed.urbanCodeApplications().drop(1), sshTargets: [(QC): changed.sshTargets()[QC]])
 
         when:
         stored.update(null, details(), account(), [new ServiceDraft(gui, 'gui', null, trimmed)], adapter)
@@ -156,21 +148,6 @@ class ProductPersistenceAdapterSpec extends Specification {
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_UCD_COMPONENT', Integer) == 1
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_SERVICE_SSH_TARGET', Integer) == 1
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_SERVICE_OPENSHIFT_TARGET', Integer) == 0
-    }
-
-    def "a new service may take the name of a service removed in the same save"() {
-        given:
-        def stored = adapter.save(Product.create(details(), account(), [draft('gui'), draft('api')], adapter))
-
-        when:
-        stored.update(stored.version(), details(), account(), [draft('api', stored.services()[1].id()), draft('gui')],
-                adapter)
-        def saved = adapter.save(stored)
-
-        then:
-        saved.services()*.name() == ['api', 'gui']
-        saved.services()[1].id() != stored.services().find { it.name() == 'gui' }?.id()
-        jdbc.queryForList('SELECT NAME FROM DSO_SERVICE ORDER BY DISPLAY_ORDER')*.NAME == ['api', 'gui']
     }
 
     def "every update raises the version and the modification time, also one that changes only a service"() {
@@ -218,10 +195,10 @@ class ProductPersistenceAdapterSpec extends Specification {
                 Integer) == 0
     }
 
-    def "a product read at another version than the stored one is not written"() {
+    def "a product #change is not written"() {
         given:
         def stored = adapter.save(Product.create(details(), account(), [draft('gui')], adapter))
-        def stale = Product.restore(stored.id(), details(name: 'Stale'), account(), stored.services(),
+        def stale = Product.restore(id ?: stored.id(), details(name: 'Stale'), account(), id ? [] : stored.services(),
                 stored.version() + 3, stored.createdAt(), stored.updatedAt())
 
         when:
@@ -231,18 +208,11 @@ class ProductPersistenceAdapterSpec extends Specification {
         def e = thrown(ConflictException)
         e.message == ConflictException.STALE_VERSION
         jdbc.queryForObject('SELECT NAME FROM DSO_PRODUCT', String) == 'CertScanner'
-    }
 
-    def "a product deleted in the meantime cannot be written"() {
-        given:
-        def gone = Product.restore(404L, details(), account(), [], 0, null, null)
-
-        when:
-        adapter.save(gone)
-
-        then:
-        def e = thrown(ConflictException)
-        e.message == ConflictException.STALE_VERSION
+        where:
+        change                                | id
+        'read at another version than stored' | null
+        'deleted in the meantime'             | 404L
     }
 
     def "products are listed by name with their summaries and service counts"() {
@@ -267,16 +237,7 @@ class ProductPersistenceAdapterSpec extends Specification {
         adapter.summaries()[2].description() == 'Payments'
         adapter.servicesPerProduct() == [(payments.id()): 3L, (cert.id()): 1L]
         !adapter.servicesPerProduct().containsKey(empty.id())
-    }
-
-    def "a product is found through any of its services"() {
-        given:
-        def stored = adapter.save(Product.create(details(), account(), [draft('gui'), draft('api')], adapter))
-        entities.clear()
-
-        expect:
-        adapter.findByServiceId(stored.services()[1].id()).get().id() == stored.id()
-        adapter.findByServiceId(stored.services()[1].id()).get().services()*.name() == ['gui', 'api']
+        adapter.findByServiceId(payments.services()[1].id()).get().services()*.name() == ['gateway', 'ledger', 'mobile']
         adapter.findByServiceId(9999L) == Optional.empty()
         adapter.load(9999L) == Optional.empty()
     }

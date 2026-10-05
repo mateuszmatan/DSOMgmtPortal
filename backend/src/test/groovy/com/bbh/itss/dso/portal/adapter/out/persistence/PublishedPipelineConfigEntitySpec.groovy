@@ -6,50 +6,26 @@ import java.time.Instant
 
 class PublishedPipelineConfigEntitySpec extends Specification {
 
-    static final Instant FIRST = Instant.parse('2026-10-01T08:00:00Z')
-    static final Instant LATER = Instant.parse('2026-10-04T12:00:00Z')
-
-    def config = new PublishedPipelineConfigEntity(100L)
-
-    def "a new row is keyed by its pipeline and must be inserted"() {
-        expect:
-        config.id == 100L
-        config.isNew()
-        config.configJson == null
-        config.renderedAt == null
-    }
-
-    def "publishing takes the configuration with the time it was rendered"() {
-        when:
-        config.publish('{"pipeline":{"type":"full"}}', FIRST)
-        config.publish('{"pipeline":{"type":"sast"}}', LATER)
-
-        then:
-        config.configJson == '{"pipeline":{"type":"sast"}}'
-        config.renderedAt == LATER
-    }
-
-    def "a row that was loaded or stored is no longer new"() {
-        when:
-        config.markStored()
-
-        then:
-        !config.isNew()
-        config.id == 100L
-    }
-
-    def "a row JPA creates is new until it is loaded"() {
-        when:
+    def "a row is new until it was loaded or stored and keeps the latest configuration with its render time"() {
+        given:
+        def config = new PublishedPipelineConfigEntity(100L)
         def loaded = PublishedPipelineConfigEntity.getDeclaredConstructor().with { accessible = true; newInstance() }
 
+        when:
+        config.publish('{"pipeline":{"type":"full"}}', Instant.EPOCH)
+        config.publish('{"pipeline":{"type":"sast"}}', Instant.parse('2026-10-04T12:00:00Z'))
+
         then:
-        loaded.id == null
-        loaded.isNew()
+        [config.id, config.isNew(), loaded.id, loaded.isNew()] == [100L, true, null, true]
+        config.configJson == '{"pipeline":{"type":"sast"}}'
+        config.renderedAt == Instant.parse('2026-10-04T12:00:00Z')
 
         when:
+        config.markStored()
         loaded.markStored()
 
         then:
+        !config.isNew()
         !loaded.isNew()
     }
 }
