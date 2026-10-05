@@ -278,7 +278,7 @@ class ConfigSectionsSpec extends Specification {
 
     def "SCM settings trim their values, sign in with a password by default and keep each reviewer once"() {
         when:
-        def scm = new ScmSettings(' ', ' ', null, null, ' ', ' ', [' alice ', 'alice', '', 'bob'])
+        def scm = new ScmSettings(' ', ' ', null, null, ' ', ' ', [' alice ', 'alice', '', 'bob'], ' ', ' ', ' ', ' ')
 
         then:
         scm.repositoryUrl() == null
@@ -288,27 +288,39 @@ class ConfigSectionsSpec extends Specification {
         scm.targetBranch() == null
         scm.cloneUrl() == null
         scm.reviewers() == ['alice', 'bob']
-        ScmSettings.NONE == new ScmSettings(null, null, null, null, null, null, null)
-        ScmSettings.of(" $REPO ", ' bb-creds ') == new ScmSettings(REPO, 'bb-creds', BASIC, null, null, null, [])
+        scm.apiUrl() == null
+        scm.workspace() == null
+        scm.projectKey() == null
+        scm.repoSlug() == null
+        ScmSettings.NONE == new ScmSettings(null, null, null, null, null, null, null, null, null, null, null)
+        ScmSettings.of(" $REPO ", ' bb-creds ') ==
+                new ScmSettings(REPO, 'bb-creds', BASIC, null, null, null, [], null, null, null, null)
+        new ScmSettings(REPO, 'bb', null, null, null, null, null, ' https://api.bitbucket.org/2.0 ', ' ta ', ' TA ',
+                ' cert ') == new ScmSettings(REPO, 'bb', BASIC, null, null, null, [], 'https://api.bitbucket.org/2.0',
+                'ta', 'TA', 'cert')
     }
 
     def "nothing of the repository is written without its URL"() {
         expect:
         written(ScmSettings.NONE) == [:]
-        written(new ScmSettings(null, 'bb-creds', BEARER, CLOUD, 'main', 'ssh://git@x/r.git', ['alice'])) == [:]
+        written(new ScmSettings(null, 'bb-creds', BEARER, CLOUD, 'main', 'ssh://git@x/r.git', ['alice'],
+                'https://api.bitbucket.org/2.0', 'ta', 'TA', 'cert')) == [:]
     }
 
     def "a repository writes every scm.bitbucket key that is set"() {
         expect:
         written(new ScmSettings(" $REPO ", 'bb-creds', BEARER, SERVER, ' develop ',
-                ' ssh://git@bitbucket.bbh.com:7999/ta/cert.git ', ['alice', '{0b9e-uuid}'])) ==
+                ' ssh://git@bitbucket.bbh.com:7999/ta/cert.git ', ['alice', '{0b9e-uuid}'],
+                ' https://bitbucket.bbh.com/rest/api/1.0 ', null, ' TA ', ' cert-scanner ')) ==
                 [scm: [bitbucket: [url        : REPO, credentialsId: 'bb-creds', authType: 'bearer', type: 'server',
                                    targetBranch: 'develop', cloneUrl: 'ssh://git@bitbucket.bbh.com:7999/ta/cert.git',
-                                   reviewers  : ['alice', '{0b9e-uuid}']]]]
+                                   reviewers  : ['alice', '{0b9e-uuid}'],
+                                   apiUrl     : 'https://bitbucket.bbh.com/rest/api/1.0', projectKey: 'TA',
+                                   repoSlug   : 'cert-scanner']]]
         written(ScmSettings.of(REPO, 'bb-creds')) ==
                 [scm: [bitbucket: [url: REPO, credentialsId: 'bb-creds', authType: 'basic']]]
-        written(new ScmSettings(REPO, null, BASIC, CLOUD, null, null, [])).scm.bitbucket ==
-                [url: REPO, authType: 'basic', type: 'cloud']
+        written(new ScmSettings(REPO, null, BASIC, CLOUD, null, null, [], null, 'ta-workspace', null, 'cert')).scm
+                .bitbucket == [url: REPO, authType: 'basic', type: 'cloud', workspace: 'ta-workspace', repoSlug: 'cert']
     }
 
     def "a repository needs the credentials GoldenFix pushes with"() {
@@ -317,6 +329,22 @@ class ConfigSectionsSpec extends Specification {
         messages(ScmSettings.of(REPO, null)) == ['is required to push GoldenFix branches and open pull requests']
         problems(ScmSettings.of(REPO, 'bb-creds')) == []
         problems(ScmSettings.NONE) == []
+    }
+
+    def "the Bitbucket repository keys need the repository URL they refine"() {
+        expect:
+        problems(new ScmSettings(null, null, null, null, null, null, null, apiUrl, workspace, projectKey, repoSlug)) ==
+                ['repositoryUrl']
+        messages(new ScmSettings(null, null, null, null, null, null, null, apiUrl, workspace, projectKey, repoSlug)) ==
+                ['is required when the Bitbucket API URL, workspace, project key or repository slug is set']
+        problems(new ScmSettings(REPO, 'bb', null, null, null, null, null, apiUrl, workspace, projectKey, repoSlug)) == []
+
+        where:
+        apiUrl                          | workspace | projectKey | repoSlug
+        'https://api.bitbucket.org/2.0' | null      | null       | null
+        null                            | 'ta'      | null       | null
+        null                            | null      | 'TA'       | null
+        null                            | null      | null       | 'cert'
     }
 
     def "metrics are on by default and use the test environment"() {

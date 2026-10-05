@@ -22,14 +22,20 @@ public record ScmSettingsEmbeddable(
         @Column(name = "BITBUCKET_TARGET_BRANCH", length = 200) String targetBranch,
         @Column(name = "BITBUCKET_CLONE_URL", length = 1000) String cloneUrl,
         @Convert(converter = DelimitedListConverter.Commas.class)
-        @Column(name = "BITBUCKET_REVIEWERS", length = 2000) List<String> reviewers) {
+        @Column(name = "BITBUCKET_REVIEWERS", length = 2000) List<String> reviewers,
+        @Column(name = "BITBUCKET_API_URL", length = 1000) String apiUrl,
+        @Column(name = "BITBUCKET_WORKSPACE", length = 200) String workspace,
+        @Column(name = "BITBUCKET_PROJECT_KEY", length = 200) String projectKey,
+        @Column(name = "BITBUCKET_REPO_SLUG", length = 200) String repoSlug) {
 
     static ScmSettingsEmbeddable of(ScmSettings scm) {
         return new ScmSettingsEmbeddable(scm.repositoryUrl(), scm.credentialsId(), scm.authType(), scm.type(),
-                scm.targetBranch(), scm.cloneUrl(), scm.reviewers());
+                scm.targetBranch(), scm.cloneUrl(), scm.reviewers(), scm.apiUrl(), scm.workspace(), scm.projectKey(),
+                scm.repoSlug());
     }
 
     ScmSettings toDomain() {
-        return new ScmSettings(repositoryUrl, credentialsId, authType, type, targetBranch, cloneUrl, reviewers);
+        return new ScmSettings(repositoryUrl, credentialsId, authType, type, targetBranch, cloneUrl, reviewers, apiUrl,
+                workspace, projectKey, repoSlug);
     }
 }

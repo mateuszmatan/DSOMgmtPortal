@@ -49,6 +49,8 @@ class ServiceMappingSpec extends Specification {
                 UrbanCodeComponentDto.from(settings.urbanCodeApplications()[0].components()[0])
         response.sshTargets().keySet() as List == [RD, QC]
         response.openShiftTargets() == [(QC): OpenShiftTargetDto.from(settings.openShiftTargets()[QC])]
+        response.scm().projectKey() == 'TA'
+        response.scm().repoSlug() == 'cert-gui'
         response.goldenFix() == GoldenFixPolicyDto.from(settings.goldenFix())
         response.flutter() == FlutterSettingsDto.from(settings.flutter())
     }
@@ -122,7 +124,8 @@ class ServiceMappingSpec extends Specification {
                 appScan(dastEnabled: true, dastTargetUrl: 'https://rdl1.testbbh.com', compileCommand: command(['compile'])),
                 SonarSettings.of('Cert', 'cert-gui', command(['sonar:sonar'])),
                 NexusIqSettings.of('cert', ['**/*.war']),
-                ScmSettings.of('https://bitbucket.bbh.com/scm/ta/cert.git', 'bb-creds'),
+                new ScmSettings('https://bitbucket.bbh.com/scm/ta/cert.git', 'bb-creds', null, null, null, null, null,
+                        'https://bitbucket.bbh.com/rest/api/1.0', 'ta-workspace', 'TA', 'cert-gui'),
                 GoldenFixPolicy.inherit(false),
                 new MetricsSettings(false, 'cert-gui', 'qc'),
                 new FlutterSettings(FlutterPlatform.WEB, ['app'], [], [], [], 's', 'p', 't', null, null, null, null, null, true,

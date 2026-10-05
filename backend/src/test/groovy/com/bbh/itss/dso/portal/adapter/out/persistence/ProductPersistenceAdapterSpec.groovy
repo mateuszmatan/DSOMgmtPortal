@@ -86,6 +86,10 @@ class ProductPersistenceAdapterSpec extends Specification {
                 [BUILD_TOOL: 'MAVEN', BUILD_TASKS: 'build-task\nsecond', DELIVERY_TASKS: 'delivery-task\nsecond',
                  BITBUCKET_REVIEWERS: 'alice,bob', NEXUS_IQ_SCAN_PATTERNS: '**/*.war\n**/*.jar', GOLDEN_FIX_ENABLED: 0,
                  INFLUX_PROJECT: 'cert-gui']
+        jdbc.queryForMap('''SELECT BITBUCKET_API_URL, BITBUCKET_WORKSPACE, BITBUCKET_PROJECT_KEY, BITBUCKET_REPO_SLUG
+                FROM DSO_SERVICE WHERE ID = ?''', serviceId) ==
+                [BITBUCKET_API_URL    : 'https://bitbucket.bbh.com/rest/api/1.0', BITBUCKET_WORKSPACE: 'ta-workspace',
+                 BITBUCKET_PROJECT_KEY: 'TA', BITBUCKET_REPO_SLUG: 'cert-gui']
         jdbc.queryForList('SELECT POSITION, STAGE FROM DSO_SERVICE_TEST_JOB WHERE SERVICE_ID = ? ORDER BY POSITION',
                 serviceId)*.STAGE == ['SMOKE', 'REGRESSION', 'PERFORMANCE']
         jdbc.queryForList('SELECT POSITION, APPLICATION_NAME FROM DSO_UCD_APPLICATION WHERE SERVICE_ID = ? ORDER BY POSITION',

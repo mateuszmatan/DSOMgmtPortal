@@ -6,6 +6,8 @@ import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 public record ScmSettings(
         String repositoryUrl,
@@ -14,9 +16,13 @@ public record ScmSettings(
         BitbucketType type,
         String targetBranch,
         String cloneUrl,
-        List<String> reviewers) implements ConfigSection {
+        List<String> reviewers,
+        String apiUrl,
+        String workspace,
+        String projectKey,
+        String repoSlug) implements ConfigSection {
 
-    public static final ScmSettings NONE = new ScmSettings(null, null, BitbucketAuthType.BASIC, null, null, null, List.of());
+    public static final ScmSettings NONE = of(null, null);
 
     public ScmSettings {
         repositoryUrl = Text.trimToNull(repositoryUrl);
@@ -25,10 +31,15 @@ public record ScmSettings(
         targetBranch = Text.trimToNull(targetBranch);
         cloneUrl = Text.trimToNull(cloneUrl);
         reviewers = Text.clean(reviewers);
+        apiUrl = Text.trimToNull(apiUrl);
+        workspace = Text.trimToNull(workspace);
+        projectKey = Text.trimToNull(projectKey);
+        repoSlug = Text.trimToNull(repoSlug);
     }
 
     public static ScmSettings of(String repositoryUrl, String credentialsId) {
-        return new ScmSettings(repositoryUrl, credentialsId, BitbucketAuthType.BASIC, null, null, null, List.of());
+        return new ScmSettings(repositoryUrl, credentialsId, BitbucketAuthType.BASIC, null, null, null, List.of(),
+                null, null, null, null);
     }
 
     @Override
@@ -42,7 +53,11 @@ public record ScmSettings(
                 .set("scm.bitbucket.type", type == null ? null : type.configValue())
                 .set("scm.bitbucket.targetBranch", targetBranch)
                 .set("scm.bitbucket.cloneUrl", cloneUrl)
-                .set("scm.bitbucket.reviewers", reviewers);
+                .set("scm.bitbucket.reviewers", reviewers)
+                .set("scm.bitbucket.apiUrl", apiUrl)
+                .set("scm.bitbucket.workspace", workspace)
+                .set("scm.bitbucket.projectKey", projectKey)
+                .set("scm.bitbucket.repoSlug", repoSlug);
     }
 
     @Override
@@ -50,5 +65,13 @@ public record ScmSettings(
         if (repositoryUrl != null && credentialsId == null) {
             problems.add("credentialsId", "is required to push GoldenFix branches and open pull requests");
         }
+        if (repositoryUrl == null && namesRepository()) {
+            problems.add("repositoryUrl",
+                    "is required when the Bitbucket API URL, workspace, project key or repository slug is set");
+        }
+    }
+
+    private boolean namesRepository() {
+        return Stream.of(apiUrl, workspace, projectKey, repoSlug).anyMatch(Objects::nonNull);
     }
 }

@@ -33,8 +33,8 @@ class ConfigSectionDtosSpec extends Specification {
                 new SonarSettingsDto('Cert', 'cert', null, null, null, null, false, false, ToolCommandDto.NONE)
         new NexusIqSettingsDto(' cert ', [' a ', 'a', ' '], ' ', null, ' ') ==
                 new NexusIqSettingsDto('cert', ['a'], 'build', false, null)
-        new ScmSettingsDto(" $REPO ", ' bb ', null, null, ' ', ' ', [' alice ', 'alice']) ==
-                new ScmSettingsDto(REPO, 'bb', BASIC, null, null, null, ['alice'])
+        new ScmSettingsDto(" $REPO ", ' bb ', null, null, ' ', ' ', [' alice ', 'alice'], ' ', ' cert ', ' ', ' gui ') ==
+                new ScmSettingsDto(REPO, 'bb', BASIC, null, null, null, ['alice'], null, 'cert', null, 'gui')
         new MetricsSettingsDto(null, ' ', ' ') == new MetricsSettingsDto(true, null, 'test')
         new AppScanAccountDto(' key ', ' ') == new AppScanAccountDto('key', null)
         new DeploymentSettingsDto(VM, ' ', ' ', ' ') == new DeploymentSettingsDto(VM, null, null, null)
@@ -53,7 +53,8 @@ class ConfigSectionDtosSpec extends Specification {
                         null, true, 'dast', 'https://rdl1.testbbh.com', 'p-1'),
                 new SonarSettingsDto('Cert', 'bbh:cert-scanner_1.0', 'SonarQube', 'c', 't', 'sqb_1a2B', true, false, null),
                 new NexusIqSettingsDto('cert', ['**/*.jar'], 'stage-release', true, 'sca'),
-                new ScmSettingsDto(REPO, 'bb', BEARER, SERVER, 'main', 'ssh://git@bitbucket.bbh.com/ta/cert.git', ['alice']),
+                new ScmSettingsDto(REPO, 'bb', BEARER, SERVER, 'main', 'ssh://git@bitbucket.bbh.com/ta/cert.git', ['alice'],
+                        'https://bitbucket.bbh.com/rest/api/1.0', 'ta-workspace', '~JDOE', 'cert.scanner_1'),
                 new MetricsSettingsDto(true, 'CERT-gui_1.0', 'qc-2'),
                 new AppScanAccountDto('bbh_key', 'asoc-creds')]
     }
@@ -84,10 +85,18 @@ class ConfigSectionDtosSpec extends Specification {
         'a too long SonarQube project'     | sonar('n' * 201, null)                                                                     || 'projectName'
         'more than 20 scan patterns'       | new NexusIqSettingsDto(null, tasks(21), null, null, null)                                  || 'scanPatterns'
         'a Nexus IQ stage in upper case'   | new NexusIqSettingsDto(null, [], 'Release', false, null)                                   || 'stage'
-        'a repository that is no URL'      | new ScmSettingsDto('bitbucket', 'bb', null, null, null, null, null)                         || 'repositoryUrl'
-        'a clone URL in scp form'          | new ScmSettingsDto(REPO, 'bb', BASIC, null, null, 'git@bitbucket:ta/cert.git', [])         || 'cloneUrl'
-        'a reviewer with a space'          | new ScmSettingsDto(REPO, 'bb', BASIC, null, null, null, ['john doe'])                      || 'reviewers[0].<list element>'
-        'more than 20 reviewers'           | new ScmSettingsDto(REPO, 'bb', BASIC, null, null, null, tasks(21))                         || 'reviewers'
+        'a repository that is no URL'      | scm('bitbucket', null, [])                                                                 || 'repositoryUrl'
+        'a clone URL in scp form'          | scm(REPO, 'git@bitbucket:ta/cert.git', [])                                                 || 'cloneUrl'
+        'a reviewer with a space'          | scm(REPO, null, ['john doe'])                                                              || 'reviewers[0].<list element>'
+        'more than 20 reviewers'           | scm(REPO, null, tasks(21))                                                                 || 'reviewers'
+        'a Bitbucket API URL without http' | bitbucket('ftp://bitbucket.bbh.com', null, null, null)                                     || 'apiUrl'
+        'a too long Bitbucket API URL'     | bitbucket('https://' + 'b' * 994, null, null, null)                                        || 'apiUrl'
+        'a workspace with a space'         | bitbucket(null, 'ta workspace', null, null)                                                || 'workspace'
+        'a too long workspace'             | bitbucket(null, 'w' * 201, null, null)                                                     || 'workspace'
+        'a project key with a tab'         | bitbucket(null, null, 'T\tA', null)                                                        || 'projectKey'
+        'a too long project key'           | bitbucket(null, null, 'K' * 201, null)                                                     || 'projectKey'
+        'a repository slug with a space'   | bitbucket(null, null, null, 'cert scanner')                                                || 'repoSlug'
+        'a too long repository slug'       | bitbucket(null, null, null, 's' * 201)                                                     || 'repoSlug'
         'a metrics tag with a space'       | new MetricsSettingsDto(true, 'cert scanner', null)                                         || 'influxProject'
         'a metrics environment with /'     | new MetricsSettingsDto(true, null, 'qc/1')                                                 || 'influxEnv'
         'a missing AppScan key ID'         | new AppScanAccountDto(' ', null)                                                           || 'keyId'
@@ -97,8 +106,17 @@ class ConfigSectionDtosSpec extends Specification {
     def "the URL rules explain what they expect"() {
         expect:
         validator.validate(appScanDast('ftp://rdl1.testbbh.com'))*.message == ['must be an http or https URL']
-        validator.validate(new ScmSettingsDto(REPO, 'bb', BASIC, null, null, 'git@bitbucket:ta/cert.git', []))*.message ==
-                ['must be an http, https or ssh URL']
+        validator.validate(scm(REPO, 'git@bitbucket:ta/cert.git', []))*.message == ['must be an http, https or ssh URL']
+        validator.validate(bitbucket('bitbucket.bbh.com', null, null, null))*.message == ['must be an http or https URL']
+        validator.validate(bitbucket(null, 'ta workspace', null, null))*.message == ['must not contain whitespace']
+    }
+
+    private static ScmSettingsDto scm(String repositoryUrl, String cloneUrl, List<String> reviewers) {
+        new ScmSettingsDto(repositoryUrl, 'bb', BASIC, null, null, cloneUrl, reviewers, null, null, null, null)
+    }
+
+    private static ScmSettingsDto bitbucket(String apiUrl, String workspace, String projectKey, String repoSlug) {
+        new ScmSettingsDto(REPO, 'bb', BASIC, null, null, null, [], apiUrl, workspace, projectKey, repoSlug)
     }
 
     private static List<String> tasks(int count) {

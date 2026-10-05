@@ -308,7 +308,8 @@ class ProductControllerSpec extends Specification {
                 urbanCodeApplications: [[applicationName: 'Cert', environments: ['R D'], components: [[componentName: ' ']]]],
                 sshTargets: [RD: [host: 'rd host'], QC: [host: 'qcltaapps1.testbbh.com']],
                 openShiftTargets: [QC: [deploymentRepoUrl: 'bitbucket/ta/deploy']],
-                scm: [repositoryUrl: 'https://bitbucket.bbh.com/scm/ta/cert.git', reviewers: ['john doe']],
+                scm: [repositoryUrl: 'https://bitbucket.bbh.com/scm/ta/cert.git', reviewers: ['john doe'],
+                      apiUrl: 'bitbucket.bbh.com/rest/api/1.0', repoSlug: 'cert scanner'],
                 goldenFix: [minThreatLevel: 11, ecosystems: ['gradle']],
                 flutter: [modules: ['my module']])])
 
@@ -325,6 +326,8 @@ class ProductControllerSpec extends Specification {
                                  'services[0].goldenFix.ecosystems[0]',
                                  'services[0].goldenFix.minThreatLevel',
                                  'services[0].openShiftTargets[QC].deploymentRepoUrl',
+                                 'services[0].scm.apiUrl',
+                                 'services[0].scm.repoSlug',
                                  'services[0].scm.reviewers[0]',
                                  'services[0].sshTargets[RD].host',
                                  'services[0].testJobs[0].job',
@@ -339,7 +342,9 @@ class ProductControllerSpec extends Specification {
         messages['services[0].unitTests.command.environment[0]'] == 'write each variable as NAME=value'
         messages['services[0].goldenFix.ecosystems[0]'] == 'must be maven, npm, pypi or pub'
         messages['services[0].flutter.modules[0]'] == 'must be a module folder name'
-        parse(response.contentAsString).detail == '13 fields are invalid'
+        messages['services[0].scm.apiUrl'] == 'must be an http or https URL'
+        messages['services[0].scm.repoSlug'] == 'must not contain whitespace'
+        parse(response.contentAsString).detail == '15 fields are invalid'
     }
 
     def "an UrbanCode application listing a missing component is rejected"() {
