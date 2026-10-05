@@ -40,3 +40,23 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
       - "3000:3000"
+
+  portal:
+    profiles:
+      - app
+    build: .
+    image: dso-portal:local
+    depends_on:
+      - influxdb
+      - grafana
+    environment:
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: dso-local-token
+      GRAFANA_URL: http://localhost:3000
+    volumes:
+      - portal-data:/application/data
+    ports:
+      - "8080:8080"
+
+volumes:
+  portal-data:
