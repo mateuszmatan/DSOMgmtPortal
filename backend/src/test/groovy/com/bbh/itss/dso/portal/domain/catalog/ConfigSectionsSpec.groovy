@@ -77,7 +77,10 @@ class ConfigSectionsSpec extends Specification {
         GRADLE  | null     | false     | []        || ['javaPath', 'command.tasks']
         GRADLE  | '/jdk'   | false     | ['build'] || []
         MAVEN   | null     | true      | ['verify']|| []
-        FLUTTER | null     | false     | []        || []
+        FLUTTER | null     | false     | []        || ['javaPath']
+        FLUTTER | '/jdk'   | true      | []        || ['autoSetup']
+        FLUTTER | null     | true      | []        || ['javaPath', 'autoSetup']
+        FLUTTER | '/jdk'   | false     | []        || []
     }
 
     def "a missing build command is explained in the words of the build tool"() {

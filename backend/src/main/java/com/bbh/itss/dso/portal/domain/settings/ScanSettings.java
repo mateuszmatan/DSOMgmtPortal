@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.domain.settings;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 public record ScanSettings(
         Integer coverageMinLine,
@@ -16,6 +17,12 @@ public record ScanSettings(
         Integer dastReportIntervalSeconds,
         Boolean sonarWaitForQualityGate,
         Integer sonarQualityGateTimeoutMinutes) {
+
+    public void validate(ValidationProblems problems) {
+        if (coverageMinLine != null && coverageMinLine < 1) {
+            problems.add("coverageMinLine", "must be at least 1: the library replaces 0 with 60; turn off the coverage requirement of the release gate instead");
+        }
+    }
 
     public void writeTo(ConfigTree defaults) {
         defaults.set("coverage.minLine", coverageMinLine)

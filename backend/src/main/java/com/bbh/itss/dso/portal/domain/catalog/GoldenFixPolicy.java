@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import com.bbh.itss.dso.portal.domain.shared.StoredList;
 import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
@@ -76,6 +77,11 @@ public record GoldenFixPolicy(
                 commitAuthorEmail, timeZone);
     }
 
+    public void validate(ValidationProblems problems) {
+        StoredList.LINES_1000.check(problems, "goldenVersionTypes", goldenVersionTypes);
+        StoredList.LINES_2000.check(problems, "excludeDirs", excludeDirs);
+    }
+
     public void validateComplete(ValidationProblems problems) {
         require(problems, "onlyDirectDependencies", onlyDirectDependencies);
         require(problems, "minThreatLevel", minThreatLevel);
@@ -90,6 +96,7 @@ public record GoldenFixPolicy(
         if (goldenVersionTypes.isEmpty()) {
             problems.add("goldenVersionTypes", "add at least one remediation type");
         }
+        validate(problems);
     }
 
     private static void require(ValidationProblems problems, String field, Object value) {

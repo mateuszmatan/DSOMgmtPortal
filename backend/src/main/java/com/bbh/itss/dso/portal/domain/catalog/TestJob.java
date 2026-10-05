@@ -1,9 +1,11 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.Text;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 public record TestJob(
         TestStage stage,
@@ -16,6 +18,8 @@ public record TestJob(
         String remoteJenkinsUrl,
         String credentialsId) {
 
+    private static final Pattern PARAMETER = Pattern.compile("^[A-Za-z_][A-Za-z0-9_.-]*=.*$");
+
     public TestJob {
         name = Text.trimToNull(name);
         job = job == null ? null : job.trim();
@@ -23,6 +27,15 @@ public record TestJob(
         remoteJenkins = Text.trimToNull(remoteJenkins);
         remoteJenkinsUrl = Text.trimToNull(remoteJenkinsUrl);
         credentialsId = Text.trimToNull(credentialsId);
+    }
+
+    public void validate(ValidationProblems problems) {
+        if (needsRemoteJenkins()) {
+            problems.add("remoteJenkins", "name the remote Jenkins or its URL, or give the job as a full URL");
+        }
+        if (parameters != null && parameters.lines().anyMatch(line -> !line.isBlank() && !PARAMETER.matcher(line).matches())) {
+            problems.add("parameters", "write one parameter per line as NAME=value");
+        }
     }
 
     public boolean isUrl() {

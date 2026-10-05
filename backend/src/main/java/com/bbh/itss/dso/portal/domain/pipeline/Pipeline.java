@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.domain.pipeline;
 
 import com.bbh.itss.dso.portal.domain.shared.ConflictException;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -39,7 +40,7 @@ public final class Pipeline {
 
     public static Pipeline create(ServiceRef service, PipelineType type, PipelineSettings settings, KeyGenerator generator,
                                   Instant now) {
-        Pipeline pipeline = new Pipeline(null, service, type, settings, List.of(), 0, null, null);
+        Pipeline pipeline = new Pipeline(null, service, type, valid(settings), List.of(), 0, null, null);
         pipeline.issueKey(generator, now);
         return pipeline;
     }
@@ -53,7 +54,16 @@ public final class Pipeline {
         if (requestedType != type) {
             throw new ConflictException("The type of a pipeline cannot change; add a new pipeline instead");
         }
-        this.settings = Objects.requireNonNull(requestedSettings, "a pipeline needs its settings").forType(type);
+        this.settings = valid(Objects.requireNonNull(requestedSettings, "a pipeline needs its settings")).forType(type);
+    }
+
+    private static PipelineSettings valid(PipelineSettings settings) {
+        ValidationProblems problems = new ValidationProblems();
+        if (settings != null) {
+            settings.validate(problems);
+        }
+        problems.throwIfAny();
+        return settings;
     }
 
     public PipelineKey issueKey(KeyGenerator generator, Instant now) {

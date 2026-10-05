@@ -136,6 +136,22 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
         api.get('/api/settings').json.version == original.version
     }
 
+    def "a release gate without scanners, line coverage 0 or GoldenFix folders beyond their column are refused"() {
+        when:
+        def response = api.put('/api/settings', original + [
+                scans      : original.scans + [coverageMinLine: 0],
+                releaseGate: original.releaseGate + [scanners: []],
+                goldenFix  : original.goldenFix + [excludeDirs: (1..15).collect { "folder-$it/${'x' * 150}".toString() }]])
+
+        then:
+        response.status == 400
+        response.json.errors.collect { [it.field, it.message] } == [
+                ['scans.coverageMinLine', 'must be at least 1: the library replaces 0 with 60; turn off the coverage requirement of the release gate instead'],
+                ['releaseGate.scanners', 'select at least one scanner: without any the library gates on all four'],
+                ['goldenFix.excludeDirs', 'is too long: all entries together may take at most 2000 bytes']]
+        api.get('/api/settings').json.version == original.version
+    }
+
     def "malformed settings are refused before they reach the business rules"() {
         expect:
         api.put('/api/settings', change(original)).status == 400

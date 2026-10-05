@@ -94,7 +94,7 @@ class ProductPersistenceAdapterSpec extends Specification {
                 serviceId)*.STAGE == ['SMOKE', 'REGRESSION', 'PERFORMANCE']
         jdbc.queryForList('SELECT POSITION, APPLICATION_NAME FROM DSO_UCD_APPLICATION WHERE SERVICE_ID = ? ORDER BY POSITION',
                 serviceId)*.APPLICATION_NAME == ['Cert', 'Cert Batch']
-        jdbc.queryForObject('SELECT COUNT(*) FROM DSO_UCD_COMPONENT', Integer) == 2
+        jdbc.queryForObject('SELECT COUNT(*) FROM DSO_UCD_COMPONENT', Integer) == 3
         jdbc.queryForList('SELECT REGION FROM DSO_SERVICE_SSH_TARGET WHERE SERVICE_ID = ? ORDER BY REGION',
                 serviceId)*.REGION == ['QC', 'RD']
         jdbc.queryForList('SELECT REGION FROM DSO_SERVICE_OPENSHIFT_TARGET WHERE SERVICE_ID = ? ORDER BY REGION',
@@ -153,7 +153,7 @@ class ProductPersistenceAdapterSpec extends Specification {
         adapter.load(stored.id()).get().services()[0].settings() == trimmed
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_SERVICE_TEST_JOB', Integer) == 1
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_UCD_APPLICATION', Integer) == 1
-        jdbc.queryForObject('SELECT COUNT(*) FROM DSO_UCD_COMPONENT', Integer) == 0
+        jdbc.queryForObject('SELECT COUNT(*) FROM DSO_UCD_COMPONENT', Integer) == 1
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_SERVICE_SSH_TARGET', Integer) == 1
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_SERVICE_OPENSHIFT_TARGET', Integer) == 0
     }

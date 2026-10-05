@@ -29,7 +29,7 @@ final class ApiJson {
     }
 
     static Map mavenService(Map overrides = [:]) {
-        service([build   : build(tool: 'MAVEN', command: [tasks: ['clean', 'verify']]),
+        service([build   : build(tool: 'MAVEN', buildPath: 'target/*.jar', command: [tasks: ['clean', 'verify']]),
                  delivery: [tasks: ['deploy:deploy-file']]] + overrides)
     }
 
@@ -106,7 +106,7 @@ final class ApiJson {
 
     static Map fullFlutterService(Map overrides = [:]) {
         [name      : 'ledger-mobile',
-         build     : [tool: 'FLUTTER', sourceDir: 'mobile', javaPath: null, autoSetup: true, buildPath: null,
+         build     : [tool: 'FLUTTER', sourceDir: 'mobile', javaPath: Fixtures.JDK, autoSetup: false, buildPath: null,
                       command: command([], [])],
          deployment: [target: 'VM', appName: null, artifactName: null, baseArtifactName: null],
          appScan   : [applicationId: APP_ID],

@@ -55,5 +55,6 @@ public record SonarSettings(
                     ? "add the Maven goals of the analysis, for example sonar:sonar"
                     : "add the Gradle tasks of the analysis, for example sonarqube");
         }
+        command.validate(problems.at("command"));
     }
 }

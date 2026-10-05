@@ -27,7 +27,7 @@ class EvidenceRegressionSpec extends PortalSpecification {
                 contactEmail: 'treasury@bbh.com', services: [
                 service(name: 'gui', description: 'Treasury web client', deployment: [target: 'VM', artifactName: 'gui.war'],
                         sonar: [projectKey: "$code-gui".toString(), command: [tasks: ['sonarqube']]],
-                        nexusIq: [application: "$code-gui".toString()],
+                        nexusIq: [application: "$code-gui".toString(), scanPatterns: ['**/build/libs/*.war']],
                         scm: [repositoryUrl: 'https://bitbucket.bbh.com/projects/TRE/repos/gui',
                               credentialsId: 'bitbucket-http-credentials']),
                 service(name: 'batch')]))

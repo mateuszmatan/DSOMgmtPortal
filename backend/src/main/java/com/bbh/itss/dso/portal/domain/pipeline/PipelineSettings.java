@@ -1,7 +1,9 @@
 package com.bbh.itss.dso.portal.domain.pipeline;
 
+import com.bbh.itss.dso.portal.domain.shared.StoredList;
 import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.UriEncoding;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.Arrays;
 import java.util.List;
@@ -20,6 +22,10 @@ public record PipelineSettings(
         securityPipelineJob = Text.trimToNull(securityPipelineJob);
         jenkinsJob = Text.trimToNull(jenkinsJob);
         description = Text.trimToNull(description);
+    }
+
+    public void validate(ValidationProblems problems) {
+        StoredList.COMMAS_1000.check(problems, "agentLabels", agentLabels);
     }
 
     public PipelineSettings forType(PipelineType type) {

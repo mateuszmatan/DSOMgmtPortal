@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import com.bbh.itss.dso.portal.domain.shared.StoredList;
 import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
@@ -74,5 +75,8 @@ public record AppScanSettings(
         if (dastEnabled && dastTargetUrl == null) {
             problems.add("dastTargetUrl", "is required when DAST is enabled");
         }
+        StoredList.LINES_2000.check(problems, "includedDirs", includedDirs);
+        StoredList.LINES_2000.check(problems, "excludedDirs", excludedDirs);
+        compileCommand.validate(problems.at("compileCommand"));
     }
 }

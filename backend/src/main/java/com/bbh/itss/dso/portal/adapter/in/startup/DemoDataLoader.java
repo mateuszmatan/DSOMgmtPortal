@@ -185,7 +185,7 @@ public class DemoDataLoader implements ApplicationRunner {
     private static ServiceCommand flutter(String name, String description, String appScanId, String bitbucketProject,
                                           String repo) {
         return new ServiceCommand(null, name, description, new ServiceSettings(
-                new BuildSettings(BuildTool.FLUTTER, ".", null, false, null, null),
+                new BuildSettings(BuildTool.FLUTTER, ".", JDK_17, false, null, null),
                 null, null, List.of(),
                 new DeploymentSettings(DeployTarget.VM, null, null, null),
                 null, null, null, null, null,

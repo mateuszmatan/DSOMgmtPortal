@@ -4,14 +4,17 @@ import com.bbh.itss.dso.portal.domain.shared.ConfigTree
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.support.Fixtures.APP_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.appScan
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.command
 import static com.bbh.itss.dso.portal.support.Fixtures.deployment
+import static com.bbh.itss.dso.portal.support.Fixtures.fullSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.settings
 
 class ServiceSettingsSpec extends Specification {
 
+    static final String REPO = 'https://bitbucket.bbh.com/scm/ta/cert.git'
     static final SshTarget RD_HOST = new SshTarget('rd.host', null, null, null, null)
     static final OpenShiftTarget RD_PROJECT = new OpenShiftTarget('cert-build', null, null, null, null, null, null,
             null, null, 'cert-rd', null, null, false, null, null, null, null, null, null)
@@ -130,11 +133,17 @@ class ServiceSettingsSpec extends Specification {
         then:
         problems.list()*.field == ['services[3].build.javaPath', 'services[3].unitTests.command.tasks',
                                    'services[3].deployment.appName', 'services[3].deployment.artifactName',
+                                   'services[3].openShiftTargets[RD].projectBuild',
+                                   'services[3].openShiftTargets[RD].buildConfigPath',
+                                   'services[3].openShiftTargets[RD].dockerFilePath',
+                                   'services[3].openShiftTargets[RD].buildContext',
+                                   'services[3].openShiftTargets[RD].dockerRepoPush',
+                                   'services[3].openShiftTargets[RD].nexusAuthFile',
                                    'services[3].appScan.dastTargetUrl', 'services[3].sonar.command.tasks',
                                    'services[3].scm.credentialsId']
     }
 
-    def "a Maven service on a VM needs the delivery goals and a Flutter service its signing credentials"() {
+    def "a Maven service on a VM needs its artifact path and delivery goals and a Flutter service what its stages read"() {
         given:
         def problems = new ValidationProblems()
 
@@ -143,8 +152,124 @@ class ServiceSettingsSpec extends Specification {
         settings(build: build(tool: BuildTool.FLUTTER, javaPath: null)).validate(problems.at('flutter'))
 
         then:
-        problems.list()*.field == ['maven.delivery.tasks', 'flutter.flutter.signingPasswordCredentialsId',
-                                   'flutter.flutter.prodLicenseCredentialsId', 'flutter.flutter.testLicenseCredentialsId']
+        problems.list()*.field == ['maven.build.buildPath', 'maven.delivery.tasks', 'flutter.build.javaPath',
+                                   'flutter.flutter.modules', 'flutter.flutter.testModules',
+                                   'flutter.flutter.signingPasswordCredentialsId',
+                                   'flutter.flutter.prodLicenseCredentialsId', 'flutter.flutter.testLicenseCredentialsId',
+                                   'flutter.flutter.deliveryGroup', 'flutter.flutter.deliveryArtifact',
+                                   'flutter.flutter.deliveryPlugin']
+        problems.list()[0].message == 'is required for Maven on VMs: the Nexus delivery publishes the artifact found there'
+    }
+
+    def "a Maven service delivered to OpenShift needs neither an artifact path nor delivery goals"() {
+        given:
+        def problems = new ValidationProblems()
+        def openShift = settings(build: build(tool: BuildTool.MAVEN), delivery: ToolCommand.NONE,
+                deployment: deployment(target: DeployTarget.OPENSHIFT, appName: 'cert', artifactName: 'cert.jar'),
+                openShiftTargets: [(Region.RD): fullSettings().openShiftTargets()[Region.RD]])
+
+        when:
+        openShift.validate(problems)
+
+        then:
+        problems.empty
+    }
+
+    def "an OpenShift service needs an RD target that can build its image"() {
+        given:
+        def problems = new ValidationProblems()
+        def rd = new OpenShiftTarget('cert-build', null, 'Dockerfile', '.', null, 'push.bbh.com/cert', null, null, null,
+                'cert-rd', null, null, false, null, null, null, null, null, null)
+
+        when:
+        settings(deployment: deployment(target: DeployTarget.OPENSHIFT, appName: 'cert', artifactName: 'cert.jar'),
+                openShiftTargets: [(Region.RD): rd]).validate(problems)
+
+        then:
+        problems.list()*.field == ['openShiftTargets[RD].buildConfigPath', 'openShiftTargets[RD].nexusAuthFile']
+        problems.list()*.message.unique() ==
+                ['is required for OpenShift: the Nexus snapshot delivery builds the image in the RD project']
+    }
+
+    def "Nexus IQ needs its application and scan patterns together"() {
+        given:
+        def problems = new ValidationProblems()
+
+        when:
+        settings(nexusIq: nexusIq).validate(problems)
+
+        then:
+        problems.list()*.field == fields
+
+        where:
+        nexusIq                                      || fields
+        NexusIqSettings.of(null, ['**/*.war'])       || ['nexusIq.application']
+        NexusIqSettings.of('cert', [])               || ['nexusIq.scanPatterns']
+        NexusIqSettings.of('cert', ['**/*.war'])     || []
+        NexusIqSettings.NONE                         || []
+    }
+
+    def "an UrbanCode application needs components that name their folder and files"() {
+        given:
+        def problems = new ValidationProblems()
+        def applications = [new UrbanCodeApplicationSettings('Cert', 1, [], null, []),
+                            new UrbanCodeApplicationSettings('Cert Batch', 2, [], null,
+                                    [new UrbanCodeComponent('batch', ' ', null, null, null, null, true),
+                                     new UrbanCodeComponent('config', 'config', '*.yml', null, null, null, true)])]
+
+        when:
+        settings(urbanCodeApplications: applications).validate(problems)
+
+        then:
+        problems.list()*.field == ['urbanCodeApplications[0].components',
+                                   'urbanCodeApplications[1].components[0].baseDir',
+                                   'urbanCodeApplications[1].components[0].fileIncludePatterns']
+    }
+
+    def "test job parameters are one NAME=value per line"() {
+        given:
+        def problems = new ValidationProblems()
+        def job = new TestJob(TestStage.SMOKE, null, TestJobType.LOCAL, 'CERT/smoke', null, parameters, null, null, null)
+
+        when:
+        settings(testJobs: [job]).validate(problems)
+
+        then:
+        problems.list()*.field == fields
+        problems.list()*.message.every { it == 'write one parameter per line as NAME=value' }
+
+        where:
+        parameters                             || fields
+        'ENV=rd\nSUITE=critical'               || []
+        'ENV=rd\n\n  \nlog.level-x=a=b'        || []
+        'ENV=rd,SUITE=critical'                || []
+        'ENV=rd\nSUITE critical'               || ['testJobs[0].parameters']
+        '1ENV=rd'                              || ['testJobs[0].parameters']
+        'ENV=rd\n =x'                          || ['testJobs[0].parameters']
+        null                                   || []
+    }
+
+    def "list values that do not fit their column are refused field by field"() {
+        given:
+        def problems = new ValidationProblems()
+        def longFlags = (1..12).collect { "-Dproperty.$it=${'v' * 200}".toString() }
+        def longDirs = (1..20).collect { "${'d' * 150}/$it".toString() }
+        def reviewers = (1..3).collect { ("reviewer-$it-" + '\u017c\u00f3\u0142\u0107' * 120).toString() }
+        def command = new ToolCommand(['build'], longFlags, null, null, [])
+        def settings = settings(build: build(command: command),
+                appScan: new AppScanSettings(APP_ID, null, longDirs, ['test'], false, false, false, false, null, command,
+                        false, null, null, null),
+                scm: new ScmSettings(REPO, 'bb-creds', null, null, null, null, reviewers, null, null, null, null),
+                goldenFix: new GoldenFixPolicy(null, null, null, [], [], longDirs, null, null, null, null, null, null,
+                        null, null, null, null, null))
+
+        when:
+        settings.validate(problems)
+
+        then:
+        problems.list()*.field == ['build.command.flags', 'appScan.includedDirs', 'appScan.compileCommand.flags',
+                                   'scm.reviewers', 'goldenFix.excludeDirs']
+        problems.list()[0].message == 'is too long: all entries together may take at most 2000 bytes'
     }
 
     def "a remote test job given as a path must name its Jenkins"() {

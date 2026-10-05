@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.domain.pipeline
 
 import com.bbh.itss.dso.portal.domain.shared.ConflictException
+import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import spock.lang.Specification
 
 import java.time.Instant
@@ -147,6 +148,28 @@ class PipelineSpec extends Specification {
         then:
         pipeline.settings() == new PipelineSettings(['windows'], 'CERT/ext', null, 'CERT/gui', 'nightly')
         pipeline.keys() == keys
+    }
+
+    def "agent labels that do not fit their column are refused when a pipeline is created or reconfigured"() {
+        given:
+        def labels = (1..20).collect { "agent-$it-${'x' * 50}".toString() }
+        def tooMany = new PipelineSettings(labels, null, null, null, null)
+        def existing = pipeline()
+
+        when:
+        Pipeline.create(GUI, PipelineType.FULL, tooMany, generator, NOW)
+
+        then:
+        def created = thrown(InvalidRequestException)
+        created.problems*.field() == ['agentLabels']
+
+        when:
+        existing.reconfigure(existing.type(), tooMany)
+
+        then:
+        def reconfigured = thrown(InvalidRequestException)
+        reconfigured.problems*.message() == ['is too long: all entries together may take at most 1000 bytes']
+        existing.settings() != tooMany
     }
 
     def "the type of a pipeline cannot change"() {

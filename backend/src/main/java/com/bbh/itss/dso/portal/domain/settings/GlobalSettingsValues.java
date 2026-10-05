@@ -75,6 +75,8 @@ public record GlobalSettingsValues(
                 problems.add("limits." + scanner.name(), "set the limits of every scanner");
             }
         }
+        scans.validate(problems.at("scans"));
+        releaseGate.validate(problems.at("releaseGate"));
         goldenFix.validateComplete(problems.at("goldenFix"));
     }
 

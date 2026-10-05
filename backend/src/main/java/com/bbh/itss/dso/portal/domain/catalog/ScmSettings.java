@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigSection;
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import com.bbh.itss.dso.portal.domain.shared.StoredList;
 import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
@@ -69,6 +70,7 @@ public record ScmSettings(
             problems.add("repositoryUrl",
                     "is required when the Bitbucket API URL, workspace, project key or repository slug is set");
         }
+        StoredList.COMMAS_2000.check(problems, "reviewers", reviewers);
     }
 
     private boolean namesRepository() {

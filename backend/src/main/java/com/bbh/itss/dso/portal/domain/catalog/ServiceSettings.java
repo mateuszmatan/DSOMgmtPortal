@@ -93,24 +93,37 @@ public record ServiceSettings(
 
     public void validate(ValidationProblems problems) {
         BuildTool tool = build.tool();
+        DeployTarget target = deployment.target();
         build.validate(problems.at("build"));
         unitTests.validate(problems.at("unitTests"), tool);
         deployment.validate(problems.at("deployment"));
+        if (target == DeployTarget.OPENSHIFT) {
+            openShiftTargets.getOrDefault(Region.RD, OpenShiftTarget.NONE)
+                    .validateImageBuild(problems.at("openShiftTargets[" + Region.RD.name() + "]"));
+        }
         appScan.validate(problems.at("appScan"));
         sonar.validate(problems.at("sonar"), tool);
+        nexusIq.validate(problems.at("nexusIq"));
         scm.validate(problems.at("scm"));
+        goldenFix.validate(problems.at("goldenFix"));
         metrics.validate(problems.at("metrics"));
         if (tool == BuildTool.FLUTTER) {
-            flutter.validate(problems.at("flutter"));
+            flutter.validate(problems.at("flutter"), target);
         }
-        if (deployment.target() == DeployTarget.VM && tool == BuildTool.MAVEN && delivery.tasks().isEmpty()) {
-            problems.add("delivery.tasks", "add the Maven goals that upload the snapshot, for example deploy:deploy-file");
-        }
-        for (int i = 0; i < testJobs.size(); i++) {
-            if (testJobs.get(i).needsRemoteJenkins()) {
-                problems.add("testJobs[" + i + "].remoteJenkins",
-                        "name the remote Jenkins or its URL, or give the job as a full URL");
+        if (target == DeployTarget.VM && tool == BuildTool.MAVEN) {
+            if (build.buildPath() == null) {
+                problems.add("build.buildPath", "is required for Maven on VMs: the Nexus delivery publishes the artifact found there");
             }
+            if (delivery.tasks().isEmpty()) {
+                problems.add("delivery.tasks", "add the Maven goals that upload the snapshot, for example deploy:deploy-file");
+            }
+        }
+        delivery.validate(problems.at("delivery"));
+        for (int i = 0; i < testJobs.size(); i++) {
+            testJobs.get(i).validate(problems.at("testJobs[" + i + "]"));
+        }
+        for (int i = 0; i < urbanCodeApplications.size(); i++) {
+            urbanCodeApplications.get(i).validate(problems.at("urbanCodeApplications[" + i + "]"));
         }
     }
 

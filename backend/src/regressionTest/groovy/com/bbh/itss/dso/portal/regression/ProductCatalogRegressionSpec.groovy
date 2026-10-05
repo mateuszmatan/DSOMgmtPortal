@@ -11,6 +11,7 @@ import static com.bbh.itss.dso.portal.support.ApiJson.fullFlutterService
 import static com.bbh.itss.dso.portal.support.ApiJson.fullMavenService
 import static com.bbh.itss.dso.portal.support.ApiJson.fullOpenShiftService
 import static com.bbh.itss.dso.portal.support.ApiJson.mavenService
+import static com.bbh.itss.dso.portal.support.ApiJson.openShiftTarget
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 
@@ -24,7 +25,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         def created = api.post('/api/products', product(code: code, name: "Product $code", ownerTeam: 'Payments Engineering',
                 services: [service(name: 'gateway'),
                            mavenService(name: 'ledger', build: build(tool: 'MAVEN', javaPath: null, autoSetup: true,
-                                   command: [tasks: ['clean', 'verify']]))]))
+                                   buildPath: 'target/*.jar', command: [tasks: ['clean', 'verify']]))]))
 
         then:
         created.status == 201
@@ -35,7 +36,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
             createdAt != null
             services*.name == ['gateway', 'ledger']
             services*.metrics*.influxProject == ["$code-gateway", "$code-ledger"]
-            services[1].build == [tool   : 'MAVEN', sourceDir: '.', javaPath: null, autoSetup: true, buildPath: null,
+            services[1].build == [tool   : 'MAVEN', sourceDir: '.', javaPath: null, autoSetup: true, buildPath: 'target/*.jar',
                                   command: [tasks: ['clean', 'verify'], flags: [], directory: null, mavenHome: null,
                                             environment: []]]
             services[1].delivery.tasks == ['deploy:deploy-file']
@@ -265,11 +266,58 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         response.status == 400
         response.json.errors*.field == ['services[0].build.javaPath', 'services[0].build.command.tasks',
                                         'services[1].deployment.appName', 'services[1].deployment.artifactName',
+                                        'services[1].openShiftTargets[RD].projectBuild',
+                                        'services[1].openShiftTargets[RD].buildConfigPath',
+                                        'services[1].openShiftTargets[RD].dockerFilePath',
+                                        'services[1].openShiftTargets[RD].buildContext',
+                                        'services[1].openShiftTargets[RD].dockerRepoPush',
+                                        'services[1].openShiftTargets[RD].nexusAuthFile',
                                         'services[1].sonar.command.tasks', 'services[1].sonar.projectKey',
                                         'services[2].appScan.dastTargetUrl', 'services[2].scm.credentialsId',
                                         'services[2].delivery.tasks', 'services[2].testJobs[0].remoteJenkins',
                                         'services[3].name', 'services[3].metrics.influxProject']
         api.get("/api/products?search=$code").json == []
+    }
+
+    def "a service the library could not build or deploy is refused field by field (#rule)"() {
+        given:
+        def code = uniqueCode()
+
+        when:
+        def response = api.post('/api/products', product(code: code, name: "Product $code", services: [submitted]))
+
+        then:
+        response.status == 400
+        response.json.errors*.field == fields
+        api.get("/api/products?search=$code").json == []
+
+        where:
+        rule                         | submitted                                                                                || fields
+        'Flutter needs its JDK'      | fullFlutterService(build: fullFlutterService().build + [javaPath: null, autoSetup: true]) || ['services[0].build.javaPath', 'services[0].build.autoSetup']
+        'Flutter needs its modules'  | fullFlutterService(flutter: fullFlutterService().flutter + [modules: [], testModules: [], deliveryGroup: null]) || ['services[0].flutter.modules', 'services[0].flutter.testModules', 'services[0].flutter.deliveryGroup']
+        'Nexus IQ needs both'        | service(nexusIq: [scanPatterns: ['**/*.war']])                                           || ['services[0].nexusIq.application']
+        'Maven on VMs needs a path'  | mavenService(build: build(tool: 'MAVEN', command: [tasks: ['verify']]))                  || ['services[0].build.buildPath']
+        'OpenShift needs RD'         | fullOpenShiftService(openShiftTargets: [RD: openShiftTarget('x') + [nexusAuthFile: null, buildContext: ' ']]) || ['services[0].openShiftTargets[RD].buildContext', 'services[0].openShiftTargets[RD].nexusAuthFile']
+        'UrbanCode needs components' | service(urbanCodeApplications: [[applicationName: 'LEDGER', components: []], [applicationName: 'BATCH', components: [[componentName: 'batch']]]]) || ['services[0].urbanCodeApplications[0].components', 'services[0].urbanCodeApplications[1].components[0].baseDir', 'services[0].urbanCodeApplications[1].components[0].fileIncludePatterns']
+        'test job parameters'        | service(testJobs: [[stage: 'SMOKE', job: 'smoke', parameters: 'ENV=rd\nSUITE critical']])  || ['services[0].testJobs[0].parameters']
+        'lists fit their columns'    | service(build: build(command: [tasks: ['build'], flags: (1..12).collect { "-Dp$it=${'v' * 200}".toString() }]), appScan: [applicationId: ApiJson.APP_ID, includedDirs: (1..20).collect { "${'d' * 150}/$it".toString() }]) || ['services[0].build.command.flags', 'services[0].appScan.includedDirs']
+    }
+
+    def "test job parameters are stored one NAME=value per line as they were entered"() {
+        given:
+        def code = uniqueCode()
+        def parameters = 'TARGET_ENV=uat\nSUITE=critical\nlog.level=debug'
+
+        when:
+        def created = createProduct(product(code: code, name: "Product $code",
+                services: [service(testJobs: [[stage: 'REGRESSION', job: 'ledger/regression', parameters: parameters]])]))
+        def pipeline = createPipeline(created.services[0].id as long)
+        def config = api.get("/api/dso/config/$pipeline.activeKey.value?format=json").json
+
+        then:
+        created.services[0].testJobs[0].parameters == parameters
+        api.get("/api/products/$created.id").json.services[0].testJobs[0].parameters == parameters
+        config.projects.gui.tests.regression.jobs[0].parameters == parameters
     }
 
     def "malformed input is refused before it reaches the business rules"() {

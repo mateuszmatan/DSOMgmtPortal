@@ -163,6 +163,18 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
         api.post("/api/pipelines/$created.id/keys/revoke", [reason: 'again']).status == 409
     }
 
+    def "agent labels beyond their column are refused with a field problem"() {
+        when:
+        def response = api.post("/api/services/$gui/pipelines",
+                pipeline(agentLabels: (1..20).collect { "agent-$it-${'x' * 50}".toString() }))
+
+        then:
+        response.status == 400
+        response.json.errors.collect { [it.field, it.message] } ==
+                [['agentLabels', 'is too long: all entries together may take at most 1000 bytes']]
+        api.get("/api/products/$certScanner.id/pipelines").json[0].pipelines == []
+    }
+
     def "a service has one pipeline of each type and a pipeline keeps its type"() {
         given:
         def full = createPipeline(gui)
