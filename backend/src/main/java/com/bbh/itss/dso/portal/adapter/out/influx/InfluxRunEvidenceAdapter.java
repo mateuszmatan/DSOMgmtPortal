@@ -10,15 +10,19 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Component
 class InfluxRunEvidenceAdapter implements RunEvidencePort {
 
     private static final Duration TOLERANCE = Duration.ofSeconds(2);
     private static final String MEASUREMENT = "_measurement";
+    private static final String TABLE = "run";
 
     private final InfluxQueryClient influx;
 
@@ -49,21 +53,37 @@ class InfluxRunEvidenceAdapter implements RunEvidencePort {
     }
 
     private String flux(Map<MetricsTag, PipelineRun> runs) {
-        Instant start = runs.values().stream().map(InfluxRunEvidenceAdapter::startOf).min(Instant::compareTo)
-                .orElseThrow();
-        Instant stop = runs.values().stream().map(PipelineRun::time).max(Instant::compareTo).orElseThrow()
-                .plus(TOLERANCE);
+        List<Map.Entry<MetricsTag, PipelineRun>> ordered = runs.entrySet().stream()
+                .sorted(Comparator.comparing((Map.Entry<MetricsTag, PipelineRun> entry) -> entry.getKey().project())
+                        .thenComparing(entry -> entry.getKey().env()))
+                .toList();
+        String tables = IntStream.range(0, ordered.size())
+                .mapToObj(index -> table(index, ordered.get(index).getKey(), ordered.get(index).getValue()))
+                .collect(Collectors.joining());
+        String pivot = "  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n";
+        if (ordered.size() == 1) {
+            return tables + TABLE + "0\n" + pivot;
+        }
+        return tables + "union(tables: [" + IntStream.range(0, ordered.size()).mapToObj(index -> TABLE + index)
+                .collect(Collectors.joining(", ")) + "])\n" + pivot;
+    }
+
+    private String table(int index, MetricsTag tag, PipelineRun run) {
         return """
-                from(bucket: %s)
+                %s%d = from(bucket: %s)
                   |> range(start: time(v: %s), stop: time(v: %s))
-                  |> filter(fn: (r) => contains(value: r._measurement, set: [%s]))
-                  |> filter(fn: (r) => contains(value: r.project, set: [%s]))
+                  |> filter(fn: (r) => r.project == %s and r.env == %s)
+                  |> filter(fn: (r) => %s)
                   |> filter(fn: (r) => not (r._measurement == "release_gate" and r._field == "allowed"))
                   |> last()
-                  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
-                """.formatted(influx.bucket(), Flux.string(start.toString()), Flux.string(stop.toString()),
-                Flux.strings(RunEvidence.MEASUREMENTS),
-                Flux.strings(runs.keySet().stream().map(MetricsTag::project).toList()));
+                """.formatted(TABLE, index, influx.bucket(), Flux.string(startOf(run).toString()),
+                Flux.string(run.time().plus(TOLERANCE).toString()), Flux.string(tag.project()),
+                Flux.string(tag.env()), measurements());
+    }
+
+    private static String measurements() {
+        return RunEvidence.MEASUREMENTS.stream().map(measurement -> "r._measurement == " + Flux.string(measurement))
+                .collect(Collectors.joining(" or "));
     }
 
     static boolean belongsTo(Map<String, String> row, PipelineRun run) {

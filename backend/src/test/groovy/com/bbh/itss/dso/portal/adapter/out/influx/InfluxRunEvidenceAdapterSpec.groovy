@@ -36,34 +36,61 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
         0 * influx.query(_)
     }
 
-    def "the evidence of every run is read in one query from the earliest start to the latest finish"() {
+    def "the evidence of every run is read in one query, each run in its own window"() {
         given:
         def runs = new LinkedHashMap<MetricsTag, PipelineRun>()
-        runs.put(gui, run(FINISHED, 600))
         runs.put(guiSast, run(FINISHED.plusSeconds(3600), null))
-        runs.put(guiUat, run(FINISHED.minusSeconds(3600), 60))
+        runs.put(gui, run(FINISHED, 600))
 
         when:
         adapter.evidenceOf(runs)
 
         then:
         1 * influx.query('''\
-            from(bucket: "DORA-metrics")
-              |> range(start: time(v: "2026-10-04T08:58:56Z"), stop: time(v: "2026-10-04T11:00:02Z"))
-              |> filter(fn: (r) => contains(value: r._measurement, set: ["security_findings", "policy_status", "code_coverage", "test_execution", "release_gate", "vulnerabilities", "stage_event"]))
-              |> filter(fn: (r) => contains(value: r.project, set: ["CERT-gui", "CERT-guisast"]))
+            run0 = from(bucket: "DORA-metrics")
+              |> range(start: time(v: "2026-10-04T09:49:56Z"), stop: time(v: "2026-10-04T10:00:02Z"))
+              |> filter(fn: (r) => r.project == "CERT-gui" and r.env == "test")
+              |> filter(fn: (r) => r._measurement == "security_findings" or r._measurement == "policy_status" or r._measurement == "code_coverage" or r._measurement == "test_execution" or r._measurement == "release_gate" or r._measurement == "vulnerabilities" or r._measurement == "stage_event")
               |> filter(fn: (r) => not (r._measurement == "release_gate" and r._field == "allowed"))
               |> last()
+            run1 = from(bucket: "DORA-metrics")
+              |> range(start: time(v: "2026-10-04T10:59:56Z"), stop: time(v: "2026-10-04T11:00:02Z"))
+              |> filter(fn: (r) => r.project == "CERT-guisast" and r.env == "test")
+              |> filter(fn: (r) => r._measurement == "security_findings" or r._measurement == "policy_status" or r._measurement == "code_coverage" or r._measurement == "test_execution" or r._measurement == "release_gate" or r._measurement == "vulnerabilities" or r._measurement == "stage_event")
+              |> filter(fn: (r) => not (r._measurement == "release_gate" and r._field == "allowed"))
+              |> last()
+            union(tables: [run0, run1])
               |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
             '''.stripIndent()) >> []
     }
 
-    def "the project names are escaped as Flux strings"() {
+    def "one run is read without a union"() {
         when:
-        adapter.evidenceOf([(new MetricsTag('CERT-"gui"', 'test')): run(FINISHED, 0)])
+        adapter.evidenceOf([(gui): run(FINISHED, 60)])
 
         then:
-        1 * influx.query({ String flux -> flux.contains('set: ["CERT-\\"gui\\""]') }) >> []
+        1 * influx.query('''\
+            run0 = from(bucket: "DORA-metrics")
+              |> range(start: time(v: "2026-10-04T09:58:56Z"), stop: time(v: "2026-10-04T10:00:02Z"))
+              |> filter(fn: (r) => r.project == "CERT-gui" and r.env == "test")
+              |> filter(fn: (r) => r._measurement == "security_findings" or r._measurement == "policy_status" or r._measurement == "code_coverage" or r._measurement == "test_execution" or r._measurement == "release_gate" or r._measurement == "vulnerabilities" or r._measurement == "stage_event")
+              |> filter(fn: (r) => not (r._measurement == "release_gate" and r._field == "allowed"))
+              |> last()
+            run0
+              |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+            '''.stripIndent()) >> []
+    }
+
+    def "the window of a run with the same key in another environment is read on its own"() {
+        when:
+        adapter.evidenceOf([(gui): run(FINISHED, 600), (guiUat): run(FINISHED.minusSeconds(3600), 60)])
+
+        then:
+        1 * influx.query({ String flux ->
+            flux.contains('r.project == "CERT-gui" and r.env == "test"') &&
+                    flux.contains('r.project == "CERT-gui" and r.env == "uat"') &&
+                    flux.contains('range(start: time(v: "2026-10-04T08:58:56Z"), stop: time(v: "2026-10-04T09:00:02Z"))')
+        }) >> []
     }
 
     def "each row goes to the run of its project and environment when it was written during that run"() {

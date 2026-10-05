@@ -160,13 +160,15 @@ class FakeInfluxDb implements AutoCloseable {
     }
 
     private String evidencePoints(String flux) {
-        def sets = (flux =~ /set: \[(.*?)]/).collect { it[1].findAll(/"([^"]*)"/) { all, value -> value } as Set }
-        def range = (flux =~ /range\(start: time\(v: "([^"]+)"\), stop: time\(v: "([^"]+)"\)\)/)[0]
-        Instant start = Instant.parse(range[1])
-        Instant stop = Instant.parse(range[2])
+        Set<String> measurements = (flux =~ /r\._measurement == "([^"]*)"/).collect { it[1] } as Set
+        def windows = (flux =~ /(?s)range\(start: time\(v: "([^"]+)"\), stop: time\(v: "([^"]+)"\)\)\s*\n\s*\|> filter\(fn: \(r\) => r\.project == "([^"]*)" and r\.env == "([^"]*)"\)/)
+                .collect { [start: Instant.parse(it[1]), stop: Instant.parse(it[2]), project: it[3], env: it[4]] }
         def selected = points.findAll { point ->
             Instant at = Instant.parse(point._time)
-            point._measurement in sets[0] && point.project in sets[1] && !at.isBefore(start) && at.isBefore(stop)
+            point._measurement in measurements && windows.any { window ->
+                point.project == window.project && point.env == window.env &&
+                        !at.isBefore(window.start) && at.isBefore(window.stop)
+            }
         }
         selected.withIndex().collect { point, table ->
             csv(point.keySet() as List, [[table, point.values().collect { csvCell(it) }]])
