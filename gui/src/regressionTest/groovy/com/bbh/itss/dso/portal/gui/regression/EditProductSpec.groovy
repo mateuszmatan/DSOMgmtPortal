@@ -48,7 +48,7 @@ class EditProductSpec extends EditorSpecification {
         assertThat(dialog()).containsText('The changes on this page have not been saved.')
 
         when:
-        dialog().getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Cancel')).click()
+        dialogButton('Cancel').click()
 
         then:
         assertThat(dialog()).hasCount(0)
@@ -63,7 +63,7 @@ class EditProductSpec extends EditorSpecification {
         assertThat(dialog().locator('h2')).hasText('Discard your changes?')
 
         when:
-        dialog().getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Discard')).click()
+        dialogButton('Discard').click()
         page.waitForURL('**/products/1')
 
         then:
@@ -118,7 +118,7 @@ class EditProductSpec extends EditorSpecification {
 
         when:
         expandService('notifications')
-        openService().getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Duplicate').setExact(true)).click()
+        buttonIn(openService(), 'Duplicate').click()
 
         then:
         assertThat(serviceNames()).hasText(['ledger', 'gateway', 'notifications', 'notifications-copy', 'mobile-app'] as String[])
@@ -127,16 +127,16 @@ class EditProductSpec extends EditorSpecification {
 
         when:
         expandService('gateway')
-        openService().getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Remove').setExact(true)).click()
+        buttonIn(openService(), 'Remove').click()
 
         then:
         assertThat(dialog().locator('h2')).hasText('Remove gateway?')
         assertThat(dialog()).containsText("Saving the product deletes the service's 3 pipelines and keys.")
 
         when:
-        dialog().getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Remove').setExact(true)).click()
+        dialogButton('Remove').click()
         button('Add service', true).click()
-        openService().getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Remove').setExact(true)).click()
+        buttonIn(openService(), 'Remove').click()
 
         then:
         assertThat(dialog()).hasCount(0)
@@ -179,7 +179,7 @@ class EditProductSpec extends EditorSpecification {
         showSection('AppScan SAST and DAST')
         input(openService(), 'AppScan application ID').fill('5b1e9c2d-7a3f-4d6e-8b0a-1c2d3e4f5a6b')
         expandService('gui')
-        openService().getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Duplicate').setExact(true)).click()
+        buttonIn(openService(), 'Duplicate').click()
         button('Save changes', true).click()
         page.waitForURL('**/products/1')
 
@@ -198,7 +198,7 @@ class EditProductSpec extends EditorSpecification {
         assertThat(page.locator('.stats')).containsText('5Pipelines')
 
         when:
-        page.locator('.generated').getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Dismiss')).click()
+        buttonIn(page.locator('.generated'), 'Dismiss').click()
 
         then:
         assertThat(page.locator('.generated')).hasCount(0)

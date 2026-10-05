@@ -17,10 +17,10 @@ class MonitoringSpec extends GuiSpecification {
         open('/monitoring')
 
         expect:
-        assertThat(tile('Pipelines')).hasText('9')
-        assertThat(tile('Succeeded')).hasText('6')
-        assertThat(tile('Failing or unstable')).hasText('2')
-        assertThat(tile('Keys invalidated')).hasText('1')
+        assertThat(stat('Pipelines')).hasText('9')
+        assertThat(stat('Succeeded')).hasText('6')
+        assertThat(stat('Failing or unstable')).hasText('2')
+        assertThat(stat('Keys invalidated')).hasText('1')
         assertThat(productCards()).hasText(['CertScanner', 'Payments Hub'] as String[])
 
         when:
@@ -194,8 +194,8 @@ class MonitoringSpec extends GuiSpecification {
 
         then:
         assertThat(page.locator('dso-metrics-banner .banner.info')).containsText('InfluxDB is not configured, so the portal shows only the state of each pipeline\'s key.')
-        assertThat(tile('Pipelines')).hasText('9')
-        assertThat(tile('Succeeded')).hasText('0')
+        assertThat(stat('Pipelines')).hasText('9')
+        assertThat(stat('Succeeded')).hasText('0')
         assertThat(page.locator('.product-foot .muted')).hasText(['No runs yet', 'No runs yet'] as String[])
 
         when:
@@ -224,11 +224,6 @@ class MonitoringSpec extends GuiSpecification {
                 'InfluxDB cannot be reached: connection refused',
                 'Pipeline metrics could not be read, so the statuses below may be incomplete: query timed out after 10 seconds'] as String[])
         ownErrors().isEmpty()
-    }
-
-    Locator tile(String label) {
-        page.locator('.tiles .tile').filter(new Locator.FilterOptions().setHas(page.locator("span:text-is('${label}')")))
-                .locator('strong')
     }
 
     Locator productCards() {

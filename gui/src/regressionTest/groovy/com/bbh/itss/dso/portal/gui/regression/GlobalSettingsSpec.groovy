@@ -91,7 +91,7 @@ class GlobalSettingsSpec extends GuiSpecification {
         awaitRequest('PUT', '/api/settings').json().version == 1
 
         when:
-        page.locator('.banner.conflict').getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Reload')).click()
+        buttonIn(page.locator('.banner.conflict'), 'Reload', false).click()
 
         then:
         assertThat(page.locator('.banner.conflict')).hasCount(0)
@@ -157,7 +157,7 @@ class GlobalSettingsSpec extends GuiSpecification {
         assertThat(dialog().locator('h2')).hasText('Discard your changes?')
 
         when:
-        dialog().getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Discard')).click()
+        dialogButton('Discard').click()
         page.waitForURL('**/products')
 
         then:
@@ -178,7 +178,7 @@ class GlobalSettingsSpec extends GuiSpecification {
         awaitRequest('GET', '/api/settings/config').params() == [format: 'yaml']
 
         when:
-        dialog().getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Close')).click()
+        dialogButton('Close').click()
         field('Jenkins URL').fill('https://jenkins2.bbh.com/')
         button('Generated configuration', true).click()
 
@@ -186,7 +186,7 @@ class GlobalSettingsSpec extends GuiSpecification {
         assertThat(dialog().locator('.subtitle')).containsText('Your unsaved changes are not included.')
 
         when:
-        dialog().getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('Close')).click()
+        dialogButton('Close').click()
         api.respond('GET', '/api/settings/config', StubResponse.problem(503, 'Service Unavailable', 'The configuration renderer is restarting'))
         button('Generated configuration', true).click()
 

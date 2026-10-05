@@ -21,7 +21,7 @@ abstract class ProductPageSpecification extends GuiSpecification {
     }
 
     Locator pipelineButton(String service, String type, String name) {
-        pipelineRow(service, type).getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName(name).setExact(true))
+        buttonIn(pipelineRow(service, type), name)
     }
 
     Locator keyOf(String service, String type) {
@@ -29,16 +29,12 @@ abstract class ProductPageSpecification extends GuiSpecification {
     }
 
     void pipelineAction(String service, String type, String action) {
-        pipelineRow(service, type).getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName('More actions of the')).click()
+        buttonIn(pipelineRow(service, type), 'More actions of the', false).click()
         menuItem(action).click()
     }
 
     Locator menuItem(String name) {
         page.getByRole(AriaRole.MENUITEM, new Page.GetByRoleOptions().setName(name).setExact(true))
-    }
-
-    Locator dialogButton(String name) {
-        dialog().getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName(name).setExact(true))
     }
 
     Locator dialogInput(String label) {
@@ -48,9 +44,5 @@ abstract class ProductPageSpecification extends GuiSpecification {
     Locator dialogError(String label) {
         dialog().locator('mat-form-field').filter(new Locator.FilterOptions()
                 .setHas(page.locator("mat-label:text-is('${label}')"))).locator('mat-error')
-    }
-
-    Locator stat(String label) {
-        page.locator('.stats .stat').filter(new Locator.FilterOptions().setHas(page.locator("span:text-is('${label}')"))).locator('strong')
     }
 }
