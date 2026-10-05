@@ -4,10 +4,13 @@ The Angular app of the BBH DevSecOps Management Portal. See the [main README](..
 portal.
 
 ```bash
-./gradlew :gui:buildGui      # production bundle in gui/build/dist/browser, checked against the angular.json budgets
-./gradlew :gui:unitTest      # Vitest unit tests with coverage, thresholds in angular.json
-./gradlew :gui:smokeTest     # Spock and Playwright: every page in a browser against recorded API answers
-cd gui && npm start          # http://localhost:4200, /api is proxied to the backend on port 8080
+./gradlew :gui:buildGui         # production bundle in gui/build/dist/browser, checked against the angular.json budgets
+./gradlew :gui:unitTest         # Vitest unit tests with coverage, thresholds in angular.json
+./gradlew :gui:smokeTest        # Spock and Playwright: every page in a browser against recorded API answers
+./gradlew :gui:regressionTest   # Spock and Playwright: user journeys against a stub API, with the requests they send
+./gradlew :gui:performanceTest  # a generated catalogue of 25 products x 16 services, timed in the browser
+./gradlew :gui:check            # all of the above
+cd gui && npm start             # http://localhost:4200, /api is proxied to the backend on port 8080
 ```
 
 Gradle downloads Node.js 24 into `gui/.gradle/nodejs`.
@@ -21,6 +24,28 @@ Gradle downloads Node.js 24 into `gui/.gradle/nodejs`.
 | `settings/`   | Global Settings: tools, policy and defaults of every pipeline |
 | `shared/`     | form controls, dialogs, formatting, Bitbucket links |
 | `testing/`    | fixtures for the unit tests |
+
+## Browser tests
+
+The smoke, regression and performance suites are Spock specifications that drive Chromium with Playwright against
+the production build. `GuiServer` serves `build/dist/browser` and answers `/api` from `StubApi`, which replays the
+API answers recorded from the backend (`src/testFixtures/resources/.../api`) and records every request, so a
+specification checks both what the page shows and the exact JSON the gui sends. Screenshots of the last state of
+every feature land in `build/reports/gui/screenshots`.
+
+- Regression (`src/regressionTest`): searching and opening products; adding a product with two services, through
+  the browser's required-field checks and the server's field errors, to the request it sends; saving unchanged
+  products, which sends back what was loaded with its version; the unsaved-changes guard; moving, duplicating and
+  removing services; Bitbucket fields, GoldenFix default and test job parameters; adding pipelines, replacing,
+  invalidating and regenerating keys, and the keys generated for new services; config previews and their problem
+  details; global settings with a version conflict; change evidence and its ServiceNow text; monitoring ranges,
+  Jenkins and build links, InfluxDB missing or unreachable; and failing API calls.
+- Performance (`src/performanceTest`): the stub serves 25 products with 16 services and 4 pipelines each, with
+  monitoring and evidence for all of them. The suite times the cold product list, the product page, the editor and
+  a service expansion, the monitoring overview, a product's monitoring and a product's evidence in the browser, one
+  warm-up and five measured runs each, and fails when a p95 passes its limit or the initial bundle passes the
+  `angular.json` warning budget. `-Dperformance.factor=2` doubles the time limits on a slow machine. The report is
+  `build/reports/performance/gui-performance-report.md`.
 
 ## Look and layout
 
