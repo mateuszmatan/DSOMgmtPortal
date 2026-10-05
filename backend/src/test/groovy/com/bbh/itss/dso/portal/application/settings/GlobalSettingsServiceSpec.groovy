@@ -88,6 +88,23 @@ class GlobalSettingsServiceSpec extends Specification {
         result.is(saved)
     }
 
+    def "a change reads the stored settings only once every pipeline configuration is locked"() {
+        when:
+        service.update(new UpdateGlobalSettingsCommand(3L, bbh))
+
+        then:
+        1 * publisher.lockConfigurations()
+
+        then:
+        1 * repository.load() >> Optional.of(stored)
+
+        then:
+        1 * repository.save(stored) >> stored
+
+        then:
+        1 * publisher.settingsChanged()
+    }
+
     def "a change without a version skips the concurrent change check"() {
         given:
         repository.load() >> Optional.of(stored)
@@ -110,7 +127,7 @@ class GlobalSettingsServiceSpec extends Specification {
         then:
         thrown(ConflictException)
         0 * repository.save(_)
-        0 * publisher._
+        0 * publisher.settingsChanged()
     }
 
     def "a change breaking the business rules is refused before anything is saved or published"() {
@@ -127,7 +144,7 @@ class GlobalSettingsServiceSpec extends Specification {
         def e = thrown(InvalidRequestException)
         e.problems*.field == ['limits.DAST']
         0 * repository.save(_)
-        0 * publisher._
+        0 * publisher.settingsChanged()
     }
 
     def "a command needs the values"() {

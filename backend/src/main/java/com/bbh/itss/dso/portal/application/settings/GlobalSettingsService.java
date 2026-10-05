@@ -33,6 +33,7 @@ public class GlobalSettingsService implements ManageGlobalSettingsUseCase {
 
     @Override
     public GlobalSettings update(UpdateGlobalSettingsCommand command) {
+        publisher.lockConfigurations();
         GlobalSettings saved = repository.save(load().change(command.expectedVersion(), command.values()));
         publisher.settingsChanged();
         return saved;

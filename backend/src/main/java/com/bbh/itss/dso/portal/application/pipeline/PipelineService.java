@@ -71,6 +71,7 @@ public class PipelineService implements ManagePipelinesUseCase, ManagePipelineKe
 
     @Override
     public PipelineView create(long serviceId, PipelineCommand command) {
+        publisher.lockConfigurations();
         Product product = products.findByServiceId(serviceId)
                 .orElseThrow(() -> NotFoundException.of("Service", serviceId));
         Service service = product.service(serviceId).orElseThrow(() -> NotFoundException.of("Service", serviceId));
@@ -87,6 +88,7 @@ public class PipelineService implements ManagePipelinesUseCase, ManagePipelineKe
 
     @Override
     public PipelineView update(long id, PipelineCommand command) {
+        publisher.lockConfigurations();
         Pipeline pipeline = find(id);
         pipeline.reconfigure(command.type(), command.settings());
         Pipeline saved = pipelines.save(pipeline);
@@ -96,6 +98,7 @@ public class PipelineService implements ManagePipelinesUseCase, ManagePipelineKe
 
     @Override
     public void delete(long id) {
+        publisher.lockConfigurations();
         find(id);
         pipelines.delete(id);
     }

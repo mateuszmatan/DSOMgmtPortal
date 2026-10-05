@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.application.dsoconfig
 
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort
 import com.bbh.itss.dso.portal.application.dsoconfig.port.out.ConfigSerializerPort
+import com.bbh.itss.dso.portal.application.dsoconfig.port.out.PublicationLockPort
 import com.bbh.itss.dso.portal.application.dsoconfig.port.out.PublishedConfigRepositoryPort
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.out.GlobalSettingsRepositoryPort
@@ -37,13 +38,14 @@ class PipelineConfigPublisherSpec extends Specification {
     GlobalSettingsRepositoryPort settings = Stub() {
         load() >> Optional.of(storedSettings())
     }
+    PublicationLockPort lock = Mock()
     def json = JsonMapper.builder().build()
     ConfigSerializerPort serializer = [toJson  : { Map config -> json.writeValueAsString(config) },
                                        fromJson: { String text -> json.readValue(text, LinkedHashMap) }] as ConfigSerializerPort
     def builder = new DsoConfigBuilder(storedSettings().values())
 
     @Subject
-    def publisher = new PipelineConfigPublisher(products, pipelines, settings, published, serializer,
+    def publisher = new PipelineConfigPublisher(products, pipelines, settings, published, serializer, lock,
             Clock.fixed(NOW, ZoneOffset.UTC))
 
     Product certScanner = product(id: 1L, services: [[name: 'gui', id: 10L], [name: 'backend-api', id: 11L]])
@@ -56,6 +58,56 @@ class PipelineConfigPublisherSpec extends Specification {
     def setup() {
         products.load(1L) >> Optional.of(certScanner)
         products.findAll() >> [certScanner]
+    }
+
+    def "the configurations are locked through the publication lock"() {
+        when:
+        publisher.lockConfigurations()
+
+        then:
+        1 * lock.lock()
+        0 * products._
+        0 * pipelines._
+        0 * published._
+    }
+
+    def "a changed pipeline is read only once the configurations are locked"() {
+        when:
+        publisher.pipelineChanged(100L)
+
+        then:
+        1 * lock.lock()
+
+        then:
+        1 * pipelines.load(100L) >> Optional.empty()
+    }
+
+    def "a changed product is read only once the configurations are locked"() {
+        when:
+        publisher.productChanged(1L)
+
+        then:
+        1 * lock.lock()
+
+        then:
+        1 * products.load(1L) >> Optional.empty()
+    }
+
+    def "changed settings and the start-up read the products only once the configurations are locked (#change)"() {
+        when:
+        action(publisher)
+
+        then:
+        1 * lock.lock()
+
+        then:
+        1 * products.findAll() >> []
+        1 * pipelines.findAll() >> []
+
+        where:
+        change     | action
+        'settings' | { PipelineConfigPublisher it -> it.settingsChanged() }
+        'start-up' | { PipelineConfigPublisher it -> it.publishAll() }
     }
 
     def "a changed pipeline publishes its configuration as JSON with the time it was rendered"() {
@@ -151,7 +203,7 @@ class PipelineConfigPublisherSpec extends Specification {
     def "a product without pipelines publishes nothing and needs no settings"() {
         given:
         def withoutSettings = new PipelineConfigPublisher(products, pipelines,
-                Stub(GlobalSettingsRepositoryPort) { load() >> Optional.empty() }, published, serializer,
+                Stub(GlobalSettingsRepositoryPort) { load() >> Optional.empty() }, published, serializer, lock,
                 Clock.systemUTC())
 
         when:
@@ -276,7 +328,7 @@ class PipelineConfigPublisherSpec extends Specification {
     def "publishing without stored global settings is an error of the start-up"() {
         given:
         def withoutSettings = new PipelineConfigPublisher(products, pipelines,
-                Stub(GlobalSettingsRepositoryPort) { load() >> Optional.empty() }, published, serializer,
+                Stub(GlobalSettingsRepositoryPort) { load() >> Optional.empty() }, published, serializer, lock,
                 Clock.systemUTC())
         pipelines.load(100L) >> Optional.of(guiFull)
 

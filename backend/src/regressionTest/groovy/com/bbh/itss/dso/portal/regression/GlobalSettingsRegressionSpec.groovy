@@ -4,11 +4,16 @@ import com.bbh.itss.dso.portal.support.ApiJson
 import com.bbh.itss.dso.portal.support.PortalSpecification
 import org.yaml.snakeyaml.Yaml
 
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
+
 import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 
 class GlobalSettingsRegressionSpec extends PortalSpecification {
+
+    static final int ROUNDS = 25
 
     Map original
 
@@ -111,6 +116,50 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
         pipelineConfig.projects.plain.deploy.vm == projects.plain.deploy.vm
     }
 
+    def "pipelines, services and the global settings changed at the same time leave the newest configuration published"() {
+        given:
+        def code = uniqueCode('RACE')
+        def edited = createProduct(product(code: code, name: "Product $code",
+                services: (1..20).collect { service(name: "svc-$it".toString()) }))
+        def moved = createProduct(product(code: "${code}M", name: "Product ${code}M",
+                services: (1..20).collect { service(name: "svc-$it".toString()) }))
+        def full = (edited.services + moved.services).collect { createPipeline(it.id as long, pipeline()) }
+        def changed = full[0]
+        def movedPipeline = full[20]
+        def pool = Executors.newFixedThreadPool(3)
+
+        when:
+        def rounds = (1..ROUNDS).collect { round ->
+            def statuses = pool.invokeAll([
+                    { -> changeCoverage(61 + round) },
+                    { ->
+                        Thread.sleep(round % 8 * 4)
+                        api.put("/api/pipelines/$changed.id", pipeline(agentLabels: ["agent-$round".toString()]))
+                    },
+                    { ->
+                        Thread.sleep(round * 3 % 8 * 4)
+                        moveSourceDir(moved.id as long, "dir-$round".toString())
+                    }
+            ].collect { it as Callable })*.get()*.status
+            [round    : round, statuses: statuses,
+             published: [publishedConfig(changed), publishedConfig(movedPipeline)],
+             rendered : [renderedConfig(changed), renderedConfig(movedPipeline)]]
+        }
+        def stale = rounds.findAll { it.published != it.rendered }.collect {
+            [round: it.round, published: it.published.collect(this.&changedValues), rendered: it.rendered.collect(this.&changedValues)]
+        }
+
+        then:
+        rounds*.statuses.flatten().every { it == 200 }
+        stale == []
+        changedValues(rounds.last().rendered[0]) == [["agent-$ROUNDS".toString()], 61 + ROUNDS, '.']
+        changedValues(rounds.last().rendered[1]) == [['linux-agent'], 61 + ROUNDS, "dir-$ROUNDS".toString()]
+        full.every { publishedConfig(it) == renderedConfig(it) }
+
+        cleanup:
+        pool.shutdownNow()
+    }
+
     def "a service follows the global GoldenFix default unless it sets its own"() {
         given:
         def code = uniqueCode('GOLDEN')
@@ -194,5 +243,29 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
                    { Map it -> it + [limits: it.limits + [SAST: [maxCritical: -1, maxHigh: 0, maxMedium: 0]]] },
                    { Map it -> it + [scans: it.scans + [coverageMinLine: 101]] },
                    { Map it -> it + [releaseGate: it.releaseGate + [scanners: ['SONAR']]] }]
+    }
+
+    private changeCoverage(int minLine) {
+        def current = api.get('/api/settings').json
+        api.put('/api/settings', original + [version: current.version, scans: original.scans + [coverageMinLine: minLine]])
+    }
+
+    private moveSourceDir(long productId, String sourceDir) {
+        def read = api.get("/api/products/$productId").json
+        def first = read.services[0] + [build: read.services[0].build + [sourceDir: sourceDir]]
+        api.put("/api/products/$productId", product(code: read.code, name: read.name, version: read.version,
+                services: [first] + read.services.drop(1)))
+    }
+
+    private Map publishedConfig(Map pipeline) {
+        ApiJson.parse(libraryConfig(pipeline.activeKey.value as String).CONFIG_JSON as String) as Map
+    }
+
+    private static List changedValues(Map config) {
+        [config.pipeline.agentNames, config.defaults.coverage.minLine, config.projects['svc-1'].sourceDir]
+    }
+
+    private Map renderedConfig(Map pipeline) {
+        api.get("/api/pipelines/$pipeline.id/config?format=json").json as Map
     }
 }

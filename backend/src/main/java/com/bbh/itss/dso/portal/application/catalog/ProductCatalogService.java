@@ -52,11 +52,13 @@ public class ProductCatalogService implements ManageProductsUseCase, QueryProduc
 
     @Override
     public Product create(ProductCommand command) {
+        publisher.lockConfigurations();
         return saved(Product.create(command.details(), command.appScan(), command.drafts(), products));
     }
 
     @Override
     public Product update(long id, ProductCommand command) {
+        publisher.lockConfigurations();
         Product product = find(id);
         product.update(command.version(), command.details(), command.appScan(), command.drafts(), products);
         return saved(product);
@@ -64,6 +66,7 @@ public class ProductCatalogService implements ManageProductsUseCase, QueryProduc
 
     @Override
     public void delete(long id) {
+        publisher.lockConfigurations();
         find(id);
         products.delete(id);
     }

@@ -145,7 +145,7 @@ class PipelineServiceSpec extends Specification {
         def e = thrown(ConflictException)
         e.message == 'Service gui already has a full pipeline'
         0 * pipelines.save(_)
-        0 * publisher._
+        0 * publisher.pipelineChanged(_)
     }
 
     def "a pipeline needs an existing service"() {
@@ -199,7 +199,7 @@ class PipelineServiceSpec extends Specification {
         then:
         thrown(ConflictException)
         0 * pipelines.save(_)
-        0 * publisher._
+        0 * publisher.pipelineChanged(_)
     }
 
     def "a pipeline is deleted with its keys"() {
@@ -210,6 +210,41 @@ class PipelineServiceSpec extends Specification {
         service.delete(100L)
 
         then:
+        1 * pipelines.delete(100L)
+    }
+
+    def "a pipeline is created, changed and deleted only under the configuration lock, taken before anything is read"() {
+        given:
+        products.load(1L) >> Optional.of(certScanner)
+
+        when:
+        service.create(10L, new PipelineCommand(PipelineType.FULL, pipelineSettings()))
+
+        then:
+        1 * publisher.lockConfigurations()
+
+        then:
+        1 * products.findByServiceId(10L) >> Optional.of(certScanner)
+        1 * pipelines.save(_) >> { Pipeline p -> stored(100L, p) }
+
+        when:
+        service.update(100L, new PipelineCommand(PipelineType.FULL, pipelineSettings(agentLabels: ['windows'])))
+
+        then:
+        1 * publisher.lockConfigurations()
+
+        then:
+        1 * pipelines.load(100L) >> Optional.of(pipeline(id: 100))
+        1 * pipelines.save(_) >> { Pipeline p -> p }
+
+        when:
+        service.delete(100L)
+
+        then:
+        1 * publisher.lockConfigurations()
+
+        then:
+        1 * pipelines.load(100L) >> Optional.of(pipeline(id: 100))
         1 * pipelines.delete(100L)
     }
 

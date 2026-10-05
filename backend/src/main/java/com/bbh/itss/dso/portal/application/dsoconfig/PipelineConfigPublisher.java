@@ -6,6 +6,7 @@ import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPor
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase;
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.ReadPublishedConfigUseCase;
 import com.bbh.itss.dso.portal.application.dsoconfig.port.out.ConfigSerializerPort;
+import com.bbh.itss.dso.portal.application.dsoconfig.port.out.PublicationLockPort;
 import com.bbh.itss.dso.portal.application.dsoconfig.port.out.PublishedConfigRepositoryPort;
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort;
 import com.bbh.itss.dso.portal.application.settings.port.out.GlobalSettingsRepositoryPort;
@@ -33,28 +34,37 @@ public class PipelineConfigPublisher implements PublishPipelineConfigsUseCase, R
     private final GlobalSettingsRepositoryPort settings;
     private final PublishedConfigRepositoryPort published;
     private final ConfigSerializerPort serializer;
+    private final PublicationLockPort lock;
     private final Clock clock;
     private volatile Instant republishedAt;
 
     public PipelineConfigPublisher(ProductRepositoryPort products, PipelineRepositoryPort pipelines,
                                    GlobalSettingsRepositoryPort settings, PublishedConfigRepositoryPort published,
-                                   ConfigSerializerPort serializer, Clock clock) {
+                                   ConfigSerializerPort serializer, PublicationLockPort lock, Clock clock) {
         this.products = products;
         this.pipelines = pipelines;
         this.settings = settings;
         this.published = published;
         this.serializer = serializer;
+        this.lock = lock;
         this.clock = clock;
     }
 
     @Override
+    public void lockConfigurations() {
+        lock.lock();
+    }
+
+    @Override
     public void pipelineChanged(long pipelineId) {
+        lockConfigurations();
         pipelines.load(pipelineId).ifPresent(pipeline -> products.load(pipeline.service().productId())
                 .ifPresent(product -> publish(List.of(pipeline), Map.of(product.id(), product), false)));
     }
 
     @Override
     public void productChanged(long productId) {
+        lockConfigurations();
         products.load(productId).ifPresent(product ->
                 publish(pipelines.findByProductId(productId), Map.of(product.id(), product), false));
     }
@@ -84,6 +94,7 @@ public class PipelineConfigPublisher implements PublishPipelineConfigsUseCase, R
     }
 
     private int publishEvery(boolean force) {
+        lockConfigurations();
         Map<Long, Product> byId = products.findAll().stream()
                 .collect(Collectors.toMap(Product::id, Function.identity()));
         List<Pipeline> all = pipelines.findAll();

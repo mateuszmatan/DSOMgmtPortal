@@ -130,7 +130,7 @@ class ProductCatalogServiceSpec extends Specification {
         def e = thrown(ConflictException)
         e.message == 'Product code CERT is already used by Certificates'
         0 * products.save(_)
-        0 * publisher._
+        0 * publisher.productChanged(_)
     }
 
     def "every invalid service is reported at once and nothing is stored"() {
@@ -185,7 +185,7 @@ class ProductCatalogServiceSpec extends Specification {
         def e = thrown(ConflictException)
         e.message == ConflictException.STALE_VERSION
         0 * products.save(_)
-        0 * publisher._
+        0 * publisher.productChanged(_)
     }
 
     def "updating an unknown product fails"() {
@@ -205,6 +205,44 @@ class ProductCatalogServiceSpec extends Specification {
         catalog.delete(5L)
 
         then:
+        1 * products.delete(5L)
+    }
+
+    def "a product is read for a change only once every pipeline configuration is locked"() {
+        when:
+        catalog.update(5L, command(version: 0L))
+
+        then:
+        1 * publisher.lockConfigurations()
+
+        then:
+        1 * products.load(5L) >> Optional.of(product(id: 5))
+
+        then:
+        1 * products.save(_) >> { Product p -> p }
+
+        then:
+        1 * publisher.productChanged(5L)
+    }
+
+    def "a new product and a deletion take the configuration lock before they read or write anything"() {
+        when:
+        catalog.create(command())
+
+        then:
+        1 * publisher.lockConfigurations()
+
+        then:
+        1 * products.save(_) >> { Product p -> stored(9L, p) }
+
+        when:
+        catalog.delete(5L)
+
+        then:
+        1 * publisher.lockConfigurations()
+
+        then:
+        1 * products.load(5L) >> Optional.of(product(id: 5))
         1 * products.delete(5L)
     }
 
