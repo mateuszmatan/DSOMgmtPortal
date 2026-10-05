@@ -6,5 +6,5 @@ public interface ManagePipelineKeysUseCase {
 
     PipelineView revokeKey(long pipelineId, String reason);
 
-    PipelineView resolveKey(String keyValue);
+    long authorizeKey(String keyValue);
 }

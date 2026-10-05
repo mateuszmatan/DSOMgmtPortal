@@ -1,12 +1,10 @@
 package com.bbh.itss.dso.portal.domain.pipeline
 
 import com.bbh.itss.dso.portal.domain.shared.ConflictException
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import spock.lang.Specification
 
 import java.time.Instant
 
-import static com.bbh.itss.dso.portal.support.Fixtures.KEY
 import static com.bbh.itss.dso.portal.support.Fixtures.activeKey
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.pipelineSettings
@@ -92,42 +90,6 @@ class PipelineSpec extends Specification {
         pipeline.keys()*.status() == [KeyStatus.ACTIVE, KeyStatus.REVOKED]
         pipeline.keys()[1].revokeReason() == 'paused'
         pipeline.keys()[1].revokedAt() == revokedKey().revokedAt()
-    }
-
-    def "the active key, given in any case and with spaces, authorizes the pipeline and records its use"() {
-        given:
-        def pipeline = pipeline(keys: [activeKey(), revokedKey()])
-
-        when:
-        def used = pipeline.authorize(" ${KEY.toUpperCase()} ", LATER)
-
-        then:
-        used == activeKey(lastUsedAt: LATER)
-        pipeline.keys() == [used, revokedKey()]
-    }
-
-    def "an unknown key authorizes nothing"() {
-        when:
-        pipeline().authorize(value, LATER)
-
-        then:
-        def e = thrown(NotFoundException)
-        e.message == 'Unknown DevSecOps pipeline key'
-
-        where:
-        value << ['6ba7b811-9dad-41d1-80b4-00c04fd430c8', ' ', null]
-    }
-
-    def "a revoked key is refused with the time and the reason it was invalidated"() {
-        given:
-        def revoked = revokedKey(reason: 'Service retired')
-
-        when:
-        pipeline(keys: [activeKey(), revoked]).authorize(revoked.value(), LATER)
-
-        then:
-        def e = thrown(KeyRevokedException)
-        e.message == "The DevSecOps pipeline key was invalidated on ${revoked.revokedAt()}: Service retired"
     }
 
     def "a key revoked without a reason is refused without one"() {

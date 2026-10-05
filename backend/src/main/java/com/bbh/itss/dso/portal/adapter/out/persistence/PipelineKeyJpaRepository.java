@@ -10,8 +10,11 @@ import java.util.Optional;
 
 public interface PipelineKeyJpaRepository extends JpaRepository<PipelineKeyEntity, Long> {
 
-    @Query("select k.pipeline.id from PipelineKeyEntity k where k.value = :value")
-    Optional<Long> findPipelineIdByValue(@Param("value") String value);
+    @Query("""
+            select new com.bbh.itss.dso.portal.adapter.out.persistence.IssuedKeyRow(k.pipeline.id, k.id, k.value,
+                k.status, k.issuedAt, k.revokedAt, k.revokeReason, k.lastUsedAt)
+            from PipelineKeyEntity k where k.value = :value""")
+    Optional<IssuedKeyRow> findIssuedKey(@Param("value") String value);
 
     @Modifying
     @Query("""

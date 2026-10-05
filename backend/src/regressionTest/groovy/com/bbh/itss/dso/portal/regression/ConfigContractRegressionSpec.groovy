@@ -145,6 +145,43 @@ class ConfigContractRegressionSpec extends PortalSpecification {
         api.get("/api/pipelines/$full.id").json.activeKey.lastUsedAt != null
     }
 
+    def "a pipeline's key gets byte for byte the configuration the portal previews, also right after a change (#kind, #format)"() {
+        given:
+        String code = uniqueCode('KEYED')
+        Map services = [vm       : fullMavenService(sonar: fullMavenService().sonar + [projectKey: code.toLowerCase()],
+                                                    metrics: [enabled: true, influxProject: code.toLowerCase(), influxEnv: 'uat']),
+                        openshift: fullOpenShiftService(),
+                        flutter  : fullFlutterService()]
+        def created = createProduct(product(code: code, name: "Keyed $code", services: [services[kind]]))
+        def full = createPipeline(created.services[0].id as long, pipeline(type: 'FULL'))
+        String byKey = "/api/dso/config/$full.activeKey.value?format=$format"
+        String preview = "/api/pipelines/$full.id/config?format=$format"
+
+        when:
+        def fetched = api.get(byKey)
+        def previewed = api.get(preview)
+
+        then:
+        fetched.status == 200
+        fetched.header('Content-Type') == previewed.header('Content-Type')
+        fetched.body == previewed.body
+
+        when:
+        def read = api.get("/api/products/$created.id").json
+        def changed = api.put("/api/products/$created.id", product(code: read.code, name: read.name,
+                version: read.version, services: [read.services[0] + [build: read.services[0].build + [sourceDir: 'moved-dir']]]))
+        def refetched = api.get(byKey)
+
+        then:
+        changed.status == 200
+        refetched.body == api.get(preview).body
+        refetched.body != fetched.body
+        refetched.body.contains('moved-dir')
+
+        where:
+        [kind, format] << [['vm', 'openshift', 'flutter'], ['yaml', 'json']].combinations()
+    }
+
     private static boolean matchesExpected(String name, String actual) {
         def file = new File(EXPECTED_DIR, name)
         if (Boolean.getBoolean('regression.updateExpected')) {

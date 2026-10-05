@@ -4,13 +4,19 @@ import com.bbh.itss.dso.portal.support.PortalSpecification
 import org.yaml.snakeyaml.Yaml
 
 import java.util.concurrent.Callable
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 
 class PipelineKeyRegressionSpec extends PortalSpecification {
+
+    static final int FETCHERS = 6
 
     String code
     Map certScanner
@@ -209,12 +215,12 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
 
     def "concurrent key changes leave exactly one active key"() {
         given:
-        def created = createPipeline(gui)
+        long id = createPipeline(gui).id as long
         def pool = Executors.newFixedThreadPool(10)
 
         when:
-        def statuses = pool.invokeAll((1..20).collect { { -> api.post("/api/pipelines/$created.id/keys").status } as Callable<Integer> })*.get()
-        def keys = api.get("/api/pipelines/$created.id").json.keys
+        def statuses = pool.invokeAll((1..20).collect { { -> api.post("/api/pipelines/$id/keys").status } as Callable<Integer> })*.get()
+        def keys = api.get("/api/pipelines/$id").json.keys
 
         then:
         statuses.every { it == 200 }
@@ -223,6 +229,122 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
 
         cleanup:
         pool.shutdownNow()
+    }
+
+    def "a key invalidated while pipelines keep fetching its configuration stays invalidated"() {
+        given:
+        def raced = createProduct(product(code: uniqueCode('RACE'), name: "Race ${uniqueCode()}",
+                services: (1..5).collect { service(name: "svc-$it") }))
+        def pool = Executors.newFixedThreadPool(FETCHERS)
+
+        when:
+        def outcomes = raced.services.collect { svc ->
+            def created = createPipeline(svc.id as long)
+            String key = created.activeKey.value
+            def fetches = fetchDuring(pool, key) {
+                assert api.post("/api/pipelines/$created.id/keys/revoke", [reason: 'Leaked in a build log']).status == 200
+            }
+            [pipeline: api.get("/api/pipelines/$created.id").json, key: key, fetches: fetches,
+             library: libraryConfig(key), refused: api.get("/api/dso/config/$key")]
+        }
+
+        then:
+        outcomes.every { outcome ->
+            outcome.fetches.every { it.status in [200, 403] } &&
+                    outcome.fetches.findAll { it.afterChange }.every { it.status == 403 } &&
+                    outcome.pipeline.keys*.status == ['REVOKED'] &&
+                    outcome.pipeline.keys[0].revokeReason == 'Leaked in a build log' &&
+                    outcome.pipeline.activeKey == null &&
+                    outcome.library.KEY_STATUS == 'REVOKED' &&
+                    outcome.library.CONFIG_JSON == null &&
+                    outcome.refused.status == 403
+        }
+
+        cleanup:
+        pool.shutdownNow()
+    }
+
+    def "a key replaced while pipelines keep fetching its configuration leaves one active key"() {
+        given:
+        def created = createPipeline(gui)
+        def pool = Executors.newFixedThreadPool(FETCHERS)
+        List<String> replaced = []
+
+        when:
+        String key = created.activeKey.value
+        5.times {
+            String current = key
+            fetchDuring(pool, current) {
+                key = api.post("/api/pipelines/$created.id/keys").json.activeKey.value
+            }
+            replaced << current
+        }
+        def keys = api.get("/api/pipelines/$created.id").json.keys
+
+        then:
+        keys*.status == ['ACTIVE'] + ['REVOKED'] * 5
+        keys[0].value == key
+        jdbc.queryForObject("SELECT COUNT(*) FROM DSO_PIPELINE_KEY WHERE PIPELINE_ID = ? AND STATUS = 'ACTIVE'",
+                Integer, created.id) == 1
+        replaced.every { api.get("/api/dso/config/$it").status == 403 }
+        api.get("/api/dso/config/$key").status == 200
+
+        cleanup:
+        pool.shutdownNow()
+    }
+
+    def "an invalidated key is regenerated as a new active key while the old keys stay refused"() {
+        given:
+        def created = createPipeline(gui)
+        String first = created.activeKey.value
+        String second = api.post("/api/pipelines/$created.id/keys").json.activeKey.value
+        api.post("/api/pipelines/$created.id/keys/revoke", [reason: 'Leaked in a build log'])
+
+        when:
+        def regenerated = api.post("/api/pipelines/$created.id/keys")
+        String third = regenerated.json.activeKey.value
+
+        then:
+        regenerated.status == 200
+        third != first && third != second
+        regenerated.json.keys*.status == ['ACTIVE', 'REVOKED', 'REVOKED']
+        regenerated.json.keys*.revokeReason == [null, 'Leaked in a build log', 'Replaced by a new key']
+        regenerated.json.keys*.value == [third, null, null]
+        regenerated.json.keys*.hint == [hint(third), hint(second), hint(first)]
+        api.get("/api/dso/config/$first").status == 403
+        api.get("/api/dso/config/$second").status == 403
+        api.get("/api/dso/config/$third").status == 200
+        libraryConfig(third).KEY_STATUS == 'ACTIVE'
+    }
+
+    private List<Map> fetchDuring(ExecutorService pool, String key, Closure change) {
+        def changed = new AtomicBoolean()
+        def stop = new AtomicBoolean()
+        def warmedUp = new CountDownLatch(FETCHERS)
+        def settled = new CountDownLatch(FETCHERS)
+        def fetchers = (1..FETCHERS).collect {
+            pool.submit({ ->
+                def client = api
+                List<Map> fetches = []
+                while (!stop.get()) {
+                    boolean afterChange = changed.get()
+                    fetches << [afterChange: afterChange, status: client.get("/api/dso/config/$key").status]
+                    if (fetches.size() == 3) {
+                        warmedUp.countDown()
+                    }
+                    if (fetches.count { it.afterChange } == 3) {
+                        settled.countDown()
+                    }
+                }
+                fetches
+            } as Callable<List<Map>>)
+        }
+        assert warmedUp.await(30, TimeUnit.SECONDS)
+        change()
+        changed.set(true)
+        assert settled.await(30, TimeUnit.SECONDS)
+        stop.set(true)
+        fetchers.collectMany { it.get() }
     }
 
     private static String hint(String key) {

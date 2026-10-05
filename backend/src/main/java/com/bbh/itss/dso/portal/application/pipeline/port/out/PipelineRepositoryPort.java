@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.application.pipeline.port.out;
 
+import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 
@@ -13,7 +14,7 @@ public interface PipelineRepositoryPort {
 
     Optional<Pipeline> loadForUpdate(long id);
 
-    Optional<Pipeline> findByKey(String keyValue);
+    Optional<IssuedKey> findKey(String keyValue);
 
     List<Pipeline> findByProductId(long productId);
 
@@ -25,5 +26,5 @@ public interface PipelineRepositoryPort {
 
     void delete(long id);
 
-    void recordKeyUse(long keyId, Instant usedAt);
+    boolean recordKeyUse(long keyId, Instant usedAt);
 }

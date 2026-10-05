@@ -14,6 +14,7 @@ import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryP
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
+import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey;
 import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineKey;
@@ -114,13 +115,18 @@ public class PipelineService implements ManagePipelinesUseCase, ManagePipelineKe
     }
 
     @Override
-    public PipelineView resolveKey(String keyValue) {
-        Pipeline pipeline = pipelines.findByKey(PipelineKey.normalize(keyValue))
-                .orElseThrow(() -> new NotFoundException(Pipeline.UNKNOWN_KEY));
-        Instant now = now();
-        PipelineKey used = pipeline.authorize(keyValue, now);
-        pipelines.recordKeyUse(used.id(), now);
-        return view(pipeline);
+    public long authorizeKey(String keyValue) {
+        String value = PipelineKey.normalize(keyValue);
+        IssuedKey issued = issuedKey(value);
+        long pipelineId = issued.authorize();
+        if (!pipelines.recordKeyUse(issued.key().id(), now())) {
+            issuedKey(value).authorize();
+        }
+        return pipelineId;
+    }
+
+    private IssuedKey issuedKey(String value) {
+        return pipelines.findKey(value).orElseThrow(() -> new NotFoundException(Pipeline.UNKNOWN_KEY));
     }
 
     private PipelineView view(Pipeline pipeline) {

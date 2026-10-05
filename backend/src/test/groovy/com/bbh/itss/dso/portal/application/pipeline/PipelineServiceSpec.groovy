@@ -3,9 +3,9 @@ package com.bbh.itss.dso.portal.application.pipeline
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineCommand
-import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
+import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey
 import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator
 import com.bbh.itss.dso.portal.domain.pipeline.KeyRevokedException
 import com.bbh.itss.dso.portal.domain.pipeline.KeyStatus
@@ -267,28 +267,26 @@ class PipelineServiceSpec extends Specification {
         0 * pipelines.save(_)
     }
 
-    def "an active key resolves to its pipeline and its use is recorded"() {
-        given:
-        products.load(1L) >> Optional.of(certScanner)
-
+    def "an active key given in any case and with spaces authorizes its pipeline and its use is recorded"() {
         when:
-        PipelineView view = service.resolveKey(" ${KEY.toUpperCase()} ")
+        long pipelineId = service.authorizeKey(" ${KEY.toUpperCase()} ")
 
         then:
-        1 * pipelines.findByKey(KEY) >> Optional.of(pipeline(id: 100))
-        1 * pipelines.recordKeyUse(100L, NOW_MICROS)
+        1 * pipelines.findKey(KEY) >> Optional.of(new IssuedKey(100L, activeKey(id: 500L)))
+        1 * pipelines.recordKeyUse(500L, NOW_MICROS) >> true
+        0 * pipelines.load(_)
         0 * pipelines.save(_)
-        view.pipeline().id() == 100
-        view.pipeline().activeKey().get().lastUsedAt() == NOW_MICROS
+        0 * products._
+        pipelineId == 100L
     }
 
     def "a revoked key is refused with the reason and its use is not recorded"() {
         given:
         def revoked = revokedKey(reason: 'Service retired')
-        pipelines.findByKey(revoked.value()) >> Optional.of(pipeline(id: 100, keys: [revoked]))
+        pipelines.findKey(revoked.value()) >> Optional.of(new IssuedKey(100L, revoked))
 
         when:
-        service.resolveKey(revoked.value())
+        service.authorizeKey(revoked.value())
 
         then:
         def e = thrown(KeyRevokedException)
@@ -296,13 +294,53 @@ class PipelineServiceSpec extends Specification {
         0 * pipelines.recordKeyUse(*_)
     }
 
-    def "a key that was never issued is not found"() {
+    def "a key invalidated while its use is recorded is refused with the reason it was invalidated"() {
+        given:
+        def revoked = revokedKey(id: 500L, value: KEY, reason: 'Leaked in a build log')
+
         when:
-        service.resolveKey('00000000-0000-4000-8000-000000000000')
+        service.authorizeKey(KEY)
+
+        then:
+        2 * pipelines.findKey(KEY) >>> [Optional.of(new IssuedKey(100L, activeKey(id: 500L))),
+                                        Optional.of(new IssuedKey(100L, revoked))]
+        1 * pipelines.recordKeyUse(500L, NOW_MICROS) >> false
+        def e = thrown(KeyRevokedException)
+        e.message.endsWith(': Leaked in a build log')
+    }
+
+    def "a key whose pipeline was deleted while its use is recorded is not found"() {
+        when:
+        service.authorizeKey(KEY)
+
+        then:
+        2 * pipelines.findKey(KEY) >>> [Optional.of(new IssuedKey(100L, activeKey(id: 500L))), Optional.empty()]
+        1 * pipelines.recordKeyUse(500L, NOW_MICROS) >> false
+        def e = thrown(NotFoundException)
+        e.message == 'Unknown DevSecOps pipeline key'
+    }
+
+    def "a key that is still active after a use that was not recorded authorizes its pipeline"() {
+        when:
+        long pipelineId = service.authorizeKey(KEY)
+
+        then:
+        2 * pipelines.findKey(KEY) >> Optional.of(new IssuedKey(100L, activeKey(id: 500L)))
+        1 * pipelines.recordKeyUse(500L, NOW_MICROS) >> false
+        pipelineId == 100L
+    }
+
+    def "a key that was never issued is not found: '#value'"() {
+        when:
+        service.authorizeKey(value)
 
         then:
         def e = thrown(NotFoundException)
         e.message == 'Unknown DevSecOps pipeline key'
+        0 * pipelines.recordKeyUse(*_)
+
+        where:
+        value << ['00000000-0000-4000-8000-000000000000', ' ', null]
     }
 
     private static Pipeline stored(long id, Pipeline pipeline) {

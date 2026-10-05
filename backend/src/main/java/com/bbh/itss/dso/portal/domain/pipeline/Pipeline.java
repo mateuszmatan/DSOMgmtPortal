@@ -1,7 +1,6 @@
 package com.bbh.itss.dso.portal.domain.pipeline;
 
 import com.bbh.itss.dso.portal.domain.shared.ConflictException;
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -72,18 +71,6 @@ public final class Pipeline {
         PipelineKey revoked = active.revoke(reason, now);
         keys = keys.stream().map(key -> key == active ? revoked : key).toList();
         return revoked;
-    }
-
-    public PipelineKey authorize(String keyValue, Instant now) {
-        String wanted = PipelineKey.normalize(keyValue);
-        PipelineKey key = keys.stream().filter(candidate -> candidate.value().equals(wanted)).findFirst()
-                .orElseThrow(() -> new NotFoundException(UNKNOWN_KEY));
-        if (!key.isActive()) {
-            throw new KeyRevokedException(key);
-        }
-        PipelineKey used = key.usedAt(now);
-        keys = keys.stream().map(candidate -> candidate == key ? used : candidate).toList();
-        return used;
     }
 
     public Optional<PipelineKey> activeKey() {

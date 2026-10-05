@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.application.dsoconfig
 
 import com.bbh.itss.dso.portal.application.catalog.port.in.QueryProductsUseCase
+import com.bbh.itss.dso.portal.application.dsoconfig.port.in.ReadPublishedConfigUseCase
 import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelineKeysUseCase
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView
 import com.bbh.itss.dso.portal.application.pipeline.port.in.QueryPipelinesUseCase
@@ -22,6 +23,7 @@ class PipelineConfigServiceSpec extends Specification {
     static final String KEY = '6f1c2d3e-0000-4abc-9def-123456789abc'
 
     ManagePipelineKeysUseCase keys = Mock()
+    ReadPublishedConfigUseCase published = Mock()
     QueryPipelinesUseCase pipelines = Mock()
     QueryProductsUseCase products = Mock()
     ManageGlobalSettingsUseCase settings = Stub() {
@@ -29,16 +31,33 @@ class PipelineConfigServiceSpec extends Specification {
     }
 
     @Subject
-    def service = new PipelineConfigService(keys, pipelines, products, settings)
+    def service = new PipelineConfigService(keys, published, pipelines, products, settings)
 
     Product certScanner = product(id: 1L, code: 'CERT', services: [[name: 'gui', id: 10L], [name: 'backend-api', id: 11L]])
 
-    def "a pipeline key reads the configuration of its pipeline"() {
+    def "a pipeline key reads the configuration its pipeline published"() {
+        given:
+        Map<String, Object> current = [pipeline: [type: 'full', product: 'CERT']]
+
         when:
         def config = service.readByKey(KEY)
 
         then:
-        1 * keys.resolveKey(KEY) >> view(PipelineType.FULL)
+        1 * keys.authorizeKey(KEY) >> 100L
+        1 * published.currentConfig(100L) >> Optional.of(current)
+        0 * pipelines._
+        0 * products._
+        config.is(current)
+    }
+
+    def "a pipeline key renders the configuration of its pipeline when none is published since the start"() {
+        when:
+        def config = service.readByKey(KEY)
+
+        then:
+        1 * keys.authorizeKey(KEY) >> 100L
+        1 * published.currentConfig(100L) >> Optional.empty()
+        1 * pipelines.get(100L) >> view(PipelineType.FULL)
         config.keySet() as List == ['pipeline', 'platform', 'defaults', 'projects']
         config.pipeline.product == 'CERT'
         config.pipeline.projectNames == 'gui'
@@ -48,13 +67,15 @@ class PipelineConfigServiceSpec extends Specification {
 
     def "an invalidated or unknown key reads no configuration"() {
         given:
-        keys.resolveKey(KEY) >> { throw failure }
+        keys.authorizeKey(KEY) >> { throw failure }
 
         when:
         service.readByKey(KEY)
 
         then:
         thrown(failure.class)
+        0 * published._
+        0 * pipelines._
 
         where:
         failure << [new KeyRevokedException(pipeline().revokeActiveKey('Service retired', UPDATED)),

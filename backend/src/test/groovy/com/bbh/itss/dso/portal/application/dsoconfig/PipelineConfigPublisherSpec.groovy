@@ -38,7 +38,8 @@ class PipelineConfigPublisherSpec extends Specification {
         load() >> Optional.of(storedSettings())
     }
     def json = JsonMapper.builder().build()
-    ConfigSerializerPort serializer = { Map config -> json.writeValueAsString(config) } as ConfigSerializerPort
+    ConfigSerializerPort serializer = [toJson  : { Map config -> json.writeValueAsString(config) },
+                                       fromJson: { String text -> json.readValue(text, LinkedHashMap) }] as ConfigSerializerPort
     def builder = new DsoConfigBuilder(storedSettings().values())
 
     @Subject
@@ -209,6 +210,57 @@ class PipelineConfigPublisherSpec extends Specification {
         1 * published.save({ it.pipelineId() == 100L })
         1 * published.save({ it.pipelineId() == 102L })
         0 * published.save(_)
+    }
+
+    def "publishing everything stamps every configuration again, also an unchanged one"() {
+        given:
+        published.load(100L) >> Optional.of(new PublishedConfig(100L, rendered(guiFull), EARLIER))
+
+        when:
+        publisher.publishAll()
+
+        then:
+        1 * pipelines.findAll() >> [guiFull]
+        1 * published.save(new PublishedConfig(100L, rendered(guiFull), NOW_IN_MICROS))
+    }
+
+    def "no published configuration is current before everything was published once"() {
+        when:
+        def current = publisher.currentConfig(100L)
+
+        then:
+        current.empty
+        0 * published._
+    }
+
+    def "a configuration published since everything was published is current"() {
+        given:
+        pipelines.findAll() >> []
+        publisher.publishAll()
+
+        when:
+        def current = publisher.currentConfig(100L)
+
+        then:
+        1 * published.load(100L) >> Optional.of(new PublishedConfig(100L, rendered(guiFull), NOW_IN_MICROS))
+        current.get() == builder.pipelineConfig(certScanner, gui, guiFull)
+        current.get().keySet() as List == ['pipeline', 'platform', 'defaults', 'projects']
+    }
+
+    def "a configuration published before everything was published, or none, is not current"() {
+        given:
+        pipelines.findAll() >> []
+        publisher.publishAll()
+
+        when:
+        def current = publisher.currentConfig(100L)
+
+        then:
+        1 * published.load(100L) >> stored
+        current.empty
+
+        where:
+        stored << [Optional.of(new PublishedConfig(100L, '{"pipeline":{"type":"full"}}', EARLIER)), Optional.empty()]
     }
 
     def "a portal without pipelines publishes nothing"() {

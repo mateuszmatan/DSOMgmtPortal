@@ -13,4 +13,8 @@ public record PublishedConfig(long pipelineId, String configJson, Instant render
     public boolean holds(String renderedJson) {
         return configJson.equals(renderedJson);
     }
+
+    public boolean renderedSince(Instant moment) {
+        return !renderedAt.isBefore(moment);
+    }
 }

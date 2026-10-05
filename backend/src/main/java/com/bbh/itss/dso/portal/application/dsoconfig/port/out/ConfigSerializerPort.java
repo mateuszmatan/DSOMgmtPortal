@@ -5,4 +5,6 @@ import java.util.Map;
 public interface ConfigSerializerPort {
 
     String toJson(Map<String, Object> config);
+
+    Map<String, Object> fromJson(String json);
 }
