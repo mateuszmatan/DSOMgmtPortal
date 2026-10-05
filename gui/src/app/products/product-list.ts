@@ -37,7 +37,7 @@ export class ProductList {
   protected readonly section = PRODUCTS;
   protected readonly columns = ['product', 'ownerTeam', 'services', 'pipelines', 'updatedAt'];
   protected readonly search = new FormControl('', { nonNullable: true });
-  private readonly query = toSignal(
+  protected readonly query = toSignal(
     this.search.valueChanges.pipe(
       debounceTime(250),
       map((value) => value.trim()),
