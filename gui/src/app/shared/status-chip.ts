@@ -8,44 +8,13 @@ const LOOK: Record<RunResult, { label: string; tone: string }> = {
   ABORTED: { label: 'Aborted', tone: 'neutral' },
   NOT_BUILT: { label: 'Not built', tone: 'neutral' },
   NO_DATA: { label: 'No runs yet', tone: 'neutral' },
-  DISABLED: { label: 'Key invalidated', tone: 'danger-outline' },
+  DISABLED: { label: 'Key invalidated', tone: 'outline' },
 };
 
 @Component({
   selector: 'dso-status-chip',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<span class="chip" [class]="look().tone">{{ label() ?? look().label }}</span>`,
-  styles: `
-    .chip {
-      display: inline-block;
-      padding: 0 7px;
-      font-size: 11.5px;
-      font-weight: 600;
-      line-height: 18px;
-      white-space: nowrap;
-    }
-    .success {
-      background: var(--dso-success-bg);
-      color: var(--dso-success);
-    }
-    .warning {
-      background: var(--dso-warning-bg);
-      color: var(--dso-warning);
-    }
-    .danger {
-      background: var(--dso-danger-bg);
-      color: var(--dso-danger);
-    }
-    .danger-outline {
-      background: #fff;
-      color: var(--dso-danger);
-      box-shadow: inset 0 0 0 1px #f3b6b2;
-    }
-    .neutral {
-      background: var(--dso-neutral-bg);
-      color: var(--dso-neutral);
-    }
-  `,
+  template: `<span class="chip run" [class]="look().tone">{{ label() ?? look().label }}</span>`,
 })
 export class StatusChip {
   readonly status = input.required<RunResult>();

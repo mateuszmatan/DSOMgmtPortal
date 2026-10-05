@@ -3,7 +3,6 @@ package com.bbh.itss.dso.portal.gui.regression
 import com.bbh.itss.dso.portal.gui.support.ProductStore
 import com.bbh.itss.dso.portal.gui.support.StubApi
 import com.bbh.itss.dso.portal.gui.support.StubResponse
-import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Route
 
 import java.util.function.Consumer
@@ -22,7 +21,7 @@ class ApiFailureSpec extends EditorSpecification {
         open(path)
 
         then:
-        assertThat(page.locator('.banner').filter(new Locator.FilterOptions().setHasText(DETAIL))).isVisible()
+        assertThat(holdingText(page.locator('.banner'), DETAIL)).isVisible()
         ownErrors().every { it.contains('500') }
 
         where:
@@ -45,7 +44,7 @@ class ApiFailureSpec extends EditorSpecification {
         open('/monitoring')
 
         then:
-        assertThat(page.locator('.banner').filter(new Locator.FilterOptions().setHasText('502'))).isVisible()
+        assertThat(holdingText(page.locator('.banner'), '502')).isVisible()
     }
 
     def "a page that failed to load offers the way back or another try"() {

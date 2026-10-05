@@ -44,7 +44,7 @@ class MonitoringSpec extends GuiSpecification {
 
         when:
         filter().fill('')
-        page.locator('a.card.product').filter(new Locator.FilterOptions().setHasText('Payments Hub')).click()
+        holdingText(page.locator('a.card.product'), 'Payments Hub').click()
         page.waitForURL('**/monitoring/products/2')
 
         then:
@@ -105,15 +105,13 @@ class MonitoringSpec extends GuiSpecification {
 
         expect:
         assertThat(rangeToggle('30d')).hasAttribute('aria-checked', 'true')
-        assertThat(page.locator('section.card').filter(new Locator.FilterOptions().setHasText('Recent runs')).locator('.card-header .muted'))
-                .hasText('Newest first, within the last 30 days')
+        assertThat(recentRunsNote()).hasText('Newest first, within the last 30 days')
 
         when:
         ['7d', '90d', '180d'].each { range ->
             rangeToggle(range).click()
             page.waitForURL("**/monitoring/pipelines/1?range=$range")
-            assertThat(page.locator('section.card').filter(new Locator.FilterOptions().setHasText('Recent runs')).locator('.card-header .muted'))
-                    .hasText("Newest first, within the last ${range - 'd'} days")
+            assertThat(recentRunsNote()).hasText("Newest first, within the last ${range - 'd'} days")
         }
         assertThat(page.locator('mat-progress-bar.loading')).hasCount(0)
         button('Refresh the pipeline metrics', true).click()
@@ -151,7 +149,7 @@ class MonitoringSpec extends GuiSpecification {
         assertThat(link('Jenkins', true)).hasAttribute('href', 'https://jenkins.bbh.com/job/DevSecOps/job/CERTSCANNER/job/gui-full/')
         assertThat(link('Open in Grafana', true)).hasAttribute('href', monitoring.grafana.dashboardUrl as String)
         assertThat(page.locator('.last-run a.build-link')).hasAttribute('href', monitoring.lastRun.buildUrl as String)
-        def links = page.locator('section.card').filter(new Locator.FilterOptions().setHasText('Recent runs')).locator('tr.mat-mdc-row')
+        def links = recentRuns().locator('tr.mat-mdc-row')
         assertThat(links).hasCount(runs.size())
         runs.withIndex().every { run, index ->
             def cell = links.nth(index).locator('td').nth(2)
@@ -179,8 +177,7 @@ class MonitoringSpec extends GuiSpecification {
 
     def "without InfluxDB the pages explain that only the key state is known"() {
         given:
-        api.respond('GET', '/api/monitoring/status', [influxConfigured : false, influxReachable: false, influxError: null,
-                                                      grafanaConfigured: false, grafanaUrl: null])
+        api.respond('GET', '/api/monitoring/status', [influxConfigured: false, influxReachable: false, influxError: null])
         def overview = StubApi.fixture('monitoring-products.json') as Map
         overview.products.each { product -> product.overall = 'NO_DATA'; product.statusCounts = [NO_DATA: product.pipelineCount]; product.lastRunAt = null }
         api.respond('GET', '/api/monitoring/products', overview)
@@ -210,8 +207,7 @@ class MonitoringSpec extends GuiSpecification {
 
     def "an unreachable InfluxDB and failed metric reads are named"() {
         given:
-        api.respond('GET', '/api/monitoring/status', [influxConfigured : true, influxReachable: false, influxError: 'connection refused',
-                                                      grafanaConfigured: true, grafanaUrl: 'http://localhost:3000'])
+        api.respond('GET', '/api/monitoring/status', [influxConfigured: true, influxReachable: false, influxError: 'connection refused'])
         def overview = StubApi.fixture('monitoring-products.json') as Map
         overview.metricsError = 'query timed out after 10 seconds'
         api.respond('GET', '/api/monitoring/products', overview)
@@ -235,8 +231,15 @@ class MonitoringSpec extends GuiSpecification {
     }
 
     Locator row(int pipelineId) {
-        page.locator('tr.mat-mdc-row').filter(new Locator.FilterOptions()
-                .setHas(page.locator("a.pipeline-link[href='/monitoring/pipelines/${pipelineId}']")))
+        holding(page.locator('tr.mat-mdc-row'), "a.pipeline-link[href='/monitoring/pipelines/${pipelineId}']")
+    }
+
+    Locator recentRuns() {
+        holdingText(page.locator('section.card'), 'Recent runs')
+    }
+
+    Locator recentRunsNote() {
+        recentRuns().locator('.card-header .muted')
     }
 
     Locator rangeToggle(String range) {

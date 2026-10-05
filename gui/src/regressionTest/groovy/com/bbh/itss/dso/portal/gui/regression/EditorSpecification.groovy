@@ -20,8 +20,7 @@ abstract class EditorSpecification extends GuiSpecification {
     }
 
     Locator servicePanel(String name) {
-        page.locator('mat-expansion-panel').filter(new Locator.FilterOptions()
-                .setHas(page.locator(".service-name:text-is('${name}')")))
+        holding(page.locator('mat-expansion-panel'), ".service-name:text-is('${name}')")
     }
 
     Locator serviceNames() {
@@ -51,8 +50,19 @@ abstract class EditorSpecification extends GuiSpecification {
     }
 
     Locator formField(Locator scope, String label) {
-        scope.locator('mat-form-field').filter(new Locator.FilterOptions()
-                .setHas(page.locator("mat-label:text-is('${label}')")))
+        holding(scope.locator('mat-form-field'), "mat-label:text-is('${label}')")
+    }
+
+    void hasValues(Locator scope, Map<String, String> expected) {
+        expected.each { label, value -> assertThat(input(scope, label)).hasValue(value) }
+    }
+
+    void fillIn(Locator scope, Map<String, String> values) {
+        values.each { label, value -> input(scope, label).fill(value) }
+    }
+
+    void hasErrors(Locator scope, Map<String, String> expected) {
+        expected.each { label, message -> assertThat(errorOf(scope, label)).hasText(message) }
     }
 
     Locator errorOf(Locator scope, String label) {
@@ -68,12 +78,16 @@ abstract class EditorSpecification extends GuiSpecification {
         page.getByRole(AriaRole.OPTION, new Page.GetByRoleOptions().setName(option).setExact(true)).click()
     }
 
+    Locator checkbox(Locator scope, String label) {
+        scope.getByRole(AriaRole.CHECKBOX, new Locator.GetByRoleOptions().setName(label))
+    }
+
     Locator select(Locator scope, String label) {
         scope.getByRole(AriaRole.COMBOBOX, new Locator.GetByRoleOptions().setName(label).setExact(true))
     }
 
     void toggle(Locator scope, String label) {
-        scope.locator('mat-button-toggle').filter(new Locator.FilterOptions().setHasText(label)).locator('button').click()
+        holdingText(scope.locator('mat-button-toggle'), label).locator('button').click()
     }
 
     Locator saveError() {

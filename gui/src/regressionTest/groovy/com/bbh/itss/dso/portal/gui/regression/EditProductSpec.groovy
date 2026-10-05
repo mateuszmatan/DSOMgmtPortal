@@ -3,8 +3,6 @@ package com.bbh.itss.dso.portal.gui.regression
 import com.bbh.itss.dso.portal.gui.support.ApiData
 import com.bbh.itss.dso.portal.gui.support.ProductStore
 import com.bbh.itss.dso.portal.gui.support.StubApi
-import com.microsoft.playwright.Locator
-import com.microsoft.playwright.options.AriaRole
 
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 
@@ -160,8 +158,7 @@ class EditProductSpec extends EditorSpecification {
         body.findAll { it.key != 'services' } == loaded.findAll { it.key != 'services' }
         assertThat(page.locator('.service h2')).hasText(['ledger', 'notifications', 'notifications-copy', 'mobile-app'] as String[])
         assertThat(page.locator('.generated')).containsText('Pipeline key generated for the new service notifications-copy.')
-        assertThat(page.locator('.key-value').filter(new Locator.FilterOptions()
-                .setHasText(store.generatedKeys['notifications-copy']))).isVisible()
+        assertThat(holdingText(page.locator('.key-value'), store.generatedKeys['notifications-copy'])).isVisible()
         ownErrors().isEmpty()
     }
 
@@ -174,8 +171,7 @@ class EditProductSpec extends EditorSpecification {
         button('Add service', true).click()
         input(openService(), 'Service name').fill('worker')
         showSection('Build')
-        input(openService(), 'JDK path').fill('/usr/lib/jvm/java-21-openjdk')
-        input(openService(), 'Gradle tasks').fill('clean build')
+        fillIn(openService(), ['JDK path': '/usr/lib/jvm/java-21-openjdk', 'Gradle tasks': 'clean build'])
         showSection('AppScan SAST and DAST')
         input(openService(), 'AppScan application ID').fill('5b1e9c2d-7a3f-4d6e-8b0a-1c2d3e4f5a6b')
         expandService('gui')
@@ -190,10 +186,10 @@ class EditProductSpec extends EditorSpecification {
         assertThat(page.locator('.generated')).containsText('Copy each key into the Jenkinsfile of its service.')
         store.generatedKeys.keySet() == ['gui-copy', 'worker'] as Set
         store.generatedKeys.values().every { value ->
-            assertThat(page.locator('.key-value').filter(new Locator.FilterOptions().setHasText(value))).isVisible()
+            assertThat(holdingText(page.locator('.key-value'), value as String)).isVisible()
             true
         }
-        assertThat(page.locator('.key-value').filter(new Locator.FilterOptions().setHasText('7b62170e…299e'))).isVisible()
+        assertThat(holdingText(page.locator('.key-value'), '7b62170e…299e')).isVisible()
         assertThat(page.locator('.service .tag.new')).hasCount(2)
         assertThat(page.locator('.stats')).containsText('5Pipelines')
 
@@ -209,7 +205,7 @@ class EditProductSpec extends EditorSpecification {
         then:
         assertThat(page.locator('.service h2')).hasText(['gui', 'gui-copy', 'backend-api', 'worker'] as String[])
         assertThat(page.locator('.generated')).hasCount(0)
-        assertThat(page.locator('.key-value').filter(new Locator.FilterOptions().setHasText(store.generatedKeys.worker))).hasCount(0)
+        assertThat(holdingText(page.locator('.key-value'), store.generatedKeys.worker as String)).hasCount(0)
         ownErrors().isEmpty()
     }
 
@@ -222,27 +218,21 @@ class EditProductSpec extends EditorSpecification {
         showSection('Bitbucket')
 
         expect:
-        assertThat(input(openService(), 'Repository URL')).hasValue('https://bitbucket.bbh.com/projects/TA/repos/cert-scanner')
-        assertThat(input(openService(), 'Credentials ID')).hasValue('bitbucket-http-credentials')
-        assertThat(input(openService(), 'Bitbucket API URL')).hasValue('https://bitbucket.bbh.com')
-        assertThat(input(openService(), 'Workspace')).hasValue('')
-        assertThat(input(openService(), 'Project key')).hasValue('TA')
-        assertThat(input(openService(), 'Repository slug')).hasValue('cert-scanner')
+        hasValues(openService(), ['Repository URL': 'https://bitbucket.bbh.com/projects/TA/repos/cert-scanner',
+                                  'Credentials ID': 'bitbucket-http-credentials', 'Bitbucket API URL': 'https://bitbucket.bbh.com',
+                                  'Workspace'     : '', 'Project key': 'TA', 'Repository slug': 'cert-scanner'])
         assertThat(select(openService(), 'Sign-in')).hasText('User name and password or token')
         assertThat(select(openService(), 'Bitbucket')).hasText('Detected from the URL')
         assertThat(hintOf(openService(), 'Workspace')).hasText('scm.bitbucket.workspace · Bitbucket Cloud')
 
         when:
-        input(openService(), 'Workspace').fill('bbh technology')
-        input(openService(), 'Bitbucket API URL').fill('api.bitbucket.org')
-        input(openService(), 'Repository slug').fill('team/cert-scanner')
-        input(openService(), 'Repository URL').fill('')
+        fillIn(openService(), ['Workspace': 'bbh technology', 'Bitbucket API URL': 'api.bitbucket.org',
+                               'Repository slug': 'team/cert-scanner', 'Repository URL': ''])
         input(openService(), 'Credentials ID').click()
 
         then:
-        assertThat(errorOf(openService(), 'Workspace')).hasText('No spaces or slashes')
-        assertThat(errorOf(openService(), 'Bitbucket API URL')).hasText('Must be an http or https URL')
-        assertThat(errorOf(openService(), 'Repository slug')).hasText('No spaces or slashes')
+        hasErrors(openService(), ['Workspace'      : 'No spaces or slashes', 'Repository slug': 'No spaces or slashes',
+                                  'Bitbucket API URL': 'Must be an http or https URL'])
 
         when:
         button('Save changes', true).click()
@@ -252,13 +242,10 @@ class EditProductSpec extends EditorSpecification {
         api.requests('PUT', '/api/products/1').isEmpty()
 
         when:
-        input(openService(), 'Workspace').fill('bbh-technology')
-        input(openService(), 'Bitbucket API URL').fill('https://api.bitbucket.org/2.0')
-        input(openService(), 'Repository slug').fill('cert-scanner-ui')
-        input(openService(), 'Project key').fill('')
-        input(openService(), 'Target branch').fill('develop')
-        input(openService(), 'Clone URL').fill('ssh://git@bitbucket.org/bbh-technology/cert-scanner-ui.git')
-        input(openService(), 'Reviewers').fill('jsmith, akowalski')
+        fillIn(openService(), ['Workspace'      : 'bbh-technology', 'Bitbucket API URL': 'https://api.bitbucket.org/2.0',
+                               'Repository slug': 'cert-scanner-ui', 'Project key': '', 'Target branch': 'develop',
+                               'Clone URL'      : 'ssh://git@bitbucket.org/bbh-technology/cert-scanner-ui.git',
+                               'Reviewers'      : 'jsmith, akowalski'])
         choose(openService(), 'Sign-in', 'HTTP access token')
         choose(openService(), 'Bitbucket', 'Cloud')
         button('Save changes', true).click()
@@ -282,11 +269,8 @@ class EditProductSpec extends EditorSpecification {
         showSection('Bitbucket')
 
         then:
-        assertThat(input(openService(), 'Repository URL')).hasValue('')
-        assertThat(input(openService(), 'Workspace')).hasValue('bbh-technology')
-        assertThat(input(openService(), 'Repository slug')).hasValue('cert-scanner-ui')
-        assertThat(input(openService(), 'Project key')).hasValue('')
-        assertThat(input(openService(), 'Reviewers')).hasValue('jsmith, akowalski')
+        hasValues(openService(), ['Repository URL': '', 'Workspace': 'bbh-technology', 'Project key': '',
+                                  'Repository slug': 'cert-scanner-ui', 'Reviewers': 'jsmith, akowalski'])
         assertThat(select(openService(), 'Sign-in')).hasText('HTTP access token')
         assertThat(select(openService(), 'Bitbucket')).hasText('Cloud')
         ownErrors().isEmpty()
@@ -332,7 +316,7 @@ class EditProductSpec extends EditorSpecification {
         open('/products/1/edit')
         expandService('gui')
         showSection('Test jobs')
-        def regression = openService().locator('.list-item').filter(new Locator.FilterOptions().setHasText('CERT-SCANNER-GUI - regression'))
+        def regression = holdingText(openService().locator('.list-item'), 'CERT-SCANNER-GUI - regression')
 
         expect:
         assertThat(input(regression, 'Parameters')).hasValue('ENV=rd')
@@ -417,7 +401,7 @@ class EditProductSpec extends EditorSpecification {
         assertThat(errorOf(openService(), 'DAST target URL')).hasText('Must be an http or https URL')
 
         when:
-        openService().getByRole(AriaRole.CHECKBOX, new Locator.GetByRoleOptions().setName('Run DAST against the deployed application')).uncheck()
+        checkbox(openService(), 'Run DAST against the deployed application').uncheck()
         button('Save changes', true).click()
         page.waitForURL('**/products/1')
 

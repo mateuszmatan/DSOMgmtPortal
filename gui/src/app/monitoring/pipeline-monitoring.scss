@@ -1,10 +1,3 @@
-.title {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-}
-
 .actions {
   align-items: center;
 }
@@ -88,22 +81,6 @@
   }
 }
 
-dl {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 4px 12px;
-  margin: 0;
-  font-size: 12.5px;
-}
-
-dt {
-  color: var(--dso-muted);
-}
-
-dd {
-  margin: 0;
-}
-
 .small {
   margin-top: 2px;
   font-size: 11.5px;
@@ -118,19 +95,6 @@ dd {
 
   span {
     flex-basis: 0;
-  }
-
-  .passed {
-    background: #34a853;
-  }
-  .warned {
-    background: #f9ab00;
-  }
-  .failed {
-    background: #d93025;
-  }
-  .skipped {
-    background: #dadce0;
   }
 }
 

@@ -4,7 +4,6 @@ import com.bbh.itss.dso.portal.gui.support.GuiSpecification
 import com.bbh.itss.dso.portal.gui.support.RecordedRequest
 import com.bbh.itss.dso.portal.gui.support.StubApi
 import com.bbh.itss.dso.portal.gui.support.StubResponse
-import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.options.AriaRole
 
@@ -123,8 +122,7 @@ class GlobalSettingsSpec extends GuiSpecification {
 
         then:
         assertThat(page.locator('.save-bar .save-error')).hasText('The portal did not accept some values. They are marked below.')
-        assertThat(page.locator('mat-form-field').filter(new Locator.FilterOptions()
-                .setHas(page.locator("mat-label:text-is('SonarQube server URL')"))).locator('mat-error'))
+        assertThat(holding(page.locator('mat-form-field'), "mat-label:text-is('SonarQube server URL')").locator('mat-error'))
                 .hasText('SonarQube does not answer at this address')
         assertThat(page.locator('.problems li')).hasText(['audit.retentionDays: must be at least 30'] as String[])
         assertThat(page.locator('.toc-item.problem')).hasText(['Platform and tools'] as String[])

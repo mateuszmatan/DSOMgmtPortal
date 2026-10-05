@@ -36,7 +36,7 @@
     </mat-form-field>
     <div class="legend">
       @for (entry of statusOrder; track entry.status) {
-        <span><i [class]="entry.status.toLowerCase()"></i>{{ entry.label }}</span>
+        <span><i class="swatch" [class]="entry.status.toLowerCase()"></i>{{ entry.label }}</span>
       }
     </div>
   </div>

@@ -2,7 +2,6 @@ package com.bbh.itss.dso.portal.gui.regression
 
 import com.bbh.itss.dso.portal.gui.support.ProductStore
 import com.bbh.itss.dso.portal.gui.support.StubResponse
-import com.microsoft.playwright.Locator
 import groovy.json.JsonSlurper
 
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
@@ -57,23 +56,19 @@ class AddProductSpec extends EditorSpecification {
 
         when:
         input(productFields(), 'Code').pressSequentially('cert-2')
-        input(productFields(), 'Name').fill('CertScanner Next')
-        input(productFields(), 'Owner team').fill('Technology Architecture')
-        input(productFields(), 'Description').fill('The next generation of the certificate scanner')
-        input(productFields(), 'Contact e-mail').fill('ta-team@bbh.com')
-        input(productFields(), 'API key ID').fill('bbh_5f0c2a9e-1b7d-4c3e-8a6f-2d9b0e4c7a15')
-        input(productFields(), 'Secret credentials ID').fill('hcl-app-scan-account')
+        fillIn(productFields(), ['Name'         : 'CertScanner Next', 'Owner team': 'Technology Architecture',
+                                 'Description'  : 'The next generation of the certificate scanner',
+                                 'Contact e-mail': 'ta-team@bbh.com', 'Secret credentials ID': 'hcl-app-scan-account',
+                                 'API key ID'   : 'bbh_5f0c2a9e-1b7d-4c3e-8a6f-2d9b0e4c7a15'])
 
         then:
         assertThat(input(productFields(), 'Code')).hasValue('CERT-2')
 
         when:
-        input(openService(), 'Service name').fill('gui')
-        input(openService(), 'Description').fill('Angular front end')
+        fillIn(openService(), ['Service name': 'gui', 'Description': 'Angular front end'])
         showSection('Build')
-        input(openService(), 'JDK path').fill('/usr/lib/jvm/java-21-openjdk')
-        input(openService(), 'Artifact path').fill('build/libs/*.jar')
-        input(openService(), 'Gradle tasks').fill('clean build')
+        fillIn(openService(), ['JDK path'     : '/usr/lib/jvm/java-21-openjdk', 'Artifact path': 'build/libs/*.jar',
+                               'Gradle tasks': 'clean build'])
         showSection('AppScan SAST and DAST')
         input(openService(), 'AppScan application ID').fill(GUI_APPLICATION)
         button('Add service', true).click()
@@ -86,9 +81,8 @@ class AddProductSpec extends EditorSpecification {
         input(openService(), 'Service name').fill('backend-api')
         showSection('Build')
         choose(openService(), 'Build tool', 'Maven')
-        input(openService(), 'JDK path').fill('/usr/lib/jvm/java-21-openjdk')
-        input(openService(), 'Artifact path').fill('target/*.jar')
-        input(openService(), 'Maven goals').fill('clean verify')
+        fillIn(openService(), ['JDK path'    : '/usr/lib/jvm/java-21-openjdk', 'Artifact path': 'target/*.jar',
+                               'Maven goals': 'clean verify'])
         showSection('Deployment')
         input(openService(), 'Maven goals').fill('deploy')
         showSection('AppScan SAST and DAST')
@@ -125,7 +119,7 @@ class AddProductSpec extends EditorSpecification {
         assertThat(page.locator('.generated')).containsText('Pipeline keys generated for 2 new services: gui, backend-api.')
         store.generatedKeys.keySet() == ['gui', 'backend-api'] as Set
         store.generatedKeys.values().every { key ->
-            assertThat(page.locator('.key-value').filter(new Locator.FilterOptions().setHasText(key))).isVisible()
+                assertThat(holdingText(page.locator('.key-value'), key as String)).isVisible()
             true
         }
         assertThat(page.locator('.service .tag.new')).hasCount(2)

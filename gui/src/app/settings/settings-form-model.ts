@@ -161,16 +161,7 @@ export function toSettingsRequest(
   };
 }
 
-export const SETTINGS_SECTIONS: { id: SettingsSectionId; label: string }[] = [
-  { id: 'platform', label: 'Platform and tools' },
-  { id: 'deployment', label: 'Deployment defaults' },
-  { id: 'limits', label: 'Severity limits' },
-  { id: 'scans', label: 'Scans and coverage' },
-  { id: 'releaseGate', label: 'Release gate' },
-  { id: 'serviceDefaults', label: 'Service defaults' },
-  { id: 'goldenFix', label: 'GoldenFix defaults' },
-];
-
 export function firstInvalidSection(form: SettingsForm): SettingsSectionId | null {
-  return SETTINGS_SECTIONS.find((section) => form.controls[section.id].invalid)?.id ?? null;
+  const ids = Object.keys(form.controls) as SettingsSectionId[];
+  return ids.find((id) => form.controls[id].invalid) ?? null;
 }

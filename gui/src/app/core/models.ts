@@ -293,7 +293,6 @@ export interface ProductFields {
 export interface Product extends ProductFields {
   id: number;
   version: number;
-  createdAt: string;
   updatedAt: string;
   services: Service[];
 }
@@ -333,7 +332,6 @@ export interface Pipeline {
   activeKey: PipelineKey | null;
   influxProjectTag: string;
   influxEnv: string;
-  createdAt: string;
   updatedAt: string;
   keys: PipelineKey[] | null;
 }
@@ -487,8 +485,6 @@ export interface MonitoringStatus {
   influxConfigured: boolean;
   influxReachable: boolean;
   influxError: string | null;
-  grafanaConfigured: boolean;
-  grafanaUrl: string | null;
 }
 
 export interface ProductHealth {

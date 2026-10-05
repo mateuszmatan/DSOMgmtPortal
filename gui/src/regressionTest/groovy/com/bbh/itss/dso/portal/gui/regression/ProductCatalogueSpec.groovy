@@ -92,7 +92,7 @@ class ProductCatalogueSpec extends ProductPageSpecification {
     }
 
     Locator row(String name) {
-        page.locator('tr.mat-mdc-row').filter(new Locator.FilterOptions().setHas(page.locator("a.name:text-is('${name}')")))
+        holding(page.locator('tr.mat-mdc-row'), "a.name:text-is('${name}')")
     }
 
     Locator search() {
