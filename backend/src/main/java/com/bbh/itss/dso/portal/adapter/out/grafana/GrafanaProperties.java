@@ -12,9 +12,11 @@ public record GrafanaProperties(
         @DefaultValue("dso-portal-dora") String dashboardUid,
         @DefaultValue("devsecops-pipeline-dora") String dashboardSlug,
         @DefaultValue("light") String theme,
+        String datasourceUid,
         List<Panel> panels) {
 
     public GrafanaProperties {
+        datasourceUid = datasourceUid == null || datasourceUid.isBlank() ? null : datasourceUid.trim();
         panels = panels == null || panels.isEmpty() ? DEFAULT_PANELS : List.copyOf(panels);
     }
 

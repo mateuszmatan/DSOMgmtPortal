@@ -27,8 +27,10 @@ class MonitoringRegressionSpec extends PortalSpecification {
         api.post("/api/pipelines/$guiSast.id/keys/revoke", [reason: 'paused'])
 
         def now = Instant.now()
-        influx.addRun(project: "$code-gui", time: now - Duration.ofDays(3), result: 'FAILURE', leadTimeSeconds: 7200)
+        influx.addRun(project: "$code-gui", time: now - Duration.ofDays(3), result: 'FAILURE', deployment: true,
+                leadTimeSeconds: 7200)
         influx.addRun(project: "$code-gui", time: now - Duration.ofDays(2), result: 'SUCCESS', leadTimeSeconds: 3600)
+        influx.addRun(project: "$code-gui", time: now - Duration.ofHours(4), result: 'FAILURE', leadTimeSeconds: 600)
         influx.addRun(project: "$code-gui", time: now - Duration.ofHours(1), result: 'SUCCESS', leadTimeSeconds: 1800, build: 42)
         influx.addRun(project: "$code-api", time: now - Duration.ofHours(2), result: 'FAILURE')
     }
@@ -80,13 +82,13 @@ class MonitoringRegressionSpec extends PortalSpecification {
         then:
         details.metricsError == null
         details.status == 'SUCCESS'
-        details.recentRuns*.result == ['SUCCESS', 'SUCCESS', 'FAILURE']
+        details.recentRuns*.result == ['SUCCESS', 'FAILURE', 'SUCCESS', 'FAILURE']
         details.pipeline.keys == []
         details.pipeline.activeKey.value == null
         details.pipeline.activeKey.hint == "${guiFull.activeKey.value.take(8)}\u2026${guiFull.activeKey.value[-4..-1]}"
         with(details.dora) {
-            runs == 3
-            deployments == 2
+            runs == 4
+            deployments == 3
             Math.abs(changeFailureRatePercent - 33.333) < 0.01
             changeFailureRateLevel == 'LOW'
             restores == 1
@@ -97,7 +99,8 @@ class MonitoringRegressionSpec extends PortalSpecification {
             daily.size() == 30
         }
         details.grafana.panels.size() == 8
-        details.grafana.dashboardUrl.contains("var-project=$code-gui&var-env=test&from=now-30d")
+        details.grafana.dashboardUrl.contains(
+                "var-project=$code-gui&var-env=test&var-bucket=DORA-metrics&var-datasource=dso-influxdb&from=now-30d")
     }
 
     def "a pipeline without runs in the range shows the last one before it"() {

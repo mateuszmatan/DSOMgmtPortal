@@ -22,14 +22,22 @@
         "label": "InfluxDB",
         "type": "datasource",
         "query": "influxdb",
-        "current": {},
+        "current": {
+          "text": "DORA-metrics",
+          "value": "dso-influxdb"
+        },
         "hide": 0
       },
       {
         "name": "bucket",
         "label": "Bucket",
-        "type": "constant",
+        "type": "textbox",
         "query": "DORA-metrics",
+        "current": {
+          "text": "DORA-metrics",
+          "value": "DORA-metrics"
+        },
+        "options": [],
         "hide": 2
       },
       {
@@ -144,7 +152,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"dora\" and r._field == \"lead_time_s\")\n  |> filter(fn: (r) => r.project == \"${project}\" and r.env == \"${env}\")\n  |> filter(fn: (r) => r._value > 0)\n  |> aggregateWindow(every: v.windowPeriod, fn: median, createEmpty: false)\n  |> yield(name: \"Lead time (median)\")"
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"dora\")\n  |> filter(fn: (r) => r.project == \"${project}\" and r.env == \"${env}\")\n  |> filter(fn: (r) => r._field == \"deployment\" or r._field == \"lead_time_s\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => r.deployment == 1 and r.lead_time_s > 0)\n  |> map(fn: (r) => ({ _time: r._time, _value: float(v: r.lead_time_s) }))\n  |> aggregateWindow(every: v.windowPeriod, fn: median, createEmpty: false)\n  |> yield(name: \"Lead time of deployments (median)\")"
         }
       ],
       "fieldConfig": {
@@ -196,7 +204,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"dora\" and r._field == \"change_failure\")\n  |> filter(fn: (r) => r.project == \"${project}\" and r.env == \"${env}\")\n  |> map(fn: (r) => ({ r with _value: float(v: r._value) }))\n  |> mean()\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))\n  |> yield(name: \"Change failure rate %\")"
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"dora\")\n  |> filter(fn: (r) => r.project == \"${project}\" and r.env == \"${env}\")\n  |> filter(fn: (r) => r._field == \"deployment\" or r._field == \"change_failure\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => r.deployment == 1)\n  |> map(fn: (r) => ({ _time: r._time, _value: float(v: r.change_failure) }))\n  |> mean()\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))\n  |> yield(name: \"Failed deployments %\")"
         }
       ],
       "fieldConfig": {
@@ -260,7 +268,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"dora\" and r._field == \"change_failure\")\n  |> filter(fn: (r) => r.project == \"${project}\" and r.env == \"${env}\")\n  |> sort(columns: [\"_time\"])\n  |> map(fn: (r) => ({ r with _value: int(v: r._value) }))\n  // +1 where a failure streak starts, -1 where the next green run ends it\n  |> difference(nonNegative: false)\n  |> filter(fn: (r) => r._value != 0)\n  |> elapsed(unit: 1s)\n  |> filter(fn: (r) => r._value == -1)\n  |> map(fn: (r) => ({ _time: r._time, _value: float(v: r.elapsed) }))\n  |> yield(name: \"Time to restore\")"
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"dora\")\n  |> filter(fn: (r) => r.project == \"${project}\" and r.env == \"${env}\")\n  |> filter(fn: (r) => r._field == \"deployment\" or r._field == \"change_failure\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => r.deployment == 1)\n  |> sort(columns: [\"_time\"])\n  |> map(fn: (r) => ({ _time: r._time, _value: int(v: r.change_failure) }))\n  |> difference(nonNegative: false)\n  |> filter(fn: (r) => r._value != 0)\n  |> elapsed(unit: 1s)\n  |> filter(fn: (r) => r._value == -1)\n  |> map(fn: (r) => ({ _time: r._time, _value: float(v: r.elapsed) }))\n  |> yield(name: \"Time to restore after a failed deployment\")"
         }
       ],
       "fieldConfig": {

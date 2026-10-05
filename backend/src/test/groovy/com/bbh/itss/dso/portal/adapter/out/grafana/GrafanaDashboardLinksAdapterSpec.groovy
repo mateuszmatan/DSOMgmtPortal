@@ -1,16 +1,19 @@
 package com.bbh.itss.dso.portal.adapter.out.grafana
 
+import com.bbh.itss.dso.portal.adapter.out.influx.InfluxProperties
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import spock.lang.Specification
 
 class GrafanaDashboardLinksAdapterSpec extends Specification {
 
     def tag = new MetricsTag('CERT-gui', 'test')
+    def influx = new InfluxProperties('http://influx', 'DevSecOps', 'DORA-metrics', 'token', '365d')
 
     def "without a Grafana URL there are no links"() {
         given:
         def adapter = new GrafanaDashboardLinksAdapter(
-                new GrafanaProperties(url, 1, 'dso-portal-dora', 'devsecops-pipeline-dora', 'light', null))
+                new GrafanaProperties(url, 1, 'dso-portal-dora', 'devsecops-pipeline-dora', 'light', 'dso-influxdb',
+                        null), influx)
 
         expect:
         adapter.url().isEmpty()
@@ -23,8 +26,10 @@ class GrafanaDashboardLinksAdapterSpec extends Specification {
     def "the dashboard and each panel are linked with the pipeline's tags and range"() {
         given:
         def adapter = new GrafanaDashboardLinksAdapter(new GrafanaProperties('https://grafana.bbh.com//', 3,
-                'dso-portal-dora', 'devsecops-pipeline-dora', 'dark', null))
-        def query = 'orgId=3&var-project=CERT-gui&var-env=test&from=now-90d&to=now&theme=dark'
+                'dso-portal-dora', 'devsecops-pipeline-dora', 'dark', ' dso-influxdb ', null),
+                new InfluxProperties('http://influx', 'DevSecOps', 'DORA-metrics-qc', 'token', '365d'))
+        def query = 'orgId=3&var-project=CERT-gui&var-env=test&var-bucket=DORA-metrics-qc&' +
+                'var-datasource=dso-influxdb&from=now-90d&to=now&theme=dark'
 
         when:
         def links = adapter.links(tag, 90).orElseThrow()
@@ -42,11 +47,13 @@ class GrafanaDashboardLinksAdapterSpec extends Specification {
     def "tag values are encoded in the links"() {
         given:
         def adapter = new GrafanaDashboardLinksAdapter(
-                new GrafanaProperties('http://grafana', 1, 'uid', 'slug', 'light', null))
+                new GrafanaProperties('http://grafana', 1, 'uid', 'slug', 'light', null,
+                        null), new InfluxProperties('http://influx', 'DevSecOps', 'DORA metrics&qc', 'token', '365d'))
 
         expect:
         adapter.links(new MetricsTag('CERT gui', 'test&prod'), 7).orElseThrow().dashboardUrl() ==
-                'http://grafana/d/uid/slug?orgId=1&var-project=CERT%20gui&var-env=test%26prod&from=now-7d&to=now&theme=light'
+                'http://grafana/d/uid/slug?orgId=1&var-project=CERT%20gui&var-env=test%26prod&' +
+                'var-bucket=DORA%20metrics%26qc&from=now-7d&to=now&theme=light'
     }
 
     def "configured panels replace the default ones"() {
@@ -54,8 +61,9 @@ class GrafanaDashboardLinksAdapterSpec extends Specification {
         def custom = [new GrafanaProperties.Panel(12, 'Lead time by branch', 12)]
 
         expect:
-        new GrafanaProperties('http://grafana', 1, 'uid', 'slug', 'light', custom).panels() == custom
-        new GrafanaProperties('http://grafana', 1, 'uid', 'slug', 'light', []).panels() ==
+        new GrafanaProperties('http://grafana', 1, 'uid', 'slug', 'light', null, custom).panels() == custom
+        new GrafanaProperties('http://grafana', 1, 'uid', 'slug', 'light', null, []).panels() ==
                 GrafanaProperties.DEFAULT_PANELS
+        new GrafanaProperties('http://grafana', 1, 'uid', 'slug', 'light', ' ', []).datasourceUid() == null
     }
 }

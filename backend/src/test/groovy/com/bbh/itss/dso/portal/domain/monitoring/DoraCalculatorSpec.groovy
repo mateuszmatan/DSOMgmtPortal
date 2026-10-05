@@ -37,47 +37,90 @@ class DoraCalculatorSpec extends Specification {
         summary.daily().every { it.runs() == 0 && it.failures() == 0 && it.deployments() == 0 }
     }
 
-    def "a month of runs in any order gives the four metrics"() {
+    def "a month of runs in any order gives the four metrics over its deployments"() {
         given:
         def points = [
                 point('2026-10-03T08:30:00Z', true, false, 5400, 600),
                 point('2026-10-01T10:00:00Z', true, false, 3600, 600),
                 point('2026-10-02T09:00:00Z', false, true, 7200, 900),
-                point('2026-10-04T10:00:00Z', false, true, 3600, 300),
-                point('2026-10-02T11:00:00Z', false, true, 0, 300),
+                point('2026-10-04T10:00:00Z', true, true, 3600, 300),
+                point('2026-10-02T11:00:00Z', true, true, 0, 300),
                 point('2026-10-02T13:00:00Z', true, false, 10800, 600),
                 point('2026-10-03T08:00:00Z', false, true, 1800, 600)]
 
         when:
         def summary = DoraCalculator.summarize(points, 30, NOW)
 
-        then: 'three deployments in 30 days'
+        then: 'five of the seven runs deployed'
         summary.runs() == 7
-        summary.deployments() == 3
-        summary.deploymentsPerWeek() == 0.7d
-        summary.deploymentFrequencyLevel() == MEDIUM
+        summary.deployments() == 5
+        Math.abs(summary.deploymentsPerWeek() - 1.1666d) < 0.0001
+        summary.deploymentFrequencyLevel() == HIGH
 
-        and: 'the median of the positive lead times'
+        and: 'the median of the positive lead times of the deployments, not of the builds between them'
         summary.leadTimeMedianSeconds() == 4500
         summary.leadTimeLevel() == ELITE
 
-        and: 'four of seven runs failed'
-        Math.abs(summary.changeFailureRatePercent() - 57.142857d) < 0.0001
+        and: 'two of five deployments failed; the builds that never deployed do not count'
+        summary.changeFailureRatePercent() == 40.0d
         summary.changeFailureRateLevel() == LOW
 
-        and: 'restored after four hours and after half an hour, failing again since the last run'
-        summary.restores() == 2
-        summary.meanTimeToRestoreSeconds() == 8100
+        and: 'restored two hours after the failed deployment, failing again since the last deployment'
+        summary.restores() == 1
+        summary.meanTimeToRestoreSeconds() == 7200
         summary.timeToRestoreLevel() == HIGH
         summary.failingSince() == Instant.parse('2026-10-04T10:00:00Z')
+
+        and: 'the average duration of every run'
         summary.averageDurationSeconds() == 557
 
         and: 'the activity of each day'
         summary.daily().size() == 30
         summary.daily().last().date() == LocalDate.parse('2026-10-04')
-        day(summary, '2026-10-02') == [3, 2, 1]
-        day(summary, '2026-10-04') == [1, 1, 0]
+        day(summary, '2026-10-02') == [3, 2, 2]
+        day(summary, '2026-10-04') == [1, 1, 1]
         day(summary, '2026-09-30') == [0, 0, 0]
+    }
+
+    def "runs that never deployed give no lead time, no change failure rate and no time to restore"() {
+        given:
+        def points = [point('2026-10-01T10:00:00Z', false, false, 3600, 600),
+                      point('2026-10-02T10:00:00Z', false, true, 7200, 600),
+                      point('2026-10-03T10:00:00Z', false, false, 1800, 600)]
+
+        when:
+        def summary = DoraCalculator.summarize(points, 30, NOW)
+
+        then:
+        summary.runs() == 3
+        summary.deployments() == 0
+        summary.leadTimeMedianSeconds() == null
+        summary.leadTimeLevel() == null
+        summary.changeFailureRatePercent() == null
+        summary.changeFailureRateLevel() == null
+        summary.meanTimeToRestoreSeconds() == null
+        summary.timeToRestoreLevel() == null
+        summary.restores() == 0
+        summary.failingSince() == null
+        summary.averageDurationSeconds() == 600
+        day(summary, '2026-10-02') == [1, 1, 0]
+    }
+
+    def "a failed build between a failed deployment and the next one does not end the outage"() {
+        given:
+        def points = [point('2026-10-01T10:00:00Z', true, true, 60, 60),
+                      point('2026-10-01T11:00:00Z', false, false, 60, 60),
+                      point('2026-10-01T12:00:00Z', false, true, 60, 60),
+                      point('2026-10-01T13:00:00Z', true, false, 60, 60)]
+
+        when:
+        def summary = DoraCalculator.summarize(points, 30, NOW)
+
+        then:
+        summary.restores() == 1
+        summary.meanTimeToRestoreSeconds() == 10_800
+        summary.failingSince() == null
+        summary.changeFailureRatePercent() == 50.0d
     }
 
     def "runs before the range count in the totals but not per day"() {
@@ -99,7 +142,7 @@ class DoraCalculatorSpec extends Specification {
         summary.daily() == []
     }
 
-    def "an odd number of lead times has the middle one as median"() {
+    def "an odd number of deployment lead times has the middle one as median"() {
         when:
         def summary = DoraCalculator.summarize([point('2026-10-01T10:00:00Z', true, false, 100, 1),
                                                 point('2026-10-02T10:00:00Z', true, false, 900, 1),
