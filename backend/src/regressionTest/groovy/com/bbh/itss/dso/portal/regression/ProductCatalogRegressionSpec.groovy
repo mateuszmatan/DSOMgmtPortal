@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.regression
 
 import com.bbh.itss.dso.portal.support.ApiJson
+import com.bbh.itss.dso.portal.support.PortalClient
 import com.bbh.itss.dso.portal.support.PortalSpecification
 
 import java.util.concurrent.Callable
@@ -335,6 +336,61 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                  product(services: [service(build: build(command: [tasks: ['clean'], environment: ['not a variable']]))]),
                  product(appScan: null),
                  [code: 'X']]
+    }
+
+    def "#refusal is a problem detail that keeps the portal's internals to itself"() {
+        when:
+        def response = call.call(api)
+
+        then:
+        response.status == status
+        response.header('Content-Type').startsWith('application/problem+json')
+        with(response.json) {
+            !it.title.isBlank()
+            !it.detail.isBlank()
+            def text = "$it.title $it.detail"
+            !text.contains('com.bbh.itss') && !text.contains('java.') && !text.contains('Exception') &&
+                    !text.contains('(') && !text.contains('$')
+        }
+
+        where:
+        refusal                        | status | call
+        'an unknown endpoint'          | 404    | { PortalClient http -> http.get('/api/nowhere') }
+        'a method the endpoint lacks'  | 405    | { PortalClient http -> http.delete('/api/products') }
+        'a path value of a wrong type' | 400    | { PortalClient http -> http.get('/api/products/undefined') }
+        'a body that is not JSON'      | 400    | { PortalClient http ->
+            http.postRaw('/api/products', 'application/json', '{"code": ')
+        }
+        'a body of another type'       | 415    | { PortalClient http ->
+            http.postRaw('/api/products', 'text/plain', 'code=CERT')
+        }
+        'a request without a body'     | 400    | { PortalClient http ->
+            http.postRaw('/api/products', 'application/json', '')
+        }
+        'a body that is not an object' | 400    | { PortalClient http ->
+            http.postRaw('/api/products', 'application/json', '["CERT"]')
+        }
+    }
+
+    def "a value the request body cannot hold is refused against the field that holds it"() {
+        when:
+        def unknownTool = api.post('/api/products', product(services: [service(build: build(tool: 'ANT'))]))
+        def wrongType = api.post('/api/products',
+                product(services: [service(build: build(command: [tasks: 'clean build']))]))
+        def missing = api.postRaw('/api/products', 'application/json', '')
+
+        then:
+        unknownTool.status == 400
+        with(unknownTool.json) {
+            title == 'Malformed request'
+            detail == 'services[0].build.tool must be one of GRADLE, MAVEN, FLUTTER'
+            errors == [[field: 'services[0].build.tool', message: 'must be one of GRADLE, MAVEN, FLUTTER']]
+        }
+        wrongType.status == 400
+        wrongType.json.errors == [[field  : 'services[0].build.command.tasks',
+                                   message: 'has a value this field cannot hold']]
+        missing.json.detail == 'The request body is missing.'
+        missing.json.errors == null
     }
 
     def "a deleted product is gone together with its pipelines and keys"() {
