@@ -35,7 +35,7 @@ describe('ProductList', () => {
     expect(row.querySelector('.name')?.textContent).toBe('CertScanner');
     expect(row.querySelector('.code')?.textContent).toBe('CERT');
     expect(row.querySelector('.mat-column-services')?.textContent?.trim()).toBe('2');
-    expect(row.querySelector('.revoked')?.textContent?.trim()).toBe('key_off1');
+    expect(row.querySelector('.revoked')?.textContent?.trim()).toBe('· 1 invalidated');
     expect(row.querySelector('.mat-column-updatedAt')?.textContent?.trim()).toBe('just now');
   });
 

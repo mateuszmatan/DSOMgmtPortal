@@ -3,7 +3,6 @@ import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -12,6 +11,7 @@ import { map } from 'rxjs';
 import { MonitoringApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { RunResult } from '../core/models';
+import { MONITORING } from '../core/sections';
 import { RelativeTimePipe } from '../shared/formatting';
 import { StatusChip } from '../shared/status-chip';
 import { MetricsBanner } from './metrics-banner';
@@ -24,7 +24,6 @@ import { STATUS_ORDER, StatusBar } from './status-bar';
     RouterLink,
     MatButtonModule,
     MatFormFieldModule,
-    MatIconModule,
     MatInputModule,
     MatProgressBarModule,
     MatTooltipModule,
@@ -40,6 +39,7 @@ import { STATUS_ORDER, StatusBar } from './status-bar';
 export class MonitoringOverview {
   private readonly api = inject(MonitoringApi);
 
+  protected readonly section = MONITORING;
   protected readonly status = rxResource({ stream: () => this.api.status() });
   protected readonly overview = rxResource({ stream: () => this.api.overview() });
 
@@ -86,15 +86,14 @@ export class MonitoringOverview {
     const totals = this.totals();
     const pipelines = Object.values(totals).reduce((sum, count) => sum + (count ?? 0), 0);
     return [
-      { label: 'Pipelines', value: pipelines, icon: 'account_tree', tone: 'info' },
-      { label: 'Succeeded', value: totals.SUCCESS ?? 0, icon: 'check_circle', tone: 'success' },
+      { label: 'Pipelines', value: pipelines, tone: 'info' },
+      { label: 'Succeeded', value: totals.SUCCESS ?? 0, tone: 'success' },
       {
         label: 'Failing or unstable',
         value: (totals.FAILURE ?? 0) + (totals.UNSTABLE ?? 0),
-        icon: 'error',
         tone: 'danger',
       },
-      { label: 'Keys invalidated', value: totals.DISABLED ?? 0, icon: 'key_off', tone: 'neutral' },
+      { label: 'Keys invalidated', value: totals.DISABLED ?? 0, tone: 'neutral' },
     ];
   });
 

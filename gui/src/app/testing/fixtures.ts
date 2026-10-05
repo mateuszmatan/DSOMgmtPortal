@@ -1,7 +1,15 @@
 import {
+  DoraSummary,
   GlobalSettings,
+  MonitoringOverview,
+  MonitoringStatus,
   Pipeline,
   PipelineEvidence,
+  PipelineHealth,
+  PipelineMonitoring,
+  PipelineRun,
+  ProductHealth,
+  ProductMonitoring,
   Product,
   ProductEvidence,
   RunEvidence,
@@ -139,9 +147,13 @@ export function service(overrides: Partial<Service> = {}): Service {
       targetBranch: null,
       cloneUrl: null,
       reviewers: [],
+      apiUrl: null,
+      workspace: null,
+      projectKey: null,
+      repoSlug: null,
     },
     goldenFix: {
-      enabled: true,
+      enabled: null,
       onlyDirectDependencies: null,
       minThreatLevel: null,
       ecosystems: [],
@@ -182,6 +194,17 @@ export function service(overrides: Partial<Service> = {}): Service {
   };
 }
 
+export function anotherService(overrides: Partial<Service> = {}): Service {
+  const stored = service();
+  return service({
+    id: 11,
+    name: 'api',
+    sonar: { ...stored.sonar, projectKey: 'cert-api' },
+    metrics: { ...stored.metrics, influxProject: null },
+    ...overrides,
+  });
+}
+
 export function product(overrides: Partial<Product> = {}): Product {
   return {
     id: 1,
@@ -219,6 +242,7 @@ export function pipeline(overrides: Partial<Pipeline> = {}): Pipeline {
     activeKey: {
       id: 1000,
       value: '6f1c2d3e-0000-4abc-9def-123456789abc',
+      hint: '6f1c2d3e…9abc',
       status: 'ACTIVE',
       issuedAt: '2026-10-04T08:00:00Z',
       revokedAt: null,
@@ -471,6 +495,132 @@ export function productEvidence(overrides: Partial<ProductEvidence> = {}): Produ
     contactEmail: 'arch@bbh.com',
     services: [serviceEvidence()],
     metricsError: null,
+    ...overrides,
+  };
+}
+
+export function pipelineRun(overrides: Partial<PipelineRun> = {}): PipelineRun {
+  return {
+    time: '2026-10-04T07:30:00Z',
+    result: 'SUCCESS',
+    branch: 'develop',
+    build: 42,
+    durationSeconds: 900,
+    commit: 'a28ef0054e42c0ffee',
+    job: 'DevSecOps/CERT/gui-full/develop',
+    buildUrl: 'https://jenkins.bbh.com/job/DevSecOps/job/CERT/job/gui-full/job/develop/42/',
+    stagesTotal: 12,
+    passed: 10,
+    warned: 1,
+    failed: 1,
+    blocked: 0,
+    skipped: 0,
+    ...overrides,
+  };
+}
+
+export function doraSummary(overrides: Partial<DoraSummary> = {}): DoraSummary {
+  return {
+    rangeDays: 30,
+    runs: 40,
+    deployments: 12,
+    deploymentsPerWeek: 2.8,
+    deploymentFrequencyLevel: 'HIGH',
+    leadTimeMedianSeconds: 5400,
+    leadTimeLevel: 'ELITE',
+    changeFailureRatePercent: 12.5,
+    changeFailureRateLevel: 'HIGH',
+    meanTimeToRestoreSeconds: 7200,
+    timeToRestoreLevel: 'HIGH',
+    restores: 3,
+    failingSince: null,
+    averageDurationSeconds: 900,
+    daily: [
+      { date: '2026-10-03', runs: 3, failures: 1, deployments: 1 },
+      { date: '2026-10-04', runs: 2, failures: 0, deployments: 2 },
+    ],
+    ...overrides,
+  };
+}
+
+export function monitoringPipeline(overrides: Partial<Pipeline> = {}): Pipeline {
+  const stored = pipeline();
+  return pipeline({
+    activeKey: { ...stored.activeKey!, value: null },
+    keys: [],
+    ...overrides,
+  });
+}
+
+export function pipelineMonitoring(
+  overrides: Partial<PipelineMonitoring> = {},
+): PipelineMonitoring {
+  return {
+    pipeline: monitoringPipeline(),
+    status: 'SUCCESS',
+    lastRun: pipelineRun(),
+    dora: doraSummary(),
+    recentRuns: [pipelineRun(), pipelineRun({ build: 41, buildUrl: null, result: 'FAILURE' })],
+    grafana: {
+      dashboardUrl: 'https://grafana.bbh.com/d/dso-dora',
+      panels: [{ id: 1, title: 'Deployments', width: 6, url: 'https://grafana.bbh.com/d-solo/1' }],
+    },
+    metricsError: null,
+    ...overrides,
+  };
+}
+
+export function pipelineHealth(overrides: Partial<PipelineHealth> = {}): PipelineHealth {
+  return {
+    pipeline: monitoringPipeline(),
+    status: 'SUCCESS',
+    lastRun: pipelineRun(),
+    ...overrides,
+  };
+}
+
+export function productMonitoring(overrides: Partial<ProductMonitoring> = {}): ProductMonitoring {
+  return {
+    productId: 1,
+    code: 'CERT',
+    name: 'CertScanner',
+    description: 'TLS certificate scanner',
+    ownerTeam: 'Technology Architecture',
+    overall: 'SUCCESS',
+    pipelines: [pipelineHealth()],
+    metricsError: null,
+    ...overrides,
+  };
+}
+
+export function productHealth(overrides: Partial<ProductHealth> = {}): ProductHealth {
+  return {
+    productId: 1,
+    code: 'CERT',
+    name: 'CertScanner',
+    ownerTeam: 'Technology Architecture',
+    serviceCount: 2,
+    pipelineCount: 3,
+    overall: 'SUCCESS',
+    statusCounts: { SUCCESS: 2, FAILURE: 1 },
+    lastRunAt: '2026-10-04T07:30:00Z',
+    ...overrides,
+  };
+}
+
+export function monitoringOverview(
+  overrides: Partial<MonitoringOverview> = {},
+): MonitoringOverview {
+  return { products: [productHealth()], metricsError: null, ...overrides };
+}
+
+export function monitoringStatus(overrides: Partial<MonitoringStatus> = {}): MonitoringStatus {
+  return {
+    influxConfigured: true,
+    influxReachable: true,
+    influxError: null,
+    grafanaConfigured: true,
+    grafanaUrl: 'https://grafana.bbh.com',
     ...overrides,
   };
 }

@@ -27,21 +27,21 @@
     >
     <mat-error>{{ errorText(uc.deployProcess) }}</mat-error>
   </mat-form-field>
-  <mat-slide-toggle class="span-6" [formControl]="uc.deployWithSnapshot"
-    >Deploy with a snapshot (<code>deployWithSnapshot</code>)</mat-slide-toggle
+  <mat-checkbox class="span-6" [formControl]="uc.deployWithSnapshot"
+    >Deploy with a snapshot (<code>deployWithSnapshot</code>)</mat-checkbox
   >
-  <mat-slide-toggle class="span-6" [formControl]="uc.includeOnlyDeployVersions"
+  <mat-checkbox class="span-6" [formControl]="uc.includeOnlyDeployVersions"
     >Snapshot holds only the deployed versions
-    (<code>includeOnlyDeployVersions</code>)</mat-slide-toggle
+    (<code>includeOnlyDeployVersions</code>)</mat-checkbox
   >
-  <mat-slide-toggle class="span-6" [formControl]="uc.updateSnapshotComponents"
-    >Update the snapshot's components (<code>updateSnapshotComp</code>)</mat-slide-toggle
+  <mat-checkbox class="span-6" [formControl]="uc.updateSnapshotComponents"
+    >Update the snapshot's components (<code>updateSnapshotComp</code>)</mat-checkbox
   >
-  <mat-slide-toggle class="span-6" [formControl]="uc.deployOnlyChanged"
-    >Deploy only changed versions (<code>deployOnlyChanged</code>)</mat-slide-toggle
+  <mat-checkbox class="span-6" [formControl]="uc.deployOnlyChanged"
+    >Deploy only changed versions (<code>deployOnlyChanged</code>)</mat-checkbox
   >
-  <mat-slide-toggle class="span-12" [formControl]="uc.skipWait"
-    >Do not wait for the deployment result (<code>skipWait</code>)</mat-slide-toggle
+  <mat-checkbox class="span-12" [formControl]="uc.skipWait"
+    >Do not wait for the deployment result (<code>skipWait</code>)</mat-checkbox
   >
   <mat-form-field class="span-6">
     <mat-label>Deployment description</mat-label>
@@ -70,15 +70,11 @@
     </h4>
     <span class="hint"><code>deploy.vm.dod.applications</code></span>
     <span class="spacer"></span>
-    <button mat-stroked-button type="button" (click)="addApplication()">
-      <mat-icon>add</mat-icon>Add application
-    </button>
+    <button mat-stroked-button type="button" (click)="addApplication()">Add application</button>
   </header>
 
   @if (f.controls.urbanCodeApplications.errors?.['server']; as message) {
-    <div class="banner list-error" role="alert">
-      <mat-icon>error_outline</mat-icon><span>{{ message }}</span>
-    </div>
+    <div class="banner list-error" role="alert">{{ message }}</div>
   }
 
   @for (application of applications(); track application; let i = $index) {
@@ -94,13 +90,15 @@
         }}</strong>
         <span class="spacer"></span>
         <button
-          mat-icon-button
+          mat-button
           type="button"
           class="danger"
           (click)="removeApplication(i)"
-          matTooltip="Remove application"
+          [attr.aria-label]="
+            'Remove ' + (application.controls.applicationName.value || 'the new application')
+          "
         >
-          <mat-icon>delete</mat-icon>
+          Remove
         </button>
       </div>
       <div class="form-fields">
@@ -138,13 +136,15 @@
       ) {
         <div class="component" [formGroup]="component">
           <button
-            mat-icon-button
+            mat-button
             type="button"
             class="remove danger"
             (click)="removeComponent(application, j)"
-            matTooltip="Remove component"
+            [attr.aria-label]="
+              'Remove ' + (component.controls.componentName.value || 'the new component')
+            "
           >
-            <mat-icon>close</mat-icon>
+            Remove
           </button>
           <div class="form-fields">
             <mat-form-field class="span-4">
@@ -188,16 +188,18 @@
               <mat-hint><code>fileExcludePatterns</code></mat-hint>
               <mat-error>{{ errorText(component.controls.fileExcludePatterns) }}</mat-error>
             </mat-form-field>
-            <mat-slide-toggle class="span-12" formControlName="incrementalVersion"
-              >Incremental version (<code>incrementalVersion</code>)</mat-slide-toggle
+            <mat-checkbox class="span-12" formControlName="incrementalVersion"
+              >Incremental version (<code>incrementalVersion</code>)</mat-checkbox
             >
           </div>
         </div>
       } @empty {
-        <p class="list-empty">No component yet.</p>
+        <p class="list-empty" [class.missing]="application.touched">
+          No component yet. Add at least one.
+        </p>
       }
       <button mat-button type="button" class="add-component" (click)="addComponent(application)">
-        <mat-icon>add</mat-icon>Add component
+        Add component
       </button>
     </div>
   } @empty {

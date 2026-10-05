@@ -10,9 +10,7 @@
     </p>
 
     @if (types.length === 0) {
-      <div class="banner info">
-        <mat-icon>info</mat-icon><span>The service already has a pipeline of every type.</span>
-      </div>
+      <div class="banner info">The service already has a pipeline of every type.</div>
     } @else {
       <mat-form-field class="full-width">
         <mat-label>Pipeline type</mat-label>
@@ -28,36 +26,18 @@
 
       <mat-form-field class="full-width">
         <mat-label>Jenkins agent labels</mat-label>
-        <mat-chip-grid #labels formControlName="agentLabels" aria-label="Jenkins agent labels">
-          @for (label of form.controls.agentLabels.value; track label) {
-            <mat-chip-row (removed)="removeLabel(label)">
-              <span class="mono">{{ label }}</span>
-              <button matChipRemove [attr.aria-label]="'Remove ' + label">
-                <mat-icon>cancel</mat-icon>
-              </button>
-            </mat-chip-row>
-          }
-          <input
-            placeholder="Add a label"
-            [matChipInputFor]="labels"
-            [matChipInputSeparatorKeyCodes]="separators"
-            [matChipInputAddOnBlur]="true"
-            (matChipInputTokenEnd)="addLabel($event)"
-          />
-        </mat-chip-grid>
-        @if (labelError(); as message) {
-          <mat-hint class="label-error">{{ message }}</mat-hint>
-        } @else {
-          <mat-hint
-            ><code>agentNames</code>: the pipeline runs on an agent with one of these
-            labels</mat-hint
-          >
-        }
-        <mat-error>{{
-          form.controls.agentLabels.errors?.['maxItems']
-            ? 'At most 20 labels'
-            : errorText(form.controls.agentLabels)
-        }}</mat-error>
+        <input
+          matInput
+          formControlName="agentLabels"
+          placeholder="linux-agent docker"
+          class="mono"
+          autocomplete="off"
+        />
+        <mat-hint
+          ><code>agentNames</code>: separated by spaces or commas; the pipeline runs on an agent
+          with one of these labels</mat-hint
+        >
+        <mat-error>{{ errorText(form.controls.agentLabels) }}</mat-error>
       </mat-form-field>
 
       <mat-form-field class="full-width">
@@ -128,9 +108,7 @@
     }
 
     @if (error(); as message) {
-      <div class="banner" role="alert">
-        <mat-icon>error_outline</mat-icon><span>{{ message }}</span>
-      </div>
+      <div class="banner" role="alert">{{ message }}</div>
     }
   </mat-dialog-content>
   <mat-dialog-actions align="end">

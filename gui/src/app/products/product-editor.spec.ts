@@ -2,7 +2,13 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { globalSettings, product, service, servicePipelines } from '../testing/fixtures';
+import {
+  anotherService,
+  globalSettings,
+  product,
+  service,
+  servicePipelines,
+} from '../testing/fixtures';
 import { ProductEditor } from './product-editor';
 
 describe('ProductEditor', () => {
@@ -37,6 +43,17 @@ describe('ProductEditor', () => {
     await fixture.whenStable();
   }
 
+  const imageBuild = {
+    RD: {
+      projectBuild: 'cert-build',
+      buildConfigPath: 'openshift/buildconfig.yaml',
+      dockerFilePath: 'openshift/Dockerfile',
+      buildContext: 'target/docker',
+      dockerRepoPush: 'nexus.bbh.com:18444/cert',
+      nexusAuthFile: '/etc/containers/auth.json',
+    },
+  };
+
   function fillValidProduct() {
     editor()['form'].patchValue({
       code: 'CERT',
@@ -49,6 +66,7 @@ describe('ProductEditor', () => {
         name: 'gui',
         build: { javaPath: '/usr/lib/jvm/java-17-openjdk', command: { tasks: 'clean package' } },
         deployment: { appName: 'gui', artifactName: 'gui.jar' },
+        openShiftTargets: imageBuild,
         appScan: { applicationId: '109f44ac-cc06-4ca0-884e-d944904f7019' },
       });
   }
@@ -121,6 +139,7 @@ describe('ProductEditor', () => {
         name: 'api',
         build: { javaPath: '/usr/lib/jvm/java-21-openjdk', command: { tasks: 'clean package' } },
         deployment: { appName: 'api', artifactName: 'api.jar' },
+        openShiftTargets: imageBuild,
         appScan: { applicationId: '209f44ac-cc06-4ca0-884e-d944904f7019' },
       });
     await submit();
@@ -149,6 +168,63 @@ describe('ProductEditor', () => {
     );
   });
 
+  it('saves again once a name the API saw twice is fixed on the other service', async () => {
+    fixture.componentRef.setInput('id', '1');
+    await fixture.whenStable();
+    http
+      .expectOne('/api/products/1')
+      .flush(product({ services: [service(), anotherService({ name: 'api' })] }));
+    http.expectOne('/api/products/1/pipelines').flush([servicePipelines()]);
+    http.expectOne('/api/settings').flush(globalSettings());
+    await fixture.whenStable();
+
+    await submit();
+    http.expectOne({ method: 'PUT', url: '/api/products/1' }).flush(
+      {
+        detail: 'The request has invalid values',
+        errors: [
+          {
+            field: 'services[1].name',
+            message: 'another service of this product already uses this name',
+          },
+        ],
+      },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    await fixture.whenStable();
+    const services = editor()['form'].controls.services;
+    expect(services.at(1).controls.name.hasError('server')).toBe(true);
+
+    services.at(0).controls.name.setValue('web');
+    await submit();
+
+    http.expectOne({ method: 'PUT', url: '/api/products/1' }).flush(product());
+    await fixture.whenStable();
+    expect(router.navigate).toHaveBeenCalledWith(['/products', 1]);
+  });
+
+  it('refuses two services with the same name before asking the API', async () => {
+    await start();
+    editor()['addService']();
+    fillValidProduct();
+    editor()
+      ['form'].controls.services.at(1)
+      .patchValue({
+        name: 'gui',
+        build: { javaPath: '/usr/lib/jvm/java-21-openjdk', command: { tasks: 'clean package' } },
+        deployment: { appName: 'api', artifactName: 'api.jar' },
+        openShiftTargets: imageBuild,
+        appScan: { applicationId: '209f44ac-cc06-4ca0-884e-d944904f7019' },
+      });
+    await submit();
+
+    http.expectNone('/api/products');
+    expect(editor()['form'].controls.services.at(1).controls.name.errors).toEqual({
+      rule: 'another service of this product already uses this name',
+    });
+    expect(editor()['expanded']()).toBe(1);
+  });
+
   it('shows a conflict the API reports', async () => {
     await start();
     fillValidProduct();
@@ -172,7 +248,7 @@ describe('ProductEditor', () => {
     await fixture.whenStable();
     http
       .expectOne('/api/products/1')
-      .flush(product({ services: [service(), service({ id: 11, name: 'api' })] }));
+      .flush(product({ services: [service(), anotherService({ name: 'api' })] }));
     http.expectOne('/api/products/1/pipelines').flush([servicePipelines()]);
     http.expectOne('/api/settings').flush(globalSettings());
     await fixture.whenStable();
@@ -192,6 +268,19 @@ describe('ProductEditor', () => {
     request.flush(product());
     await fixture.whenStable();
     expect(router.navigate).toHaveBeenCalledWith(['/products', 1]);
+  });
+
+  it('turns the product code into upper case as it is typed', async () => {
+    await start();
+    const input = page().querySelector<HTMLInputElement>('input[formControlName=code]')!;
+
+    input.value = 'cert';
+    input.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+
+    expect(input.value).toBe('CERT');
+    expect(input.classList).not.toContain('uppercase');
+    expect(editor()['form'].controls.code.valid).toBe(true);
   });
 
   it('removes a service that was never saved without asking', async () => {

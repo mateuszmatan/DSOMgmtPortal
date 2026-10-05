@@ -60,6 +60,12 @@ describe('ChangeEvidencePage', () => {
     await list([summary(), summary({ id: 2, code: 'PAY', name: 'PayHub', pipelineCount: 1 })]);
 
     expect(page().querySelector('h1')?.textContent).toBe('DevSecOps Change Evidence');
+    expect(page().querySelector('.page-description')?.textContent).toBe(
+      'Builds, tests and scans for ServiceNow changes',
+    );
+    expect(
+      [...page().querySelectorAll('.panel-toggle')].map((toggle) => toggle.textContent?.trim()),
+    ).toEqual(['Show', 'Show']);
     expect(
       [...page().querySelectorAll('mat-panel-title .name')].map((name) => name.textContent),
     ).toEqual(['CertScanner', 'PayHub']);
@@ -77,6 +83,7 @@ describe('ChangeEvidencePage', () => {
     await fixture.whenStable();
 
     expect(page().querySelector('.service-head h3')?.textContent).toBe('gui');
+    expect(page().querySelector('.panel-toggle')?.textContent?.trim()).toBe('Hide');
     expect(page().querySelectorAll('dso-pipeline-evidence-card').length).toBe(1);
     expect(page().querySelector('.library-note')?.textContent).toContain(
       'does not record unit test counts',
@@ -134,11 +141,12 @@ describe('ChangeEvidencePage', () => {
       'https://jenkins.bbh.com/job/DevSecOps/job/CERT/job/gui-full/42/',
     );
     expect([...card.querySelectorAll('.links a')].map((link) => link.textContent?.trim())).toEqual([
-      'buildBuild',
-      'summarizePipeline report',
-      'checklistUnit test report',
-      'inventory_2Artifacts',
+      'Build',
+      'Pipeline report',
+      'Unit test report',
+      'Artifacts',
     ]);
+    expect(card.querySelector('mat-icon')).toBeNull();
     expect(card.querySelector('.coverage .value')?.textContent).toBe('84.25%');
     expect(
       [...card.querySelectorAll('.stage')].map((stage) =>

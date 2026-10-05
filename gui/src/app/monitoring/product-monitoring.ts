@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -10,7 +9,6 @@ import { MonitoringApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { PIPELINE_TYPES, PipelineHealth, PipelineType, RunResult } from '../core/models';
 import { DurationPipe, RelativeTimePipe } from '../shared/formatting';
-import { jenkinsBuildUrl } from '../shared/jenkins';
 import { StatusChip } from '../shared/status-chip';
 import { MetricsBanner } from './metrics-banner';
 import { StatusBar } from './status-bar';
@@ -20,7 +18,6 @@ import { StatusBar } from './status-bar';
   imports: [
     RouterLink,
     MatButtonModule,
-    MatIconModule,
     MatProgressBarModule,
     MatTableModule,
     MatTooltipModule,
@@ -63,10 +60,8 @@ export class ProductMonitoringPage {
     'duration',
     'stages',
     'jenkins',
-    'open',
   ];
   protected readonly errorMessage = errorMessage;
-  protected readonly buildUrl = jenkinsBuildUrl;
 
   protected typeLabel(type: PipelineType): string {
     return PIPELINE_TYPES.find((option) => option.value === type)?.label ?? type;

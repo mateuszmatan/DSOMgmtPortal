@@ -70,6 +70,21 @@ describe('createSettingsForm', () => {
     expect(releaseGate.controls.stateFile.hasError('pattern')).toBe(true);
   });
 
+  it('needs a coverage minimum of at least 1 and at least one scanner in the release gate', () => {
+    const form = createSettingsForm(globalSettings());
+    const { scans, releaseGate } = form.controls;
+
+    scans.controls.coverageMinLine.setValue(0);
+    releaseGate.controls.scanners.setValue([]);
+
+    expect(scans.controls.coverageMinLine.errors).toEqual({ min: { min: 1, actual: 0 } });
+    expect(releaseGate.controls.scanners.errors).toEqual({ rule: 'Select at least one scanner' });
+
+    scans.controls.coverageMinLine.setValue(1);
+    releaseGate.controls.scanners.setValue(['SCA']);
+    expect(scans.controls.coverageMinLine.valid && releaseGate.controls.scanners.valid).toBe(true);
+  });
+
   it('needs the proxy host and port together', () => {
     const form = createSettingsForm(globalSettings());
     const { proxyHost, proxyPort } = form.controls.platform.controls;

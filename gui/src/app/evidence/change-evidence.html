@@ -1,17 +1,18 @@
 <div class="page evidence">
   <header class="page-header">
     <div>
-      <h1>DevSecOps Change Evidence</h1>
-      <p class="lead">
-        What the latest run of each pipeline built, tested and scanned, ready to attach to a
-        ServiceNow change request. Open a product to see its evidence; nothing here can be changed.
-      </p>
+      <h1>{{ section.heading }}</h1>
+      <p class="page-description">{{ section.description }}</p>
     </div>
     <div class="actions">
       <mat-form-field class="search" subscriptSizing="dynamic">
-        <mat-icon matPrefix>search</mat-icon>
-        <mat-label>Find a product</mat-label>
-        <input matInput [formControl]="search" autocomplete="off" />
+        <input
+          matInput
+          [formControl]="search"
+          placeholder="Find a product"
+          aria-label="Find a product"
+          autocomplete="off"
+        />
       </mat-form-field>
     </div>
   </header>
@@ -21,13 +22,10 @@
   }
 
   @if (list.error(); as error) {
-    <div class="banner" role="alert">
-      <mat-icon>error_outline</mat-icon><span>{{ errorMessage(error) }}</span>
-    </div>
+    <div class="banner" role="alert">{{ errorMessage(error) }}</div>
   } @else if (list.hasValue()) {
     @if (list.value().length === 0) {
       <div class="card empty-state">
-        <mat-icon>fact_check</mat-icon>
         <h3>{{ search.value ? 'No matching products' : 'No products yet' }}</h3>
         <p>Products appear here once they are added in DevSecOps Product Management.</p>
         <a mat-stroked-button routerLink="/products">Go to products</a>
@@ -35,7 +33,7 @@
     } @else {
       <mat-accordion displayMode="flat" multi>
         @for (product of list.value(); track product.id) {
-          <mat-expansion-panel (opened)="opened(product.id)">
+          <mat-expansion-panel #panel (opened)="opened(product.id)" hideToggle>
             <mat-expansion-panel-header>
               <mat-panel-title>
                 <span class="code mono">{{ product.code }}</span>
@@ -50,6 +48,9 @@
                   {{ product.pipelineCount === 1 ? 'pipeline' : 'pipelines' }}</span
                 >
               </mat-panel-description>
+              <span class="panel-toggle" aria-hidden="true">{{
+                panel.expanded ? 'Hide' : 'Show'
+              }}</span>
             </mat-expansion-panel-header>
 
             <ng-template matExpansionPanelContent>
@@ -58,11 +59,8 @@
                 @let e = state.evidence;
                 @if (e.metricsError) {
                   <div class="banner">
-                    <mat-icon>cloud_off</mat-icon>
-                    <span
-                      >The run metrics cannot be read, so the runs show as not recorded:
-                      {{ e.metricsError }}</span
-                    >
+                    The run metrics cannot be read, so the runs show as not recorded:
+                    {{ e.metricsError }}
                   </div>
                 }
                 <dl class="product-facts">
@@ -131,16 +129,12 @@
                   <p class="not-recorded">The product has no services yet.</p>
                 }
                 <p class="library-note">
-                  <mat-icon>info</mat-icon>
-                  <span
-                    >The DevSecOps library does not record unit test counts, exact HCL AppScan and
-                    Nexus IQ report links or the artifact version yet, so those link to the Jenkins
-                    build.</span
-                  >
+                  The DevSecOps library does not record unit test counts, exact HCL AppScan and
+                  Nexus IQ report links or the artifact version yet, so those link to the Jenkins
+                  build.
                 </p>
               } @else if (state?.status === 'error') {
                 <div class="banner" role="alert">
-                  <mat-icon>error_outline</mat-icon>
                   <span>{{ state.message }}</span>
                   <span class="spacer"></span>
                   <button mat-button type="button" (click)="load(product.id)">Try again</button>

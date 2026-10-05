@@ -4,7 +4,6 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
-import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -14,20 +13,14 @@ import { PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { PIPELINE_TYPES, Pipeline, PipelineType, Product, ServicePipelines } from '../core/models';
 import { Notifier } from '../core/notifier';
+import { bitbucketRepositoryUrl } from '../shared/bitbucket';
 import { CodeDialog, CodeDialogData } from '../shared/code-dialog';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
-import { MaskKeyPipe, RelativeTimePipe } from '../shared/formatting';
+import { RelativeTimePipe } from '../shared/formatting';
 import { jenkinsfile } from './jenkinsfile';
 import { KeyHistoryDialog } from './key-history-dialog';
 import { PipelineDialog, PipelineDialogData } from './pipeline-dialog';
 import { RevokeKeyDialog } from './revoke-key-dialog';
-
-const TYPE_ICONS: Record<PipelineType, string> = {
-  FULL: 'all_inclusive',
-  SECURITY: 'security',
-  EXTENDED: 'rocket_launch',
-  SAST: 'policy',
-};
 
 @Component({
   selector: 'dso-product-detail',
@@ -36,11 +29,9 @@ const TYPE_ICONS: Record<PipelineType, string> = {
     RouterLink,
     MatButtonModule,
     MatDividerModule,
-    MatIconModule,
     MatMenuModule,
     MatProgressBarModule,
     MatTooltipModule,
-    MaskKeyPipe,
     RelativeTimePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -81,12 +72,25 @@ export class ProductDetail {
     };
   });
 
+  private readonly repositories = computed(
+    () =>
+      new Map(
+        (this.product.hasValue() ? this.product.value().services : []).map((service) => [
+          service.id,
+          bitbucketRepositoryUrl(service.scm),
+        ]),
+      ),
+  );
+
   protected readonly revealed = signal<ReadonlySet<number>>(new Set());
-  protected readonly typeIcons = TYPE_ICONS;
   protected readonly errorMessage = errorMessage;
 
   protected typeLabel(type: PipelineType): string {
     return PIPELINE_TYPES.find((option) => option.value === type)?.label ?? type;
+  }
+
+  protected repositoryOf(service: ServicePipelines): string | null {
+    return this.repositories().get(service.serviceId) ?? null;
   }
 
   protected canAddPipeline(service: ServicePipelines): boolean {

@@ -90,6 +90,7 @@ projects:
     buildTool: flutter
     deployTarget: vm
     sourceDir: .
+    javaPath: /usr/lib/jvm/java-17-openjdk
     asoc:
       url: https://bbh.cloud.appscan.com
       keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc

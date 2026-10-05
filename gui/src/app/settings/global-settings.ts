@@ -13,14 +13,13 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { finalize } from 'rxjs';
 import { SettingsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
@@ -33,6 +32,7 @@ import {
   SCANNERS,
 } from '../core/models';
 import { Notifier } from '../core/notifier';
+import { SETTINGS } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { GoldenFixFields } from '../products/golden-fix-fields';
 import { CodeDialog, CodeDialogData } from '../shared/code-dialog';
@@ -69,13 +69,12 @@ export const SCANNER_INFO: Record<
     ReactiveFormsModule,
     MatButtonModule,
     MatButtonToggleModule,
+    MatCheckboxModule,
     MatFormFieldModule,
-    MatIconModule,
     MatInputModule,
     MatProgressBarModule,
     MatProgressSpinnerModule,
     MatSelectModule,
-    MatSlideToggleModule,
     GoldenFixFields,
     RelativeTimePipe,
   ],
@@ -90,6 +89,7 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
 
+  protected readonly section = SETTINGS;
   protected readonly form = createSettingsForm();
   protected readonly settings = signal<GlobalSettings | null>(null);
   protected readonly loading = signal(false);

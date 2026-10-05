@@ -142,8 +142,6 @@ projects:
         url: https://bitbucket.bbh.com/projects/PAY/repos/payhub-gateway
         credentialsId: bitbucket-http-credentials
         authType: basic
-    goldenFix:
-      enabled: true
     tests:
       unitTests:
         maven:

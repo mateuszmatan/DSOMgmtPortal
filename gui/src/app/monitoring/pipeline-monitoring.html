@@ -1,12 +1,12 @@
 <div class="page">
   <nav class="breadcrumb" aria-label="Breadcrumb">
     <a routerLink="/monitoring">DevSecOps Pipeline Monitoring</a>
-    <mat-icon>chevron_right</mat-icon>
+    <span class="sep" aria-hidden="true">/</span>
     @if (data(); as d) {
       <a [routerLink]="['/monitoring/products', d.pipeline.productId]">{{
         d.pipeline.productName
       }}</a>
-      <mat-icon>chevron_right</mat-icon>
+      <span class="sep" aria-hidden="true">/</span>
       <span>{{ d.pipeline.serviceName }} · {{ typeLabel(d.pipeline.type) }}</span>
     } @else {
       <span>Pipeline</span>
@@ -14,12 +14,8 @@
   </nav>
 
   @if (resource.error(); as error) {
-    <div class="banner">
-      <mat-icon>error_outline</mat-icon><span>{{ errorMessage(error) }}</span>
-    </div>
-    <a mat-stroked-button routerLink="/monitoring"
-      ><mat-icon>arrow_back</mat-icon>Back to monitoring</a
-    >
+    <div class="banner">{{ errorMessage(error) }}</div>
+    <a mat-stroked-button routerLink="/monitoring">Back to monitoring</a>
   } @else if (data(); as d) {
     <header class="page-header">
       <div>
@@ -41,23 +37,20 @@
           [value]="selectedRange()"
           (change)="selectRange($event.value)"
           aria-label="Time range"
-          hideSingleSelectionIndicator
         >
           @for (range of ranges; track range) {
             <mat-button-toggle [value]="range">{{ range }}</mat-button-toggle>
           }
         </mat-button-toggle-group>
         <button
-          mat-icon-button
+          mat-stroked-button
           (click)="resource.reload()"
-          matTooltip="Refresh"
           [disabled]="resource.isLoading()"
+          aria-label="Refresh the pipeline metrics"
         >
-          <mat-icon>refresh</mat-icon>
+          Refresh
         </button>
-        <a mat-stroked-button [routerLink]="['/products', d.pipeline.productId]"
-          ><mat-icon>tune</mat-icon>Manage</a
-        >
+        <a mat-stroked-button [routerLink]="['/products', d.pipeline.productId]">Manage</a>
         @if (d.pipeline.jenkinsJobUrl; as job) {
           <a
             mat-stroked-button
@@ -66,12 +59,12 @@
             target="_blank"
             rel="noopener"
             [matTooltip]="d.pipeline.jenkinsJob ?? ''"
-            ><mat-icon>open_in_new</mat-icon>Jenkins</a
+            >Jenkins</a
           >
         }
         @if (d.grafana) {
           <a mat-flat-button [href]="d.grafana.dashboardUrl" target="_blank" rel="noopener"
-            ><mat-icon>open_in_new</mat-icon>Grafana</a
+            >Grafana</a
           >
         }
       </div>
@@ -83,11 +76,8 @@
 
     @if (!d.pipeline.activeKey) {
       <div class="banner">
-        <mat-icon>key_off</mat-icon>
-        <span
-          >The key of this pipeline is invalidated, so the pipeline stops at start-up. Its earlier
-          runs are still shown.</span
-        >
+        The key of this pipeline is invalidated, so the pipeline stops at start-up. Its earlier runs
+        are still shown.
       </div>
     }
     <dso-metrics-banner [metricsError]="d.metricsError" />
@@ -96,16 +86,13 @@
       @for (tile of tiles(); track tile.title) {
         <div class="card tile">
           <div class="tile-head">
-            <span class="tile-title"
-              ><mat-icon>{{ tile.icon }}</mat-icon
-              >{{ tile.title }}</span
-            >
+            <span class="tile-title">{{ tile.title }}</span>
             <dso-dora-level [level]="tile.level" />
           </div>
           <div class="tile-value">{{ tile.value }}</div>
           <div class="muted tile-detail">{{ tile.detail }}</div>
           @if (tile.alert) {
-            <div class="tile-alert"><mat-icon>error</mat-icon>{{ tile.alert }}</div>
+            <div class="tile-alert">{{ tile.alert }}</div>
           }
         </div>
       }
@@ -133,7 +120,7 @@
             <dd [title]="run.time | date: 'medium'">{{ run.time | relative }}</dd>
             <dt>Build</dt>
             <dd>
-              @if (buildUrl(d.pipeline.jenkinsJobUrl, run.build); as url) {
+              @if (run.buildUrl; as url) {
                 <a class="build-link" [href]="url" target="_blank" rel="noopener"
                   >#{{ run.build }}</a
                 >
@@ -169,7 +156,6 @@
           </dl>
         } @else {
           <div class="empty-state small-empty">
-            <mat-icon>hourglass_empty</mat-icon>
             <p>
               No run reported yet. Runs appear once the pipeline writes its metrics to InfluxDB.
             </p>
@@ -196,11 +182,8 @@
         </div>
       } @else {
         <div class="banner info">
-          <mat-icon>info</mat-icon>
-          <span
-            >Grafana is not configured. Set <code>GRAFANA_URL</code> to embed the panels of the DORA
-            dashboard here.</span
-          >
+          Grafana is not configured. Set <code>GRAFANA_URL</code> to embed the panels of the DORA
+          dashboard here.
         </div>
       }
     </section>
@@ -213,56 +196,58 @@
       @if (d.recentRuns.length === 0) {
         <div class="empty-state small-empty"><p>No runs in this range.</p></div>
       } @else {
-        <table mat-table [dataSource]="d.recentRuns">
-          <ng-container matColumnDef="time">
-            <th mat-header-cell *matHeaderCellDef>Finished</th>
-            <td mat-cell *matCellDef="let run" [title]="run.time | date: 'medium'">
-              {{ run.time | date: 'd MMM, HH:mm' }}
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="result">
-            <th mat-header-cell *matHeaderCellDef>Result</th>
-            <td mat-cell *matCellDef="let run"><dso-status-chip [status]="run.result" /></td>
-          </ng-container>
-          <ng-container matColumnDef="build">
-            <th mat-header-cell *matHeaderCellDef>Build</th>
-            <td mat-cell *matCellDef="let run">
-              @if (buildUrl(d.pipeline.jenkinsJobUrl, run.build); as url) {
-                <a class="build-link" [href]="url" target="_blank" rel="noopener"
-                  >#{{ run.build }}</a
-                >
-              } @else {
-                {{ run.build !== null ? '#' + run.build : '–' }}
-              }
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="branch">
-            <th mat-header-cell *matHeaderCellDef>Branch</th>
-            <td mat-cell *matCellDef="let run" class="mono">{{ run.branch ?? '–' }}</td>
-          </ng-container>
-          <ng-container matColumnDef="commit">
-            <th mat-header-cell *matHeaderCellDef>Commit</th>
-            <td mat-cell *matCellDef="let run" class="mono">
-              {{ run.commit ? run.commit.slice(0, 10) : '–' }}
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="duration">
-            <th mat-header-cell *matHeaderCellDef>Duration</th>
-            <td mat-cell *matCellDef="let run">{{ run.durationSeconds | duration }}</td>
-          </ng-container>
-          <ng-container matColumnDef="stages">
-            <th mat-header-cell *matHeaderCellDef>Stages passed</th>
-            <td mat-cell *matCellDef="let run">
-              @if (run.stagesTotal) {
-                {{ run.passed ?? 0 }} / {{ run.stagesTotal }}
-              } @else {
-                –
-              }
-            </td>
-          </ng-container>
-          <tr mat-header-row *matHeaderRowDef="runColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: runColumns"></tr>
-        </table>
+        <div class="table-scroll">
+          <table mat-table [dataSource]="d.recentRuns">
+            <ng-container matColumnDef="time">
+              <th mat-header-cell *matHeaderCellDef>Finished</th>
+              <td mat-cell *matCellDef="let run" [title]="run.time | date: 'medium'">
+                {{ run.time | date: 'd MMM, HH:mm' }}
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="result">
+              <th mat-header-cell *matHeaderCellDef>Result</th>
+              <td mat-cell *matCellDef="let run"><dso-status-chip [status]="run.result" /></td>
+            </ng-container>
+            <ng-container matColumnDef="build">
+              <th mat-header-cell *matHeaderCellDef>Build</th>
+              <td mat-cell *matCellDef="let run">
+                @if (run.buildUrl; as url) {
+                  <a class="build-link" [href]="url" target="_blank" rel="noopener"
+                    >#{{ run.build }}</a
+                  >
+                } @else {
+                  {{ run.build !== null ? '#' + run.build : '–' }}
+                }
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="branch">
+              <th mat-header-cell *matHeaderCellDef>Branch</th>
+              <td mat-cell *matCellDef="let run" class="mono">{{ run.branch ?? '–' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="commit">
+              <th mat-header-cell *matHeaderCellDef>Commit</th>
+              <td mat-cell *matCellDef="let run" class="mono">
+                {{ run.commit ? run.commit.slice(0, 10) : '–' }}
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="duration">
+              <th mat-header-cell *matHeaderCellDef>Duration</th>
+              <td mat-cell *matCellDef="let run">{{ run.durationSeconds | duration }}</td>
+            </ng-container>
+            <ng-container matColumnDef="stages">
+              <th mat-header-cell *matHeaderCellDef>Stages passed</th>
+              <td mat-cell *matCellDef="let run">
+                @if (run.stagesTotal) {
+                  {{ run.passed ?? 0 }} / {{ run.stagesTotal }}
+                } @else {
+                  –
+                }
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="runColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: runColumns"></tr>
+          </table>
+        </div>
       }
     </section>
   } @else {

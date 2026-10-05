@@ -1,23 +1,36 @@
 .title {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 4px 10px;
 }
 
 .code {
-  padding: 2px 8px;
+  padding: 0 6px;
   background: var(--dso-neutral-bg);
-  font-size: 12.5px;
+  font-size: 11px;
+  line-height: 18px;
 }
 
 .summary {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 20px;
-  padding: 16px 20px;
+  gap: 16px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--dso-border);
-  font-size: 13.5px;
+  font-size: 12.5px;
+}
+
+.pipeline-link {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--mat-sys-primary);
+    text-decoration: underline;
+  }
 }
 
 .service {
@@ -25,12 +38,13 @@
 }
 
 .small {
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 td.mat-mdc-cell {
-  padding-top: 10px;
-  padding-bottom: 10px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  white-space: nowrap;
 }
 
 .stages {
@@ -49,9 +63,4 @@ td.mat-mdc-cell {
   .failed {
     color: var(--dso-danger);
   }
-}
-
-.open {
-  width: 32px;
-  color: var(--dso-muted);
 }

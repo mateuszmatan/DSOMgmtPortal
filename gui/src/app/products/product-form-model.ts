@@ -1,4 +1,11 @@
-import { FormArray, FormControl, FormGroup, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormArray,
+  FormControl,
+  FormGroup,
+  ValidatorFn,
+  Validators,
+} from '@angular/forms';
 import {
   BitbucketAuthType,
   BitbucketType,
@@ -7,6 +14,7 @@ import {
   FieldProblem,
   FlutterPlatform,
   FlutterSettings,
+  GlobalGoldenFixPolicy,
   GoldenFixPolicy,
   OpenShiftTarget,
   Product,
@@ -25,7 +33,9 @@ import {
 import {
   HOST_NAME,
   HTTP_URL,
+  applyFieldProblems,
   eachItem,
+  fitsColumn,
   flag,
   integer,
   joinLines,
@@ -34,7 +44,9 @@ import {
   maxLines,
   maxWords,
   optional,
+  passesValidators,
   requireWhile,
+  requiredRule,
   requiredWhen,
   revalidateOnChange,
   setEnabled,
@@ -51,8 +63,10 @@ export const UUID =
 export const METRICS_TAG = /^[A-Za-z0-9._-]*$/;
 export const SONAR_KEY = /^([a-zA-Z0-9_.:-]*[a-zA-Z_.:-][a-zA-Z0-9_.:-]*)?$/;
 export const ENV_VARIABLE = /^[A-Za-z_][A-Za-z0-9_]*=.*$/;
+export const JOB_PARAMETER = /^[A-Za-z_][A-Za-z0-9_.-]*=.*$/;
 export const GIT_URL = /^(https?:\/\/\S+|ssh:\/\/\S+|git@\S+)$/;
 export const CLONE_URL = /^(https?:\/\/\S+|ssh:\/\/\S+)$/;
+export const BITBUCKET_NAME = /^[^\s/]*$/;
 export const UCD_ENVIRONMENT = /^[A-Za-z0-9_-]{1,20}$/;
 export const MODULE_FOLDER = /^[A-Za-z0-9._/-]{1,100}$/;
 export const NEXUS_STAGE = /^[a-z-]*$/;
@@ -64,6 +78,7 @@ export const GOLDEN_FIX_ECOSYSTEMS = ['maven', 'npm', 'pypi', 'pub'];
 
 const FOLDER = /^[^,]{1,300}$/;
 const tokenLines = (value: string) => lines(value, false);
+const parameterLines = (value: string) => value.split('\n').filter((line) => line.trim());
 const tokenWords = (value: string) => words(value, false);
 const upTo = (length: number) => new RegExp(`^.{1,${length}}$`);
 
@@ -81,11 +96,13 @@ export function createToolCommandForm(command?: Partial<ToolCommand> | null) {
       joinWords(command?.tasks),
       maxWords(30, false),
       eachItem(tokenWords, upTo(200), 'At most 200 characters per task'),
+      fitsColumn(tokenWords, '\n', 1000),
     ),
     flags: text(
       joinLines(command?.flags),
       maxLines(40, false),
       eachItem(tokenLines, upTo(300), 'At most 300 characters per flag'),
+      fitsColumn(tokenLines, '\n', 2000),
     ),
     directory: text(command?.directory, Validators.maxLength(500)),
     mavenHome: text(command?.mavenHome, Validators.maxLength(500)),
@@ -94,6 +111,7 @@ export function createToolCommandForm(command?: Partial<ToolCommand> | null) {
       maxLines(30, false),
       eachItem(tokenLines, ENV_VARIABLE, 'Write each variable as NAME=value'),
       eachItem(tokenLines, upTo(500), 'At most 500 characters per variable'),
+      fitsColumn(tokenLines, '\n', 4000),
     ),
   });
 }
@@ -106,7 +124,7 @@ export function toToolCommand(form: ToolCommandForm): ToolCommand {
     tasks: words(v.tasks, false),
     flags: lines(v.flags, false),
     directory: optional(v.directory),
-    mavenHome: optional(v.mavenHome),
+    mavenHome: kept(form.controls.mavenHome),
     environment: lines(v.environment, false),
   };
 }
@@ -126,7 +144,11 @@ export function createTestJobForm(job?: Partial<TestJob> | null) {
     type: new FormControl<TestJobType | null>(job?.type ?? null),
     job: text(job?.job, Validators.required, Validators.maxLength(1000)),
     timeoutMinutes: integer(job?.timeoutMinutes, 1, 1440),
-    parameters: text(job?.parameters, Validators.maxLength(2000)),
+    parameters: text(
+      job?.parameters,
+      Validators.maxLength(2000),
+      eachItem(parameterLines, JOB_PARAMETER, 'Write each parameter as NAME=value'),
+    ),
     remoteJenkins: text(
       job?.remoteJenkins,
       Validators.maxLength(200),
@@ -143,10 +165,17 @@ export function createTestJobForm(job?: Partial<TestJob> | null) {
     ),
     credentialsId: text(job?.credentialsId, Validators.maxLength(200)),
   });
-  const { type, remoteJenkins, remoteJenkinsUrl } = form.controls;
+  const { type, remoteJenkins, remoteJenkinsUrl, credentialsId } = form.controls;
   revalidateOnChange(type, remoteJenkins);
   revalidateOnChange(form.controls.job, remoteJenkins);
   revalidateOnChange(remoteJenkinsUrl, remoteJenkins);
+  const syncRemote = () =>
+    [remoteJenkins, remoteJenkinsUrl, credentialsId].forEach((control) =>
+      setEnabled(control, isRemoteJob(form)),
+    );
+  type.valueChanges.subscribe(syncRemote);
+  form.controls.job.valueChanges.subscribe(syncRemote);
+  syncRemote();
   remoteJenkins.updateValueAndValidity();
   return form;
 }
@@ -166,7 +195,7 @@ export function toTestJob(form: TestJobForm): TestJob {
     type: v.type,
     job: v.job.trim(),
     timeoutMinutes: v.timeoutMinutes,
-    parameters: optional(v.parameters),
+    parameters: v.parameters.trim() ? v.parameters : null,
     remoteJenkins: remote ? optional(v.remoteJenkins) : null,
     remoteJenkinsUrl: remote ? optional(v.remoteJenkinsUrl) : null,
     credentialsId: remote ? optional(v.credentialsId) : null,
@@ -176,8 +205,12 @@ export function toTestJob(form: TestJobForm): TestJob {
 export function createUrbanCodeComponentForm(component?: Partial<UrbanCodeComponent> | null) {
   return new FormGroup({
     componentName: text(component?.componentName, Validators.required, Validators.maxLength(200)),
-    baseDir: text(component?.baseDir, Validators.maxLength(500)),
-    fileIncludePatterns: text(component?.fileIncludePatterns, Validators.maxLength(500)),
+    baseDir: text(component?.baseDir, Validators.required, Validators.maxLength(500)),
+    fileIncludePatterns: text(
+      component?.fileIncludePatterns,
+      Validators.required,
+      Validators.maxLength(500),
+    ),
     fileExcludePatterns: text(component?.fileExcludePatterns, Validators.maxLength(500)),
     versionPrefix: text(component?.versionPrefix, Validators.maxLength(200)),
     version: text(component?.version, Validators.maxLength(200)),
@@ -204,7 +237,10 @@ export function createUrbanCodeApplicationForm(
       eachItem(words, UCD_ENVIRONMENT, "Use letters, digits, '-' and '_', at most 20 characters"),
     ),
     snapshotName: text(application?.snapshotName, Validators.maxLength(200)),
-    components: new FormArray(components.map(createUrbanCodeComponentForm)),
+    components: new FormArray(
+      components.map(createUrbanCodeComponentForm),
+      requiredRule('Add at least one component'),
+    ),
   });
 }
 
@@ -241,10 +277,22 @@ export function createSshTargetForm(target?: Partial<SshTarget> | null) {
 
 export type SshTargetForm = ReturnType<typeof createSshTargetForm>;
 
-export function createOpenShiftTargetForm(target?: Partial<OpenShiftTarget> | null) {
+export const OPENSHIFT_RD_REQUIRED: readonly (keyof OpenShiftTarget)[] = [
+  'projectBuild',
+  'buildConfigPath',
+  'dockerFilePath',
+  'buildContext',
+  'dockerRepoPush',
+  'nexusAuthFile',
+];
+
+export function createOpenShiftTargetForm(
+  target?: Partial<OpenShiftTarget> | null,
+  required: readonly (keyof OpenShiftTarget)[] = [],
+) {
   const t = target;
   const max = (length: number) => Validators.maxLength(length);
-  return new FormGroup({
+  const form = new FormGroup({
     projectBuild: text(t?.projectBuild, max(200)),
     buildConfigPath: text(t?.buildConfigPath, max(500)),
     dockerFilePath: text(t?.dockerFilePath, max(500)),
@@ -265,6 +313,11 @@ export function createOpenShiftTargetForm(target?: Partial<OpenShiftTarget> | nu
     deploymentRepoBranch: text(t?.deploymentRepoBranch, max(200)),
     deploymentRepoCredentialsId: text(t?.deploymentRepoCredentialsId, max(200)),
   });
+  required.forEach((key) => {
+    form.controls[key].addValidators(Validators.required);
+    form.controls[key].updateValueAndValidity();
+  });
+  return form;
 }
 
 export type OpenShiftTargetForm = ReturnType<typeof createOpenShiftTargetForm>;
@@ -273,7 +326,6 @@ export function goldenFixControls(policy?: Partial<GoldenFixPolicy> | null, comp
   const required = complete ? [Validators.required] : [];
   const command = (value: string | null | undefined) => text(value, Validators.maxLength(500));
   return {
-    enabled: flag(policy?.enabled, true),
     onlyDirectDependencies: new FormControl<boolean | null>(
       policy?.onlyDirectDependencies ?? null,
       required,
@@ -288,11 +340,13 @@ export function goldenFixControls(policy?: Partial<GoldenFixPolicy> | null, comp
       ...required,
       maxLines(10),
       eachItem(lines, REMEDIATION_TYPE, 'Use a Nexus IQ remediation type'),
+      fitsColumn(lines, '\n', 1000),
     ),
     excludeDirs: text(
       joinLines(policy?.excludeDirs),
       maxLines(30),
       eachItem(lines, upTo(200), 'At most 200 characters per folder'),
+      fitsColumn(lines, '\n', 2000),
     ),
     verifyEnabled: new FormControl<boolean | null>(policy?.verifyEnabled ?? null, required),
     verifyMaxAttempts: integer(policy?.verifyMaxAttempts, 1, 10, ...required),
@@ -315,10 +369,10 @@ export function goldenFixControls(policy?: Partial<GoldenFixPolicy> | null, comp
 
 export type GoldenFixControls = ReturnType<typeof goldenFixControls>;
 export type GoldenFixValue = ReturnType<FormGroup<GoldenFixControls>['getRawValue']>;
+export type GoldenFixOverrides = Omit<GoldenFixPolicy, 'enabled'>;
 
-export function toGoldenFixPolicy(v: GoldenFixValue): GoldenFixPolicy {
+export function toGoldenFixOverrides(v: GoldenFixValue): GoldenFixOverrides {
   return {
-    enabled: v.enabled,
     onlyDirectDependencies: v.onlyDirectDependencies,
     minThreatLevel: v.minThreatLevel,
     ecosystems: [...new Set(v.ecosystems)],
@@ -338,27 +392,24 @@ export function toGoldenFixPolicy(v: GoldenFixValue): GoldenFixPolicy {
   };
 }
 
-export function inheritedGoldenFix(enabled: boolean): GoldenFixPolicy {
-  return {
-    enabled,
-    onlyDirectDependencies: null,
-    minThreatLevel: null,
-    ecosystems: [],
-    goldenVersionTypes: [],
-    excludeDirs: [],
-    verifyEnabled: null,
-    verifyMaxAttempts: null,
-    verifyTimeoutMinutes: null,
-    verifyMavenCommand: null,
-    verifyGradleCommand: null,
-    verifyNpmCommand: null,
-    verifyPipCommand: null,
-    verifyPubCommand: null,
-    commitAuthorName: null,
-    commitAuthorEmail: null,
-    timeZone: null,
-  };
-}
+export const NO_GOLDEN_FIX_OVERRIDES: GoldenFixOverrides = {
+  onlyDirectDependencies: null,
+  minThreatLevel: null,
+  ecosystems: [],
+  goldenVersionTypes: [],
+  excludeDirs: [],
+  verifyEnabled: null,
+  verifyMaxAttempts: null,
+  verifyTimeoutMinutes: null,
+  verifyMavenCommand: null,
+  verifyGradleCommand: null,
+  verifyNpmCommand: null,
+  verifyPipCommand: null,
+  verifyPubCommand: null,
+  commitAuthorName: null,
+  commitAuthorEmail: null,
+  timeZone: null,
+};
 
 export function inheritsGoldenFix(policy?: Partial<GoldenFixPolicy> | null): boolean {
   if (!policy) {
@@ -370,9 +421,24 @@ export function inheritsGoldenFix(policy?: Partial<GoldenFixPolicy> | null): boo
   );
 }
 
+export function createGlobalGoldenFixForm(policy?: Partial<GlobalGoldenFixPolicy> | null) {
+  return new FormGroup({
+    enabled: flag(policy?.enabled, true),
+    ...goldenFixControls(policy, true),
+  });
+}
+
+export type GlobalGoldenFixForm = ReturnType<typeof createGlobalGoldenFixForm>;
+
+export function toGlobalGoldenFixPolicy(form: GlobalGoldenFixForm): GlobalGoldenFixPolicy {
+  const v = form.getRawValue();
+  return { enabled: v.enabled, ...toGoldenFixOverrides(v) };
+}
+
 export function createServiceGoldenFixForm(policy?: Partial<GoldenFixPolicy> | null) {
   const form = new FormGroup({
     inherit: flag(inheritsGoldenFix(policy)),
+    enabled: new FormControl<boolean | null>(policy?.enabled ?? null),
     ...goldenFixControls(policy),
   });
   const sync = () => {
@@ -389,6 +455,14 @@ export function createServiceGoldenFixForm(policy?: Partial<GoldenFixPolicy> | n
 
 export type ServiceGoldenFixForm = ReturnType<typeof createServiceGoldenFixForm>;
 
+export function toServiceGoldenFixPolicy(form: ServiceGoldenFixForm): GoldenFixPolicy {
+  const v = form.getRawValue();
+  return {
+    enabled: v.enabled,
+    ...(v.inherit ? NO_GOLDEN_FIX_OVERRIDES : toGoldenFixOverrides(v)),
+  };
+}
+
 export function createServiceForm(
   service?: Partial<ServiceRequest>,
   defaults?: ServiceDefaults | null,
@@ -400,14 +474,26 @@ export function createServiceForm(
       joinLines(values),
       maxLines(30),
       eachItem(lines, FOLDER, 'One folder per line, without commas'),
+      fitsColumn(lines, '\n', 2000),
     );
-  const modules = (values: string[] | undefined) =>
-    text(joinLines(values), maxLines(30), eachItem(lines, MODULE_FOLDER, 'Not a folder name'));
+  const modules = (values: string[] | undefined, ...validators: ValidatorFn[]) =>
+    text(
+      joinLines(values),
+      ...validators,
+      maxLines(30),
+      eachItem(lines, MODULE_FOLDER, 'Not a folder name'),
+      fitsColumn(lines, '\n', 1000),
+    );
   const parallel = (value: number | null | undefined) => integer(value, 1, 100);
 
   const form = new FormGroup({
     id: new FormControl<number | null>(s?.id ?? null),
-    name: text(s?.name, Validators.required, Validators.pattern(SERVICE_NAME)),
+    name: text(
+      s?.name,
+      Validators.required,
+      Validators.pattern(SERVICE_NAME),
+      uniqueInProduct(serviceName, SAME_NAME),
+    ),
     description: text(s?.description, max(2000)),
     build: new FormGroup({
       tool: new FormControl<BuildTool>(s?.build?.tool ?? defaults?.buildTool ?? 'GRADLE', {
@@ -463,7 +549,7 @@ export function createServiceForm(
       QC: createSshTargetForm(s?.sshTargets?.QC),
     }),
     openShiftTargets: new FormGroup({
-      RD: createOpenShiftTargetForm(s?.openShiftTargets?.RD),
+      RD: createOpenShiftTargetForm(s?.openShiftTargets?.RD, OPENSHIFT_RD_REQUIRED),
       QC: createOpenShiftTargetForm(s?.openShiftTargets?.QC),
     }),
     appScan: new FormGroup({
@@ -484,7 +570,12 @@ export function createServiceForm(
     }),
     sonar: new FormGroup({
       projectName: text(s?.sonar?.projectName, max(200)),
-      projectKey: text(s?.sonar?.projectKey, Validators.pattern(SONAR_KEY), max(400)),
+      projectKey: text(
+        s?.sonar?.projectKey,
+        Validators.pattern(SONAR_KEY),
+        max(400),
+        uniqueInProduct(sonarKey, SAME_SONAR_KEY),
+      ),
       installationName: text(s?.sonar?.installationName, max(200)),
       credentialsId: text(s?.sonar?.credentialsId, max(200)),
       authTokenCredentialsId: text(s?.sonar?.authTokenCredentialsId, max(200)),
@@ -499,6 +590,7 @@ export function createServiceForm(
         joinLines(s?.nexusIq?.scanPatterns),
         maxLines(20),
         eachItem(lines, upTo(300), 'At most 300 characters per pattern'),
+        fitsColumn(lines, '\n', 2000),
       ),
       stage: text(s?.nexusIq?.stage ?? 'build', Validators.pattern(NEXUS_STAGE), max(50)),
       failOnNetworkError: flag(s?.nexusIq?.failOnNetworkError),
@@ -517,18 +609,28 @@ export function createServiceForm(
         joinWords(s?.scm?.reviewers, ', '),
         maxWords(20),
         eachItem(words, upTo(100), 'At most 100 characters per reviewer'),
+        fitsColumn(words, ',', 2000),
       ),
+      apiUrl: text(s?.scm?.apiUrl, Validators.pattern(HTTP_URL), max(1000)),
+      workspace: text(s?.scm?.workspace, Validators.pattern(BITBUCKET_NAME), max(200)),
+      projectKey: text(s?.scm?.projectKey, Validators.pattern(BITBUCKET_NAME), max(200)),
+      repoSlug: text(s?.scm?.repoSlug, Validators.pattern(BITBUCKET_NAME), max(200)),
     }),
     goldenFix: createServiceGoldenFixForm(s?.goldenFix),
     metrics: new FormGroup({
       enabled: flag(s?.metrics?.enabled, true),
-      influxProject: text(s?.metrics?.influxProject, Validators.pattern(METRICS_TAG), max(200)),
+      influxProject: text(
+        s?.metrics?.influxProject,
+        Validators.pattern(METRICS_TAG),
+        max(200),
+        uniqueInProduct(metricsTag, SAME_METRICS_TAG),
+      ),
       influxEnv: text(s?.metrics?.influxEnv ?? 'test', Validators.pattern(METRICS_TAG), max(50)),
     }),
     flutter: new FormGroup({
       platform: new FormControl<FlutterPlatform | null>(s?.flutter?.platform ?? null),
-      modules: modules(s?.flutter?.modules),
-      testModules: modules(s?.flutter?.testModules),
+      modules: modules(s?.flutter?.modules, Validators.required),
+      testModules: modules(s?.flutter?.testModules, Validators.required),
       testSubmodules: modules(s?.flutter?.testSubmodules),
       testSubplugins: modules(s?.flutter?.testSubplugins),
       signingPasswordCredentialsId: text(
@@ -561,18 +663,35 @@ export function createServiceForm(
     }),
   });
 
-  const { build, deployment, appScan, unitTests, sonar, scm } = form.controls;
+  const { build, deployment, appScan, unitTests, sonar, nexusIq, scm, flutter } = form.controls;
   const tool = build.controls.tool;
   const target = deployment.controls.target;
   const openShift = () => target.value === 'OPENSHIFT';
+  const vm = () => target.value === 'VM';
   build.controls.command.controls.tasks.addValidators(Validators.required);
   form.controls.delivery.controls.tasks.addValidators(Validators.required);
   requireWhile(
     build.controls.javaPath,
-    () => tool.value !== 'FLUTTER' && !build.controls.autoSetup.value,
+    () => tool.value === 'FLUTTER' || !build.controls.autoSetup.value,
     tool,
     build.controls.autoSetup,
   );
+  requireWhile(build.controls.buildPath, () => vm() && tool.value === 'MAVEN', tool, target);
+  requireWhile(
+    nexusIq.controls.application,
+    () => lines(nexusIq.controls.scanPatterns.value).length > 0,
+    nexusIq.controls.scanPatterns,
+  );
+  requireWhile(
+    nexusIq.controls.scanPatterns,
+    () => !!optional(nexusIq.controls.application.value),
+    nexusIq.controls.application,
+  );
+  [
+    flutter.controls.deliveryGroup,
+    flutter.controls.deliveryArtifact,
+    flutter.controls.deliveryPlugin,
+  ].forEach((control) => requireWhile(control, vm, target));
   requireWhile(deployment.controls.appName, openShift, target);
   requireWhile(deployment.controls.artifactName, openShift, target);
   requireWhile(
@@ -598,8 +717,13 @@ export function createServiceForm(
   [build.controls.command.controls.tasks, form.controls.delivery.controls.tasks].forEach(
     (control) => control.updateValueAndValidity(),
   );
-  tool.valueChanges.subscribe(() => syncApplicability(form));
-  target.valueChanges.subscribe(() => syncApplicability(form));
+  const sources: AbstractControl[] = [
+    tool,
+    target,
+    appScan.controls.compile,
+    appScan.controls.dastEnabled,
+  ];
+  sources.forEach((control) => control.valueChanges.subscribe(() => syncApplicability(form)));
   syncApplicability(form);
   return form;
 }
@@ -620,10 +744,21 @@ function syncApplicability(form: ServiceForm): void {
   const vm = form.controls.deployment.controls.target.value === 'VM';
   const flutter = tool === 'FLUTTER';
   setEnabled(form.controls.build.controls.command, !flutter);
+  if (flutter) {
+    form.controls.build.controls.autoSetup.setValue(false);
+  }
+  setEnabled(form.controls.build.controls.autoSetup, !flutter);
   setEnabled(form.controls.unitTests.controls.command, !flutter);
   setEnabled(form.controls.sonar.controls.command, !flutter);
-  setEnabled(form.controls.appScan.controls.compileCommand, !flutter);
+  const appScan = form.controls.appScan.controls;
+  setEnabled(appScan.compileCommand, !flutter && appScan.compile.value);
+  [appScan.dastTargetUrl, appScan.dastScanName, appScan.dastPresenceId].forEach((control) =>
+    setEnabled(control, appScan.dastEnabled.value),
+  );
   setEnabled(form.controls.delivery, vm && tool === 'MAVEN');
+  toolCommands(form).forEach((command) =>
+    setEnabled(command.controls.mavenHome, command.enabled && tool === 'MAVEN'),
+  );
   setEnabled(form.controls.urbanCode, vm);
   setEnabled(form.controls.urbanCodeApplications, vm);
   setEnabled(form.controls.sshTargets, vm);
@@ -631,8 +766,87 @@ function syncApplicability(form: ServiceForm): void {
   setEnabled(form.controls.flutter, flutter);
 }
 
+function toolCommands(form: ServiceForm): ToolCommandForm[] {
+  const c = form.controls;
+  return [
+    c.build.controls.command,
+    c.unitTests.controls.command,
+    c.sonar.controls.command,
+    c.appScan.controls.compileCommand,
+    c.delivery,
+  ];
+}
+
+function kept(control: FormControl<string>): string | null {
+  return passesValidators(control) ? optional(control.value) : null;
+}
+
+export const SAME_NAME = 'another service of this product already uses this name';
+export const SAME_SONAR_KEY = 'another service of this product uses this key';
+export const SAME_METRICS_TAG =
+  'another service of this product writes metrics under the same project and environment';
+export const PRODUCT_WIDE_FIELD =
+  /^services\[\d+]\.(name|sonar\.projectKey|metrics\.influxProject)$/;
+
+type ServiceKey = (service: AbstractControl, code: string) => string | null;
+
+const valueAt = (service: AbstractControl, path: string) =>
+  String(service.get(path)?.value ?? '').trim();
+
+const serviceName: ServiceKey = (service) => valueAt(service, 'name').toLowerCase() || null;
+
+const sonarKey: ServiceKey = (service) =>
+  valueAt(service, 'sonar.projectKey').toLowerCase() || null;
+
+const metricsTag: ServiceKey = (service, code) => {
+  const project =
+    valueAt(service, 'metrics.influxProject') || `${code.trim()}-${valueAt(service, 'name')}`;
+  const env = valueAt(service, 'metrics.influxEnv') || 'test';
+  return `${project}|${env}`.toLowerCase();
+};
+
+function uniqueInProduct(key: ServiceKey, message: string): ValidatorFn {
+  return (control) => {
+    const service = serviceAround(control);
+    const services = service?.parent;
+    if (!service || !(services instanceof FormArray)) {
+      return null;
+    }
+    const code = String(services.parent?.get('code')?.value ?? '');
+    const own = key(service, code);
+    const earlier = services.controls.slice(0, services.controls.indexOf(service));
+    return own !== null && earlier.some((other) => key(other, code) === own)
+      ? { rule: message }
+      : null;
+  };
+}
+
+function serviceAround(control: AbstractControl): AbstractControl | null {
+  let current = control.parent;
+  while (current?.parent && !(current.parent instanceof FormArray)) {
+    current = current.parent;
+  }
+  return current?.parent instanceof FormArray ? current : null;
+}
+
+function revalidateUniqueValues(form: ProductForm): void {
+  form.controls.services.controls.forEach((service) =>
+    [
+      service.controls.name,
+      service.controls.sonar.controls.projectKey,
+      service.controls.metrics.controls.influxProject,
+    ].forEach((control) => control.updateValueAndValidity({ emitEvent: false })),
+  );
+}
+
+export function applyProductProblems(form: ProductForm, problems: FieldProblem[]): FieldProblem[] {
+  return applyFieldProblems(form, problems, (field) =>
+    PRODUCT_WIDE_FIELD.test(field) ? form : null,
+  );
+}
+
 export function createProductForm() {
-  return new FormGroup({
+  const form = new FormGroup({
     code: text('', Validators.required, Validators.pattern(PRODUCT_CODE)),
     name: text('', Validators.required, Validators.maxLength(200)),
     description: text('', Validators.maxLength(4000)),
@@ -643,6 +857,18 @@ export function createProductForm() {
       secretCredentialsId: text('', Validators.maxLength(200)),
     }),
     services: new FormArray<ServiceForm>([]),
+  });
+  upperCaseAsTyped(form.controls.code);
+  form.valueChanges.subscribe(() => revalidateUniqueValues(form));
+  return form;
+}
+
+function upperCaseAsTyped(control: FormControl<string>): void {
+  control.valueChanges.subscribe((value) => {
+    const upper = value.toUpperCase();
+    if (upper !== value) {
+      control.setValue(upper, { emitEvent: false });
+    }
   });
 }
 
@@ -707,7 +933,7 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
     build: {
       tool,
       sourceDir: optional(v.build.sourceDir) ?? '.',
-      javaPath: flutter ? null : optional(v.build.javaPath),
+      javaPath: optional(v.build.javaPath),
       autoSetup: v.build.autoSetup,
       buildPath: optional(v.build.buildPath),
       command: command(c.build.controls.command, !flutter),
@@ -746,10 +972,13 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
       includedDirs: lines(v.appScan.includedDirs),
       excludedDirs: lines(v.appScan.excludedDirs),
       clientPath: optional(v.appScan.clientPath),
-      compileCommand: command(c.appScan.controls.compileCommand, !flutter),
-      dastScanName: optional(v.appScan.dastScanName),
-      dastTargetUrl: optional(v.appScan.dastTargetUrl),
-      dastPresenceId: optional(v.appScan.dastPresenceId),
+      compileCommand: command(
+        c.appScan.controls.compileCommand,
+        !flutter && passesValidators(c.appScan.controls.compileCommand),
+      ),
+      dastScanName: kept(c.appScan.controls.dastScanName),
+      dastTargetUrl: kept(c.appScan.controls.dastTargetUrl),
+      dastPresenceId: kept(c.appScan.controls.dastPresenceId),
     },
     sonar: {
       ...v.sonar,
@@ -776,10 +1005,12 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
       targetBranch: optional(v.scm.targetBranch),
       cloneUrl: optional(v.scm.cloneUrl),
       reviewers: words(v.scm.reviewers),
+      apiUrl: optional(v.scm.apiUrl),
+      workspace: optional(v.scm.workspace),
+      projectKey: optional(v.scm.projectKey),
+      repoSlug: optional(v.scm.repoSlug),
     },
-    goldenFix: v.goldenFix.inherit
-      ? inheritedGoldenFix(v.goldenFix.enabled)
-      : toGoldenFixPolicy(v.goldenFix),
+    goldenFix: toServiceGoldenFixPolicy(c.goldenFix),
     metrics: {
       enabled: v.metrics.enabled,
       influxProject: optional(v.metrics.influxProject),

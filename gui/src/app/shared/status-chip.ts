@@ -1,41 +1,28 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { MatIconModule } from '@angular/material/icon';
 import { RunResult } from '../core/models';
 
-const LOOK: Record<RunResult, { label: string; icon: string; tone: string }> = {
-  SUCCESS: { label: 'Success', icon: 'check_circle', tone: 'success' },
-  UNSTABLE: { label: 'Unstable', icon: 'error', tone: 'warning' },
-  FAILURE: { label: 'Failed', icon: 'cancel', tone: 'danger' },
-  ABORTED: { label: 'Aborted', icon: 'block', tone: 'neutral' },
-  NOT_BUILT: { label: 'Not built', icon: 'remove_circle_outline', tone: 'neutral' },
-  NO_DATA: { label: 'No runs yet', icon: 'hourglass_empty', tone: 'neutral' },
-  DISABLED: { label: 'Key invalidated', icon: 'key_off', tone: 'danger-outline' },
+const LOOK: Record<RunResult, { label: string; tone: string }> = {
+  SUCCESS: { label: 'Success', tone: 'success' },
+  UNSTABLE: { label: 'Unstable', tone: 'warning' },
+  FAILURE: { label: 'Failed', tone: 'danger' },
+  ABORTED: { label: 'Aborted', tone: 'neutral' },
+  NOT_BUILT: { label: 'Not built', tone: 'neutral' },
+  NO_DATA: { label: 'No runs yet', tone: 'neutral' },
+  DISABLED: { label: 'Key invalidated', tone: 'danger-outline' },
 };
 
 @Component({
   selector: 'dso-status-chip',
-  imports: [MatIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<span class="chip" [class]="look().tone"
-    ><mat-icon>{{ look().icon }}</mat-icon
-    >{{ label() ?? look().label }}</span
-  >`,
+  template: `<span class="chip" [class]="look().tone">{{ label() ?? look().label }}</span>`,
   styles: `
     .chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 10px 2px 6px;
-
-      font-size: 12px;
+      display: inline-block;
+      padding: 0 7px;
+      font-size: 11.5px;
       font-weight: 600;
-      line-height: 20px;
+      line-height: 18px;
       white-space: nowrap;
-    }
-    mat-icon {
-      font-size: 16px;
-      width: 16px;
-      height: 16px;
     }
     .success {
       background: var(--dso-success-bg);

@@ -1,8 +1,15 @@
 import { FormGroup } from '@angular/forms';
+import { revalidateAll } from '../shared/form-controls';
 import { ServiceDefaults } from '../core/models';
-import { command, product, service } from '../testing/fixtures';
+import { anotherService, command, product, service } from '../testing/fixtures';
 import {
   NO_COMMAND,
+  OPENSHIFT_RD_REQUIRED,
+  PRODUCT_WIDE_FIELD,
+  SAME_METRICS_TAG,
+  SAME_NAME,
+  SAME_SONAR_KEY,
+  applyProductProblems,
   REMOTE_JENKINS_MESSAGE,
   SERVICE_SECTIONS,
   applyFieldProblems,
@@ -16,9 +23,11 @@ import {
   duplicateService,
   firstInvalidSection,
   firstServiceWithProblem,
+  NO_GOLDEN_FIX_OVERRIDES,
+  createGlobalGoldenFixForm,
   goldenFixControls,
-  inheritedGoldenFix,
   inheritsGoldenFix,
+  toGlobalGoldenFixPolicy,
   isJobUrl,
   isRemoteJob,
   patchProduct,
@@ -55,7 +64,7 @@ describe('createServiceForm', () => {
     expect(value.testJobs).toEqual([]);
     expect(value.nexusIq.stage).toBe('build');
     expect(value.goldenFix.inherit).toBe(true);
-    expect(value.goldenFix.enabled).toBe(true);
+    expect(value.goldenFix.enabled).toBeNull();
     expect(value.metrics).toEqual({ enabled: true, influxProject: '', influxEnv: 'test' });
   });
 
@@ -79,19 +88,111 @@ describe('createServiceForm', () => {
     expect(createServiceForm(service()).valid).toBe(true);
   });
 
-  it('needs the JDK path unless the build tool is Flutter or is set up automatically', () => {
+  it('needs the JDK path unless a Gradle or Maven build sets it up automatically', () => {
     const form = createServiceForm();
-    const javaPath = form.controls.build.controls.javaPath;
+    const { javaPath, autoSetup, tool } = form.controls.build.controls;
     expect(javaPath.hasError('required')).toBe(true);
 
+    autoSetup.setValue(true);
+    expect(javaPath.valid).toBe(true);
+
+    tool.setValue('MAVEN');
+    expect(javaPath.valid).toBe(true);
+
+    tool.setValue('FLUTTER');
+    expect(autoSetup.value).toBe(false);
+    expect(autoSetup.disabled).toBe(true);
+    expect(javaPath.hasError('required')).toBe(true);
+
+    tool.setValue('GRADLE');
+    expect(autoSetup.enabled).toBe(true);
+    expect(javaPath.hasError('required')).toBe(true);
+  });
+
+  it('needs the build path only for a Maven service deployed to virtual machines', () => {
+    const form = createServiceForm(service({ build: { ...service().build, buildPath: null } }));
+    const { buildPath, tool } = form.controls.build.controls;
+    expect(buildPath.valid).toBe(true);
+
+    tool.setValue('MAVEN');
+    expect(buildPath.hasError('required')).toBe(true);
+
+    form.controls.deployment.controls.target.setValue('OPENSHIFT');
+    expect(buildPath.valid).toBe(true);
+  });
+
+  it('needs the Nexus IQ application and scan patterns together', () => {
+    const form = createServiceForm();
+    const { application, scanPatterns } = form.controls.nexusIq.controls;
+    expect(application.valid && scanPatterns.valid).toBe(true);
+
+    scanPatterns.setValue('**/*.jar');
+    expect(application.hasError('required')).toBe(true);
+    expect(scanPatterns.valid).toBe(true);
+
+    scanPatterns.setValue('');
+    application.setValue('cert-api');
+    expect(scanPatterns.hasError('required')).toBe(true);
+    expect(application.valid).toBe(true);
+
+    scanPatterns.setValue('**/*.jar');
+    expect(application.valid && scanPatterns.valid).toBe(true);
+  });
+
+  it('needs the Flutter modules and the delivery coordinates on virtual machines', () => {
+    const form = createServiceForm();
     form.controls.build.controls.tool.setValue('FLUTTER');
-    expect(javaPath.valid).toBe(true);
+    const flutter = form.controls.flutter.controls;
+    expect(flutter.modules.hasError('required')).toBe(true);
+    expect(flutter.testModules.hasError('required')).toBe(true);
+    expect(flutter.testSubmodules.valid).toBe(true);
+    expect(flutter.deliveryGroup.hasError('required')).toBe(true);
+    expect(flutter.deliveryArtifact.hasError('required')).toBe(true);
+    expect(flutter.deliveryPlugin.hasError('required')).toBe(true);
 
-    form.controls.build.controls.tool.setValue('MAVEN');
-    expect(javaPath.hasError('required')).toBe(true);
+    form.controls.deployment.controls.target.setValue('OPENSHIFT');
+    expect(flutter.deliveryGroup.valid).toBe(true);
+    expect(flutter.deliveryArtifact.valid).toBe(true);
+    expect(flutter.deliveryPlugin.valid).toBe(true);
+  });
 
-    form.controls.build.controls.autoSetup.setValue(true);
-    expect(javaPath.valid).toBe(true);
+  it('needs the build fields of the RD OpenShift target', () => {
+    const form = createServiceForm();
+    form.controls.deployment.controls.target.setValue('OPENSHIFT');
+    const { RD, QC } = form.controls.openShiftTargets.controls;
+
+    expect(
+      Object.entries(RD.controls)
+        .filter(([, control]) => control.hasError('required'))
+        .map(([key]) => key),
+    ).toEqual([...OPENSHIFT_RD_REQUIRED]);
+    expect(QC.valid).toBe(true);
+  });
+
+  it('keeps every list within the size of its column', () => {
+    const form = createServiceForm(service());
+    const long = (count: number, length: number) =>
+      Array.from({ length: count }, (_, i) => `${i}`.padEnd(length, 'x')).join('\n');
+
+    form.controls.build.controls.command.controls.flags.setValue(long(10, 250));
+    expect(form.controls.build.controls.command.controls.flags.errors).toEqual({
+      columnLength: { max: 2000 },
+    });
+    form.controls.build.controls.command.controls.environment.setValue(
+      long(9, 490).replace(/^(\d+)x/gm, 'V$1='),
+    );
+    expect(form.controls.build.controls.command.controls.environment.errors).toEqual({
+      columnLength: { max: 4000 },
+    });
+    form.controls.appScan.controls.includedDirs.setValue(long(20, 120));
+    expect(form.controls.appScan.controls.includedDirs.hasError('columnLength')).toBe(true);
+    form.controls.nexusIq.controls.scanPatterns.setValue(long(10, 250));
+    expect(form.controls.nexusIq.controls.scanPatterns.hasError('columnLength')).toBe(true);
+    form.controls.scm.controls.reviewers.setValue(long(20, 100).replaceAll('\n', ', '));
+    expect(form.controls.scm.controls.reviewers.hasError('columnLength')).toBe(true);
+    form.controls.build.controls.tool.setValue('FLUTTER');
+    form.controls.flutter.controls.modules.setValue(long(20, 60));
+    expect(form.controls.flutter.controls.modules.hasError('columnLength')).toBe(true);
   });
 
   it('always needs the build tasks of a Gradle or Maven build', () => {
@@ -134,7 +235,7 @@ describe('createServiceForm', () => {
   it('needs a DAST target URL once DAST is switched on', () => {
     const form = createServiceForm();
     const { dastEnabled, dastTargetUrl } = form.controls.appScan.controls;
-    expect(dastTargetUrl.valid).toBe(true);
+    expect(dastTargetUrl.disabled).toBe(true);
 
     dastEnabled.setValue(true);
     expect(dastTargetUrl.hasError('required')).toBe(true);
@@ -229,6 +330,16 @@ describe('sections that apply to the build tool and deployment target', () => {
 
     form.controls.deployment.controls.target.setValue('OPENSHIFT');
     form.patchValue({ deployment: { appName: 'gui', artifactName: 'gui.jar' } });
+    expect(form.invalid).toBe(true);
+
+    form.controls.openShiftTargets.controls.RD.patchValue({
+      projectBuild: 'cert-build',
+      buildConfigPath: 'openshift/build.yaml',
+      dockerFilePath: 'Dockerfile',
+      buildContext: '.',
+      dockerRepoPush: 'nexus.bbh.com:18444',
+      nexusAuthFile: '/etc/containers/auth.json',
+    });
 
     expect(form.valid).toBe(true);
   });
@@ -273,6 +384,86 @@ describe('sections that apply to the build tool and deployment target', () => {
 
     expect(sectionInvalid(form, build)).toBe(true);
     expect(sectionTouched(form, build)).toBe(true);
+  });
+});
+
+describe('fields hidden while they do not apply', () => {
+  it('turns the DAST fields off with DAST and sends only a valid hidden value', () => {
+    const form = createServiceForm(service());
+    const { dastEnabled, dastTargetUrl, dastScanName } = form.controls.appScan.controls;
+
+    dastEnabled.setValue(true);
+    dastTargetUrl.setValue('cert-scanner.testbbh.com');
+    dastScanName.setValue('nightly');
+    expect(form.invalid).toBe(true);
+
+    dastEnabled.setValue(false);
+
+    expect(dastTargetUrl.disabled && dastScanName.disabled).toBe(true);
+    expect(form.valid).toBe(true);
+    expect(toServiceRequest(form).appScan).toMatchObject({
+      dastEnabled: false,
+      dastTargetUrl: null,
+      dastScanName: 'nightly',
+    });
+
+    dastEnabled.setValue(true);
+    expect(dastTargetUrl.hasError('pattern')).toBe(true);
+  });
+
+  it('turns the compile command off with compiling and drops it when it is invalid', () => {
+    const form = createServiceForm(service());
+    const { compile, compileCommand } = form.controls.appScan.controls;
+    compileCommand.patchValue({ tasks: 'compileJava', environment: 'not a variable' });
+    expect(form.invalid).toBe(true);
+
+    compile.setValue(false);
+
+    expect(compileCommand.disabled).toBe(true);
+    expect(form.valid).toBe(true);
+    expect(toServiceRequest(form).appScan.compileCommand).toEqual(NO_COMMAND);
+
+    compileCommand.patchValue({ environment: 'CI=true' });
+    expect(toServiceRequest(form).appScan.compileCommand.tasks).toEqual(['compileJava']);
+
+    compile.setValue(true);
+    expect(compileCommand.enabled).toBe(true);
+  });
+
+  it('keeps the Maven home of every command to Maven builds', () => {
+    const form = createServiceForm(service());
+    const mavenHome = form.controls.build.controls.command.controls.mavenHome;
+    expect(mavenHome.disabled).toBe(true);
+    mavenHome.setValue('x'.repeat(501));
+    expect(form.valid).toBe(true);
+    expect(toServiceRequest(form).build.command.mavenHome).toBeNull();
+
+    form.controls.build.controls.tool.setValue('MAVEN');
+
+    expect(mavenHome.hasError('maxlength')).toBe(true);
+    expect(form.controls.delivery.controls.mavenHome.enabled).toBe(true);
+    expect(form.controls.appScan.controls.compileCommand.controls.mavenHome.enabled).toBe(true);
+
+    mavenHome.setValue('/opt/maven');
+    form.controls.build.controls.tool.setValue('GRADLE');
+    expect(toServiceRequest(form).build.command.mavenHome).toBe('/opt/maven');
+  });
+
+  it('turns the remote Jenkins fields of a test job off while it runs on this Jenkins', () => {
+    const job = createTestJobForm({ type: 'REMOTE', job: 'CERT/smoke' });
+    const { type, remoteJenkinsUrl, remoteJenkins, credentialsId } = job.controls;
+    remoteJenkinsUrl.setValue('jenkins-qa.bbh.com');
+    expect(job.invalid).toBe(true);
+
+    type.setValue('LOCAL');
+
+    expect([remoteJenkins, remoteJenkinsUrl, credentialsId].every((c) => c.disabled)).toBe(true);
+    expect(job.valid).toBe(true);
+    expect(toTestJob(job).remoteJenkinsUrl).toBeNull();
+
+    job.controls.job.setValue('https://jenkins-qa.bbh.com/job/smoke/');
+    expect(remoteJenkinsUrl.enabled).toBe(true);
+    expect(remoteJenkinsUrl.hasError('pattern')).toBe(true);
   });
 });
 
@@ -372,6 +563,42 @@ describe('test jobs', () => {
     job.controls.type.setValue('REMOTE');
     expect(toTestJob(job)).toMatchObject({ remoteJenkins: 'qa', credentialsId: 'jenkins-qa' });
   });
+
+  it('round-trips the stored parameters unchanged, one NAME=value per line', () => {
+    const parameters = 'ENV=rd\nSUITE=critical\nsuite.tags=smoke,login';
+    const job = createTestJobForm({ job: 'CERT/regression', parameters });
+
+    expect(job.controls.parameters.valid).toBe(true);
+    expect(toTestJob(job).parameters).toBe(parameters);
+  });
+
+  it('sends blank parameters as null', () => {
+    const job = createTestJobForm({ job: 'CERT/regression' });
+    job.controls.parameters.setValue(' \n ');
+
+    expect(job.controls.parameters.valid).toBe(true);
+    expect(toTestJob(job).parameters).toBeNull();
+  });
+
+  it.each([
+    ['ENV=rd,SUITE=critical', true],
+    ['ENV=rd\n\nSUITE=', true],
+    ['_flag=1', true],
+    ['ENV rd', false],
+    ['1ENV=rd', false],
+    [' ENV=rd', false],
+    ['ENV=rd\n=critical', false],
+  ])('checks that every parameter line %j is NAME=value: %s', (parameters, valid) => {
+    const job = createTestJobForm({ job: 'CERT/regression', parameters });
+    expect(job.controls.parameters.valid).toBe(valid);
+  });
+
+  it('names the parameter line that is not NAME=value', () => {
+    const job = createTestJobForm({ job: 'CERT/regression', parameters: 'ENV=rd\nSUITE critical' });
+    expect(job.controls.parameters.errors).toEqual({
+      item: { value: 'SUITE critical', message: 'Write each parameter as NAME=value' },
+    });
+  });
 });
 
 describe('UrbanCode applications', () => {
@@ -402,12 +629,30 @@ describe('UrbanCode applications', () => {
     const application = createUrbanCodeApplicationForm({ environments: ['DV', 'RD!'] });
     expect(application.controls.environments.hasError('item')).toBe(true);
   });
+
+  it('needs at least one component with its base folder and include patterns', () => {
+    const stored = service().urbanCodeApplications[0];
+    const application = createUrbanCodeApplicationForm({
+      ...stored,
+      components: [{ ...stored.components[0], baseDir: null, fileIncludePatterns: '' }],
+    });
+    const component = application.controls.components.at(0).controls;
+    expect(component.baseDir.hasError('required')).toBe(true);
+    expect(component.fileIncludePatterns.hasError('required')).toBe(true);
+    expect(component.fileExcludePatterns.valid).toBe(true);
+
+    application.controls.components.removeAt(0);
+    expect(application.controls.components.errors).toEqual({ rule: 'Add at least one component' });
+  });
 });
 
 describe('GoldenFix', () => {
+  const inherited = (enabled: boolean | null) => ({ enabled, ...NO_GOLDEN_FIX_OVERRIDES });
+
   it('lets a service follow the global policy, with only its own switch', () => {
-    const form = createServiceGoldenFixForm(inheritedGoldenFix(false));
+    const form = createServiceGoldenFixForm(inherited(false));
     expect(form.controls.inherit.value).toBe(true);
+    expect(form.controls.enabled.value).toBe(false);
     expect(form.controls.enabled.enabled).toBe(true);
     expect(form.controls.minThreatLevel.disabled).toBe(true);
 
@@ -415,42 +660,60 @@ describe('GoldenFix', () => {
     expect(form.controls.minThreatLevel.enabled).toBe(true);
   });
 
+  it('starts a new service at the global default', () => {
+    expect(createServiceGoldenFixForm().controls.enabled.value).toBeNull();
+    expect(createServiceGoldenFixForm(inherited(null)).controls.enabled.value).toBeNull();
+    expect(toServiceRequest(createServiceForm()).goldenFix).toEqual(inherited(null));
+  });
+
   it('starts overriding when the stored policy sets its own values', () => {
-    const form = createServiceGoldenFixForm({ ...inheritedGoldenFix(true), minThreatLevel: 7 });
+    const form = createServiceGoldenFixForm({ ...inherited(true), minThreatLevel: 7 });
     expect(form.controls.inherit.value).toBe(false);
   });
 
   it('tells a policy that only switches GoldenFix on or off', () => {
     expect(inheritsGoldenFix(null)).toBe(true);
-    expect(inheritsGoldenFix(inheritedGoldenFix(true))).toBe(true);
+    expect(inheritsGoldenFix(inherited(true))).toBe(true);
+    expect(inheritsGoldenFix(inherited(null))).toBe(true);
     expect(inheritsGoldenFix({ enabled: false, ecosystems: [] })).toBe(true);
     expect(inheritsGoldenFix({ enabled: true, ecosystems: ['npm'] })).toBe(false);
     expect(inheritsGoldenFix({ enabled: true, verifyEnabled: false })).toBe(false);
   });
 
+  it.each([
+    [null, null],
+    [true, true],
+    [false, false],
+  ])('sends the switch %s as %s', (stored, sent) => {
+    const form = createServiceForm(service({ goldenFix: inherited(stored) }));
+    expect(toServiceRequest(form).goldenFix.enabled).toBe(sent);
+  });
+
   it('sends the inherited policy, or the values the service overrides', () => {
     const form = createServiceForm(service());
-    expect(toServiceRequest(form).goldenFix).toEqual(inheritedGoldenFix(true));
+    expect(toServiceRequest(form).goldenFix).toEqual(inherited(null));
 
     form.controls.goldenFix.patchValue({
       inherit: false,
+      enabled: true,
       minThreatLevel: 5,
       ecosystems: ['npm', 'npm'],
       excludeDirs: 'legacy\n\nlegacy\ndocs',
     });
 
     expect(toServiceRequest(form).goldenFix).toEqual({
-      ...inheritedGoldenFix(true),
+      ...inherited(true),
       minThreatLevel: 5,
       ecosystems: ['npm'],
       excludeDirs: ['legacy', 'docs'],
     });
   });
 
-  it('requires every value of the global policy', () => {
-    const group = new FormGroup(goldenFixControls(null, true));
+  it('requires every value of the global policy, which always switches GoldenFix on or off', () => {
+    const group = createGlobalGoldenFixForm(null);
     const c = group.controls;
 
+    expect(c.enabled.value).toBe(true);
     expect(c.onlyDirectDependencies.hasError('required')).toBe(true);
     expect(c.minThreatLevel.hasError('required')).toBe(true);
     expect(c.ecosystems.hasError('required')).toBe(true);
@@ -458,6 +721,9 @@ describe('GoldenFix', () => {
     expect(c.commitAuthorEmail.hasError('required')).toBe(true);
     expect(c.timeZone.valid).toBe(true);
     expect(new FormGroup(goldenFixControls(null)).valid).toBe(true);
+
+    c.enabled.setValue(false);
+    expect(toGlobalGoldenFixPolicy(group).enabled).toBe(false);
   });
 });
 
@@ -488,6 +754,56 @@ describe('toServiceRequest', () => {
     expect(toServiceRequest(createServiceForm(stored))).toEqual({ ...stored, flutter: null });
   });
 
+  it('round-trips the Bitbucket repository GoldenFix raises its pull requests against', () => {
+    const stored = service();
+    stored.scm = {
+      ...stored.scm,
+      apiUrl: 'https://bitbucket.bbh.com',
+      workspace: 'bbh-technology',
+      projectKey: '~jsmith',
+      repoSlug: 'cert-scanner',
+    };
+
+    const form = createServiceForm(stored);
+
+    expect(form.controls.scm.valid).toBe(true);
+    expect(toServiceRequest(form).scm).toEqual(stored.scm);
+  });
+
+  it('sends blank Bitbucket repository fields as not set and trims the others', () => {
+    const form = createServiceForm(service());
+    form.controls.scm.patchValue({
+      apiUrl: ' https://bitbucket.bbh.com/ ',
+      workspace: '  ',
+      projectKey: ' TA ',
+      repoSlug: '',
+    });
+
+    expect(toServiceRequest(form).scm).toMatchObject({
+      apiUrl: 'https://bitbucket.bbh.com/',
+      workspace: null,
+      projectKey: 'TA',
+      repoSlug: null,
+    });
+  });
+
+  it('accepts only an http or https Bitbucket API URL and names without spaces or slashes', () => {
+    const { scm } = createServiceForm(service()).controls;
+
+    scm.controls.apiUrl.setValue('ssh://git@bitbucket.bbh.com');
+    scm.controls.workspace.setValue('bbh technology');
+    scm.controls.projectKey.setValue('TA/CERT');
+    scm.controls.repoSlug.setValue('cert scanner');
+
+    expect(scm.controls.apiUrl.hasError('pattern')).toBe(true);
+    expect(scm.controls.workspace.hasError('pattern')).toBe(true);
+    expect(scm.controls.projectKey.hasError('pattern')).toBe(true);
+    expect(scm.controls.repoSlug.hasError('pattern')).toBe(true);
+
+    scm.controls.repoSlug.setValue('r'.repeat(201));
+    expect(scm.controls.repoSlug.hasError('maxlength')).toBe(true);
+  });
+
   it('keeps the deployment names whatever the target, since the library reads them for both', () => {
     const form = createServiceForm(
       service({
@@ -508,7 +824,7 @@ describe('toServiceRequest', () => {
     });
   });
 
-  it('sends the commands and sections that do not apply empty', () => {
+  it('sends the commands and sections that do not apply empty, keeping the JDK of Flutter', () => {
     const form = createServiceForm(service());
     form.controls.build.controls.tool.setValue('FLUTTER');
     form.controls.flutter.patchValue({
@@ -522,7 +838,8 @@ describe('toServiceRequest', () => {
     const request = toServiceRequest(form);
 
     expect(request.build.command).toEqual(NO_COMMAND);
-    expect(request.build.javaPath).toBeNull();
+    expect(request.build.javaPath).toBe(service().build.javaPath);
+    expect(request.build.autoSetup).toBe(false);
     expect(request.unitTests.command).toEqual(NO_COMMAND);
     expect(request.sonar.command).toEqual(NO_COMMAND);
     expect(request.appScan.compileCommand).toEqual(NO_COMMAND);
@@ -572,13 +889,108 @@ describe('toServiceRequest', () => {
   });
 });
 
+describe('values unique within a product', () => {
+  function twoServices() {
+    const form = createProductForm();
+    patchProduct(form, product({ services: [service(), anotherService({ name: 'api' })] }));
+    return { form, first: form.controls.services.at(0), second: form.controls.services.at(1) };
+  }
+
+  it('flags a name another service already uses on the later service only', () => {
+    const { form, first, second } = twoServices();
+    first.controls.metrics.controls.influxProject.setValue('');
+    expect(form.valid).toBe(true);
+
+    second.controls.name.setValue('gui');
+
+    expect(second.controls.name.errors).toEqual({ rule: SAME_NAME });
+    expect(second.controls.metrics.controls.influxProject.errors).toEqual({
+      rule: SAME_METRICS_TAG,
+    });
+    expect(first.controls.name.valid).toBe(true);
+
+    first.controls.name.setValue('web');
+
+    expect(second.controls.name.valid).toBe(true);
+    expect(second.controls.metrics.controls.influxProject.valid).toBe(true);
+    expect(form.valid).toBe(true);
+  });
+
+  it('flags a SonarQube key another service already uses, ignoring case', () => {
+    const { first, second } = twoServices();
+
+    second.controls.sonar.controls.projectKey.setValue(
+      first.controls.sonar.controls.projectKey.value.toUpperCase(),
+    );
+    expect(second.controls.sonar.controls.projectKey.errors).toEqual({ rule: SAME_SONAR_KEY });
+
+    first.controls.sonar.controls.projectKey.setValue('');
+    expect(second.controls.sonar.controls.projectKey.valid).toBe(true);
+  });
+
+  it('compares the metrics project, defaulting to code-name, together with the environment', () => {
+    const { form, first, second } = twoServices();
+    first.controls.metrics.controls.influxProject.setValue('');
+    const project = second.controls.metrics.controls.influxProject;
+
+    project.setValue('cert-gui');
+    expect(project.errors).toEqual({ rule: SAME_METRICS_TAG });
+
+    second.controls.metrics.controls.influxEnv.setValue('prod');
+    expect(project.valid).toBe(true);
+
+    second.controls.metrics.controls.influxEnv.setValue('');
+    expect(project.hasError('rule')).toBe(true);
+
+    form.controls.code.setValue('PAY');
+    expect(project.valid).toBe(true);
+  });
+
+  it('clears a product-wide problem of the API once anything in the product changes', () => {
+    const { form, first, second } = twoServices();
+
+    const unmatched = applyProductProblems(form, [
+      { field: 'services[1].name', message: SAME_NAME },
+      { field: 'services[1].build.javaPath', message: 'is not a JDK' },
+      { field: 'appScanAccount', message: 'is unknown' },
+    ]);
+
+    expect(unmatched).toEqual([{ field: 'appScanAccount', message: 'is unknown' }]);
+    expect(second.controls.name.errors).toEqual({ server: SAME_NAME });
+    expect(second.controls.build.controls.javaPath.errors).toEqual({ server: 'is not a JDK' });
+
+    first.controls.name.setValue('web');
+    revalidateAll(form);
+
+    expect(second.controls.name.valid).toBe(true);
+    expect(second.controls.build.controls.javaPath.errors).toEqual({ server: 'is not a JDK' });
+    expect(PRODUCT_WIDE_FIELD.test('services[3].metrics.influxProject')).toBe(true);
+    expect(PRODUCT_WIDE_FIELD.test('services[3].metrics.influxEnv')).toBe(false);
+  });
+
+  it('checks nothing for a service outside a product', () => {
+    const form = createServiceForm(service());
+    form.controls.name.setValue('gui');
+    expect(form.controls.name.valid).toBe(true);
+  });
+});
+
 describe('product form', () => {
+  it('upper-cases the product code as it is typed', () => {
+    const form = createProductForm();
+    const values: string[] = [];
+    form.valueChanges.subscribe((value) => values.push(value.code ?? ''));
+
+    form.controls.code.setValue('cert-2');
+
+    expect(form.controls.code.value).toBe('CERT-2');
+    expect(form.controls.code.valid).toBe(true);
+    expect(values).toEqual(['CERT-2']);
+  });
+
   it('round-trips a stored product into the request the API takes', () => {
     const form = createProductForm();
-    patchProduct(
-      form,
-      product({ services: [service(), service({ id: 11, name: 'backend-api' })] }),
-    );
+    patchProduct(form, product({ services: [service(), anotherService({ name: 'backend-api' })] }));
 
     const request = toProductRequest(form, 3);
 
@@ -598,7 +1010,7 @@ describe('product form', () => {
 
   it('replaces the services of an earlier product when patched again', () => {
     const form = createProductForm();
-    patchProduct(form, product({ services: [service(), service({ id: 11, name: 'api' })] }));
+    patchProduct(form, product({ services: [service(), anotherService({ name: 'api' })] }));
     patchProduct(
       form,
       product({ description: null, services: [service({ id: 12, name: 'worker' })] }),
@@ -626,7 +1038,7 @@ describe('product form', () => {
 describe('field problems reported by the API', () => {
   function formWithServices() {
     const form = createProductForm();
-    patchProduct(form, product({ services: [service(), service({ id: 11, name: 'api' })] }));
+    patchProduct(form, product({ services: [service(), anotherService({ name: 'api' })] }));
     return form;
   }
 

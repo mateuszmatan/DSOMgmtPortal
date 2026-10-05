@@ -56,8 +56,6 @@ projects:
         url: https://bitbucket.bbh.com/projects/PAY/repos/payhub-gateway
         credentialsId: bitbucket-http-credentials
         authType: basic
-    goldenFix:
-      enabled: true
     tests:
       unitTests:
         maven:
@@ -162,8 +160,6 @@ projects:
         url: https://bitbucket.bbh.com/projects/PAY/repos/payhub-ledger
         credentialsId: bitbucket-http-credentials
         authType: basic
-    goldenFix:
-      enabled: true
     tests:
       unitTests:
         gradle:
@@ -279,8 +275,6 @@ projects:
         url: https://bitbucket.bbh.com/projects/PAY/repos/payhub-notifications
         credentialsId: bitbucket-http-credentials
         authType: basic
-    goldenFix:
-      enabled: true
     tests:
       unitTests:
         gradle:
@@ -350,6 +344,7 @@ projects:
     buildTool: flutter
     deployTarget: vm
     sourceDir: .
+    javaPath: /usr/lib/jvm/java-17-openjdk
     asoc:
       url: https://bbh.cloud.appscan.com
       keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc

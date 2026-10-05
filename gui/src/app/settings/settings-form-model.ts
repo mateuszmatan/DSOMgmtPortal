@@ -9,7 +9,7 @@ import {
   Scanner,
   SeverityLimits,
 } from '../core/models';
-import { goldenFixControls, toGoldenFixPolicy } from '../products/product-form-model';
+import { createGlobalGoldenFixForm, toGlobalGoldenFixPolicy } from '../products/product-form-model';
 import {
   HOST_NAME,
   HTTP_URL,
@@ -17,6 +17,7 @@ import {
   integer,
   optional,
   requireWhile,
+  requiredRule,
   text,
 } from '../shared/form-controls';
 
@@ -81,7 +82,7 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
       DAST: createLimitsForm(settings?.limits.DAST),
     }),
     scans: new FormGroup({
-      coverageMinLine: integer(s?.coverageMinLine, 0, 100, required),
+      coverageMinLine: integer(s?.coverageMinLine, 1, 100, required),
       sastPrepareTimeoutMinutes: minutes(s?.sastPrepareTimeoutMinutes),
       sastPollTimeoutMinutes: minutes(s?.sastPollTimeoutMinutes),
       sastPollIntervalSeconds: seconds(s?.sastPollIntervalSeconds),
@@ -98,6 +99,7 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
     releaseGate: new FormGroup({
       scanners: new FormControl<Scanner[]>(settings?.releaseGate.scanners ?? [...SCANNERS], {
         nonNullable: true,
+        validators: requiredRule('Select at least one scanner'),
       }),
       requireCoverage: flag(settings?.releaseGate.requireCoverage, true),
       stateFile: text(
@@ -117,7 +119,7 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
       sourceDir: text(settings?.serviceDefaults.sourceDir ?? '.', max(500)),
       testsMaxParallel: integer(settings?.serviceDefaults.testsMaxParallel, 1, 100, required),
     }),
-    goldenFix: new FormGroup(goldenFixControls(settings?.goldenFix, true)),
+    goldenFix: createGlobalGoldenFixForm(settings?.goldenFix),
   });
   const { proxyHost, proxyPort } = form.controls.platform.controls;
   requireWhile(proxyPort, () => !!optional(proxyHost.value), proxyHost);
@@ -206,18 +208,18 @@ export function toSettingsRequest(
       sourceDir: optional(v.serviceDefaults.sourceDir) ?? '.',
       testsMaxParallel: number(v.serviceDefaults.testsMaxParallel),
     },
-    goldenFix: toGoldenFixPolicy(v.goldenFix),
+    goldenFix: toGlobalGoldenFixPolicy(form.controls.goldenFix),
   };
 }
 
-export const SETTINGS_SECTIONS: { id: SettingsSectionId; label: string; icon: string }[] = [
-  { id: 'platform', label: 'Platform and tools', icon: 'hub' },
-  { id: 'deployment', label: 'Deployment defaults', icon: 'dns' },
-  { id: 'limits', label: 'Severity limits', icon: 'policy' },
-  { id: 'scans', label: 'Scans and coverage', icon: 'timer' },
-  { id: 'releaseGate', label: 'Release gate', icon: 'verified' },
-  { id: 'serviceDefaults', label: 'Service defaults', icon: 'tune' },
-  { id: 'goldenFix', label: 'GoldenFix defaults', icon: 'auto_fix_high' },
+export const SETTINGS_SECTIONS: { id: SettingsSectionId; label: string }[] = [
+  { id: 'platform', label: 'Platform and tools' },
+  { id: 'deployment', label: 'Deployment defaults' },
+  { id: 'limits', label: 'Severity limits' },
+  { id: 'scans', label: 'Scans and coverage' },
+  { id: 'releaseGate', label: 'Release gate' },
+  { id: 'serviceDefaults', label: 'Service defaults' },
+  { id: 'goldenFix', label: 'GoldenFix defaults' },
 ];
 
 export function firstInvalidSection(form: SettingsForm): SettingsSectionId | null {

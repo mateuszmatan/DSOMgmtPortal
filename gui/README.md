@@ -4,17 +4,95 @@ The Angular app of the BBH DevSecOps Management Portal. See the [main README](..
 portal.
 
 ```bash
-npm ci
-npm start                    # http://localhost:4200, /api is proxied to the backend on port 8080
-npm run build                # dist/frontend/browser, packaged into the jar by `mvn -Pfrontend package`
-npm test -- --watch=false    # Vitest unit tests
+./gradlew :gui:buildGui      # production bundle in gui/build/dist/browser, checked against the angular.json budgets
+./gradlew :gui:unitTest      # Vitest unit tests with coverage, thresholds in angular.json
+./gradlew :gui:smokeTest     # Spock and Playwright: every page in a browser against recorded API answers
+cd gui && npm start          # http://localhost:4200, /api is proxied to the backend on port 8080
 ```
 
-Needs Node.js 22.22.3 or newer.
+Gradle downloads Node.js 24 into `gui/.gradle/nodejs`.
 
 | Folder        | Holds |
 |---------------|-------|
-| `core/`       | API clients, models mirroring the backend DTOs, error handling |
-| `products/`   | DevSecOps Product Management: product list, product editor, product page with pipelines and keys |
-| `monitoring/` | DevSecOps Pipeline Monitoring: overview, product pipelines, pipeline details with DORA and Grafana |
-| `shared/`     | status chips, dialogs, formatting |
+| `core/`       | API clients, models mirroring the backend DTOs, error handling, the four portal sections |
+| `products/`   | Product Management: product list, product editor, product page with pipelines and keys |
+| `monitoring/` | Pipeline Monitoring: overview, product pipelines, pipeline details with DORA and Grafana |
+| `evidence/`   | Change Evidence: builds, tests and scans of each pipeline for ServiceNow changes |
+| `settings/`   | Global Settings: tools, policy and defaults of every pipeline |
+| `shared/`     | form controls, dialogs, formatting, Bitbucket links |
+| `testing/`    | fixtures for the unit tests |
+
+## Look and layout
+
+- The top menu is one compact line with short labels: Product Management, Pipeline Monitoring, Change Evidence and
+  Global Settings. Each page starts with the full name of its section as the heading and the section description
+  under it.
+- The pages show no icons. The only icons are those of the vertical section menu in the service editor.
+- Fields are compact (Material density -4, 32px inputs). Forms reflow to two columns below 760px and to one below
+  480px; the menu wraps and wide tables scroll inside their own container, so no page scrolls sideways at 800px or
+  600px.
+- On/off settings are checkboxes and expandable panels say Show or Hide.
+
+## Bitbucket repository
+
+The Bitbucket section of a service sets `scm.bitbucket.apiUrl`, `workspace`, `projectKey` and `repoSlug` next to
+the repository URL. They are optional: the pipeline reads them from the repository URL when they are empty. The
+product page links each service to its repository: the repository URL when set, otherwise
+`https://bitbucket.org/{workspace}/{repoSlug}` for Bitbucket Cloud or `{apiUrl}/projects/{projectKey}/repos/{repoSlug}`
+for Data Center (`users/` for a personal `~` project key).
+
+## Pipeline keys
+
+The API sends each key with a `hint`: its first 8 characters, `…` and its last 4. The product page shows the active
+key by its hint; Show and Copy use the key `value`, which the product management endpoints send for the active key
+only. The key history lists every key by its hint. The monitoring endpoints send no key values at all, so the
+monitoring pages only check whether a pipeline has an active key.
+
+## Build links
+
+Every run carries the `buildUrl` the backend builds from the job that recorded the run (its `JOB_NAME`, so a branch of
+a multibranch job links to that branch) and falls back to the pipeline's configured Jenkins job. The monitoring pages
+link each build number to that address and show the number without a link when it is `null`. The change evidence
+uses the build, report, test and artifact links the API sends.
+
+## GoldenFix switch of a service
+
+"Run GoldenFix" in the GoldenFix section of a service is a select with Global default, On and Off. Global default
+sends `goldenFix.enabled: null`, so the service follows "GoldenFix runs by default" of the Global Settings, and is
+where every new service starts. Selects whose first option means "not set" (Global default, Library default,
+Detected from the URL, Global value) show that option for a `null` value.
+
+## Test job parameters
+
+The parameters of a test job are a text area with one `NAME=value` per line, the format the DevSecOps library splits
+on. Every non-blank line must match `^[A-Za-z_][A-Za-z0-9_.-]*=.*$`, and the stored text is sent back unchanged.
+
+## Validation mirrored from the backend
+
+The forms check on the visible fields what the backend checks, so a save the API would refuse is caught before it is
+sent. The API problems still land on their fields when a rule only the backend knows fails.
+
+- Build: the JDK path is required unless a Gradle or Maven build sets it up automatically. A Flutter build always
+  needs it, for SonarQube, so automatic setup is off for Flutter. A Maven service deployed to virtual machines needs
+  the build path, which the Nexus delivery reads.
+- Nexus IQ: the application and the scan patterns are set together or not at all.
+- Flutter: at least one module and one test module; the delivery group, artifact and plugin on virtual machines.
+- UrbanCode: every application has at least one component, and every component its base folder and include patterns.
+- OpenShift: the RD region needs the image build fields (build project, BuildConfig file, Dockerfile, build context),
+  the image push target and the Nexus auth file.
+- Global Settings: the minimum line coverage is 1 to 100 and the release gate checks at least one scanner.
+- Lists: besides the number of entries and the length of each, the entries joined as stored must fit their column
+  (for example 2000 characters for build flags, 4000 for variables, 1000 for agent labels).
+
+Fields that do not apply are disabled, so they never block a save without showing why: the DAST fields while DAST is
+off, the AppScan compile command while compiling is off, the Maven home of a Gradle build, the remote Jenkins fields of
+a test job that runs on this Jenkins, and the job of the other pipeline type in the pipeline dialog. A hidden value is
+kept and sent only while it is valid.
+
+## Values unique within a product
+
+Like the backend, the product editor wants each service name, SonarQube project key and metrics project with its
+environment (the project defaults to `{code}-{name}`) used once within the product, compared without case. The later
+service gets the error, with the backend's message, and it clears as soon as either service changes. A problem the
+API reports for one of these fields stays on the field only until anything in the product changes, so fixing the
+conflict on the other service is enough to save again.

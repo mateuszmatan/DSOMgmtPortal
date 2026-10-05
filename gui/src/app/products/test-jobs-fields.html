@@ -15,9 +15,7 @@
 </div>
 
 @if (f.controls.testJobs.errors?.['server']; as message) {
-  <div class="banner list-error" role="alert">
-    <mat-icon>error_outline</mat-icon><span>{{ message }}</span>
-  </div>
+  <div class="banner list-error" role="alert">{{ message }}</div>
 }
 
 @for (stage of stages; track stage.value) {
@@ -42,7 +40,7 @@
       </mat-form-field>
       <span class="spacer"></span>
       <button mat-stroked-button type="button" (click)="add(stage.value)">
-        <mat-icon>add</mat-icon>Add {{ stage.noun }} job
+        Add {{ stage.noun }} job
       </button>
     </header>
 
@@ -50,36 +48,34 @@
       <div class="list-item" [formGroup]="job" [class.invalid]="job.invalid && job.touched">
         <div class="list-item-head">
           <span class="index">{{ i + 1 }}</span>
-          <strong class="mono">{{
-            job.controls.name.value || job.controls.job.value || 'New job'
-          }}</strong>
+          <strong class="mono">{{ jobName(job) }}</strong>
           <span class="spacer"></span>
           <button
-            mat-icon-button
+            mat-button
             type="button"
             (click)="move(job, -1)"
             [disabled]="isFirst(job)"
-            matTooltip="Start earlier"
+            [attr.aria-label]="'Start ' + jobName(job) + ' earlier'"
           >
-            <mat-icon>arrow_upward</mat-icon>
+            Up
           </button>
           <button
-            mat-icon-button
+            mat-button
             type="button"
             (click)="move(job, 1)"
             [disabled]="isLast(job)"
-            matTooltip="Start later"
+            [attr.aria-label]="'Start ' + jobName(job) + ' later'"
           >
-            <mat-icon>arrow_downward</mat-icon>
+            Down
           </button>
           <button
-            mat-icon-button
+            mat-button
             type="button"
             class="danger"
             (click)="remove(job)"
-            matTooltip="Remove job"
+            [attr.aria-label]="'Remove ' + jobName(job)"
           >
-            <mat-icon>delete</mat-icon>
+            Remove
           </button>
         </div>
         <div class="form-fields">
@@ -106,7 +102,7 @@
           </mat-form-field>
           <mat-form-field class="span-3">
             <mat-label>Runs on</mat-label>
-            <mat-select formControlName="type">
+            <mat-select formControlName="type" canSelectNullableOptions>
               <mat-option [value]="null">Library default</mat-option>
               <mat-option value="LOCAL">This Jenkins</mat-option>
               <mat-option value="REMOTE">Another Jenkins</mat-option>
@@ -121,13 +117,15 @@
           </mat-form-field>
           <mat-form-field class="span-6">
             <mat-label>Parameters</mat-label>
-            <input
+            <textarea
               matInput
               formControlName="parameters"
-              placeholder="ENV=rd,SUITE=critical"
+              rows="2"
+              placeholder="ENV=rd&#10;SUITE=critical"
               class="mono"
-            />
-            <mat-hint><code>parameters</code> · passed to the job</mat-hint>
+              spellcheck="false"
+            ></textarea>
+            <mat-hint><code>parameters</code> · One NAME=value per line</mat-hint>
             <mat-error>{{ errorText(job.controls.parameters) }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-3">

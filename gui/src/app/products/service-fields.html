@@ -10,10 +10,10 @@
         [attr.aria-current]="section.id === current() ? 'true' : null"
         (click)="select(section.id)"
       >
-        <mat-icon>{{ section.icon }}</mat-icon>
+        <mat-icon aria-hidden="true">{{ section.icon }}</mat-icon>
         <span>{{ section.label }}</span>
         @if (section.problem) {
-          <mat-icon class="problem-icon" aria-label="Needs your attention">error</mat-icon>
+          <span class="problem-mark" role="img" aria-label="Needs your attention"></span>
         }
       </button>
     }
@@ -68,25 +68,27 @@
             <mat-hint><code>sourceDir</code> · relative to the repository root</mat-hint>
             <mat-error>{{ errorText(f.controls.build.controls.sourceDir) }}</mat-error>
           </mat-form-field>
-          @if (tool() !== 'FLUTTER') {
-            <mat-form-field class="span-6">
-              <mat-label>JDK path</mat-label>
-              <input
-                matInput
-                formControlName="javaPath"
-                placeholder="/usr/lib/jvm/java-17-openjdk"
-                class="mono"
-              />
-              <mat-hint
-                ><code>javaPath</code> · JAVA_HOME of the unit tests stage, unless the build tool is
-                set up automatically</mat-hint
-              >
-              <mat-error>{{ errorText(f.controls.build.controls.javaPath) }}</mat-error>
-            </mat-form-field>
-          }
-          <mat-slide-toggle class="span-6" formControlName="autoSetup">
+          <mat-form-field class="span-6">
+            <mat-label>JDK path</mat-label>
+            <input
+              matInput
+              formControlName="javaPath"
+              placeholder="/usr/lib/jvm/java-17-openjdk"
+              class="mono"
+            />
+            <mat-hint
+              ><code>javaPath</code> ·
+              {{
+                tool() === 'FLUTTER'
+                  ? 'JAVA_HOME of the Flutter build stages'
+                  : 'JAVA_HOME of the unit tests stage, unless the build tool is set up automatically'
+              }}</mat-hint
+            >
+            <mat-error>{{ errorText(f.controls.build.controls.javaPath) }}</mat-error>
+          </mat-form-field>
+          <mat-checkbox class="span-6" formControlName="autoSetup">
             Set up the build tool automatically (<code>buildToolAutoSetup</code>)
-          </mat-slide-toggle>
+          </mat-checkbox>
           <mat-form-field class="span-6">
             <mat-label>Artifact path</mat-label>
             <input
@@ -95,13 +97,21 @@
               [placeholder]="tool() === 'MAVEN' ? 'target/*.jar' : 'build/libs/*.jar'"
               class="mono"
             />
-            <mat-hint><code>build.buildPath</code> · what the build produces</mat-hint>
+            <mat-hint
+              ><code>build.buildPath</code> ·
+              {{
+                isVm() && tool() === 'MAVEN'
+                  ? 'the artifact the Nexus snapshot delivery uploads'
+                  : 'what the build produces'
+              }}</mat-hint
+            >
             <mat-error>{{ errorText(f.controls.build.controls.buildPath) }}</mat-error>
           </mat-form-field>
           @if (tool() === 'FLUTTER') {
             <p class="note span-12">
-              A Flutter build runs no Gradle or Maven command; its modules and credentials are in
-              the Flutter section.
+              A Flutter build runs no Gradle or Maven command and needs the JDK path, since
+              automatic setup cannot pick a JDK for Flutter; its modules and credentials are in the
+              Flutter section.
             </p>
           } @else {
             <h4 class="sub-heading span-12">Build command</h4>
@@ -165,9 +175,9 @@
             <mat-hint><code>tests.unitTests.reportOutDir</code></mat-hint>
             <mat-error>{{ errorText(f.controls.unitTests.controls.reportOutDir) }}</mat-error>
           </mat-form-field>
-          <mat-slide-toggle class="span-12" formControlName="allowEmptyResults">
+          <mat-checkbox class="span-12" formControlName="allowEmptyResults">
             Accept a run without test results (<code>tests.unitTests.allowEmptyResults</code>)
-          </mat-slide-toggle>
+          </mat-checkbox>
           <mat-form-field class="span-6">
             <mat-label>Coverage report</mat-label>
             <input
@@ -211,14 +221,9 @@
             class="span-12"
             formControlName="target"
             aria-label="Deployment target"
-            hideSingleSelectionIndicator
           >
-            <mat-button-toggle value="VM"
-              ><mat-icon>dns</mat-icon>Virtual machine</mat-button-toggle
-            >
-            <mat-button-toggle value="OPENSHIFT"
-              ><mat-icon>cloud</mat-icon>OpenShift</mat-button-toggle
-            >
+            <mat-button-toggle value="VM">Virtual machine</mat-button-toggle>
+            <mat-button-toggle value="OPENSHIFT">OpenShift</mat-button-toggle>
           </mat-button-toggle-group>
           <mat-form-field class="span-4">
             <mat-label>Application name</mat-label>
@@ -430,18 +435,18 @@
             <mat-error>{{ errorText(f.controls.appScan.controls.clientPath) }}</mat-error>
           </mat-form-field>
           <span class="span-6"></span>
-          <mat-slide-toggle class="span-6" formControlName="compile"
-            >Compile before preparing the IRX (<code>asoc.doCompile</code>)</mat-slide-toggle
+          <mat-checkbox class="span-6" formControlName="compile"
+            >Compile before preparing the IRX (<code>asoc.doCompile</code>)</mat-checkbox
           >
-          <mat-slide-toggle class="span-6" formControlName="sourceCodeOnly"
-            >Scan source code only (<code>asoc.sourceCodeOnly</code>)</mat-slide-toggle
+          <mat-checkbox class="span-6" formControlName="sourceCodeOnly"
+            >Scan source code only (<code>asoc.sourceCodeOnly</code>)</mat-checkbox
           >
-          <mat-slide-toggle class="span-6" formControlName="useConfigFile"
+          <mat-checkbox class="span-6" formControlName="useConfigFile"
             >Use the repository's AppScan configuration
-            (<code>asoc.useAppScanConfig</code>)</mat-slide-toggle
+            (<code>asoc.useAppScanConfig</code>)</mat-checkbox
           >
-          <mat-slide-toggle class="span-6" formControlName="insecureTls"
-            >Accept any TLS certificate (<code>asoc.insecureTls</code>)</mat-slide-toggle
+          <mat-checkbox class="span-6" formControlName="insecureTls"
+            >Accept any TLS certificate (<code>asoc.insecureTls</code>)</mat-checkbox
           >
           @if (tool() !== 'FLUTTER' && f.controls.appScan.controls.compile.value) {
             <h4 class="sub-heading span-12">Compile command</h4>
@@ -455,8 +460,8 @@
           }
 
           <h4 class="sub-heading span-12">Dynamic scan (DAST)</h4>
-          <mat-slide-toggle class="span-12" formControlName="dastEnabled"
-            >Run DAST against the deployed application (<code>dast.enabled</code>)</mat-slide-toggle
+          <mat-checkbox class="span-12" formControlName="dastEnabled"
+            >Run DAST against the deployed application (<code>dast.enabled</code>)</mat-checkbox
           >
           @if (f.controls.appScan.controls.dastEnabled.value) {
             <mat-form-field class="span-6">
@@ -546,11 +551,11 @@
               errorText(f.controls.sonar.controls.badgeToken, 'Must be a SonarQube badge token')
             }}</mat-error>
           </mat-form-field>
-          <mat-slide-toggle class="span-4" formControlName="addBadges"
-            >Badges in the report (<code>addBadges</code>)</mat-slide-toggle
+          <mat-checkbox class="span-4" formControlName="addBadges"
+            >Badges in the report (<code>addBadges</code>)</mat-checkbox
           >
-          <mat-slide-toggle class="span-4" formControlName="fullBadges"
-            >Every badge (<code>fullBadges</code>)</mat-slide-toggle
+          <mat-checkbox class="span-4" formControlName="fullBadges"
+            >Every badge (<code>fullBadges</code>)</mat-checkbox
           >
           @if (tool() !== 'FLUTTER') {
             <h4 class="sub-heading span-12">Analysis command</h4>
@@ -577,7 +582,7 @@
           <mat-form-field class="span-5">
             <mat-label>Application</mat-label>
             <input matInput formControlName="application" class="mono" />
-            <mat-hint><code>tools.nexusIq.application</code></mat-hint>
+            <mat-hint><code>tools.nexusIq.application</code> · set with the scan patterns</mat-hint>
             <mat-error>{{ errorText(f.controls.nexusIq.controls.application) }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-3">
@@ -607,11 +612,14 @@
               spellcheck="false"
               placeholder="**/build/libs/*.jar"
             ></textarea>
-            <mat-hint><code>tools.nexusIq.scanPatterns</code> · one Ant pattern per line</mat-hint>
+            <mat-hint
+              ><code>tools.nexusIq.scanPatterns</code> · one Ant pattern per line, set with the
+              application</mat-hint
+            >
             <mat-error>{{ errorText(f.controls.nexusIq.controls.scanPatterns) }}</mat-error>
           </mat-form-field>
-          <mat-slide-toggle class="span-4" formControlName="failOnNetworkError"
-            >Fail the build on a network error (<code>failOnNetworkError</code>)</mat-slide-toggle
+          <mat-checkbox class="span-4" formControlName="failOnNetworkError"
+            >Fail the build on a network error (<code>failOnNetworkError</code>)</mat-checkbox
           >
         </div>
       }
@@ -658,7 +666,7 @@
           </mat-form-field>
           <mat-form-field class="span-4">
             <mat-label>Bitbucket</mat-label>
-            <mat-select formControlName="type">
+            <mat-select formControlName="type" canSelectNullableOptions>
               <mat-option [value]="null">Detected from the URL</mat-option>
               <mat-option value="SERVER">Data Center</mat-option>
               <mat-option value="CLOUD">Cloud</mat-option>
@@ -698,6 +706,66 @@
             >
             <mat-error>{{ errorText(f.controls.scm.controls.reviewers) }}</mat-error>
           </mat-form-field>
+
+          <h4 class="sub-heading span-12">Repository for GoldenFix pull requests</h4>
+          <p class="note span-12">Optional; left empty, they are read from the repository URL.</p>
+          <mat-form-field class="span-6">
+            <mat-label>Bitbucket API URL</mat-label>
+            <input
+              matInput
+              formControlName="apiUrl"
+              placeholder="https://bitbucket.bbh.com"
+              autocomplete="off"
+            />
+            <mat-hint
+              ><code>scm.bitbucket.apiUrl</code> · Data Center base URL or Cloud API</mat-hint
+            >
+            <mat-error>{{
+              errorText(f.controls.scm.controls.apiUrl, 'Must be an http or https URL')
+            }}</mat-error>
+          </mat-form-field>
+          <mat-form-field class="span-6">
+            <mat-label>Workspace</mat-label>
+            <input
+              matInput
+              formControlName="workspace"
+              placeholder="bbh-technology"
+              class="mono"
+              autocomplete="off"
+            />
+            <mat-hint><code>scm.bitbucket.workspace</code> · Bitbucket Cloud</mat-hint>
+            <mat-error>{{
+              errorText(f.controls.scm.controls.workspace, 'No spaces or slashes')
+            }}</mat-error>
+          </mat-form-field>
+          <mat-form-field class="span-6">
+            <mat-label>Project key</mat-label>
+            <input
+              matInput
+              formControlName="projectKey"
+              placeholder="TA"
+              class="mono"
+              autocomplete="off"
+            />
+            <mat-hint><code>scm.bitbucket.projectKey</code> · Data Center</mat-hint>
+            <mat-error>{{
+              errorText(f.controls.scm.controls.projectKey, 'No spaces or slashes')
+            }}</mat-error>
+          </mat-form-field>
+          <mat-form-field class="span-6">
+            <mat-label>Repository slug</mat-label>
+            <input
+              matInput
+              formControlName="repoSlug"
+              placeholder="cert-scanner"
+              class="mono"
+              autocomplete="off"
+            />
+            <mat-hint><code>scm.bitbucket.repoSlug</code> · Cloud and Data Center</mat-hint>
+            <mat-error>{{
+              errorText(f.controls.scm.controls.repoSlug, 'No spaces or slashes')
+            }}</mat-error>
+          </mat-form-field>
         </div>
       }
 
@@ -710,21 +778,22 @@
           </p>
         </header>
         <div class="form-fields" formGroupName="goldenFix">
-          <mat-slide-toggle class="span-12" formControlName="enabled"
-            >Run GoldenFix (<code>goldenFix.enabled</code>)</mat-slide-toggle
-          >
+          <mat-form-field class="span-4">
+            <mat-label>Run GoldenFix</mat-label>
+            <mat-select formControlName="enabled" canSelectNullableOptions>
+              <mat-option [value]="null">Global default</mat-option>
+              <mat-option [value]="true">On</mat-option>
+              <mat-option [value]="false">Off</mat-option>
+            </mat-select>
+            <mat-hint><code>goldenFix.enabled</code>{{ goldenFixDefault() }}</mat-hint>
+          </mat-form-field>
           <mat-button-toggle-group
-            class="span-12"
+            class="span-8"
             formControlName="inherit"
             aria-label="GoldenFix policy"
-            hideSingleSelectionIndicator
           >
-            <mat-button-toggle [value]="true"
-              ><mat-icon>public</mat-icon>Inherit the global settings</mat-button-toggle
-            >
-            <mat-button-toggle [value]="false"
-              ><mat-icon>tune</mat-icon>Override for this service</mat-button-toggle
-            >
+            <mat-button-toggle [value]="true">Inherit the global settings</mat-button-toggle>
+            <mat-button-toggle [value]="false">Override for this service</mat-button-toggle>
           </mat-button-toggle-group>
           @if (f.controls.goldenFix.controls.inherit.value) {
             <p class="note span-12">{{ inheritedGoldenFix() }}</p>
@@ -743,8 +812,8 @@
           <p>The InfluxDB tags the pipelines write under; monitoring reads them back.</p>
         </header>
         <div class="form-fields" formGroupName="metrics">
-          <mat-slide-toggle class="span-12" formControlName="enabled"
-            >Write pipeline metrics to InfluxDB (<code>influx.enabled</code>)</mat-slide-toggle
+          <mat-checkbox class="span-12" formControlName="enabled"
+            >Write pipeline metrics to InfluxDB (<code>influx.enabled</code>)</mat-checkbox
           >
           <mat-form-field class="span-8">
             <mat-label>Project tag</mat-label>
@@ -784,7 +853,7 @@
         <div class="form-fields" formGroupName="flutter">
           <mat-form-field class="span-4">
             <mat-label>Platform</mat-label>
-            <mat-select formControlName="platform">
+            <mat-select formControlName="platform" canSelectNullableOptions>
               <mat-option [value]="null">Library default</mat-option>
               @for (platform of flutterPlatforms; track platform) {
                 <mat-option [value]="platform">{{ platform.toLowerCase() }}</mat-option>
@@ -801,7 +870,9 @@
               class="mono"
               spellcheck="false"
             ></textarea>
-            <mat-hint><code>tools.flutter.flutterModules</code> · one per line</mat-hint>
+            <mat-hint
+              ><code>tools.flutter.flutterModules</code> · one per line, at least one</mat-hint
+            >
             <mat-error>{{ errorText(f.controls.flutter.controls.modules) }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-4">
@@ -813,7 +884,7 @@
               class="mono"
               spellcheck="false"
             ></textarea>
-            <mat-hint><code>tests.modules</code></mat-hint>
+            <mat-hint><code>tests.modules</code> · at least one</mat-hint>
             <mat-error>{{ errorText(f.controls.flutter.controls.testModules) }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-4">
@@ -876,7 +947,10 @@
               placeholder="com.bbh.payhub"
               class="mono"
             />
-            <mat-hint><code>delivery.group</code></mat-hint>
+            <mat-hint
+              ><code>delivery.group</code
+              >{{ isVm() ? ' · required on virtual machines' : '' }}</mat-hint
+            >
             <mat-error>{{ errorText(f.controls.flutter.controls.deliveryGroup) }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-4">
@@ -927,8 +1001,8 @@
             <mat-hint><code>tools.sonar.dartAnalyzeCommand</code></mat-hint>
             <mat-error>{{ errorText(f.controls.flutter.controls.dartAnalyzeCommand) }}</mat-error>
           </mat-form-field>
-          <mat-slide-toggle class="span-4" formControlName="sonarFlutterPlugin"
-            >Flutter plugin (<code>tools.sonar.flutterPlugin</code>)</mat-slide-toggle
+          <mat-checkbox class="span-4" formControlName="sonarFlutterPlugin"
+            >Flutter plugin (<code>tools.sonar.flutterPlugin</code>)</mat-checkbox
           >
         </div>
       }

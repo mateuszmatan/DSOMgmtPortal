@@ -189,10 +189,14 @@ export interface ScmSettings {
   targetBranch: string | null;
   cloneUrl: string | null;
   reviewers: string[];
+  apiUrl: string | null;
+  workspace: string | null;
+  projectKey: string | null;
+  repoSlug: string | null;
 }
 
 export interface GoldenFixPolicy {
-  enabled: boolean;
+  enabled: boolean | null;
   onlyDirectDependencies: boolean | null;
   minThreatLevel: number | null;
   ecosystems: string[];
@@ -209,6 +213,10 @@ export interface GoldenFixPolicy {
   commitAuthorName: string | null;
   commitAuthorEmail: string | null;
   timeZone: string | null;
+}
+
+export interface GlobalGoldenFixPolicy extends GoldenFixPolicy {
+  enabled: boolean;
 }
 
 export interface MetricsSettings {
@@ -297,7 +305,8 @@ export interface ProductRequest extends ProductFields {
 
 export interface PipelineKey {
   id: number;
-  value: string;
+  value: string | null;
+  hint: string;
   status: KeyStatus;
   issuedAt: string;
   revokedAt: string | null;
@@ -420,7 +429,7 @@ export interface GlobalSettingsValues {
   scans: ScanSettings;
   releaseGate: ReleaseGateSettings;
   serviceDefaults: ServiceDefaults;
-  goldenFix: GoldenFixPolicy;
+  goldenFix: GlobalGoldenFixPolicy;
 }
 
 export interface GlobalSettings extends GlobalSettingsValues {
@@ -440,6 +449,7 @@ export interface PipelineRun {
   durationSeconds: number | null;
   commit: string | null;
   job: string | null;
+  buildUrl: string | null;
   stagesTotal: number | null;
   passed: number | null;
   warned: number | null;

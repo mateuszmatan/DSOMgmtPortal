@@ -36,24 +36,28 @@ describe('GlobalSettingsPage', () => {
     await fixture.whenStable();
   }
 
-  it('explains that the settings apply to every pipeline and lists its sections', async () => {
+  it('describes the section, says what a service may replace and lists its sections', async () => {
     await load();
 
     expect(page().querySelector('h1')?.textContent).toBe('DevSecOps Global Settings');
-    expect(page().querySelector('.lead')?.textContent).toContain(
-      'apply to every DevSecOps pipeline of every product, and a service cannot override them',
+    expect(page().querySelector('.page-description')?.textContent).toBe(
+      'Tools, policy and defaults of every pipeline',
+    );
+    expect(page().querySelector('.meta')?.textContent).toContain(
+      'A service can replace only the deployment, service and GoldenFix defaults.',
     );
     expect(
       [...page().querySelectorAll('.toc-item')].map((item) => item.textContent?.trim()),
     ).toEqual([
-      'hubPlatform and tools',
-      'dnsDeployment defaults',
-      'policySeverity limits',
-      'timerScans and coverage',
-      'verifiedRelease gate',
-      'tuneService defaults',
-      'auto_fix_highGoldenFix defaults',
+      'Platform and tools',
+      'Deployment defaults',
+      'Severity limits',
+      'Scans and coverage',
+      'Release gate',
+      'Service defaults',
+      'GoldenFix defaults',
     ]);
+    expect(page().querySelector('mat-icon')).toBeNull();
     expect(page().querySelector('.meta')?.textContent).toContain('Version 4');
     expect(form().controls.platform.controls.jenkinsUrl.value).toBe('https://jenkins.bbh.com');
     expect(settingsPage().hasUnsavedChanges()).toBe(false);

@@ -17,13 +17,13 @@
   <mat-error>{{ errorText(c.minThreatLevel) }}</mat-error>
 </mat-form-field>
 @if (complete()) {
-  <mat-slide-toggle class="span-4" [formControl]="c.onlyDirectDependencies"
-    >Direct dependencies only (<code>onlyDirectDependencies</code>)</mat-slide-toggle
+  <mat-checkbox class="span-4" [formControl]="c.onlyDirectDependencies"
+    >Direct dependencies only (<code>onlyDirectDependencies</code>)</mat-checkbox
   >
 } @else {
   <mat-form-field class="span-4">
     <mat-label>Dependencies</mat-label>
-    <mat-select [formControl]="c.onlyDirectDependencies">
+    <mat-select [formControl]="c.onlyDirectDependencies" canSelectNullableOptions>
       <mat-option [value]="null">Global value</mat-option>
       <mat-option [value]="true">Direct dependencies only</mat-option>
       <mat-option [value]="false">Direct and transitive</mat-option>
@@ -62,13 +62,13 @@
 
 <h5 class="sub-heading span-12">Verification build</h5>
 @if (complete()) {
-  <mat-slide-toggle class="span-4" [formControl]="c.verifyEnabled"
-    >Build the fix before opening the pull request (<code>verify.enabled</code>)</mat-slide-toggle
+  <mat-checkbox class="span-4" [formControl]="c.verifyEnabled"
+    >Build the fix before opening the pull request (<code>verify.enabled</code>)</mat-checkbox
   >
 } @else {
   <mat-form-field class="span-4">
     <mat-label>Verification</mat-label>
-    <mat-select [formControl]="c.verifyEnabled">
+    <mat-select [formControl]="c.verifyEnabled" canSelectNullableOptions>
       <mat-option [value]="null">Global value</mat-option>
       <mat-option [value]="true">Build the fix first</mat-option>
       <mat-option [value]="false">Do not build it</mat-option>

@@ -10,7 +10,6 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -21,7 +20,6 @@ import { errorMessage } from '../core/errors';
 import { DoraSummary, PIPELINE_TYPES, PipelineMonitoring, PipelineType } from '../core/models';
 import { DoraLevelBadge } from '../shared/dora-level';
 import { DurationPipe, RelativeTimePipe, formatDuration } from '../shared/formatting';
-import { jenkinsBuildUrl } from '../shared/jenkins';
 import { StatusChip } from '../shared/status-chip';
 import { ActivityChart } from './activity-chart';
 import { MetricsBanner } from './metrics-banner';
@@ -42,7 +40,6 @@ const moment = new Intl.DateTimeFormat('en-GB', {
     RouterLink,
     MatButtonModule,
     MatButtonToggleModule,
-    MatIconModule,
     MatProgressBarModule,
     MatTableModule,
     MatTooltipModule,
@@ -67,7 +64,6 @@ export class PipelineMonitoringPage {
   private readonly sanitizer = inject(DomSanitizer);
 
   protected readonly ranges = RANGES;
-  protected readonly buildUrl = jenkinsBuildUrl;
   protected readonly selectedRange = computed(() => {
     const range = this.range();
     return range && RANGES.includes(range) ? range : '30d';
@@ -123,7 +119,6 @@ export class PipelineMonitoringPage {
 
 export interface DoraTile {
   title: string;
-  icon: string;
   value: string;
   detail: string;
   level: DoraSummary['deploymentFrequencyLevel'];
@@ -134,33 +129,29 @@ export function doraTiles(dora: DoraSummary): DoraTile[] {
   return [
     {
       title: 'Deployment frequency',
-      icon: 'rocket_launch',
       value: frequency(dora.deploymentsPerWeek),
       detail: `${dora.deployments} ${dora.deployments === 1 ? 'deployment' : 'deployments'} in ${dora.rangeDays} days`,
       level: dora.deploymentFrequencyLevel,
     },
     {
       title: 'Lead time for changes',
-      icon: 'timer',
       value: formatDuration(dora.leadTimeMedianSeconds),
       detail: 'Median from commit to deployment',
       level: dora.leadTimeLevel,
     },
     {
       title: 'Change failure rate',
-      icon: 'report',
       value:
         dora.changeFailureRatePercent === null
           ? '–'
           : `${dora.changeFailureRatePercent.toFixed(1)}%`,
-      detail: `Of ${dora.runs} ${dora.runs === 1 ? 'run' : 'runs'} in the range`,
+      detail: `Of ${dora.deployments} ${dora.deployments === 1 ? 'deployment' : 'deployments'} in the range`,
       level: dora.changeFailureRateLevel,
     },
     {
       title: 'Time to restore',
-      icon: 'healing',
       value: formatDuration(dora.meanTimeToRestoreSeconds),
-      detail: `Mean of ${dora.restores} ${dora.restores === 1 ? 'recovery' : 'recoveries'} from a failure`,
+      detail: `Mean of ${dora.restores} ${dora.restores === 1 ? 'recovery' : 'recoveries'} from a failed deployment`,
       level: dora.timeToRestoreLevel,
       alert: dora.failingSince
         ? `Failing since ${moment.format(new Date(dora.failingSince))}`

@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { BuildTool, FlutterPlatform, GlobalSettings, REGIONS, Region } from '../core/models';
 import { errorText } from '../shared/form-errors';
 import { GoldenFixFields } from './golden-fix-fields';
@@ -32,11 +32,11 @@ const REGION_NAMES: Record<Region, string> = {
   imports: [
     ReactiveFormsModule,
     MatButtonToggleModule,
+    MatCheckboxModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
     MatSelectModule,
-    MatSlideToggleModule,
     GoldenFixFields,
     OpenShiftTargetFields,
     TestJobsFields,
@@ -112,6 +112,11 @@ export class ServiceFields {
 
   protected fallback(value: string | number | null | undefined): string {
     return value === null || value === undefined || value === '' ? '' : ` · left empty: ${value}`;
+  }
+
+  protected goldenFixDefault(): string {
+    const enabled = this.defaults()?.goldenFix.enabled;
+    return enabled === undefined ? '' : ` · Global default: ${enabled ? 'on' : 'off'}`;
   }
 
   protected inheritedGoldenFix(): string {
