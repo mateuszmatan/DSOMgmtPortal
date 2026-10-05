@@ -75,6 +75,11 @@ every feature land in `build/reports/gui/screenshots`.
   480px; the menu wraps and wide tables scroll inside their own container, so no page scrolls sideways at 800px or
   600px.
 - On/off settings are checkboxes and expandable panels say Show or Hide.
+- `src/styles.scss` holds everything more than one page draws: the page header and breadcrumb, cards, tables
+  and the 12 column form grid, the chips (`chip` with its tones for run results, checks, DORA levels and key
+  states), the run colours as `--dso-run-*` with the `swatch` class, the fact lists (`pairs` and `rows`), the
+  quiet links, the side navigation of the service editor and the settings (`side-nav`) and the expansion
+  panels. A component stylesheet keeps only what that page alone needs.
 
 ## Bitbucket repository
 
