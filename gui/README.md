@@ -19,7 +19,7 @@ Gradle downloads Node.js 24 into `gui/.gradle/nodejs`.
 | `monitoring/` | Pipeline Monitoring: overview, product pipelines, pipeline details with DORA and Grafana |
 | `evidence/`   | Change Evidence: builds, tests and scans of each pipeline for ServiceNow changes |
 | `settings/`   | Global Settings: tools, policy and defaults of every pipeline |
-| `shared/`     | form controls, dialogs, formatting, Jenkins and Bitbucket links |
+| `shared/`     | form controls, dialogs, formatting, Bitbucket links |
 | `testing/`    | fixtures for the unit tests |
 
 ## Look and layout
@@ -47,3 +47,10 @@ The API sends each key with a `hint`: its first 8 characters, `…` and its last
 key by its hint; Show and Copy use the key `value`, which the product management endpoints send for the active key
 only. The key history lists every key by its hint. The monitoring endpoints send no key values at all, so the
 monitoring pages only check whether a pipeline has an active key.
+
+## Build links
+
+Every run carries the `buildUrl` the backend builds from the job that recorded the run (its `JOB_NAME`, so a branch of
+a multibranch job links to that branch) and falls back to the pipeline's configured Jenkins job. The monitoring pages
+link each build number to that address and show the number without a link when it is `null`. The change evidence
+uses the build, report, test and artifact links the API sends.

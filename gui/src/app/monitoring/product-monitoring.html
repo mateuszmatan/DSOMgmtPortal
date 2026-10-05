@@ -84,7 +84,7 @@
                   @if (health.lastRun; as run) {
                     <div>{{ run.time | relative }}</div>
                     <div class="muted small">
-                      @if (buildUrl(health.pipeline.jenkinsJobUrl, run.build); as url) {
+                      @if (run.buildUrl; as url) {
                         <a
                           class="build-link"
                           [href]="url"

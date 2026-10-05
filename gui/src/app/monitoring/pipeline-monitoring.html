@@ -120,7 +120,7 @@
             <dd [title]="run.time | date: 'medium'">{{ run.time | relative }}</dd>
             <dt>Build</dt>
             <dd>
-              @if (buildUrl(d.pipeline.jenkinsJobUrl, run.build); as url) {
+              @if (run.buildUrl; as url) {
                 <a class="build-link" [href]="url" target="_blank" rel="noopener"
                   >#{{ run.build }}</a
                 >
@@ -211,7 +211,7 @@
             <ng-container matColumnDef="build">
               <th mat-header-cell *matHeaderCellDef>Build</th>
               <td mat-cell *matCellDef="let run">
-                @if (buildUrl(d.pipeline.jenkinsJobUrl, run.build); as url) {
+                @if (run.buildUrl; as url) {
                   <a class="build-link" [href]="url" target="_blank" rel="noopener"
                     >#{{ run.build }}</a
                   >
