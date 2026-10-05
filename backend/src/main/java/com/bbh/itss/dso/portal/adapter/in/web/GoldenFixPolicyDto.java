@@ -41,7 +41,6 @@ public record GoldenFixPolicyDto(
         String timeZone) {
 
     public GoldenFixPolicyDto {
-        enabled = !Boolean.FALSE.equals(enabled);
         ecosystems = Text.clean(ecosystems);
         goldenVersionTypes = Text.clean(goldenVersionTypes);
         excludeDirs = Text.clean(excludeDirs);

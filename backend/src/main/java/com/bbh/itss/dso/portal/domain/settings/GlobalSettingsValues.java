@@ -30,6 +30,7 @@ public record GlobalSettingsValues(
             });
         }
         limits = Collections.unmodifiableMap(ordered);
+        goldenFix = goldenFix == null ? null : goldenFix.enabledByDefault();
     }
 
     public static GlobalSettingsValues bbhDefaults() {

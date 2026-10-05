@@ -101,6 +101,40 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
         api.get("/api/dso/config/$newKey").status == 200
     }
 
+    def "every key shows its hint, only the active key its value, and the monitoring pages no value at all"() {
+        given:
+        def created = createPipeline(gui)
+        String oldKey = created.activeKey.value
+        String newKey = api.post("/api/pipelines/$created.id/keys").json.activeKey.value
+
+        when:
+        def details = api.get("/api/pipelines/$created.id").json
+        def listed = api.get("/api/products/$certScanner.id/pipelines").json[0].pipelines[0]
+        def productPage = api.get("/api/monitoring/products/$certScanner.id")
+        def pipelinePage = api.get("/api/monitoring/pipelines/$created.id")
+
+        then:
+        details.keys*.value == [newKey, null]
+        details.keys*.hint == [hint(newKey), hint(oldKey)]
+        details.activeKey.value == newKey
+        listed.activeKey.value == newKey
+        listed.activeKey.hint == hint(newKey)
+
+        and:
+        with(productPage.json.pipelines[0].pipeline) {
+            activeKey.value == null
+            activeKey.hint == hint(newKey)
+            activeKey.status == 'ACTIVE'
+            keys == []
+        }
+        with(pipelinePage.json.pipeline) {
+            activeKey.value == null
+            activeKey.hint == hint(newKey)
+            keys == []
+        }
+        [productPage, pipelinePage].every { !it.body.contains(newKey) && !it.body.contains(oldKey) }
+    }
+
     def "fetching the configuration records when the key was last used"() {
         given:
         def created = createPipeline(gui)
@@ -189,5 +223,9 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
 
         cleanup:
         pool.shutdownNow()
+    }
+
+    private static String hint(String key) {
+        "${key.take(8)}\u2026${key[-4..-1]}"
     }
 }

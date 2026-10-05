@@ -1,0 +1,354 @@
+package com.bbh.itss.dso.portal.application.monitoring
+
+import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort
+import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringStatus
+import com.bbh.itss.dso.portal.application.monitoring.port.out.DashboardLinksPort
+import com.bbh.itss.dso.portal.application.monitoring.port.out.MonitoringStatusPort
+import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort
+import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
+import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
+import com.bbh.itss.dso.portal.domain.catalog.Product
+import com.bbh.itss.dso.portal.domain.monitoring.DashboardLinks
+import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint
+import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
+import com.bbh.itss.dso.portal.domain.monitoring.MetricsUnavailableException
+import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun
+import com.bbh.itss.dso.portal.domain.monitoring.RunResult
+import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
+import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
+import com.bbh.itss.dso.portal.domain.shared.NotFoundException
+import org.spockframework.mock.EmptyOrDummyResponse
+import spock.lang.Specification
+import spock.lang.Subject
+
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
+
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.DISABLED
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.FAILURE
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.NO_DATA
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.SUCCESS
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.UNSTABLE
+import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
+import static com.bbh.itss.dso.portal.support.Fixtures.product
+import static com.bbh.itss.dso.portal.support.Fixtures.revokedKey
+import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
+
+class PipelineMonitoringServiceSpec extends Specification {
+
+    static final Instant NOW = Instant.parse('2026-10-04T12:00:00Z')
+    static final String NOT_CONFIGURED = 'InfluxDB is not configured for the portal'
+
+    ProductRepositoryPort products = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
+    PipelineRepositoryPort pipelines = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
+    PipelineRunsPort runs = Mock()
+    MonitoringStatusPort metrics = Mock()
+    DashboardLinksPort dashboards = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
+    ManageGlobalSettingsUseCase settings = Stub() {
+        current() >> storedSettings('https://jenkins.test')
+    }
+
+    @Subject
+    def monitoring = new PipelineMonitoringService(products, pipelines, settings, runs, metrics, dashboards,
+            Clock.fixed(NOW, ZoneOffset.UTC))
+
+    Product certScanner = product(id: 1L, code: 'CERT', name: 'CertScanner', ownerTeam: 'TA',
+            services: [[name: 'gui', id: 10L], [name: 'backend-api', id: 11L]])
+    Pipeline guiFull = pipeline(id: 100L, serviceId: 10L, jenkinsJob: 'DevSecOps/CERT/gui-full')
+    Pipeline guiSast = pipeline(id: 101L, serviceId: 10L, type: PipelineType.SAST, keys: [revokedKey(reason: 'retired')])
+    Pipeline apiFull = pipeline(id: 102L, serviceId: 11L)
+    Product payments = product(id: 2L, code: 'PAY', name: 'Payments Hub', services: [[name: 'gateway', id: 20L]])
+    Pipeline gatewayFull = pipeline(id: 200L, productId: 2L, serviceId: 20L)
+
+    def setup() {
+        products.load(1L) >> Optional.of(certScanner)
+    }
+
+    def "the status says InfluxDB and Grafana are not configured"() {
+        when:
+        def status = monitoring.status()
+
+        then:
+        status == new MonitoringStatus(false, false, null, false, null)
+        0 * metrics.ping()
+    }
+
+    def "the status says InfluxDB answers and where Grafana is"() {
+        given:
+        metrics.configured() >> true
+        dashboards.url() >> Optional.of('https://grafana.bbh.com')
+
+        when:
+        def status = monitoring.status()
+
+        then:
+        1 * metrics.ping()
+        status == new MonitoringStatus(true, true, null, true, 'https://grafana.bbh.com')
+    }
+
+    def "the status reports why InfluxDB cannot be read"() {
+        given:
+        metrics.configured() >> true
+        metrics.ping() >> { throw new MetricsUnavailableException('InfluxDB could not be read: Connection refused') }
+
+        when:
+        def status = monitoring.status()
+
+        then:
+        !status.metricsReachable()
+        status.metricsError() == 'InfluxDB could not be read: Connection refused'
+    }
+
+    def "the overview rates each product by its worst pipeline"() {
+        given:
+        def success = run('2026-10-03T10:00:00Z', SUCCESS)
+        def failure = run('2026-10-04T09:00:00Z', FAILURE)
+        def empty = product(id: 3L, code: 'EMPTY', name: 'Empty')
+        products.findAll() >> [certScanner, empty, payments]
+        pipelines.findAll() >> [guiFull, guiSast, apiFull, gatewayFull]
+
+        when:
+        def overview = monitoring.overview()
+
+        then:
+        1 * runs.latestRuns({ it.size() == 4 }) >> [(tag(guiFull)): success, (tag(apiFull)): failure]
+        overview.metricsError() == null
+        overview.products()*.product()*.code() == ['CERT', 'EMPTY', 'PAY']
+        with(overview.products()[0]) {
+            overall() == FAILURE
+            statusCounts() == [(SUCCESS): 1, (FAILURE): 1, (DISABLED): 1]
+            lastRunAt() == failure.time()
+            pipelineCount() == 3
+        }
+        overview.products()[0].product().is(certScanner)
+        with(overview.products()[1]) {
+            overall() == NO_DATA
+            statusCounts() == [:]
+            pipelineCount() == 0
+            lastRunAt() == null
+        }
+        overview.products()[2].overall() == NO_DATA
+    }
+
+    def "a pipeline whose product is gone is left out of the overview"() {
+        given:
+        products.findAll() >> [certScanner]
+        pipelines.findAll() >> [guiFull, gatewayFull]
+
+        when:
+        def overview = monitoring.overview()
+
+        then:
+        1 * runs.latestRuns([tag(guiFull)] as Set) >> [:]
+        overview.products()[0].pipelineCount() == 1
+    }
+
+    def "without InfluxDB the overview still lists every pipeline"() {
+        given:
+        products.findAll() >> [certScanner]
+        pipelines.findAll() >> [guiFull, guiSast, apiFull]
+        runs.latestRuns(_) >> { throw new MetricsUnavailableException(NOT_CONFIGURED) }
+
+        when:
+        def overview = monitoring.overview()
+
+        then:
+        overview.metricsError() == NOT_CONFIGURED
+        overview.products()[0].statusCounts() == [(NO_DATA): 2, (DISABLED): 1]
+    }
+
+    def "without any pipeline the overview reports only what the metrics store says"() {
+        given:
+        products.findAll() >> [certScanner]
+
+        when:
+        def overview = monitoring.overview()
+
+        then:
+        1 * runs.latestRuns([] as Set) >> { if (failure) { throw failure }; [:] }
+        overview.metricsError() == error
+
+        where:
+        failure                                             || error
+        null                                                || null
+        new MetricsUnavailableException(NOT_CONFIGURED)     || NOT_CONFIGURED
+    }
+
+    def "a product shows the status and last run of each pipeline"() {
+        given:
+        def unstable = run('2026-10-04T09:00:00Z', UNSTABLE)
+        pipelines.findByProductId(1L) >> [guiFull, guiSast]
+        runs.latestRuns(_) >> [(tag(guiFull)): unstable]
+
+        when:
+        def product = monitoring.product(1L)
+
+        then:
+        product.product().code() == 'CERT'
+        product.overall() == UNSTABLE
+        product.pipelines()*.status() == [UNSTABLE, DISABLED]
+        product.pipelines()[0].lastRun() == unstable
+        product.pipelines()[0].pipeline().pipeline().id() == 100
+        product.pipelines()[0].pipeline().jenkinsJobUrl() == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-full/'
+        product.pipelines()[1].lastRun() == null
+        product.pipelines()[1].pipeline().jenkinsJobUrl() == null
+        product.metricsError() == null
+    }
+
+    def "a product whose runs cannot be read reports why"() {
+        given:
+        pipelines.findByProductId(1L) >> [guiFull]
+        runs.latestRuns(_) >> { throw new MetricsUnavailableException('InfluxDB could not be read: timeout') }
+
+        when:
+        def product = monitoring.product(1L)
+
+        then:
+        product.pipelines()*.status() == [NO_DATA]
+        product.overall() == NO_DATA
+        product.metricsError() == 'InfluxDB could not be read: timeout'
+    }
+
+    def "an unknown product is not found"() {
+        when:
+        monitoring.product(9L)
+
+        then:
+        thrown(NotFoundException)
+    }
+
+    def "a pipeline's details show its runs, DORA metrics and Grafana panels"() {
+        given:
+        def tag = tag(guiFull)
+        def newest = run('2026-10-04T09:00:00Z', SUCCESS)
+        def links = new DashboardLinks('https://grafana/d/x', [])
+        pipelines.load(100L) >> Optional.of(guiFull)
+
+        when:
+        def details = monitoring.pipeline(100L, '30d')
+
+        then:
+        1 * runs.recentRuns(tag, 30, 25) >> [newest, run('2026-10-03T09:00:00Z', FAILURE)]
+        1 * runs.doraPoints(tag, 30) >> [new DoraPoint(newest.time(), true, false, 3600, 600)]
+        1 * dashboards.links(tag, 30) >> Optional.of(links)
+        0 * runs.latestRuns(_)
+        details.pipeline().pipeline().keys().size() == 1
+        details.pipeline().jenkinsJobUrl() == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-full/'
+        details.status() == SUCCESS
+        details.lastRun() == newest
+        details.recentRuns().size() == 2
+        details.dora().runs() == 1
+        details.dora().daily().size() == 30
+        details.dora().daily().last().date().toString() == '2026-10-04'
+        details.dashboards() == links
+        details.metricsError() == null
+    }
+
+    def "without runs in the range the last run before it is shown"() {
+        given:
+        def old = run('2026-05-01T09:00:00Z', FAILURE)
+        pipelines.load(100L) >> Optional.of(guiFull)
+        runs.recentRuns(*_) >> []
+        runs.doraPoints(*_) >> []
+
+        when:
+        def details = monitoring.pipeline(100L, '7d')
+
+        then:
+        1 * runs.latestRuns([tag(guiFull)] as Set) >> [(tag(guiFull)): old]
+        details.lastRun() == old
+        details.status() == FAILURE
+        details.dora().runs() == 0
+        details.dashboards() == null
+    }
+
+    def "when the runs cannot be read the DORA query is skipped"() {
+        given:
+        pipelines.load(100L) >> Optional.of(guiFull)
+        runs.recentRuns(*_) >> { throw new MetricsUnavailableException('InfluxDB could not be read: timeout') }
+
+        when:
+        def details = monitoring.pipeline(100L, '30d')
+
+        then:
+        0 * runs.doraPoints(*_)
+        0 * runs.latestRuns(_)
+        details.metricsError() == 'InfluxDB could not be read: timeout'
+        details.status() == NO_DATA
+        details.recentRuns() == []
+        details.dora().runs() == 0
+    }
+
+    def "when only the DORA points cannot be read the runs are still shown"() {
+        given:
+        def newest = run('2026-10-04T09:00:00Z', SUCCESS)
+        pipelines.load(100L) >> Optional.of(guiFull)
+        runs.recentRuns(*_) >> [newest]
+        runs.doraPoints(*_) >> { throw new MetricsUnavailableException('InfluxDB could not be read: dora') }
+
+        when:
+        def details = monitoring.pipeline(100L, '30d')
+
+        then:
+        details.lastRun() == newest
+        details.status() == SUCCESS
+        details.dora().runs() == 0
+        details.metricsError() == 'InfluxDB could not be read: dora'
+    }
+
+    def "without InfluxDB a pipeline still shows its Grafana panels"() {
+        given:
+        def links = new DashboardLinks('https://grafana/d/x', [])
+        pipelines.load(101L) >> Optional.of(guiSast)
+        runs.recentRuns(*_) >> { throw new MetricsUnavailableException(NOT_CONFIGURED) }
+        dashboards.links(_, 90) >> Optional.of(links)
+
+        when:
+        def details = monitoring.pipeline(101L, '90d')
+
+        then:
+        details.status() == DISABLED
+        details.metricsError() == NOT_CONFIGURED
+        details.dashboards() == links
+    }
+
+    def "an unknown pipeline is not found"() {
+        when:
+        monitoring.pipeline(999L, '30d')
+
+        then:
+        thrown(NotFoundException)
+    }
+
+    def "a pipeline whose product is gone is not found"() {
+        given:
+        pipelines.load(200L) >> Optional.of(gatewayFull)
+
+        when:
+        monitoring.pipeline(200L, '30d')
+
+        then:
+        def e = thrown(NotFoundException)
+        e.message == 'Product 2 does not exist'
+    }
+
+    def "a range that is not a number of days is refused before anything is read"() {
+        when:
+        monitoring.pipeline(100L, '30h')
+
+        then:
+        thrown(InvalidRequestException)
+        0 * pipelines._
+        0 * runs._
+    }
+
+    private static PipelineRun run(String time, RunResult result) {
+        new PipelineRun(Instant.parse(time), result, 'develop', 1, 600, null, null, null, null, null, null, null, null)
+    }
+
+    private MetricsTag tag(Pipeline pipeline) {
+        MetricsTag.of(certScanner.service(pipeline.service().serviceId()).get(), pipeline)
+    }
+}

@@ -158,6 +158,14 @@ class GlobalSettingsValuesSpec extends Specification {
                                commitAuthorEmail      : 'devsecops-goldenfix@noreply.local']
     }
 
+    def "the global GoldenFix policy runs GoldenFix by default when it does not say otherwise"() {
+        expect:
+        new GlobalSettingsValues(bbh.platform(), bbh.deployment(), bbh.limits(), bbh.scans(), bbh.releaseGate(),
+                bbh.serviceDefaults(), GoldenFixPolicy.INHERITED).goldenFix().enabled()
+        !new GlobalSettingsValues(bbh.platform(), bbh.deployment(), bbh.limits(), bbh.scans(), bbh.releaseGate(),
+                bbh.serviceDefaults(), GoldenFixPolicy.inherit(false)).goldenFix().enabled()
+    }
+
     def "each scanner's limits are written to its own section of the defaults"() {
         given:
         def values = new GlobalSettingsValues(bbh.platform(), bbh.deployment(),

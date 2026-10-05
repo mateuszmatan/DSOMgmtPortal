@@ -25,10 +25,9 @@ public record GoldenFixPolicy(
         String commitAuthorEmail,
         String timeZone) {
 
-    public static final GoldenFixPolicy INHERITED = inherit(true);
+    public static final GoldenFixPolicy INHERITED = inherit(null);
 
     public GoldenFixPolicy {
-        enabled = !Boolean.FALSE.equals(enabled);
         ecosystems = Text.clean(ecosystems);
         goldenVersionTypes = Text.clean(goldenVersionTypes);
         excludeDirs = Text.clean(excludeDirs);
@@ -42,7 +41,7 @@ public record GoldenFixPolicy(
         timeZone = Text.trimToNull(timeZone);
     }
 
-    public static GoldenFixPolicy inherit(boolean enabled) {
+    public static GoldenFixPolicy inherit(Boolean enabled) {
         return new GoldenFixPolicy(enabled, null, null, List.of(), List.of(), List.of(), null, null, null, null, null,
                 null, null, null, null, null, null);
     }
@@ -65,6 +64,16 @@ public record GoldenFixPolicy(
                 .set("goldenFix.commitAuthorName", commitAuthorName)
                 .set("goldenFix.commitAuthorEmail", commitAuthorEmail)
                 .set("goldenFix.timeZone", timeZone);
+    }
+
+    public GoldenFixPolicy enabledByDefault() {
+        if (enabled != null) {
+            return this;
+        }
+        return new GoldenFixPolicy(true, onlyDirectDependencies, minThreatLevel, ecosystems, goldenVersionTypes,
+                excludeDirs, verifyEnabled, verifyMaxAttempts, verifyTimeoutMinutes, verifyMavenCommand,
+                verifyGradleCommand, verifyNpmCommand, verifyPipCommand, verifyPubCommand, commitAuthorName,
+                commitAuthorEmail, timeZone);
     }
 
     public void validateComplete(ValidationProblems problems) {

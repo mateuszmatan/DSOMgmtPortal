@@ -48,6 +48,7 @@ class PipelineResponseSpec extends Specification {
             description() == 'Nightly scan'
             enabled()
             activeKey().value() == KEY
+            activeKey().hint() == '0f8fad5b\u2026950e'
             activeKey().status() == KeyStatus.ACTIVE
             influxProjectTag() == 'cert-guisecurity'
             influxEnv() == 'uat'
@@ -57,7 +58,7 @@ class PipelineResponseSpec extends Specification {
         }
     }
 
-    def "the full response lists every key, newest first"() {
+    def "the full response lists every key by its hint, newest first, and only the active key's value"() {
         given:
         def full = pipeline(id: 100, jenkinsJob: 'https://jenkins.bbh.com/job/CERT/job/gui/',
                 keys: [activeKey(lastUsedAt: certScanner.updatedAt()), revokedKey()])
@@ -69,6 +70,8 @@ class PipelineResponseSpec extends Specification {
         response.jenkinsJobUrl() == 'https://jenkins.bbh.com/job/CERT/job/gui/'
         response.keys()*.id() == [100L, 99L]
         response.keys()*.status() == [KeyStatus.ACTIVE, KeyStatus.REVOKED]
+        response.keys()*.value() == [KEY, null]
+        response.keys()*.hint() == ['0f8fad5b\u2026950e', '6ba7b810\u202630c8']
         response.keys()[0].lastUsedAt() == certScanner.updatedAt()
         response.keys()[1].revokeReason() == 'Replaced by a new key'
         response.keys()[1].revokedAt() != null
@@ -87,6 +90,21 @@ class PipelineResponseSpec extends Specification {
         response.jenkinsJobUrl() == null
         !response.enabled()
         response.activeKey() == null
+    }
+
+    def "a monitored pipeline shows its active key by the hint alone and no key history"() {
+        given:
+        def full = pipeline(id: 100, keys: [activeKey(), revokedKey()])
+
+        when:
+        def response = PipelineResponse.monitored(PipelineView.of(certScanner, full, null))
+
+        then:
+        response.enabled()
+        response.activeKey().value() == null
+        response.activeKey().hint() == '0f8fad5b\u2026950e'
+        response.activeKey().status() == KeyStatus.ACTIVE
+        response.keys() == []
     }
 
     def "a service is listed with its build tool, deployment target and pipeline summaries"() {

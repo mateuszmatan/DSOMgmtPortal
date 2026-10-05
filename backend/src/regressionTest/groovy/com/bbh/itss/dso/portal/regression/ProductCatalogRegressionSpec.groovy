@@ -35,7 +35,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                                   command: [tasks: ['clean', 'verify'], flags: [], directory: null, mavenHome: null,
                                             environment: []]]
             services[1].delivery.tasks == ['deploy:deploy-file']
-            services[0].goldenFix.enabled == true
+            services[0].goldenFix.enabled == null
             services[0].goldenFix.minThreatLevel == null
             services[0].nexusIq.stage == 'build'
         }

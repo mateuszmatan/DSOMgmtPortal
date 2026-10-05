@@ -80,6 +80,36 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
         api.get("/api/pipelines/$full.id").json.jenkinsJobUrl == "https://jenkins.bbh.com/job/DevSecOps/job/$code/job/gui-full/"
     }
 
+    def "a service follows the global GoldenFix default unless it sets its own"() {
+        given:
+        def code = uniqueCode('GOLDEN')
+        def created = createProduct(product(code: code, name: "Product $code",
+                services: [service(name: 'follows'), service(name: 'opted-in', goldenFix: [enabled: true])]))
+
+        when:
+        def changed = api.put('/api/settings', original + [goldenFix: original.goldenFix + [enabled: false]])
+        def projects = api.get("/api/products/$created.id/config?format=json").json.projects
+        def defaults = api.get('/api/settings/config?format=json').json.defaults
+
+        then:
+        changed.status == 200
+        created.services*.goldenFix*.enabled == [null, true]
+        defaults.goldenFix.enabled == false
+        !projects.follows.containsKey('goldenFix')
+        projects['opted-in'].goldenFix == [enabled: true]
+        jdbc.queryForList('SELECT GOLDEN_FIX_ENABLED FROM DSO_SERVICE WHERE PRODUCT_ID = ? ORDER BY DISPLAY_ORDER',
+                Integer, created.id) == [null, 1]
+    }
+
+    def "the global GoldenFix default stays on when a change does not say otherwise"() {
+        when:
+        def changed = api.put('/api/settings', original + [goldenFix: original.goldenFix + [enabled: null]])
+
+        then:
+        changed.status == 200
+        changed.json.goldenFix.enabled == true
+    }
+
     def "a change based on an outdated version is refused"() {
         given:
         api.put('/api/settings', original + [scans: original.scans + [coverageMinLine: 70]])

@@ -11,7 +11,7 @@ import java.util.List;
 @Embeddable
 public record GoldenFixPolicyEmbeddable(
         @Convert(converter = NumericBooleanConverter.class)
-        @Column(name = "GOLDEN_FIX_ENABLED", nullable = false) Boolean enabled,
+        @Column(name = "GOLDEN_FIX_ENABLED") Boolean enabled,
         @Convert(converter = NumericBooleanConverter.class)
         @Column(name = "GOLDEN_FIX_DIRECT_ONLY") Boolean onlyDirectDependencies,
         @Column(name = "GOLDEN_FIX_MIN_THREAT_LEVEL") Integer minThreatLevel,
