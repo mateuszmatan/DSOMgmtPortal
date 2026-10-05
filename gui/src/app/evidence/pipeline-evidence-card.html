@@ -51,38 +51,16 @@
             }
             <dso-status-chip [status]="b.result" />
           </dd>
-          <dt>Finished</dt>
-          <dd>
-            @if (utc(b.finishedAt); as finished) {
-              {{ finished }}
-            } @else {
-              <span class="not-recorded">Not recorded</span>
-            }
-          </dd>
-          <dt>Branch</dt>
-          <dd>
-            @if (b.branch) {
-              <span class="mono">{{ b.branch }}</span>
-            } @else {
-              <span class="not-recorded">Not recorded</span>
-            }
-          </dd>
-          <dt>Commit</dt>
-          <dd>
-            @if (b.commit) {
-              <span class="mono" [title]="b.commit">{{ b.commit.slice(0, 12) }}</span>
-            } @else {
-              <span class="not-recorded">Not recorded</span>
-            }
-          </dd>
-          <dt>Duration</dt>
-          <dd>
-            @if (b.durationSeconds !== null) {
-              {{ b.durationSeconds | duration }}
-            } @else {
-              <span class="not-recorded">Not recorded</span>
-            }
-          </dd>
+          @for (fact of buildFacts(); track fact.label) {
+            <dt>{{ fact.label }}</dt>
+            <dd>
+              @if (fact.value) {
+                <span [class.mono]="fact.mono" [title]="fact.title">{{ fact.value }}</span>
+              } @else {
+                <span class="not-recorded">Not recorded</span>
+              }
+            </dd>
+          }
         </dl>
         <div class="links">
           @for (

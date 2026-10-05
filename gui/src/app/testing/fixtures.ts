@@ -216,7 +216,6 @@ export function product(overrides: Partial<Product> = {}): Product {
     ownerTeam: 'Technology Architecture',
     contactEmail: 'arch@bbh.com',
     appScan: { keyId: 'bbh_key', secretCredentialsId: 'hcl-app-scan-account' },
-    createdAt: '2026-10-01T08:00:00Z',
     updatedAt: '2026-10-04T08:00:00Z',
     services: [service()],
     ...overrides,
@@ -252,7 +251,6 @@ export function pipeline(overrides: Partial<Pipeline> = {}): Pipeline {
     },
     influxProjectTag: 'CERT-gui',
     influxEnv: 'test',
-    createdAt: '2026-10-04T08:00:00Z',
     updatedAt: '2026-10-04T08:00:00Z',
     keys: null,
     ...overrides,
@@ -631,8 +629,6 @@ export function monitoringStatus(overrides: Partial<MonitoringStatus> = {}): Mon
     influxConfigured: true,
     influxReachable: true,
     influxError: null,
-    grafanaConfigured: true,
-    grafanaUrl: 'https://grafana.bbh.com/d/adzfc54123/pipeline',
     ...overrides,
   };
 }

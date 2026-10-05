@@ -49,6 +49,27 @@ export class PipelineEvidenceCard {
   protected readonly text = computed(() =>
     evidenceText(this.product(), this.service(), this.pipeline()),
   );
+  protected readonly buildFacts = computed(() => {
+    const build = this.pipeline().run?.build;
+    return build
+      ? [
+          { label: 'Finished', value: formatUtc(build.finishedAt), mono: false, title: '' },
+          { label: 'Branch', value: build.branch, mono: true, title: '' },
+          {
+            label: 'Commit',
+            value: build.commit?.slice(0, 12) ?? null,
+            mono: true,
+            title: build.commit ?? '',
+          },
+          {
+            label: 'Duration',
+            value: build.durationSeconds === null ? null : formatDuration(build.durationSeconds),
+            mono: false,
+            title: '',
+          },
+        ]
+      : [];
+  });
   protected readonly suites = computed(() => {
     const run = this.pipeline().run;
     return run ? suiteRows(run) : [];
@@ -59,7 +80,6 @@ export class PipelineEvidenceCard {
   });
 
   protected readonly stageLabels = STAGE_LABELS;
-  protected readonly utc = formatUtc;
   protected readonly percent = formatPercent;
   protected readonly hasFindings = hasFindings;
 
