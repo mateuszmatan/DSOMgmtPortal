@@ -1,17 +1,22 @@
 package com.bbh.itss.dso.portal.demo
 
+import com.bbh.itss.dso.portal.application.catalog.port.in.ManageProductsUseCase
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductCommand
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductSummaryView
+import com.bbh.itss.dso.portal.application.catalog.port.in.QueryProductsUseCase
+import com.bbh.itss.dso.portal.application.catalog.port.in.ServiceCommand
+import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelineKeysUseCase
+import com.bbh.itss.dso.portal.application.pipeline.port.in.ManagePipelinesUseCase
+import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineCommand
+import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.application.settings.port.in.UpdateGlobalSettingsCommand
-import com.bbh.itss.dso.portal.catalog.ProductCatalogService
-import com.bbh.itss.dso.portal.catalog.ProductRepository
-import com.bbh.itss.dso.portal.catalog.ProductRequest
-import com.bbh.itss.dso.portal.catalog.ProductResponse
-import com.bbh.itss.dso.portal.catalog.ServiceResponse
+import com.bbh.itss.dso.portal.domain.catalog.Product
+import com.bbh.itss.dso.portal.domain.catalog.Service
+import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
+import com.bbh.itss.dso.portal.domain.pipeline.ServiceRef
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
-import com.bbh.itss.dso.portal.pipeline.PipelineRequest
-import com.bbh.itss.dso.portal.pipeline.PipelineResponse
-import com.bbh.itss.dso.portal.pipeline.PipelineService
-import com.bbh.itss.dso.portal.pipeline.PipelineType
 import spock.lang.Specification
 import spock.lang.Subject
 
@@ -19,20 +24,27 @@ import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
 
 class DemoDataLoaderSpec extends Specification {
 
-    ProductRepository products = Mock()
-    ProductCatalogService catalog = Mock()
-    PipelineService pipelines = Mock()
+    QueryProductsUseCase products = Mock()
+    ManageProductsUseCase catalog = Mock()
+    ManagePipelinesUseCase pipelines = Mock()
+    ManagePipelineKeysUseCase keys = Mock()
     ManageGlobalSettingsUseCase settings = Mock()
 
+    List<ProductCommand> created = []
+    List<PipelineCommand> requested = []
+    Map<Long, Product> owners = [:]
+    long serviceIds = 0
+    long pipelineIds = 0
+
     @Subject
-    def loader = new DemoDataLoader(products, catalog, pipelines, settings)
+    def loader = new DemoDataLoader(products, catalog, pipelines, keys, settings)
 
     def "a database with products is left alone"() {
         when:
         loader.run(null)
 
         then:
-        1 * products.count() >> 1
+        1 * products.list(null) >> [new ProductSummaryView(1L, 'CERT', 'CertScanner', null, null, 1, 1, 1, null)]
         0 * settings.update(*_)
         0 * catalog.create(_)
         0 * pipelines.create(*_)
@@ -40,28 +52,10 @@ class DemoDataLoaderSpec extends Specification {
 
     def "an empty database gets two products with pipelines, one of them invalidated, and a Jenkins to link"() {
         given:
-        List<ProductRequest> created = []
-        List<PipelineRequest> requested = []
-        long serviceIds = 0
-        long pipelineIds = 0
-        products.count() >> 0
+        products.list(null) >> []
         settings.current() >> storedSettings()
-        catalog.create(_) >> { ProductRequest request ->
-            created << request
-            new ProductResponse(created.size() as Long, request.code(), request.name(), null, null, null, request.appScan(), 0,
-                    null, null, request.services().collect {
-                new ServiceResponse(++serviceIds, it.name(), null, it.build(), it.unitTests(), it.tests(), it.testJobs(),
-                        it.deployment(), it.delivery(), it.urbanCode(), it.urbanCodeApplications(), it.sshTargets(),
-                        it.openShiftTargets(), it.appScan(), it.sonar(), it.nexusIq(), it.scm(), it.goldenFix(),
-                        it.metrics(), it.flutter())
-            })
-        }
-        pipelines.create(_, _) >> { Long serviceId, PipelineRequest request ->
-            requested << request
-            new PipelineResponse(++pipelineIds, null, null, null, serviceId, null, request.type(), null,
-                    request.agentLabels(), request.extendedPipelineJob(), request.securityPipelineJob(),
-                    request.jenkinsJob(), null, null, true, null, null, null, null, null, null)
-        }
+        catalog.create(_) >> { ProductCommand command -> stored(command) }
+        pipelines.create(_, _) >> { Long serviceId, PipelineCommand command -> view(serviceId, command) }
 
         when:
         loader.run(null)
@@ -70,30 +64,28 @@ class DemoDataLoaderSpec extends Specification {
         1 * settings.update({ UpdateGlobalSettingsCommand command ->
             command.expectedVersion() == null && command.values().platform().jenkinsUrl() == 'https://jenkins.bbh.com'
         })
-        1 * pipelines.revokeKey(9L, 'Mobile app moved to the new mobile platform pipeline')
-        created*.code() == ['CERTSCANNER', 'PAYHUB']
+        1 * keys.revokeKey(9L, 'Mobile app moved to the new mobile platform pipeline')
+        created*.details()*.code() == ['CERTSCANNER', 'PAYHUB']
+        created*.version() == [null, null]
         created*.services()*.size() == [2, 4]
         created.every { product -> product.services().every { validProblems(it) == [] } }
         requested*.type() == [PipelineType.FULL, PipelineType.SAST, PipelineType.FULL, PipelineType.FULL,
                               PipelineType.SECURITY, PipelineType.EXTENDED, PipelineType.FULL, PipelineType.FULL,
                               PipelineType.SAST]
-        requested.find { it.type() == PipelineType.SECURITY }.extendedPipelineJob() == 'DevSecOps/PAYHUB/gateway-extended'
-        requested.find { it.type() == PipelineType.EXTENDED }.securityPipelineJob() == 'DevSecOps/PAYHUB/gateway-security'
-        requested[0].jenkinsJob() == 'DevSecOps/CERTSCANNER/gui-full'
+        requested.find { it.type() == PipelineType.SECURITY }.settings().extendedPipelineJob() ==
+                'DevSecOps/PAYHUB/gateway-extended'
+        requested.find { it.type() == PipelineType.EXTENDED }.settings().securityPipelineJob() ==
+                'DevSecOps/PAYHUB/gateway-security'
+        requested[0].settings().jenkinsJob() == 'DevSecOps/CERTSCANNER/gui-full'
+        requested*.settings()*.agentLabels().unique() == [['linux-agent']]
     }
 
     def "a Jenkins already set in the global settings is kept"() {
         given:
-        products.count() >> 0
+        products.list(null) >> []
         settings.current() >> storedSettings('https://jenkins.test')
-        catalog.create(_) >> { ProductRequest request ->
-            new ProductResponse(1L, request.code(), request.name(), null, null, null, request.appScan(), 0, null, null,
-                    request.services().collect { new ServiceResponse(1L, it.name(), null, it.build(), null, null, null,
-                            it.deployment(), null, null, null, null, null, it.appScan(), null, null, null, null, null,
-                            null) })
-        }
-        pipelines.create(_, _) >> new PipelineResponse(1L, null, null, null, 1L, null, PipelineType.SAST, null, [],
-                null, null, null, null, null, true, null, null, null, null, null, null)
+        catalog.create(_) >> { ProductCommand command -> stored(command) }
+        pipelines.create(_, _) >> { Long serviceId, PipelineCommand command -> view(serviceId, command) }
 
         when:
         loader.run(null)
@@ -102,7 +94,25 @@ class DemoDataLoaderSpec extends Specification {
         0 * settings.update(*_)
     }
 
-    private static List<String> validProblems(service) {
+    private Product stored(ProductCommand command) {
+        created << command
+        List<Service> services = command.services().withIndex().collect { ServiceCommand service, int order ->
+            new Service(++serviceIds, service.name(), service.description(), order, service.settings())
+        }
+        Product product = Product.restore(created.size() as Long, command.details(), command.appScan(), services, 0,
+                null, null)
+        services.each { owners[it.id()] = product }
+        product
+    }
+
+    private PipelineView view(Long serviceId, PipelineCommand command) {
+        requested << command
+        Product product = owners[serviceId]
+        PipelineView.of(product, Pipeline.restore(++pipelineIds, new ServiceRef(product.id(), serviceId), command.type(),
+                command.settings(), [], 0, null, null), null)
+    }
+
+    private static List<String> validProblems(ServiceCommand service) {
         def problems = new ValidationProblems()
         service.settings().validate(problems)
         problems.list()*.field

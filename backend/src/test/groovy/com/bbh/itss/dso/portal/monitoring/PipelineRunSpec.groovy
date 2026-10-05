@@ -5,8 +5,7 @@ import spock.lang.Specification
 import java.time.Instant
 
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
-import static com.bbh.itss.dso.portal.support.Fixtures.product
-import static com.bbh.itss.dso.portal.support.Fixtures.service
+import static com.bbh.itss.dso.portal.support.Fixtures.revokedKey
 
 class PipelineRunSpec extends Specification {
 
@@ -62,9 +61,8 @@ class PipelineRunSpec extends Specification {
 
     def "a pipeline's status is its latest run unless it is disabled"() {
         given:
-        def enabled = pipeline(service(product()))
-        def disabled = pipeline(service(product()))
-        disabled.revokeActiveKey('retired')
+        def enabled = pipeline()
+        def disabled = pipeline(keys: [revokedKey(reason: 'retired')])
         def failed = PipelineRun.fromRow([_time: '2026-10-01T10:00:00Z', result: 'FAILURE'])
 
         expect:

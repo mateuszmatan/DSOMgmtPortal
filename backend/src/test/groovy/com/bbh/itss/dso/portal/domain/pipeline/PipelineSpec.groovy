@@ -6,11 +6,11 @@ import spock.lang.Specification
 
 import java.time.Instant
 
-import static com.bbh.itss.dso.portal.support.DomainFixtures.KEY
-import static com.bbh.itss.dso.portal.support.DomainFixtures.activeKey
-import static com.bbh.itss.dso.portal.support.DomainFixtures.pipeline
-import static com.bbh.itss.dso.portal.support.DomainFixtures.pipelineSettings
-import static com.bbh.itss.dso.portal.support.DomainFixtures.revokedKey
+import static com.bbh.itss.dso.portal.support.Fixtures.KEY
+import static com.bbh.itss.dso.portal.support.Fixtures.activeKey
+import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
+import static com.bbh.itss.dso.portal.support.Fixtures.pipelineSettings
+import static com.bbh.itss.dso.portal.support.Fixtures.revokedKey
 
 class PipelineSpec extends Specification {
 

@@ -1,7 +1,7 @@
 package com.bbh.itss.dso.portal.evidence
 
 import com.bbh.itss.dso.portal.adapter.in.web.ApiExceptionHandler
-import com.bbh.itss.dso.portal.catalog.TestStage
+import com.bbh.itss.dso.portal.domain.catalog.TestStage
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import com.bbh.itss.dso.portal.evidence.EvidenceDtos.BuildEvidence
 import com.bbh.itss.dso.portal.evidence.EvidenceDtos.CoverageEvidence
@@ -14,7 +14,7 @@ import com.bbh.itss.dso.portal.evidence.EvidenceDtos.ServiceEvidence
 import com.bbh.itss.dso.portal.evidence.EvidenceDtos.StageEvidence
 import com.bbh.itss.dso.portal.evidence.EvidenceDtos.TestSuiteEvidence
 import com.bbh.itss.dso.portal.monitoring.RunResult
-import com.bbh.itss.dso.portal.pipeline.PipelineType
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import spock.lang.Specification

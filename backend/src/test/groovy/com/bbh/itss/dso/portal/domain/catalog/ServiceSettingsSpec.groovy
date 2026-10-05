@@ -4,11 +4,11 @@ import com.bbh.itss.dso.portal.domain.shared.ConfigTree
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
-import static com.bbh.itss.dso.portal.support.DomainFixtures.appScan
-import static com.bbh.itss.dso.portal.support.DomainFixtures.build
-import static com.bbh.itss.dso.portal.support.DomainFixtures.command
-import static com.bbh.itss.dso.portal.support.DomainFixtures.deployment
-import static com.bbh.itss.dso.portal.support.DomainFixtures.settings
+import static com.bbh.itss.dso.portal.support.Fixtures.appScan
+import static com.bbh.itss.dso.portal.support.Fixtures.build
+import static com.bbh.itss.dso.portal.support.Fixtures.command
+import static com.bbh.itss.dso.portal.support.Fixtures.deployment
+import static com.bbh.itss.dso.portal.support.Fixtures.settings
 
 class ServiceSettingsSpec extends Specification {
 

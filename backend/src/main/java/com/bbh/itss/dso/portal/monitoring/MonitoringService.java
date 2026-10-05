@@ -1,8 +1,12 @@
 package com.bbh.itss.dso.portal.monitoring;
 
+import com.bbh.itss.dso.portal.adapter.in.web.PipelineResponse;
+import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort;
+import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
+import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort;
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
-import com.bbh.itss.dso.portal.catalog.Product;
-import com.bbh.itss.dso.portal.catalog.ProductRepository;
+import com.bbh.itss.dso.portal.domain.catalog.Product;
+import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException;
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.MonitoringStatus;
@@ -11,9 +15,6 @@ import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.PipelineHealth;
 import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.PipelineMonitoring;
 import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.ProductHealth;
 import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.ProductMonitoring;
-import com.bbh.itss.dso.portal.pipeline.Pipeline;
-import com.bbh.itss.dso.portal.pipeline.PipelineRepository;
-import com.bbh.itss.dso.portal.pipeline.PipelineResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ import java.time.Instant;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -39,14 +41,14 @@ public class MonitoringService {
     private static final Pattern RANGE = Pattern.compile("^([1-9][0-9]{0,2})d$");
     private static final int MAX_RANGE_DAYS = 730;
 
-    private final ProductRepository products;
-    private final PipelineRepository pipelines;
+    private final ProductRepositoryPort products;
+    private final PipelineRepositoryPort pipelines;
     private final PipelineMetricsRepository metrics;
     private final GrafanaPanels grafana;
     private final ManageGlobalSettingsUseCase settings;
     private final Clock clock;
 
-    public MonitoringService(ProductRepository products, PipelineRepository pipelines,
+    public MonitoringService(ProductRepositoryPort products, PipelineRepositoryPort pipelines,
                              PipelineMetricsRepository metrics, GrafanaPanels grafana,
                              ManageGlobalSettingsUseCase settings, Clock clock) {
         this.products = products;
@@ -70,38 +72,46 @@ public class MonitoringService {
     }
 
     public Overview overview() {
-        List<Pipeline> all = pipelines.findAllWithService();
-        Reading<Map<MetricsTag, PipelineRun>> latest = latestRuns(all);
-        Map<Long, List<Pipeline>> byProduct = all.stream()
-                .collect(Collectors.groupingBy(p -> p.getService().getProduct().getId()));
-        List<ProductHealth> health = products.findAllByOrderByNameAsc().stream()
-                .map(product -> health(product, byProduct.getOrDefault(product.getId(), List.of()), latest.value()))
+        List<Product> all = products.findAll();
+        Map<Long, Product> byId = all.stream().collect(Collectors.toMap(Product::id, Function.identity()));
+        List<PipelineView> views = pipelines.findAll().stream()
+                .map(pipeline -> PipelineView.of(byId.get(pipeline.service().productId()), pipeline, null))
+                .toList();
+        Reading<Map<MetricsTag, PipelineRun>> latest = latestRuns(views);
+        Map<Long, List<PipelineView>> byProduct = views.stream()
+                .collect(Collectors.groupingBy(view -> view.product().id()));
+        List<ProductHealth> health = all.stream()
+                .map(product -> health(product, byProduct.getOrDefault(product.id(), List.of()), latest.value()))
                 .toList();
         return new Overview(health, latest.error());
     }
 
     public ProductMonitoring product(Long productId) {
-        Product product = products.findById(productId).orElseThrow(() -> NotFoundException.of("Product", productId));
-        List<Pipeline> productPipelines = pipelines.findByProductId(productId);
-        Reading<Map<MetricsTag, PipelineRun>> latest = latestRuns(productPipelines);
+        Product product = products.load(productId).orElseThrow(() -> NotFoundException.of("Product", productId));
         String jenkinsUrl = settings.current().jenkinsUrl();
+        List<PipelineView> productPipelines = pipelines.findByProductId(productId).stream()
+                .map(pipeline -> PipelineView.of(product, pipeline, jenkinsUrl))
+                .toList();
+        Reading<Map<MetricsTag, PipelineRun>> latest = latestRuns(productPipelines);
         List<PipelineHealth> health = productPipelines.stream()
-                .map(pipeline -> {
-                    PipelineRun run = latest.value().get(MetricsTag.of(pipeline));
-                    return new PipelineHealth(PipelineResponse.summary(pipeline, jenkinsUrl), RunResult.of(pipeline, run),
-                            run);
+                .map(view -> {
+                    PipelineRun run = latest.value().get(MetricsTag.of(view));
+                    return new PipelineHealth(PipelineResponse.summary(view), RunResult.of(view.pipeline(), run), run);
                 })
                 .toList();
-        return new ProductMonitoring(product.getId(), product.getCode(), product.getName(), product.getDescription(),
-                product.getOwnerTeam(), RunResult.worst(health.stream().map(PipelineHealth::status).toList()), health,
+        return new ProductMonitoring(product.id(), product.code(), product.name(), product.description(),
+                product.ownerTeam(), RunResult.worst(health.stream().map(PipelineHealth::status).toList()), health,
                 latest.error());
     }
 
     public PipelineMonitoring pipeline(Long pipelineId, String range) {
         int days = rangeDays(range);
-        Pipeline pipeline = pipelines.findWithServiceById(pipelineId)
+        Pipeline pipeline = pipelines.load(pipelineId)
                 .orElseThrow(() -> NotFoundException.of("Pipeline", pipelineId));
-        MetricsTag tag = MetricsTag.of(pipeline);
+        Product product = products.load(pipeline.service().productId())
+                .orElseThrow(() -> NotFoundException.of("Product", pipeline.service().productId()));
+        PipelineView view = PipelineView.of(product, pipeline, settings.current().jenkinsUrl());
+        MetricsTag tag = MetricsTag.of(view);
 
         Reading<List<PipelineRun>> recent = read(() -> metrics.recentRuns(tag, days, RECENT_RUNS));
         Reading<List<DoraPoint>> points = recent.error() != null ? new Reading<>(List.of(), recent.error())
@@ -109,12 +119,12 @@ public class MonitoringService {
         List<PipelineRun> runs = recent.value() == null ? List.of() : recent.value();
         PipelineRun last = runs.isEmpty() ? null : runs.getFirst();
         if (last == null && points.error() == null) {
-            last = latestRuns(List.of(pipeline)).value().get(tag);
+            last = latestRuns(List.of(view)).value().get(tag);
         }
         DoraSummary dora = DoraCalculator.summarize(points.value() == null ? List.of() : points.value(), days,
                 Instant.now(clock));
-        return new PipelineMonitoring(PipelineResponse.withKeys(pipeline, settings.current().jenkinsUrl()),
-                RunResult.of(pipeline, last), last, dora, runs, grafana.links(tag, days), points.error());
+        return new PipelineMonitoring(PipelineResponse.withKeys(view), RunResult.of(pipeline, last), last, dora, runs,
+                grafana.links(tag, days), points.error());
     }
 
     static int rangeDays(String range) {
@@ -129,23 +139,23 @@ public class MonitoringService {
         return days;
     }
 
-    private static ProductHealth health(Product product, List<Pipeline> productPipelines,
+    private static ProductHealth health(Product product, List<PipelineView> productPipelines,
                                         Map<MetricsTag, PipelineRun> latest) {
         Map<RunResult, Integer> counts = new EnumMap<>(RunResult.class);
         Instant lastRunAt = null;
-        for (Pipeline pipeline : productPipelines) {
-            PipelineRun run = latest.get(MetricsTag.of(pipeline));
-            counts.merge(RunResult.of(pipeline, run), 1, Integer::sum);
+        for (PipelineView view : productPipelines) {
+            PipelineRun run = latest.get(MetricsTag.of(view));
+            counts.merge(RunResult.of(view.pipeline(), run), 1, Integer::sum);
             if (run != null && (lastRunAt == null || run.time().isAfter(lastRunAt))) {
                 lastRunAt = run.time();
             }
         }
-        return new ProductHealth(product.getId(), product.getCode(), product.getName(), product.getOwnerTeam(),
-                product.getServices().size(), productPipelines.size(), RunResult.worst(counts.keySet()), counts,
+        return new ProductHealth(product.id(), product.code(), product.name(), product.ownerTeam(),
+                product.services().size(), productPipelines.size(), RunResult.worst(counts.keySet()), counts,
                 lastRunAt);
     }
 
-    private Reading<Map<MetricsTag, PipelineRun>> latestRuns(List<Pipeline> forPipelines) {
+    private Reading<Map<MetricsTag, PipelineRun>> latestRuns(List<PipelineView> forPipelines) {
         if (forPipelines.isEmpty()) {
             return new Reading<>(Map.of(), metrics.configured() ? null : NOT_CONFIGURED);
         }

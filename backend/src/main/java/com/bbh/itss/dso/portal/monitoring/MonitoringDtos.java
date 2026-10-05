@@ -1,6 +1,6 @@
 package com.bbh.itss.dso.portal.monitoring;
 
-import com.bbh.itss.dso.portal.pipeline.PipelineResponse;
+import com.bbh.itss.dso.portal.adapter.in.web.PipelineResponse;
 
 import java.time.Instant;
 import java.util.List;

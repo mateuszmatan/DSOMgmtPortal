@@ -1,16 +1,18 @@
 package com.bbh.itss.dso.portal.dsoconfig
 
 import com.bbh.itss.dso.portal.application.settings.port.out.GlobalSettingsRepositoryPort
-import com.bbh.itss.dso.portal.catalog.NexusIqSettings
-import com.bbh.itss.dso.portal.catalog.SonarSettings
-import com.bbh.itss.dso.portal.catalog.SshTarget
-import com.bbh.itss.dso.portal.catalog.UrbanCodeApplicationSettings
-import com.bbh.itss.dso.portal.catalog.UrbanCodeComponent
 import com.bbh.itss.dso.portal.domain.catalog.BuildTool
 import com.bbh.itss.dso.portal.domain.catalog.DeployTarget
+import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings
+import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.Region
+import com.bbh.itss.dso.portal.domain.catalog.Service
+import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
+import com.bbh.itss.dso.portal.domain.catalog.SshTarget
+import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings
+import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeComponent
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import com.bbh.itss.dso.portal.domain.settings.MissingGlobalSettingsException
-import com.bbh.itss.dso.portal.pipeline.PipelineType
 import org.yaml.snakeyaml.Yaml
 import spock.lang.Specification
 import spock.lang.Subject
@@ -20,7 +22,6 @@ import static com.bbh.itss.dso.portal.support.Fixtures.command
 import static com.bbh.itss.dso.portal.support.Fixtures.deployment
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
-import static com.bbh.itss.dso.portal.support.Fixtures.service
 import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
 
 class DsoConfigBuilderSpec extends Specification {
@@ -32,12 +33,15 @@ class DsoConfigBuilderSpec extends Specification {
     @Subject
     def builder = new DsoConfigBuilder(settings)
 
-    def certScanner = product()
-    def gui = service(certScanner, name: 'gui',
-            sonar: SonarSettings.of('CertScanner GUI', 'cert-gui', command(['sonarqube'])),
-            nexusIq: NexusIqSettings.of('cert-gui', ['**/build/libs/*.jar']))
-    def api = service(certScanner, name: 'backend-api', build: build(tool: BuildTool.MAVEN),
-            deployment: deployment(target: DeployTarget.OPENSHIFT, appName: 'cert-api', artifactName: 'cert-api.jar'))
+    static final Map GUI = [id: 10L, name: 'gui',
+                            sonar: SonarSettings.of('CertScanner GUI', 'cert-gui', command(['sonarqube'])),
+                            nexusIq: NexusIqSettings.of('cert-gui', ['**/build/libs/*.jar'])]
+    static final Map API = [id: 11L, name: 'backend-api', build: build(tool: BuildTool.MAVEN),
+                            deployment: deployment(target: DeployTarget.OPENSHIFT, appName: 'cert-api',
+                                    artifactName: 'cert-api.jar')]
+
+    Product certScanner = product(services: [GUI, API])
+    Service gui = certScanner.services()[0]
 
     def "a product's config lists every service under projects in the template's key order"() {
         when:
@@ -68,10 +72,10 @@ class DsoConfigBuilderSpec extends Specification {
 
     def "the global deployment defaults fill in what a VM deployment leaves out"() {
         given:
-        def batch = service(certScanner, name: 'batch',
+        certScanner = product(services: [GUI, API, [id: 12L, name: 'batch',
                 sshTargets: [(Region.RD): new SshTarget(null, 'batchadm', '/opt/batch', null, null)],
                 urbanCodeApplications: [new UrbanCodeApplicationSettings('Batch', 1, ['RD'], null,
-                        [new UrbanCodeComponent('batch-app', 'build/libs', '*.jar', null, null, null, false)])])
+                        [new UrbanCodeComponent('batch-app', 'build/libs', '*.jar', null, null, null, false)])]]])
 
         when:
         Map deploy = builder.productConfig(certScanner).projects.batch.deploy
@@ -87,7 +91,7 @@ class DsoConfigBuilderSpec extends Specification {
 
     def "a pipeline receives its Jenkinsfile settings, the platform, the defaults and only its own service"() {
         when:
-        def config = builder.pipelineConfig(pipeline(gui, agentLabels: ['linux-agent', 'docker']))
+        def config = pipelineConfig(agentLabels: ['linux-agent', 'docker'])
 
         then:
         config.keySet() as List == ['pipeline', 'platform', 'defaults', 'projects']
@@ -106,7 +110,7 @@ class DsoConfigBuilderSpec extends Specification {
 
     def "the security pipeline names the extended pipeline job it starts"() {
         when:
-        def config = builder.pipelineConfig(pipeline(gui, type: PipelineType.SECURITY, extendedPipelineJob: 'CERT/gui-extended'))
+        def config = pipelineConfig(type: PipelineType.SECURITY, extendedPipelineJob: 'CERT/gui-extended')
 
         then:
         config.pipeline.type == 'security'
@@ -116,7 +120,7 @@ class DsoConfigBuilderSpec extends Specification {
 
     def "the extended pipeline names the security pipeline job whose results it reads"() {
         when:
-        def config = builder.pipelineConfig(pipeline(gui, type: PipelineType.EXTENDED, securityPipelineJob: 'CERT/gui-security'))
+        def config = pipelineConfig(type: PipelineType.EXTENDED, securityPipelineJob: 'CERT/gui-security')
 
         then:
         config.pipeline.securityPipeline == 'CERT/gui-security'
@@ -125,7 +129,7 @@ class DsoConfigBuilderSpec extends Specification {
 
     def "a security pipeline without an extended job writes no jenkins section"() {
         expect:
-        !builder.pipelineConfig(pipeline(gui, type: PipelineType.SECURITY)).projects.gui.containsKey('jenkins')
+        !pipelineConfig(type: PipelineType.SECURITY).projects.gui.containsKey('jenkins')
     }
 
     def "the global configuration holds the platform and the library defaults"() {
@@ -153,7 +157,7 @@ class DsoConfigBuilderSpec extends Specification {
 
     def "the YAML uses block style and reads back to the same config"() {
         given:
-        def config = builder.pipelineConfig(pipeline(gui))
+        def config = pipelineConfig()
 
         when:
         def yaml = builder.toYaml(config)
@@ -163,5 +167,9 @@ class DsoConfigBuilderSpec extends Specification {
         yaml.contains('  agentNames:\n  - linux-agent\n')
         !yaml.contains('{')
         new Yaml().load(yaml) == config
+    }
+
+    private Map<String, Object> pipelineConfig(Map args = [:]) {
+        builder.pipelineConfig(certScanner, gui, pipeline(args + [serviceId: gui.id()]))
     }
 }

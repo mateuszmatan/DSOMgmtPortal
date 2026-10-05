@@ -1,12 +1,15 @@
 package com.bbh.itss.dso.portal.monitoring
 
+import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort
+import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView
+import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
-import com.bbh.itss.dso.portal.catalog.ProductRepository
+import com.bbh.itss.dso.portal.domain.catalog.Product
+import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import com.bbh.itss.dso.portal.monitoring.MonitoringDtos.GrafanaLinks
-import com.bbh.itss.dso.portal.pipeline.PipelineRepository
-import com.bbh.itss.dso.portal.pipeline.PipelineType
 import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
 import spock.lang.Subject
@@ -22,15 +25,15 @@ import static com.bbh.itss.dso.portal.monitoring.RunResult.SUCCESS
 import static com.bbh.itss.dso.portal.monitoring.RunResult.UNSTABLE
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
-import static com.bbh.itss.dso.portal.support.Fixtures.service
+import static com.bbh.itss.dso.portal.support.Fixtures.revokedKey
 import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
 
 class MonitoringServiceSpec extends Specification {
 
     static final Instant NOW = Instant.parse('2026-10-04T12:00:00Z')
 
-    ProductRepository products = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
-    PipelineRepository pipelines = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
+    ProductRepositoryPort products = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
+    PipelineRepositoryPort pipelines = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
     PipelineMetricsRepository metrics = Mock()
     GrafanaPanels grafana = Mock()
     ManageGlobalSettingsUseCase settings = Stub() {
@@ -41,17 +44,16 @@ class MonitoringServiceSpec extends Specification {
     def monitoring = new MonitoringService(products, pipelines, metrics, grafana, settings,
             Clock.fixed(NOW, ZoneOffset.UTC))
 
-    def certScanner = product(id: 1, code: 'CERT', name: 'CertScanner', ownerTeam: 'TA')
-    def gui = service(certScanner, name: 'gui', id: 10)
-    def api = service(certScanner, name: 'backend-api', id: 11)
-    def guiFull = pipeline(gui, id: 100, jenkinsJob: 'DevSecOps/CERT/gui-full')
-    def guiSast = pipeline(gui, id: 101, type: PipelineType.SAST)
-    def apiFull = pipeline(api, id: 102)
-    def payments = product(id: 2, code: 'PAY', name: 'Payments Hub')
-    def gatewayFull = pipeline(service(payments, name: 'gateway', id: 20), id: 200)
+    Product certScanner = product(id: 1L, code: 'CERT', name: 'CertScanner', ownerTeam: 'TA',
+            services: [[name: 'gui', id: 10L], [name: 'backend-api', id: 11L]])
+    Pipeline guiFull = pipeline(id: 100L, serviceId: 10L, jenkinsJob: 'DevSecOps/CERT/gui-full')
+    Pipeline guiSast = pipeline(id: 101L, serviceId: 10L, type: PipelineType.SAST, keys: [revokedKey(reason: 'retired')])
+    Pipeline apiFull = pipeline(id: 102L, serviceId: 11L)
+    Product payments = product(id: 2L, code: 'PAY', name: 'Payments Hub', services: [[name: 'gateway', id: 20L]])
+    Pipeline gatewayFull = pipeline(id: 200L, productId: 2L, serviceId: 20L)
 
     def setup() {
-        guiSast.revokeActiveKey('retired')
+        products.load(1L) >> Optional.of(certScanner)
     }
 
     def "the status says InfluxDB and Grafana are not configured"() {
@@ -94,16 +96,16 @@ class MonitoringServiceSpec extends Specification {
         given:
         def success = run('2026-10-03T10:00:00Z', SUCCESS)
         def failure = run('2026-10-04T09:00:00Z', FAILURE)
-        def empty = product(id: 3, code: 'EMPTY', name: 'Empty')
-        products.findAllByOrderByNameAsc() >> [certScanner, empty, payments]
-        pipelines.findAllWithService() >> [guiFull, guiSast, apiFull, gatewayFull]
+        def empty = product(id: 3L, code: 'EMPTY', name: 'Empty')
+        products.findAll() >> [certScanner, empty, payments]
+        pipelines.findAll() >> [guiFull, guiSast, apiFull, gatewayFull]
         metrics.configured() >> true
 
         when:
         def overview = monitoring.overview()
 
         then:
-        1 * metrics.latestRuns({ it.size() == 4 }) >> [(MetricsTag.of(guiFull)): success, (MetricsTag.of(apiFull)): failure]
+        1 * metrics.latestRuns({ it.size() == 4 }) >> [(tag(guiFull)): success, (tag(apiFull)): failure]
         overview.metricsError() == null
         overview.products()*.code == ['CERT', 'EMPTY', 'PAY']
         with(overview.products()[0]) {
@@ -125,8 +127,8 @@ class MonitoringServiceSpec extends Specification {
 
     def "without InfluxDB the overview still lists every pipeline"() {
         given:
-        products.findAllByOrderByNameAsc() >> [certScanner]
-        pipelines.findAllWithService() >> [guiFull, guiSast, apiFull]
+        products.findAll() >> [certScanner]
+        pipelines.findAll() >> [guiFull, guiSast, apiFull]
 
         when:
         def overview = monitoring.overview()
@@ -139,7 +141,7 @@ class MonitoringServiceSpec extends Specification {
 
     def "without any pipeline the overview reports only a missing configuration"() {
         given:
-        products.findAllByOrderByNameAsc() >> [certScanner]
+        products.findAll() >> [certScanner]
         metrics.configured() >> configured
 
         expect:
@@ -153,8 +155,8 @@ class MonitoringServiceSpec extends Specification {
 
     def "a failing InfluxDB is reported in short"() {
         given:
-        products.findAllByOrderByNameAsc() >> [certScanner]
-        pipelines.findAllWithService() >> [guiFull]
+        products.findAll() >> [certScanner]
+        pipelines.findAll() >> [guiFull]
         metrics.configured() >> true
         metrics.latestRuns(_) >> { throw failure }
 
@@ -170,10 +172,9 @@ class MonitoringServiceSpec extends Specification {
     def "a product shows the status and last run of each pipeline"() {
         given:
         def unstable = run('2026-10-04T09:00:00Z', UNSTABLE)
-        products.findById(1L) >> Optional.of(certScanner)
         pipelines.findByProductId(1L) >> [guiFull, guiSast]
         metrics.configured() >> true
-        metrics.latestRuns(_) >> [(MetricsTag.of(guiFull)): unstable]
+        metrics.latestRuns(_) >> [(tag(guiFull)): unstable]
 
         when:
         def product = monitoring.product(1L)
@@ -200,10 +201,10 @@ class MonitoringServiceSpec extends Specification {
 
     def "a pipeline's details show its runs, DORA metrics and Grafana panels"() {
         given:
-        def tag = MetricsTag.of(guiFull)
+        def tag = tag(guiFull)
         def newest = run('2026-10-04T09:00:00Z', SUCCESS)
         def links = new GrafanaLinks('https://grafana/d/x', [])
-        pipelines.findWithServiceById(100L) >> Optional.of(guiFull)
+        pipelines.load(100L) >> Optional.of(guiFull)
         metrics.configured() >> true
 
         when:
@@ -229,7 +230,7 @@ class MonitoringServiceSpec extends Specification {
     def "without runs in the range the last run before it is shown"() {
         given:
         def old = run('2026-05-01T09:00:00Z', FAILURE)
-        pipelines.findWithServiceById(100L) >> Optional.of(guiFull)
+        pipelines.load(100L) >> Optional.of(guiFull)
         metrics.configured() >> true
         metrics.recentRuns(*_) >> []
         metrics.doraPoints(*_) >> []
@@ -238,7 +239,7 @@ class MonitoringServiceSpec extends Specification {
         def details = monitoring.pipeline(100L, '7d')
 
         then:
-        1 * metrics.latestRuns([MetricsTag.of(guiFull)] as Set) >> [(MetricsTag.of(guiFull)): old]
+        1 * metrics.latestRuns([tag(guiFull)] as Set) >> [(tag(guiFull)): old]
         details.lastRun() == old
         details.status() == FAILURE
         details.dora().runs() == 0
@@ -246,7 +247,7 @@ class MonitoringServiceSpec extends Specification {
 
     def "when the runs cannot be read the DORA query is skipped"() {
         given:
-        pipelines.findWithServiceById(100L) >> Optional.of(guiFull)
+        pipelines.load(100L) >> Optional.of(guiFull)
         metrics.configured() >> true
         metrics.recentRuns(*_) >> { throw new IllegalStateException('timeout') }
 
@@ -265,7 +266,7 @@ class MonitoringServiceSpec extends Specification {
     def "without InfluxDB a pipeline still shows its Grafana panels"() {
         given:
         def links = new GrafanaLinks('https://grafana/d/x', [])
-        pipelines.findWithServiceById(101L) >> Optional.of(guiSast)
+        pipelines.load(101L) >> Optional.of(guiSast)
         grafana.links(_, 90) >> links
 
         when:
@@ -310,5 +311,9 @@ class MonitoringServiceSpec extends Specification {
 
     private static PipelineRun run(String time, RunResult result) {
         new PipelineRun(Instant.parse(time), result, 'develop', 1, 600, null, null, null, null, null, null, null, null)
+    }
+
+    private MetricsTag tag(Pipeline pipeline) {
+        MetricsTag.of(PipelineView.of(certScanner, pipeline, null))
     }
 }

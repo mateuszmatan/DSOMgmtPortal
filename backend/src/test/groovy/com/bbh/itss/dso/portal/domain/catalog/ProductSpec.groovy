@@ -7,14 +7,14 @@ import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import spock.lang.Specification
 
-import static com.bbh.itss.dso.portal.support.DomainFixtures.account
-import static com.bbh.itss.dso.portal.support.DomainFixtures.build
-import static com.bbh.itss.dso.portal.support.DomainFixtures.details
-import static com.bbh.itss.dso.portal.support.DomainFixtures.directory
-import static com.bbh.itss.dso.portal.support.DomainFixtures.draft
-import static com.bbh.itss.dso.portal.support.DomainFixtures.product
-import static com.bbh.itss.dso.portal.support.DomainFixtures.service
-import static com.bbh.itss.dso.portal.support.DomainFixtures.settings
+import static com.bbh.itss.dso.portal.support.Fixtures.account
+import static com.bbh.itss.dso.portal.support.Fixtures.build
+import static com.bbh.itss.dso.portal.support.Fixtures.details
+import static com.bbh.itss.dso.portal.support.Fixtures.directory
+import static com.bbh.itss.dso.portal.support.Fixtures.draft
+import static com.bbh.itss.dso.portal.support.Fixtures.product
+import static com.bbh.itss.dso.portal.support.Fixtures.service
+import static com.bbh.itss.dso.portal.support.Fixtures.settings
 
 class ProductSpec extends Specification {
 
