@@ -13,34 +13,29 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSelectModule } from '@angular/material/select';
 import { finalize } from 'rxjs';
 import { SettingsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
-import {
-  BuildTool,
-  DeployTarget,
-  FieldProblem,
-  GlobalSettings,
-  Scanner,
-  SCANNERS,
-} from '../core/models';
+import { FieldProblem, GlobalSettings, Scanner, SCANNERS } from '../core/models';
 import { Notifier } from '../core/notifier';
 import { SETTINGS } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { GoldenFixFields } from '../products/golden-fix-fields';
 import { CodeDialog, CodeDialogData } from '../shared/code-dialog';
+import { Fields, chips } from '../shared/fields';
 import { applyFieldProblems, revalidateAll } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { RelativeTimePipe } from '../shared/formatting';
 import {
-  SETTINGS_SECTIONS,
+  GOLDEN_FIX_ENABLED,
+  LIMIT_FIELDS,
+  RELEASE_GATE_FIELDS,
+  SETTINGS_PAGE,
+} from './settings-fields';
+import {
   SettingsSectionId,
   createSettingsForm,
   firstInvalidSection,
@@ -69,12 +64,9 @@ export const SCANNER_INFO: Record<
     ReactiveFormsModule,
     MatButtonModule,
     MatButtonToggleModule,
-    MatCheckboxModule,
-    MatFormFieldModule,
-    MatInputModule,
     MatProgressBarModule,
     MatProgressSpinnerModule,
-    MatSelectModule,
+    Fields,
     GoldenFixFields,
     RelativeTimePipe,
   ],
@@ -89,7 +81,7 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly section = SETTINGS;
+  protected readonly page = SETTINGS;
   protected readonly form = createSettingsForm();
   protected readonly settings = signal<GlobalSettings | null>(null);
   protected readonly loading = signal(false);
@@ -105,15 +97,10 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
   protected readonly errorText = errorText;
   protected readonly scanners = SCANNERS;
   protected readonly scannerInfo = SCANNER_INFO;
-  protected readonly buildTools: { value: BuildTool; label: string }[] = [
-    { value: 'GRADLE', label: 'Gradle' },
-    { value: 'MAVEN', label: 'Maven' },
-    { value: 'FLUTTER', label: 'Flutter' },
-  ];
-  protected readonly deployTargets: { value: DeployTarget; label: string }[] = [
-    { value: 'VM', label: 'Virtual machine' },
-    { value: 'OPENSHIFT', label: 'OpenShift' },
-  ];
+  protected readonly limitFields = LIMIT_FIELDS;
+  protected readonly releaseGateFields = RELEASE_GATE_FIELDS;
+  protected readonly goldenFixEnabled = GOLDEN_FIX_ENABLED;
+  protected readonly note = chips;
 
   ngOnInit(): void {
     this.load();
@@ -125,10 +112,19 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
 
   protected sections() {
     this.formEvent();
-    return SETTINGS_SECTIONS.map((section) => {
+    return SETTINGS_PAGE.map((section) => {
       const group = this.form.controls[section.id];
       return { ...section, problem: group.invalid && (this.submitted() || group.touched) };
     });
+  }
+
+  protected groupOf(id: SettingsSectionId) {
+    return this.form.controls[id];
+  }
+
+  protected gateHint(): string {
+    const keys = SCANNERS.map((scanner) => `\`${SCANNER_INFO[scanner].gateKey}\``).join(', ');
+    return chips(`\`releaseGate.scanners\` · written as ${keys}`);
   }
 
   protected scrollTo(id: SettingsSectionId): void {
