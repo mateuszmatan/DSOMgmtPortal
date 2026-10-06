@@ -161,14 +161,14 @@ class RunEvidenceSpec extends Specification {
         failedCount << [null, '', 'none']
     }
 
-    def "test jobs of other modules or without a suite are not read, but the only row of a suite is, in stage order"() {
+    def "test jobs of other modules or without a suite are not read, but the only row of a suite without a module is"() {
         given:
         def points = new RunEvidence([
                 point('test_execution', module: 'backend-api', suite: 'Smoke tests', total: '3', failed: '0'),
                 point('test_execution', module: 'batch', suite: 'Smoke tests', total: '4', failed: '0'),
                 point('test_execution', module: 'gui', total: '9', failed: '0'),
-                point('test_execution', module: 'cert-gui', suite: 'Regression tests', total: '7', passed: '7',
-                        failed: '0')])
+                point('test_execution', suite: 'Regression tests', total: '7', passed: '7', failed: '0'),
+                point('test_execution', module: 'backend-api', suite: 'unit', total: '80', passed: '80')])
 
         def none = TestSuite.values().collect { new TestSuiteEvidence(it, NO_DATA, null, null, null, null, null, null) }
 
@@ -230,6 +230,20 @@ class RunEvidenceSpec extends Specification {
                                                'https://tools.bbh.com/IQ/report/gui/abc']
     }
 
+    def "the build evidence of another service of a shared tag is not read as the service's"() {
+        given:
+        def other = new RunEvidence([point('build_evidence', module: 'backend-api', artifact_version: '2.0.1',
+                sonar_quality_gate: 'ERROR', config_sha256: '0123456789abcdef'),
+                point('test_execution', module: 'backend-api', suite: 'unit', total: '80', passed: '80')])
+        def run = new PipelineRun(Instant.parse('2026-10-04T10:00:00Z'), RunResult.SUCCESS, 'develop', 42, 600,
+                'a1b2c3d4e5f6', 'DevSecOps/CertScanner-pipeline', null, null, null, null, null, null)
+
+        expect:
+        other.build(run, 'gui', links).with { [artifactVersion(), configSha256()] } == [null, null]
+        other.scans('gui', links)[2].with { [status(), qualityGate()] } == [NO_DATA, null]
+        other.testSuites('gui')[0].total() == null
+    }
+
     def "the Sonar quality gate #gate with policy status #policy reads as #status"() {
         given:
         List<EvidencePoint> rows = [point('build_evidence', [module: 'gui'] + (gate == null ? [:] : [sonar_quality_gate: gate]))]
@@ -250,7 +264,7 @@ class RunEvidenceSpec extends Specification {
         'ERROR' | 'PASS' || PASS    | 'ERROR'
     }
 
-    def "findings of the module are chosen among several, and a single row of another name is taken"() {
+    def "findings of the module are chosen among several, and a single row is taken only without a module"() {
         given:
         def several = new RunEvidence([
                 point('security_findings', module: 'backend-api', scanner: 'sast', status: 'FAIL', critical: '4'),
@@ -258,12 +272,14 @@ class RunEvidenceSpec extends Specification {
                 point('security_findings', module: 'batch', scanner: 'dast', status: 'FAIL', critical: '1'),
                 point('security_findings', module: 'reports', scanner: 'dast', status: 'FAIL', critical: '2')])
         def single = new RunEvidence([
-                point('security_findings', module: 'cert-gui', scanner: 'sast', status: 'warn', critical: '1')])
+                point('security_findings', scanner: 'sast', status: 'warn', critical: '1'),
+                point('security_findings', module: 'backend-api', scanner: 'dast', status: 'FAIL', critical: '3')])
 
         expect:
         several.scans('gui', links)[0].with { [status(), critical()] } == [PASS, 0L]
         several.scans('gui', links)[1].with { [status(), critical()] } == [NO_DATA, null]
         single.scans('gui', links)[0].with { [status(), critical()] } == [WARN, 1L]
+        single.scans('gui', links)[1].with { [status(), critical()] } == [NO_DATA, null]
     }
 
     def "the release gate tag allowed #allowed with violations #violations and reason #reason reads as #evidence"() {

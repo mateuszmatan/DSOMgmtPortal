@@ -172,7 +172,8 @@ public final class RunEvidence {
     private Optional<EvidencePoint> forModule(String measurement, String module, Predicate<EvidencePoint> filter) {
         List<EvidencePoint> candidates = points(measurement).stream().filter(filter).toList();
         return candidates.stream().filter(point -> Objects.equals(module, point.value("module"))).findFirst()
-                .or(() -> candidates.size() == 1 ? Optional.of(candidates.getFirst()) : Optional.empty());
+                .or(() -> candidates.size() == 1 && Text.isBlank(candidates.getFirst().value("module"))
+                        ? Optional.of(candidates.getFirst()) : Optional.empty());
     }
 
     private List<EvidencePoint> points(String measurement) {

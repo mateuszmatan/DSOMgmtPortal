@@ -5,8 +5,9 @@ import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 
 import java.util.Map;
+import java.util.Set;
 
 public interface RunEvidencePort {
 
-    Map<MetricsTag, RunEvidence> evidenceOf(Map<MetricsTag, PipelineRun> runs);
+    Map<PipelineRun, RunEvidence> evidenceOf(Map<MetricsTag, Set<PipelineRun>> runs);
 }

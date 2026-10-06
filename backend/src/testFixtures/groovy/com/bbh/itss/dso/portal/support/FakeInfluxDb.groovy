@@ -146,8 +146,9 @@ class FakeInfluxDb implements AutoCloseable {
     private String latestRuns(String flux) {
         Set<String> projects = (flux =~ /set: \[(.*?)]/)[0][1].findAll(/"([^"]*)"/) { all, value -> value } as Set
         Instant since = Instant.now() - Duration.ofDays(days(flux))
+        boolean perJob = flux.contains('group(columns: ["project", "env", "job"])')
         def newest = runs.findAll { it.project in projects && it.time.isAfter(since) }
-                .groupBy { [it.project, it.env] }
+                .groupBy { perJob ? [it.project, it.env, jobOf(it)] : [it.project, it.env] }
                 .values()
                 .collect { it.max { run -> run.time } }
         csv(RUN_COLUMNS, newest.withIndex().collect { run, table -> [table, runValues(run)] })
@@ -189,8 +190,16 @@ class FakeInfluxDb implements AutoCloseable {
 
     private List<Run> selectedRuns(String flux) {
         def filter = (flux =~ /r\.project == "([^"]*)" and r\.env == "([^"]*)"/)[0]
+        def job = (flux =~ /r\.job == "([^"]*)"/).with { it.find() ? it.group(1) : null }
         Instant since = Instant.now() - Duration.ofDays(days(flux))
-        runs.findAll { it.project == filter[1] && it.env == filter[2] && it.time.isAfter(since) }
+        runs.findAll {
+            it.project == filter[1] && it.env == filter[2] && it.time.isAfter(since) &&
+                    (job == null || jobOf(it) == job || jobOf(it).startsWith(job + '/'))
+        }
+    }
+
+    private static String jobOf(Run run) {
+        run.job ?: "${run.project}/${run.variant}".toString()
     }
 
     private static long days(String flux) {
@@ -199,7 +208,7 @@ class FakeInfluxDb implements AutoCloseable {
 
     private static List<String> runValues(Run run) {
         [run.time.toString(), run.project, run.env, run.variant, run.result, run.branch, run.build as String,
-         run.durationSeconds as String, 'a1b2c3d4e5f6', run.job ?: "${run.project}/${run.variant}".toString(), '12',
+         run.durationSeconds as String, 'a1b2c3d4e5f6', jobOf(run), '12',
          run.result == 'SUCCESS' ? '12' : '11', run.result == 'UNSTABLE' ? '1' : '0', run.result == 'FAILURE' ? '1' : '0',
          '0', '0']
     }

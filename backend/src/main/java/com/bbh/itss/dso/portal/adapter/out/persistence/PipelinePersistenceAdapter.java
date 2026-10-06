@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.adapter.out.persistence;
 
 import com.bbh.itss.dso.portal.application.catalog.port.out.PipelineCountsPort;
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort;
+import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
@@ -13,6 +14,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 class PipelinePersistenceAdapter implements PipelineRepositoryPort, PipelineCountsPort {
@@ -50,6 +53,18 @@ class PipelinePersistenceAdapter implements PipelineRepositoryPort, PipelineCoun
     @Override
     public List<Pipeline> findAll() {
         return pipelines.findAllWithService().stream().map(PipelineEntity::toDomain).toList();
+    }
+
+    @Override
+    public Set<MetricsTag> sharedMetricsTags() {
+        return pipelines.metricsTags().stream()
+                .collect(Collectors.groupingBy(
+                        row -> MetricsTag.of((String) row[0], (String) row[1], (PipelineType) row[2]),
+                        Collectors.mapping(row -> row[3], Collectors.toSet())))
+                .entrySet().stream()
+                .filter(services -> services.getValue().size() > 1)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
     }
 
     @Override

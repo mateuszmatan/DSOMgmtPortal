@@ -16,6 +16,7 @@ import com.bbh.itss.dso.portal.domain.catalog.Service;
 import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings;
 import com.bbh.itss.dso.portal.domain.evidence.EvidenceLinks;
 import com.bbh.itss.dso.portal.domain.evidence.RunEvidence;
+import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns;
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsReading;
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
@@ -24,6 +25,8 @@ import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.settings.PlatformSettings;
 import com.bbh.itss.dso.portal.domain.shared.Text;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,21 +55,28 @@ public class ChangeEvidenceService implements QueryEvidenceUseCase {
         Map<Long, List<Pipeline>> byService = monitored.pipelines().stream()
                 .collect(Collectors.groupingBy(view -> view.service().id(),
                         Collectors.mapping(PipelineView::pipeline, Collectors.toList())));
-        Readings readings = read(monitored.pipelines().stream().map(PipelineView::metricsTag)
-                .collect(Collectors.toSet()));
+        Readings readings = read(monitored);
         List<ServiceEvidence> services = product.services().stream()
                 .map(service -> service(service, byService.getOrDefault(service.id(), List.of()), readings, platform))
                 .toList();
         return new ProductEvidence(product, services, readings.error());
     }
 
-    private Readings read(Set<MetricsTag> tags) {
-        MetricsReading<Map<MetricsTag, PipelineRun>> latest = MetricsReading.of(() -> runs.latestRuns(tags), Map.of());
+    private Readings read(MonitoringTargets monitored) {
+        MetricsReading<LatestRuns> latest = MetricsReading.of(
+                () -> runs.latestRuns(monitored.tags(), monitored.sharedTags()), LatestRuns.none());
         if (latest.failed()) {
-            return new Readings(Map.of(), Map.of(), latest.error());
+            return new Readings(LatestRuns.none(), Map.of(), latest.error());
         }
-        MetricsReading<Map<MetricsTag, RunEvidence>> recorded =
-                MetricsReading.of(() -> evidence.evidenceOf(latest.value()), Map.of());
+        Map<MetricsTag, Set<PipelineRun>> attributed = new HashMap<>();
+        for (PipelineView view : monitored.pipelines()) {
+            PipelineRun run = latest.value().of(view.metricsTag(), view.pipeline());
+            if (run != null) {
+                attributed.computeIfAbsent(view.metricsTag(), tag -> new HashSet<>()).add(run);
+            }
+        }
+        MetricsReading<Map<PipelineRun, RunEvidence>> recorded =
+                MetricsReading.of(() -> evidence.evidenceOf(attributed), Map.of());
         return new Readings(latest.value(), recorded.value(), recorded.error());
     }
 
@@ -74,8 +84,8 @@ public class ChangeEvidenceService implements QueryEvidenceUseCase {
                                            PlatformSettings platform) {
         return new ServiceEvidence(service, servicePipelines.stream()
                 .map(pipeline -> {
-                    MetricsTag tag = MetricsTag.of(service, pipeline);
-                    return pipeline(service, pipeline, readings.latest().get(tag), readings.evidence().get(tag),
+                    PipelineRun run = readings.latest().of(MetricsTag.of(service, pipeline), pipeline);
+                    return pipeline(service, pipeline, run, run == null ? null : readings.evidence().get(run),
                             platform);
                 })
                 .toList());
@@ -98,7 +108,6 @@ public class ChangeEvidenceService implements QueryEvidenceUseCase {
         return new PipelineEvidence(pipeline, jobUrl, status, points.report(run, service.name(), links));
     }
 
-    private record Readings(Map<MetricsTag, PipelineRun> latest, Map<MetricsTag, RunEvidence> evidence,
-                            String error) {
+    private record Readings(LatestRuns latest, Map<PipelineRun, RunEvidence> evidence, String error) {
     }
 }

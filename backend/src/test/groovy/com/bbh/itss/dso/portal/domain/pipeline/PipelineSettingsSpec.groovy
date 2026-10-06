@@ -43,4 +43,21 @@ class PipelineSettingsSpec extends Specification {
         new PipelineSettings(['linux'], null, null, 'https://jenkins.bbh.com/job/x/', null).jenkinsJobUrl(null) ==
                 'https://jenkins.bbh.com/job/x/'
     }
+
+    def "a run that recorded the job #recorded was built by the job #job: #builds"() {
+        expect:
+        new PipelineSettings(['linux'], null, null, job, null).builds(recorded) == builds
+
+        where:
+        job                                                                    | recorded                         || builds
+        'DevSecOps/CertScanner-pipeline'                                       | 'DevSecOps/CertScanner-pipeline' || true
+        ' /DevSecOps/ CertScanner '                                            | 'DevSecOps/CertScanner/develop'  || true
+        'DevSecOps/CertScanner'                                                | 'DevSecOps/CertScanner-pipeline' || false
+        'https://jenkins.bbh.com/job/DevSecOps/job/CERT%20Scanner/'            | 'DevSecOps/CERT Scanner'         || true
+        'https://jenkins.bbh.com/ci/job/DevSecOps/job/gui/job/feature%252Fx/?x' | 'DevSecOps/gui/feature%2Fx'      || true
+        'https://jenkins.bbh.com/job/job/job/a+b%ZZ/'                          | 'job/a+b%ZZ'                     || true
+        'https://jenkins.bbh.com/'                                             | 'DevSecOps/gui'                  || false
+        null                                                                   | 'DevSecOps/gui'                  || false
+        'DevSecOps/gui'                                                        | null                             || false
+    }
 }

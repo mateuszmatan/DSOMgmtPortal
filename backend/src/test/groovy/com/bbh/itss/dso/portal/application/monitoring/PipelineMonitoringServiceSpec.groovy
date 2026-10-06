@@ -6,8 +6,10 @@ import com.bbh.itss.dso.portal.application.monitoring.port.out.DashboardLinksPor
 import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
+import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint
+import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsUnavailableException
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun
@@ -89,7 +91,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         def overview = monitoring.overview()
 
         then:
-        1 * runs.latestRuns({ it.size() == 4 }) >> [(tag(guiFull)): success, (tag(apiFull)): failure]
+        1 * runs.latestRuns({ it.size() == 4 }, [] as Set) >> latest([(tag(guiFull)): success, (tag(apiFull)): failure])
         overview.metricsError() == null
         overview.products()*.product()*.code() == ['CERT', 'EMPTY', 'PAY']
         with(overview.products()[0]) {
@@ -117,7 +119,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         def overview = monitoring.overview()
 
         then:
-        1 * runs.latestRuns([tag(guiFull), tag(guiSast), tag(apiFull)] as Set) >> {
+        1 * runs.latestRuns([tag(guiFull), tag(guiSast), tag(apiFull)] as Set, _) >> {
             throw new MetricsUnavailableException(NOT_CONFIGURED)
         }
         overview.metricsError() == NOT_CONFIGURED
@@ -133,7 +135,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         def overview = monitoring.overview()
 
         then:
-        1 * runs.latestRuns([] as Set) >> { if (failure) { throw failure }; [:] }
+        1 * runs.latestRuns([] as Set, _) >> { if (failure) { throw failure }; LatestRuns.none() }
         overview.metricsError() == error
 
         where:
@@ -146,7 +148,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         given:
         def unstable = run('2026-10-04T09:00:00Z', UNSTABLE)
         pipelines.findByProductId(1L) >> [guiFull, guiSast]
-        runs.latestRuns(_) >> [(tag(guiFull)): unstable]
+        runs.latestRuns(*_) >> latest([(tag(guiFull)): unstable])
 
         when:
         def product = monitoring.product(1L)
@@ -166,7 +168,7 @@ class PipelineMonitoringServiceSpec extends Specification {
     def "a product whose runs cannot be read reports why and an unknown product is not found"() {
         given:
         pipelines.findByProductId(1L) >> [guiFull]
-        runs.latestRuns(_) >> { throw new MetricsUnavailableException('InfluxDB could not be read: timeout') }
+        runs.latestRuns(*_) >> { throw new MetricsUnavailableException('InfluxDB could not be read: timeout') }
 
         when:
         def product = monitoring.product(1L)
@@ -193,10 +195,10 @@ class PipelineMonitoringServiceSpec extends Specification {
         def details = monitoring.pipeline(100L, '30d')
 
         then:
-        1 * runs.recentRuns(tag, 30, 25) >> [newest, run('2026-10-03T09:00:00Z', FAILURE)]
+        1 * runs.recentRuns(tag, null, 30, 25) >> [newest, run('2026-10-03T09:00:00Z', FAILURE)]
         1 * runs.doraPoints(tag, 30) >> [new DoraPoint(newest.time(), true, false, 3600, 600)]
         1 * dashboards.dashboardUrl(tag, guiFull.type(), 30) >> Optional.of('https://grafana/d/x')
-        0 * runs.latestRuns(_)
+        0 * runs.latestRuns(*_)
         details.pipeline().pipeline().keys().size() == 1
         details.pipeline().jenkinsJobUrl() == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-full/'
         details.status() == SUCCESS
@@ -220,7 +222,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         def details = monitoring.pipeline(100L, '7d')
 
         then:
-        1 * runs.latestRuns([tag(guiFull)] as Set) >> [(tag(guiFull)): old]
+        1 * runs.latestRuns([tag(guiFull)] as Set, [] as Set) >> latest([(tag(guiFull)): old])
         details.lastRun() == old
         details.status() == FAILURE
         details.dora().runs() == 0
@@ -238,7 +240,7 @@ class PipelineMonitoringServiceSpec extends Specification {
 
         then:
         0 * runs.doraPoints(*_)
-        0 * runs.latestRuns(_)
+        0 * runs.latestRuns(*_)
         details.metricsError() == NOT_CONFIGURED
         details.status() == DISABLED
         details.recentRuns() == []
@@ -280,6 +282,51 @@ class PipelineMonitoringServiceSpec extends Specification {
         200L || 'Product 2 does not exist'
     }
 
+    def "services sharing a tag see the latest run of their own Jenkins job, and a pipeline without a job sees none"() {
+        given:
+        Product shared = product(id: 3L, code: 'CERT', name: 'CertScanner', services: [
+                [name: 'gui', id: 10L, metrics: new MetricsSettings(true, 'CertScanner', 'test', null, null)],
+                [name: 'backend-api', id: 11L, metrics: new MetricsSettings(true, 'CertScanner', 'test', null, null)],
+                [name: 'batch', id: 12L, metrics: new MetricsSettings(true, 'CertScanner', 'test', null, null)]])
+        Pipeline gui = pipeline(id: 100L, productId: 3L, serviceId: 10L, jenkinsJob: 'DevSecOps/CERT/gui-full')
+        Pipeline api = pipeline(id: 102L, productId: 3L, serviceId: 11L,
+                jenkinsJob: 'https://jenkins.test/job/DevSecOps/job/CERT/job/api-full/')
+        Pipeline batch = pipeline(id: 103L, productId: 3L, serviceId: 12L)
+        def tag = new MetricsTag('CertScanner', 'test')
+        def guiRun = run('2026-10-04T08:00:00Z', SUCCESS, 'DevSecOps/CERT/gui-full/develop')
+        def apiRun = run('2026-10-04T09:00:00Z', FAILURE, 'DevSecOps/CERT/api-full')
+        products.load(3L) >> Optional.of(shared)
+        pipelines.findByProductId(3L) >> [gui, api, batch]
+        pipelines.sharedMetricsTags() >> ([tag] as Set)
+
+        when:
+        def product = monitoring.product(3L)
+
+        then:
+        1 * runs.latestRuns([tag] as Set, [tag] as Set) >> new LatestRuns([(tag): [apiRun, guiRun]], [tag] as Set)
+        product.pipelines()*.lastRun() == [guiRun, apiRun, null]
+        product.pipelines()*.status() == [SUCCESS, FAILURE, NO_DATA]
+    }
+
+    def "a pipeline of a shared tag lists only the runs of its Jenkins job, and none without a job"() {
+        given:
+        pipelines.load(id) >> Optional.of(id == 100L ? guiFull : apiFull)
+        pipelines.sharedMetricsTags() >> ([tag(guiFull), tag(apiFull)] as Set)
+        runs.doraPoints(*_) >> []
+
+        when:
+        def details = monitoring.pipeline(id, '30d')
+
+        then:
+        queries * runs.recentRuns(_, job, 30, 25) >> [run('2026-10-04T09:00:00Z', SUCCESS, 'DevSecOps/CERT/gui-full')]
+        details.recentRuns().size() == queries
+
+        where:
+        id   || job                       | queries
+        100L || 'DevSecOps/CERT/gui-full' | 1
+        102L || null                      | 0
+    }
+
     def "a range that is not a number of days is refused before anything is read"() {
         when:
         monitoring.pipeline(100L, '30h')
@@ -290,8 +337,12 @@ class PipelineMonitoringServiceSpec extends Specification {
         0 * runs._
     }
 
-    private static PipelineRun run(String time, RunResult result) {
-        new PipelineRun(Instant.parse(time), result, 'develop', 1, 600, null, null, null, null, null, null, null, null)
+    private static PipelineRun run(String time, RunResult result, String job = null) {
+        new PipelineRun(Instant.parse(time), result, 'develop', 1, 600, null, job, null, null, null, null, null, null)
+    }
+
+    private static LatestRuns latest(Map<MetricsTag, PipelineRun> runs, Set<MetricsTag> shared = [] as Set) {
+        new LatestRuns(runs.collectEntries { tag, run -> [tag, [run]] }, shared)
     }
 
     private MetricsTag tag(Pipeline pipeline) {

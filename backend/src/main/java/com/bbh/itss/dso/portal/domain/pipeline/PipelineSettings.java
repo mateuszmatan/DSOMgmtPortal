@@ -5,9 +5,11 @@ import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.UriEncoding;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public record PipelineSettings(List<String> agentLabels, String extendedPipelineJob, String securityPipelineJob,
                                String jenkinsJob, String description) {
@@ -39,21 +41,51 @@ public record PipelineSettings(List<String> agentLabels, String extendedPipeline
         return jobUrl(jenkinsJob, jenkinsUrl);
     }
 
+    public boolean builds(String recordedJob) {
+        String path = jobPath();
+        return path != null && recordedJob != null
+                && (recordedJob.equals(path) || recordedJob.startsWith(path + "/"));
+    }
+
+    public String jobPath() {
+        if (jenkinsJob == null) {
+            return null;
+        }
+        if (!isUrl(jenkinsJob)) {
+            return segments(jenkinsJob).collect(Collectors.joining("/"));
+        }
+        String[] parts = jenkinsJob.replaceFirst("^https?://[^/]*", "").replaceFirst("[?#].*$", "").split("/");
+        List<String> names = new ArrayList<>();
+        for (int i = 0; i + 1 < parts.length; i++) {
+            if (parts[i].equals("job")) {
+                names.add(UriEncoding.decode(parts[++i]));
+            }
+        }
+        return names.isEmpty() ? null : String.join("/", names);
+    }
+
     public static String jobUrl(String job, String jenkinsUrl) {
         if (Text.isBlank(job)) {
             return null;
         }
         String trimmed = job.trim();
-        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+        if (isUrl(trimmed)) {
             return trimmed;
         }
         if (Text.isBlank(jenkinsUrl)) {
             return null;
         }
-        String path = Arrays.stream(trimmed.split("/"))
-                .filter(segment -> !segment.isBlank())
-                .map(segment -> "job/" + UriEncoding.pathSegment(segment.trim()))
+        String path = segments(trimmed)
+                .map(segment -> "job/" + UriEncoding.pathSegment(segment))
                 .collect(Collectors.joining("/"));
         return jenkinsUrl.replaceAll("/+$", "") + "/" + path + "/";
+    }
+
+    private static boolean isUrl(String job) {
+        return job.startsWith("http://") || job.startsWith("https://");
+    }
+
+    private static Stream<String> segments(String path) {
+        return Arrays.stream(path.split("/")).map(String::trim).filter(segment -> !segment.isEmpty());
     }
 }

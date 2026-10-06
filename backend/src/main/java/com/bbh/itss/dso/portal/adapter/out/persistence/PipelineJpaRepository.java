@@ -29,6 +29,11 @@ public interface PipelineJpaRepository extends JpaRepository<PipelineEntity, Lon
     @Query("select p from PipelineEntity p where p.id = :id")
     Optional<PipelineEntity> findForUpdate(@Param("id") Long id);
 
+    @Query("""
+            select s.settings.metrics.influxProject, s.settings.metrics.influxEnv, p.type, s.id
+            from PipelineEntity p join p.service s""")
+    List<Object[]> metricsTags();
+
     boolean existsByServiceIdAndType(Long serviceId, PipelineType type);
 
     @Query("select p.service.product.id, count(p) from PipelineEntity p group by p.service.product.id")
