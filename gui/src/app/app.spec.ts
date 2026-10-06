@@ -46,8 +46,10 @@ describe('App', () => {
       ['/products', '/monitoring', '/evidence', '/settings'],
     ],
   ])('opens %s with the links of its sections in order', async (label, labels, paths) => {
-    const links = [...(await open(label)).querySelectorAll('a[mat-menu-item]')];
+    const panel = await open(label);
+    const links = [...panel.querySelectorAll('a[mat-menu-item]')];
 
+    expect(panel.getAttribute('aria-label')).toBe(label);
     expect(links.map(text)).toEqual(labels);
     expect(links.map((link) => link.getAttribute('href'))).toEqual(paths);
   });

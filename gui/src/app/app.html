@@ -10,7 +10,7 @@
             <button type="button" class="menu-trigger" [matMenuTriggerFor]="items">
               {{ menu.label }}
             </button>
-            <mat-menu #items="matMenu">
+            <mat-menu #items="matMenu" [aria-label]="menu.label">
               @for (item of menu.sections; track item.path) {
                 <a
                   mat-menu-item
