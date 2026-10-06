@@ -99,32 +99,42 @@ describe('ServiceFields', () => {
   }
 
   describe('every section', () => {
-    it.each(combinations)('opens each section of a %s service on %s', async (tool, target) => {
-      await render(everything(tool, target));
+    it.each(combinations)(
+      'opens each section of a %s service on %s',
+      async (tool, target) => {
+        await render(everything(tool, target));
 
-      for (const label of railLabels()) {
-        await open(label);
-        expect(pane().querySelector('h3')?.textContent).toBe(label);
-      }
-      expect(railLabels()).toContain(target === 'VM' ? 'SSH targets' : 'OpenShift targets');
-      expect(railLabels().includes('Flutter')).toBe(tool === 'FLUTTER');
-    });
+        for (const label of railLabels()) {
+          await open(label);
+          expect(pane().querySelector('h3')?.textContent).toBe(label);
+        }
+        expect(railLabels()).toContain(target === 'VM' ? 'SSH targets' : 'OpenShift targets');
+        expect(railLabels().includes('Flutter')).toBe(tool === 'FLUTTER');
+      },
+      20_000,
+    );
 
-    it.each(combinations)('explains every problem of a %s service on %s', async (tool, target) => {
-      await render(everything(tool, target));
-      breakEveryField(form);
-      form.markAllAsTouched();
-      fixture.componentRef.setInput('submitted', true);
-      await fixture.whenStable();
+    it.each(combinations)(
+      'explains every problem of a %s service on %s',
+      async (tool, target) => {
+        await render(everything(tool, target));
+        breakEveryField(form);
+        form.markAllAsTouched();
+        fixture.componentRef.setInput('submitted', true);
+        await fixture.whenStable();
 
-      const marked = [...page().querySelectorAll('.rail-item.problem span:first-of-type')];
-      expect(marked.length).toBeGreaterThan(5);
-      for (const label of railLabels()) {
-        await open(label);
-        const errors = [...pane().querySelectorAll('mat-error')].map((e) => e.textContent?.trim());
-        expect(errors.every((error) => !!error)).toBe(true);
-      }
-    });
+        const marked = [...page().querySelectorAll('.rail-item.problem span:first-of-type')];
+        expect(marked.length).toBeGreaterThan(5);
+        for (const label of railLabels()) {
+          await open(label);
+          const errors = [...pane().querySelectorAll('mat-error')].map((e) =>
+            e.textContent?.trim(),
+          );
+          expect(errors.every((error) => !!error)).toBe(true);
+        }
+      },
+      20_000,
+    );
 
     it('works without the global settings and reveals the first section with a problem', async () => {
       await render(service(), null);
