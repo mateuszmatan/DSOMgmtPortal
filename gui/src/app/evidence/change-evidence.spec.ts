@@ -86,7 +86,7 @@ describe('ChangeEvidencePage', () => {
     expect(page().querySelector('.panel-toggle')?.textContent?.trim()).toBe('Hide');
     expect(page().querySelectorAll('dso-pipeline-evidence-card').length).toBe(1);
     expect(page().querySelector('.library-note')?.textContent).toContain(
-      'does not record unit test counts',
+      'older than the portal integration record no unit test counts',
     );
 
     await expand(0);

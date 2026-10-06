@@ -10,13 +10,28 @@ import java.util.List;
 import java.util.Map;
 
 public record UrbanCodeApplicationSettings(String applicationName, Integer order, List<String> environments,
-                                           String snapshotName, List<UrbanCodeComponent> components) {
+                                           String snapshotName, String siteName, String deployProcess,
+                                           Boolean skipWait, Boolean deployWithSnapshot,
+                                           Boolean updateSnapshotComponents, Boolean includeOnlyDeployVersions,
+                                           Boolean deployOnlyChanged, String deployDescription, String description,
+                                           String requestProperties, List<UrbanCodeComponent> components) {
 
     public UrbanCodeApplicationSettings {
         applicationName = applicationName == null ? null : applicationName.trim();
         environments = Text.clean(environments);
         snapshotName = Text.trimToNull(snapshotName);
+        siteName = Text.trimToNull(siteName);
+        deployProcess = Text.trimToNull(deployProcess);
+        deployDescription = Text.trimToNull(deployDescription);
+        description = Text.trimToNull(description);
+        requestProperties = Text.trimToNull(requestProperties);
         components = components == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(components));
+    }
+
+    public static UrbanCodeApplicationSettings of(String applicationName, Integer order, List<String> environments,
+                                                  String snapshotName, List<UrbanCodeComponent> components) {
+        return new UrbanCodeApplicationSettings(applicationName, order, environments, snapshotName, null, null, null,
+                null, null, null, null, null, null, null, components);
     }
 
     public void validate(ValidationProblems problems) {
@@ -33,6 +48,16 @@ public record UrbanCodeApplicationSettings(String applicationName, Integer order
                 .set("order", order)
                 .set("environments", environments)
                 .set("snapshotName", snapshotName)
+                .set("siteName", siteName)
+                .set("deployProcess", deployProcess)
+                .set("skipWait", skipWait)
+                .set("deployWithSnapshot", deployWithSnapshot)
+                .set("updateSnapshotComp", updateSnapshotComponents)
+                .set("includeOnlyDeployVersions", includeOnlyDeployVersions)
+                .set("deployOnlyChanged", deployOnlyChanged)
+                .set("deployDescription", deployDescription)
+                .set("description", description)
+                .set("requestProperties", requestProperties)
                 .set("components", components.stream().map(UrbanCodeComponent::toConfig).toList())
                 .toMap();
     }

@@ -17,15 +17,15 @@ class ServiceSettingsSpec extends Specification {
     static final String REPO = 'https://bitbucket.bbh.com/scm/ta/cert.git'
     static final SshTarget RD_HOST = new SshTarget('rd.host', null, null, null, null)
     static final OpenShiftTarget RD_PROJECT = new OpenShiftTarget('cert-build', null, null, null, null, null, null,
-            null, null, 'cert-rd', null, null, false, null, null, null, null, null, null)
-    static final UrbanCodeApplicationSettings UCD_APP = new UrbanCodeApplicationSettings('Cert', 1, ['RD'], null,
-            [new UrbanCodeComponent('cert-gui', 'build', '*.war', null, null, null, false)])
+            null, null, 'cert-rd', null, null, false, null, null, null, null, null, null, null, null)
+    static final UrbanCodeApplicationSettings UCD_APP = UrbanCodeApplicationSettings.of('Cert', 1, ['RD'], null,
+            [new UrbanCodeComponent('cert-gui', 'build', '*.war', null, null, null, false, null, null, null, null, null)])
 
     def "sections left out take their defaults"() {
         expect:
         ServiceSettings.of(build(), deployment(), appScan()) == new ServiceSettings(build(), UnitTestSettings.NONE,
                 TestSettings.DEFAULTS, [], deployment(), ToolCommand.NONE, UrbanCodeSettings.DEFAULTS, [], [:], [:],
-                appScan(), SonarSettings.NONE, NexusIqSettings.NONE, ScmSettings.NONE, GoldenFixPolicy.INHERITED,
+                appScan(), SonarSettings.NONE, NexusIqSettings.NONE, null, ScmSettings.NONE, GoldenFixPolicy.INHERITED,
                 MetricsSettings.DEFAULTS, FlutterSettings.NONE)
     }
 
@@ -124,7 +124,7 @@ class ServiceSettingsSpec extends Specification {
     def "an OpenShift service needs an RD target that can build its image"() {
         given:
         def rd = new OpenShiftTarget('cert-build', null, 'Dockerfile', '.', null, 'push.bbh.com/cert', null, null, null,
-                'cert-rd', null, null, false, null, null, null, null, null, null)
+                'cert-rd', null, null, false, null, null, null, null, null, null, null, null)
 
         when:
         def problems = reported(settings(deployment: deployment(target: DeployTarget.OPENSHIFT, appName: 'cert',
@@ -136,24 +136,24 @@ class ServiceSettingsSpec extends Specification {
                 ['is required for OpenShift: the Nexus snapshot delivery builds the image in the RD project']
     }
 
-    def "Nexus IQ needs its application and scan patterns together"() {
+    def "every Nexus IQ application of the service needs its name and scan patterns"() {
         expect:
-        reported(settings(nexusIq: nexusIq))*.field == fields
+        reported(settings(nexusIqApplications: applications))*.field == fields
 
         where:
-        nexusIq                                  || fields
-        NexusIqSettings.of(null, ['**/*.war'])   || ['nexusIq.application']
-        NexusIqSettings.of('cert', [])           || ['nexusIq.scanPatterns']
-        NexusIqSettings.of('cert', ['**/*.war']) || []
-        NexusIqSettings.NONE                     || []
+        applications                                  || fields
+        [NexusIqApplication.of(null, ['**/*.war'])]   || ['nexusIqApplications[0].application']
+        [NexusIqApplication.of('cert', [])]           || ['nexusIqApplications[0].scanPatterns']
+        [NexusIqApplication.of('cert', ['**/*.war'])] || []
+        []                                            || []
     }
 
     def "an UrbanCode application needs components that name their folder and files"() {
         given:
-        def applications = [new UrbanCodeApplicationSettings('Cert', 1, [], null, []),
-                            new UrbanCodeApplicationSettings('Cert Batch', 2, [], null,
-                                    [new UrbanCodeComponent('batch', ' ', null, null, null, null, true),
-                                     new UrbanCodeComponent('config', 'config', '*.yml', null, null, null, true)])]
+        def applications = [UrbanCodeApplicationSettings.of('Cert', 1, [], null, []),
+                            UrbanCodeApplicationSettings.of('Cert Batch', 2, [], null,
+                                    [new UrbanCodeComponent('batch', ' ', null, null, null, null, true, null, null, null, null, null),
+                                     new UrbanCodeComponent('config', 'config', '*.yml', null, null, null, true, null, null, null, null, null)])]
 
         expect:
         reported(settings(urbanCodeApplications: applications))*.field == ['urbanCodeApplications[0].components',
@@ -164,7 +164,7 @@ class ServiceSettingsSpec extends Specification {
     def "test job parameters '#parameters' are one NAME=value per line: #valid"() {
         when:
         def problems = reported(settings(testJobs: [new TestJob(TestStage.SMOKE, null, TestJobType.LOCAL, 'CERT/smoke',
-                null, parameters, null, null, null)]))
+                null, parameters, null, null, null, null, null, false, false, false, false, false, false)]))
 
         then:
         problems.collect { [it.field, it.message] } ==
@@ -186,12 +186,12 @@ class ServiceSettingsSpec extends Specification {
         def longFlags = (1..12).collect { "-Dproperty.$it=${'v' * 200}".toString() }
         def longDirs = (1..20).collect { "${'d' * 150}/$it".toString() }
         def reviewers = (1..3).collect { ("reviewer-$it-" + '\u017c\u00f3\u0142\u0107' * 120).toString() }
-        def command = new ToolCommand(['build'], longFlags, null, null, [])
+        def command = new ToolCommand(['build'], longFlags, null, null, [], null, false)
 
         when:
         def problems = reported(settings(build: build(command: command),
                 appScan: new AppScanSettings(APP_ID, null, longDirs, ['test'], false, false, false, false, null, command,
-                        false, null, null, null),
+                        false, null, null, null, null),
                 scm: new ScmSettings(REPO, 'bb-creds', null, null, null, null, reviewers, null, null, null, null),
                 goldenFix: new GoldenFixPolicy(null, null, null, [], [], longDirs, null, null, null, null, null, null,
                         null, null, null, null, null)))
@@ -204,11 +204,11 @@ class ServiceSettingsSpec extends Specification {
 
     def "a remote test job given as a path must name its Jenkins"() {
         given:
-        def jobs = [new TestJob(TestStage.SMOKE, null, TestJobType.REMOTE, 'CERT/smoke', null, null, null, null, null),
+        def jobs = [TestJob.of(TestStage.SMOKE, null, TestJobType.REMOTE, 'CERT/smoke', null),
                     new TestJob(TestStage.SMOKE, null, TestJobType.REMOTE, 'https://jenkins.qc/job/smoke/', null, null,
-                            null, null, null),
+                            null, null, null, null, null, false, false, false, false, false, false),
                     new TestJob(TestStage.REGRESSION, null, TestJobType.REMOTE, 'CERT/regression', null, null, 'qc', null,
-                            null)]
+                            null, null, null, false, false, false, false, false, false)]
 
         expect:
         reported(settings(testJobs: jobs))*.field == ['testJobs[0].remoteJenkins']
@@ -217,10 +217,10 @@ class ServiceSettingsSpec extends Specification {
     def "a missing metrics project is filled in from the product code and the service name"() {
         given:
         def plain = settings()
-        def explicit = settings(metrics: new MetricsSettings(false, 'cert-scanner', 'uat'))
+        def explicit = settings(metrics: new MetricsSettings(false, 'cert-scanner', 'uat', null, null))
 
         expect:
-        plain.withDefaultMetricsProject('CERT', 'gui').metrics() == new MetricsSettings(true, 'CERT-gui', 'test')
+        plain.withDefaultMetricsProject('CERT', 'gui').metrics() == new MetricsSettings(true, 'CERT-gui', 'test', null, null)
         plain.withDefaultMetricsProject('CERT', 'gui').build() == plain.build()
         explicit.withDefaultMetricsProject('CERT', 'gui').is(explicit)
     }
@@ -229,7 +229,7 @@ class ServiceSettingsSpec extends Specification {
         when:
         new ServiceSettings(section == 'build' ? null : build(), null, null, null,
                 section == 'deployment' ? null : deployment(), null, null, null, null, null,
-                section == 'AppScan' ? null : appScan(), null, null, null, null, null, null)
+                section == 'AppScan' ? null : appScan(), null, null, null, null, null, null, null)
 
         then:
         def e = thrown(NullPointerException)

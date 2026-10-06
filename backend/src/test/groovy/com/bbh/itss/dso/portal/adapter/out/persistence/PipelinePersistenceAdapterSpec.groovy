@@ -1,7 +1,9 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence
 
+import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
+import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator
 import com.bbh.itss.dso.portal.domain.pipeline.KeyStatus
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
@@ -207,6 +209,23 @@ class PipelinePersistenceAdapterSpec extends Specification {
         !adapter.existsForService(cert.services()[1].id(), FULL)
         adapter.pipelinesPerProduct() == [(cert.id()): 3L, (other.id()): 1L]
         adapter.activePipelinesPerProduct() == [(cert.id()): 2L, (other.id()): 1L]
+    }
+
+    def "a tag is shared when pipelines of several services write under it"() {
+        given:
+        def metrics = MetricsSettings.of(true, 'CertScanner', 'test')
+        def tagged = products.save(Product.create(details(code: 'TAG', name: 'Tagged'), account(), [
+                new ServiceDraft(null, 'gui', null, settings(metrics: metrics)),
+                new ServiceDraft(null, 'api', null, settings(metrics: metrics)),
+                draft('batch')], products))
+        stored(ref(tagged, 0))
+        stored(ref(tagged, 0), SAST)
+        stored(ref(tagged, 1))
+        stored(ref(tagged, 2))
+        stored(ref(cert, 0))
+
+        expect:
+        adapter.sharedMetricsTags() == [new MetricsTag('CertScanner', 'test')] as Set
     }
 
     def "a pipeline #change is not written"() {

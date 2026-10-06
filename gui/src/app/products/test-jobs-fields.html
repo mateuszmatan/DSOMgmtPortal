@@ -13,8 +13,8 @@
       <h4>
         {{ stage.label }} <span class="count">{{ jobsOf(stage.value).length }}</span>
       </h4>
-      <div class="parallel">
-        <dso-fields [group]="f.controls.tests" [fields]="stageParallelField(stage)" />
+      <div class="stage-options">
+        <dso-fields [group]="f.controls.tests" [fields]="stageFields(stage)" />
       </div>
       <span class="spacer"></span>
       <button mat-stroked-button type="button" (click)="add(stage.value)">
@@ -61,7 +61,15 @@
         </div>
       </div>
     } @empty {
-      <p class="list-empty">No {{ stage.noun }} test jobs.</p>
+      @if (required(stage)) {
+        <p class="list-empty">No {{ stage.noun }} test jobs.</p>
+      }
+    }
+    @if (!required(stage)) {
+      <p class="list-empty">
+        Not required: the pipeline runs none of these jobs and reports the stage as covered
+        elsewhere.
+      </p>
     }
   </section>
 }

@@ -91,9 +91,9 @@ import { RelativeTimePipe } from '../shared/formatting';
               </td>
             </ng-container>
             <ng-container matColumnDef="lastUsedAt">
-              <th mat-header-cell *matHeaderCellDef>Last used</th>
+              <th mat-header-cell *matHeaderCellDef>Last REST fetch</th>
               <td mat-cell *matCellDef="let key">
-                {{ key.lastUsedAt ? (key.lastUsedAt | relative) : 'Never' }}
+                {{ key.lastUsedAt ? (key.lastUsedAt | relative) : '' }}
               </td>
             </ng-container>
             <ng-container matColumnDef="revoked">

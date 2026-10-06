@@ -8,7 +8,7 @@ import static com.bbh.itss.dso.portal.support.Fixtures.copy
 class DeploymentTargetsSpec extends Specification {
 
     static final UrbanCodeComponent GUI_COMPONENT = new UrbanCodeComponent('cert-gui', 'build/libs', '*.war', '*-plain.war',
-            'gui-', '1.0.0', false)
+            'gui-', '1.0.0', false, null, null, null, null, null)
 
     def "an SSH target trims its values, writes the ones that are set in the library's order and is empty without any"() {
         when:
@@ -53,13 +53,15 @@ class DeploymentTargetsSpec extends Specification {
         'deploymentRepoUrl'           | 'git@bitbucket:ta/deploy.git' || [deploymentRepo: [url: 'git@bitbucket:ta/deploy.git']]
         'deploymentRepoBranch'        | 'main'                       || [deploymentRepo: [branch: 'main']]
         'deploymentRepoCredentialsId' | 'bb-creds'                   || [deploymentRepo: [credentials: 'bb-creds']]
+        'buildTag'                    | '1.0.42'                     || [buildTag: '1.0.42']
+        'internalDockerUrl'           | 'registry.svc:5000/cert'     || [internalDockerUrl: 'registry.svc:5000/cert']
     }
 
     def "a full OpenShift target writes every key in the library's order"() {
         when:
         def config = new OpenShiftTarget(' cert-build ', 'bc.yaml', 'Dockerfile', '.', 'cert.jar', 'push/cert', 'pull/cert',
                 '/certs', 'auth.json', 'cert-rd', 'dc.yaml', 'config', true, '/health', 'cert.apps', 'k8s', 'ssh://git@b/d.git',
-                'main', 'bb-creds').toConfig()
+                'main', 'bb-creds', null, null).toConfig()
 
         then:
         config == [projectBuildR     : 'cert-build', buildConfigPath: 'bc.yaml', dockerFilePath: 'Dockerfile', buildContext: '.',
@@ -77,7 +79,7 @@ class DeploymentTargetsSpec extends Specification {
     def "an OpenShift target of blank values that deploys its configuration is empty"() {
         when:
         def target = new OpenShiftTarget(' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', null, ' ', ' ', ' ', ' ',
-                ' ', ' ')
+                ' ', ' ', null, null)
 
         then:
         target == openShift([:])
@@ -99,7 +101,7 @@ class DeploymentTargetsSpec extends Specification {
 
     def "UrbanCode settings with applications write deploy.vm.dod with the library's defaults"() {
         given:
-        def app = new UrbanCodeApplicationSettings('Cert', null, [], null, [])
+        def app = UrbanCodeApplicationSettings.of('Cert', null, [], null, [])
 
         expect:
         written { UrbanCodeSettings.DEFAULTS.writeTo(it, [app]) } ==
@@ -110,8 +112,8 @@ class DeploymentTargetsSpec extends Specification {
 
     def "every UrbanCode option is written with the applications in their order"() {
         given:
-        def first = new UrbanCodeApplicationSettings('Cert', 1, ['RD'], null, [GUI_COMPONENT])
-        def second = new UrbanCodeApplicationSettings('Cert Batch', 2, [], 'batch-snap', [])
+        def first = UrbanCodeApplicationSettings.of('Cert', 1, ['RD'], null, [GUI_COMPONENT])
+        def second = UrbanCodeApplicationSettings.of('Cert Batch', 2, [], 'batch-snap', [])
 
         when:
         def dod = written { fullUrbanCode().writeTo(it, [first, second]) }.deploy.vm.dod
@@ -129,17 +131,17 @@ class DeploymentTargetsSpec extends Specification {
         def components = [GUI_COMPONENT]
 
         when:
-        def app = new UrbanCodeApplicationSettings(' Cert ', 3, [' RD ', 'RD', '', 'QC'], ' ', components)
-        components << new UrbanCodeComponent('other', null, null, null, null, null, null)
+        def app = UrbanCodeApplicationSettings.of(' Cert ', 3, [' RD ', 'RD', '', 'QC'], ' ', components)
+        components << new UrbanCodeComponent('other', null, null, null, null, null, null, null, null, null, null, null)
 
         then:
-        app == new UrbanCodeApplicationSettings('Cert', 3, ['RD', 'QC'], null, [GUI_COMPONENT])
-        new UrbanCodeApplicationSettings(null, null, null, null, null) == new UrbanCodeApplicationSettings(null, null, [], null, [])
+        app == UrbanCodeApplicationSettings.of('Cert', 3, ['RD', 'QC'], null, [GUI_COMPONENT])
+        UrbanCodeApplicationSettings.of(null, null, null, null, null) == UrbanCodeApplicationSettings.of(null, null, [], null, [])
     }
 
     def "an UrbanCode application is written with its components"() {
         when:
-        def entry = new UrbanCodeApplicationSettings('Cert', 2, ['RD', 'RD2'], 'cert-snap', [GUI_COMPONENT]).toConfig()
+        def entry = UrbanCodeApplicationSettings.of('Cert', 2, ['RD', 'RD2'], 'cert-snap', [GUI_COMPONENT]).toConfig()
 
         then:
         entry == [applicationName: 'Cert', order: 2, environments: ['RD', 'RD2'], snapshotName: 'cert-snap',
@@ -147,18 +149,46 @@ class DeploymentTargetsSpec extends Specification {
                                      fileExcludePatterns: '*-plain.war', versionPrefix: 'gui-', version: '1.0.0',
                                      incrementalVersion : false]]]
         entry.keySet() as List == ['applicationName', 'order', 'environments', 'snapshotName', 'components']
-        new UrbanCodeApplicationSettings('Cert', null, [], null, []).toConfig() == [applicationName: 'Cert']
+        UrbanCodeApplicationSettings.of('Cert', null, [], null, []).toConfig() == [applicationName: 'Cert']
+    }
+
+    def "an UrbanCode application overrides the service's options with its own, false included"() {
+        when:
+        def entry = new UrbanCodeApplicationSettings('Cert', null, [], null, ' BBH-QC ', ' Deploy QC ', false, null, true,
+                false, null, ' release ', ' Cert ', ' a=b ', [GUI_COMPONENT]).toConfig()
+
+        then:
+        entry.keySet() as List == ['applicationName', 'siteName', 'deployProcess', 'skipWait', 'updateSnapshotComp',
+                                   'includeOnlyDeployVersions', 'deployDescription', 'description', 'requestProperties',
+                                   'components']
+        entry.subMap(['siteName', 'deployProcess', 'skipWait', 'updateSnapshotComp', 'includeOnlyDeployVersions',
+                      'deployDescription', 'description', 'requestProperties']) ==
+                [siteName                 : 'BBH-QC', deployProcess: 'Deploy QC', skipWait: false, updateSnapshotComp: true,
+                 includeOnlyDeployVersions: false, deployDescription: 'release', description: 'Cert',
+                 requestProperties        : 'a=b']
+    }
+
+    def "an UrbanCode component writes the push options that are set"() {
+        expect:
+        new UrbanCodeComponent('cert-gui', 'build/libs', '*.war', null, null, null, true, ' war,jar ', ' UTF-8 ', ' push ',
+                ' build=1 ', ' version ').toConfig() ==
+                [componentName     : 'cert-gui', baseDir: 'build/libs', fileIncludePatterns: '*.war',
+                 incrementalVersion: true, extensions: 'war,jar', charset: 'UTF-8', pushDescription: 'push',
+                 versionProperties : 'build=1', versionDescription: 'version']
+        UrbanCodeComponent.of('cert-gui', 'build/libs', '*.war') ==
+                new UrbanCodeComponent('cert-gui', 'build/libs', '*.war', null, null, null, true, null, null, null, null,
+                        null)
     }
 
     def "an UrbanCode component trims its values and publishes incremental versions by default"() {
         when:
-        def component = new UrbanCodeComponent(' cert-gui ', ' ', ' ', ' ', ' ', ' ', null)
+        def component = new UrbanCodeComponent(' cert-gui ', ' ', ' ', ' ', ' ', ' ', null, null, null, null, null, null)
 
         then:
-        component == new UrbanCodeComponent('cert-gui', null, null, null, null, null, true)
+        component == new UrbanCodeComponent('cert-gui', null, null, null, null, null, true, null, null, null, null, null)
         component.toConfig() == [componentName: 'cert-gui', incrementalVersion: true]
         component.toConfig().keySet() as List == ['componentName', 'incrementalVersion']
-        !new UrbanCodeComponent(null, null, null, null, null, null, false).incrementalVersion()
+        !new UrbanCodeComponent(null, null, null, null, null, null, false, null, null, null, null, null).incrementalVersion()
         GUI_COMPONENT.toConfig().keySet() as List == ['componentName', 'baseDir', 'fileIncludePatterns',
                                                        'fileExcludePatterns', 'versionPrefix', 'version', 'incrementalVersion']
     }
@@ -168,6 +198,6 @@ class DeploymentTargetsSpec extends Specification {
     }
 
     private static OpenShiftTarget openShift(Map fields) {
-        copy(fields, new OpenShiftTarget(*([null] * 19)))
+        copy(fields, new OpenShiftTarget(*([null] * 21)))
     }
 }

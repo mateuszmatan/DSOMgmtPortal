@@ -13,12 +13,15 @@ import { createGlobalGoldenFixForm, toGlobalGoldenFixPolicy } from '../products/
 import {
   HOST_NAME,
   HTTP_URL,
+  INT_MAX,
+  SHELL_SAFE_URL,
   flag,
   integer,
   optional,
   requireWhile,
   requiredRule,
   sent,
+  shellSafe,
   text,
 } from '../shared/form-controls';
 
@@ -61,8 +64,12 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
       sonarInstallationName: text(p?.sonarInstallationName, required, max(200)),
       nexusIqServerUrl: url(p?.nexusIqServerUrl, 500, required),
       nexusIqCredentialsId: text(p?.nexusIqCredentialsId, required, max(200)),
-      nexusSnapshotRepositoryUrl: url(p?.nexusSnapshotRepositoryUrl, 1000),
-      nexusSnapshotRepositoryId: text(p?.nexusSnapshotRepositoryId, max(200)),
+      nexusSnapshotRepositoryUrl: text(
+        p?.nexusSnapshotRepositoryUrl,
+        Validators.pattern(SHELL_SAFE_URL),
+        max(1000),
+      ),
+      nexusSnapshotRepositoryId: shellSafe(p?.nexusSnapshotRepositoryId, 200),
       influxWriteUrl: url(p?.influxWriteUrl, 1000),
       influxCredentialsId: text(p?.influxCredentialsId, max(200)),
       iosBuildAgent: text(p?.iosBuildAgent, max(255)),
@@ -72,9 +79,9 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
       urbanCodeDeployProcess: text(d?.urbanCodeDeployProcess, required, max(200)),
       rdHost: host(d?.rdHost, required),
       qcHost: host(d?.qcHost, required),
-      sshUser: text(d?.sshUser, required, max(100)),
-      deployScript: text(d?.deployScript, required, max(500)),
-      versionFile: text(d?.versionFile, required, max(500)),
+      sshUser: shellSafe(d?.sshUser, 100, required),
+      deployScript: shellSafe(d?.deployScript, 500, required),
+      versionFile: shellSafe(d?.versionFile, 500, required),
     }),
     limits: new FormGroup({
       SAST: createLimitsForm(settings?.limits.SAST),
@@ -118,7 +125,7 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
         nonNullable: true,
       }),
       sourceDir: text(settings?.serviceDefaults.sourceDir ?? '.', max(500)),
-      testsMaxParallel: integer(settings?.serviceDefaults.testsMaxParallel, 1, 100, required),
+      testsMaxParallel: integer(settings?.serviceDefaults.testsMaxParallel, 1, INT_MAX, required),
     }),
     goldenFix: createGlobalGoldenFixForm(settings?.goldenFix),
   });

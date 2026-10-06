@@ -21,7 +21,16 @@ import {
 } from '../core/models';
 
 export function command(overrides: Partial<ToolCommand> = {}): ToolCommand {
-  return { tasks: [], flags: [], directory: null, mavenHome: null, environment: [], ...overrides };
+  return {
+    tasks: [],
+    flags: [],
+    directory: null,
+    mavenHome: null,
+    environment: [],
+    label: null,
+    returnStdout: false,
+    ...overrides,
+  };
 }
 
 export function service(overrides: Partial<Service> = {}): Service {
@@ -50,6 +59,12 @@ export function service(overrides: Partial<Service> = {}): Service {
       smokeMaxParallel: 10,
       regressionMaxParallel: null,
       performanceMaxParallel: null,
+      smokeRequired: true,
+      regressionRequired: true,
+      performanceRequired: true,
+      smokePollIntervalSec: null,
+      regressionPollIntervalSec: null,
+      performancePollIntervalSec: null,
     },
     testJobs: [
       {
@@ -62,6 +77,14 @@ export function service(overrides: Partial<Service> = {}): Service {
         remoteJenkins: null,
         remoteJenkinsUrl: null,
         credentialsId: null,
+        pollIntervalSec: null,
+        tokenCredentialsId: null,
+        abortTriggeredJob: false,
+        overrideTrustAllCertificates: false,
+        preventRemoteBuildQueue: false,
+        trustAllCertificates: false,
+        useCrumbCache: false,
+        useJobInfoCache: false,
       },
     ],
     deployment: { target: 'VM', appName: null, artifactName: null, baseArtifactName: null },
@@ -83,6 +106,16 @@ export function service(overrides: Partial<Service> = {}): Service {
         order: 1,
         environments: ['DV', 'RD'],
         snapshotName: null,
+        siteName: null,
+        deployProcess: null,
+        skipWait: null,
+        deployWithSnapshot: null,
+        updateSnapshotComponents: null,
+        includeOnlyDeployVersions: null,
+        deployOnlyChanged: null,
+        deployDescription: null,
+        description: null,
+        requestProperties: null,
         components: [
           {
             componentName: 'CERT-GUI-app',
@@ -92,6 +125,11 @@ export function service(overrides: Partial<Service> = {}): Service {
             versionPrefix: null,
             version: null,
             incrementalVersion: true,
+            extensions: null,
+            charset: null,
+            pushDescription: null,
+            versionProperties: null,
+            versionDescription: null,
           },
         ],
       },
@@ -121,6 +159,7 @@ export function service(overrides: Partial<Service> = {}): Service {
       dastScanName: null,
       dastTargetUrl: null,
       dastPresenceId: null,
+      secretCredentialsId: null,
     },
     sonar: {
       projectName: 'CertScanner GUI',
@@ -132,14 +171,17 @@ export function service(overrides: Partial<Service> = {}): Service {
       addBadges: false,
       fullBadges: false,
       command: command({ tasks: ['sonarqube'] }),
+      serverUrl: null,
     },
-    nexusIq: {
-      application: 'cert-gui',
-      scanPatterns: ['**/build/libs/*.jar'],
-      stage: 'build',
-      failOnNetworkError: false,
-      scaScanName: null,
-    },
+    nexusIq: { serverUrl: null, credentialsId: null, scaScanName: null },
+    nexusIqApplications: [
+      {
+        application: 'cert-gui',
+        scanPatterns: ['**/build/libs/*.jar'],
+        stage: 'build',
+        failOnNetworkError: false,
+      },
+    ],
     scm: {
       repositoryUrl: 'https://bitbucket.bbh.com/projects/CERT/repos/gui',
       credentialsId: 'bitbucket-http-credentials',
@@ -172,7 +214,13 @@ export function service(overrides: Partial<Service> = {}): Service {
       commitAuthorEmail: null,
       timeZone: null,
     },
-    metrics: { enabled: true, influxProject: 'CERT-gui', influxEnv: 'test' },
+    metrics: {
+      enabled: true,
+      influxProject: 'CERT-gui',
+      influxEnv: 'test',
+      influxUrl: null,
+      influxCredentialsId: null,
+    },
     flutter: {
       platform: null,
       modules: [],
@@ -384,12 +432,15 @@ export function runEvidence(overrides: Partial<RunEvidence> = {}): RunEvidence {
       result: 'SUCCESS',
       branch: 'release/2.4',
       commit: '9f2c1e7b4d3a5f6e7d8c9b0a1f2e3d4c5b6a7980',
+      artifactVersion: '2.4.0-42',
       durationSeconds: 1325,
       job: 'DevSecOps/CERT/gui-full',
       url: build,
       reportUrl: `${build}Pipeline_20Report/`,
       testReportUrl: `${build}testReport/`,
       artifactsUrl: `${build}artifact/`,
+      configRenderedAt: '2026-10-04T07:55:00Z',
+      configSha256: '3b7e1f0a9c2d4e5f',
     },
     coverage: {
       status: 'PASS',
@@ -400,20 +451,32 @@ export function runEvidence(overrides: Partial<RunEvidence> = {}): RunEvidence {
     },
     testSuites: [
       {
-        stage: 'SMOKE',
+        suite: 'UNIT',
         status: 'PASS',
-        jobs: 2,
+        total: 412,
+        passed: 410,
+        failed: 0,
+        skipped: 2,
+        notConfigured: 0,
+        durationMs: 240_000,
+      },
+      {
+        suite: 'SMOKE',
+        status: 'PASS',
+        total: 2,
         passed: 2,
         failed: 0,
+        skipped: null,
         notConfigured: 0,
         durationMs: 95_000,
       },
       {
-        stage: 'REGRESSION',
+        suite: 'REGRESSION',
         status: 'WARN',
-        jobs: 3,
+        total: 3,
         passed: 2,
         failed: 1,
+        skipped: null,
         notConfigured: 0,
         durationMs: 1_800_000,
       },
@@ -429,7 +492,8 @@ export function runEvidence(overrides: Partial<RunEvidence> = {}): RunEvidence {
         maxCritical: 0,
         maxHigh: 0,
         maxMedium: 5,
-        link: build,
+        qualityGate: null,
+        link: `${build}artifact/appscan/sast-report.html`,
       },
       {
         scanner: 'SONARQUBE',
@@ -441,6 +505,7 @@ export function runEvidence(overrides: Partial<RunEvidence> = {}): RunEvidence {
         maxCritical: null,
         maxHigh: null,
         maxMedium: null,
+        qualityGate: 'OK',
         link: 'https://tools.bbh.com/sonar/dashboard?id=cert-gui',
       },
       {
@@ -453,6 +518,7 @@ export function runEvidence(overrides: Partial<RunEvidence> = {}): RunEvidence {
         maxCritical: 0,
         maxHigh: 2,
         maxMedium: 10,
+        qualityGate: null,
         link: build,
       },
     ],

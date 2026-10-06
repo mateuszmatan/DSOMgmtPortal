@@ -243,10 +243,10 @@
                       </button>
                     }
                     <span class="muted key-dates">
-                      Issued {{ key.issuedAt | relative }} ·
-                      {{
-                        key.lastUsedAt ? 'last used ' + (key.lastUsedAt | relative) : 'not used yet'
-                      }}
+                      Issued {{ key.issuedAt | relative }}
+                      @if (key.lastUsedAt) {
+                        · last fetched over REST {{ key.lastUsedAt | relative }}
+                      }
                     </span>
                   </div>
                 } @else {
@@ -272,6 +272,11 @@
                 </button>
                 <mat-menu #pipelineMenu="matMenu" xPosition="before">
                   <button mat-menu-item (click)="showJenkinsfile(pipeline)">Jenkinsfile</button>
+                  @if (sameTypeElsewhere(pipeline).length) {
+                    <button mat-menu-item (click)="showJenkinsfile(pipeline, true)">
+                      Jenkinsfile for several services
+                    </button>
+                  }
                   <button mat-menu-item (click)="showKeyHistory(pipeline)">Key history</button>
                   <button mat-menu-item (click)="editPipeline(service, pipeline)">Settings</button>
                   <mat-divider />

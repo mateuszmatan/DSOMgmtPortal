@@ -71,10 +71,10 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
         product.services().stream().filter(service -> service.id() != null)
                 .forEach(service -> kept.put(entity.service(service.id()).orElseThrow(), service));
         List<ServiceEntity> moving = kept.entrySet().stream()
-                .filter(entry -> entry.getKey().holdsOtherUniqueValuesThan(entry.getValue())).map(Map.Entry::getKey)
+                .filter(entry -> !entry.getKey().name().equals(entry.getValue().name())).map(Map.Entry::getKey)
                 .toList();
         if (!moving.isEmpty()) {
-            moving.forEach(ServiceEntity::releaseUniqueValues);
+            moving.forEach(ServiceEntity::releaseName);
             products.flush();
         }
         kept.forEach(ServiceEntity::apply);
@@ -96,17 +96,6 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
         return products.findByNameIgnoreCase(name).map(ProductPersistenceAdapter::identity);
     }
 
-    @Override
-    public List<ServiceIdentity> findServicesByMetricsTags(String influxProject, String influxEnv) {
-        return services.findByMetricsTags(influxProject, influxEnv).stream()
-                .map(ProductPersistenceAdapter::identity).toList();
-    }
-
-    @Override
-    public List<ServiceIdentity> findServicesBySonarProjectKey(String projectKey) {
-        return services.findBySonarProjectKey(projectKey).stream().map(ProductPersistenceAdapter::identity).toList();
-    }
-
     private ProductEntity existing(Product product) {
         ProductEntity entity = products.findById(product.id()).orElseThrow(ConflictException::staleVersion);
         if (entity.getVersion() != product.version()) {
@@ -117,9 +106,5 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
 
     private static ProductIdentity identity(ProductEntity product) {
         return new ProductIdentity(product.getId(), product.name());
-    }
-
-    private static ServiceIdentity identity(ServiceEntity service) {
-        return new ServiceIdentity(service.getId(), service.product().name(), service.name());
     }
 }

@@ -159,17 +159,34 @@ export class ProductDetail {
     }));
   }
 
-  protected showJenkinsfile(pipeline: Pipeline): void {
+  protected sameTypeElsewhere(pipeline: Pipeline): Pipeline[] {
+    return (this.services.value() ?? [])
+      .flatMap((service) => service.pipelines)
+      .filter(
+        (other) =>
+          other.type === pipeline.type &&
+          other.serviceId !== pipeline.serviceId &&
+          other.activeKey &&
+          (pipeline.type !== 'EXTENDED' ||
+            other.securityPipelineJob === pipeline.securityPipelineJob),
+      );
+  }
+
+  protected showJenkinsfile(pipeline: Pipeline, together = false): void {
+    const pipelines = together ? [pipeline, ...this.sameTypeElsewhere(pipeline)] : [pipeline];
+    const subtitle = together
+      ? `One run builds ${pipelines.map((p) => p.serviceName).join(', ')}; the first key is the ` +
+        'primary service. Everything else comes from the portal by the keys.'
+      : 'Once the DevSecOps library reads its configuration from the portal, this is the whole Jenkinsfile of the ' +
+        'service: everything else comes from the portal by the key.';
     this.settings
       .get()
       .pipe(catchError(() => of(null)))
       .subscribe((settings) =>
         this.openCode({
-          title: 'Jenkinsfile',
-          subtitle:
-            'Once the DevSecOps library reads its configuration from the portal, this is the whole Jenkinsfile of the ' +
-            'service: everything else comes from the portal by the key.',
-          code: jenkinsfile(pipeline, settings?.platform.jenkinsLibrary),
+          title: together ? 'Jenkinsfile for several services' : 'Jenkinsfile',
+          subtitle,
+          code: jenkinsfile(pipelines, settings?.platform.jenkinsLibrary),
           fileName: 'Jenkinsfile',
         }),
       );

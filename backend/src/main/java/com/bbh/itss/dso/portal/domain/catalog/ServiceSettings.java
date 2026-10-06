@@ -14,8 +14,9 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
                               List<TestJob> testJobs, DeploymentSettings deployment, ToolCommand delivery,
                               UrbanCodeSettings urbanCode, List<UrbanCodeApplicationSettings> urbanCodeApplications,
                               Map<Region, SshTarget> sshTargets, Map<Region, OpenShiftTarget> openShiftTargets,
-                              AppScanSettings appScan, SonarSettings sonar, NexusIqSettings nexusIq, ScmSettings scm,
-                              GoldenFixPolicy goldenFix, MetricsSettings metrics, FlutterSettings flutter) {
+                              AppScanSettings appScan, SonarSettings sonar, NexusIqSettings nexusIq,
+                              List<NexusIqApplication> nexusIqApplications, ScmSettings scm, GoldenFixPolicy goldenFix,
+                              MetricsSettings metrics, FlutterSettings flutter) {
 
     public ServiceSettings {
         Objects.requireNonNull(build, "a service needs its build settings");
@@ -31,6 +32,7 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
         openShiftTargets = withoutEmpty(openShiftTargets, OpenShiftTarget::isEmpty);
         sonar = sonar == null ? SonarSettings.NONE : sonar;
         nexusIq = nexusIq == null ? NexusIqSettings.NONE : nexusIq;
+        nexusIqApplications = nexusIqApplications == null ? List.of() : List.copyOf(nexusIqApplications);
         scm = scm == null ? ScmSettings.NONE : scm;
         goldenFix = goldenFix == null ? GoldenFixPolicy.INHERITED : goldenFix;
         metrics = metrics == null ? MetricsSettings.DEFAULTS : metrics;
@@ -39,7 +41,7 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
 
     public static ServiceSettings of(BuildSettings build, DeploymentSettings deployment, AppScanSettings appScan) {
         return new ServiceSettings(build, null, null, null, deployment, null, null, null, null, null, appScan, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
     }
 
     public ServiceSettings withDefaultMetricsProject(String productCode, String serviceName) {
@@ -48,8 +50,8 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
             return this;
         }
         return new ServiceSettings(build, unitTests, tests, testJobs, deployment, delivery, urbanCode,
-                urbanCodeApplications, sshTargets, openShiftTargets, appScan, sonar, nexusIq, scm, goldenFix, defaulted,
-                flutter);
+                urbanCodeApplications, sshTargets, openShiftTargets, appScan, sonar, nexusIq, nexusIqApplications, scm,
+                goldenFix, defaulted, flutter);
     }
 
     public void writeTo(ConfigTree config) {
@@ -60,7 +62,7 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
         metrics.writeTo(config);
         unitTests.writeTo(config, tool);
         sonar.writeTo(config, tool);
-        nexusIq.writeTo(config);
+        nexusIq.writeTo(config, nexusIqApplications);
         scm.writeTo(config);
         goldenFix.writeTo(config);
         tests.writeTo(config, testJobs);
@@ -89,9 +91,9 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
             openShiftTargets.getOrDefault(Region.RD, OpenShiftTarget.NONE)
                     .validateImageBuild(problems.at("openShiftTargets[" + Region.RD.name() + "]"));
         }
-        appScan.validate(problems.at("appScan"));
+        appScan.validate(problems.at("appScan"), tool);
         sonar.validate(problems.at("sonar"), tool);
-        nexusIq.validate(problems.at("nexusIq"));
+        nexusIq.validate(problems, nexusIqApplications);
         scm.validate(problems.at("scm"));
         goldenFix.validate(problems.at("goldenFix"));
         metrics.validate(problems.at("metrics"));

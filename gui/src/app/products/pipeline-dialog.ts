@@ -16,13 +16,12 @@ import {
 } from '../core/models';
 import { Field, Fields, area, choice, mono } from '../shared/fields';
 import {
+  commaItems,
   eachItem,
   fitsColumn,
   joinWords,
-  maxWords,
   setEnabled,
   text,
-  words,
 } from '../shared/form-controls';
 import { applyFieldProblems } from './product-form-model';
 
@@ -31,8 +30,11 @@ export interface PipelineDialogData {
   pipeline?: Pipeline;
 }
 
-export const AGENT_LABEL = /^[A-Za-z0-9._-]{1,100}$/;
+export const AGENT_LABEL = /^.{1,100}$/;
 export const JENKINS_JOB = /^(https?:\/\/\S+|[^\s:?#][^:?#]*)$/;
+export const JOB_PATH = /^(?!.*\.\.)[A-Za-z0-9._ /-]+$/;
+const JOB_PATH_ERROR = "A job path such as DevSecOps/CERT/backend-api-extended, without '..'";
+const MAX_LABELS = 20;
 
 @Component({
   selector: 'dso-pipeline-dialog',
@@ -65,24 +67,27 @@ export class PipelineDialog {
       { nonNullable: true },
     ),
     agentLabels: text(
-      joinWords(this.data.pipeline?.agentLabels ?? ['linux-agent']),
+      joinWords(this.data.pipeline?.agentLabels ?? ['linux-agent'], ', '),
       Validators.required,
-      maxWords(20),
-      eachItem(words, AGENT_LABEL, "Use letters, digits, '.', '-' or '_' in a Jenkins label"),
-      fitsColumn(words, ',', 1000),
+      (control) =>
+        commaItems(control.value).length > MAX_LABELS ? { maxItems: { max: MAX_LABELS } } : null,
+      eachItem(commaItems, AGENT_LABEL, 'At most 100 characters per label'),
+      fitsColumn(commaItems, ',', 1000),
     ),
     jenkinsJob: new FormControl(this.data.pipeline?.jenkinsJob ?? '', {
       nonNullable: true,
       validators: [Validators.pattern(JENKINS_JOB), Validators.maxLength(1000)],
     }),
-    extendedPipelineJob: new FormControl(this.data.pipeline?.extendedPipelineJob ?? '', {
-      nonNullable: true,
-      validators: Validators.maxLength(500),
-    }),
-    securityPipelineJob: new FormControl(this.data.pipeline?.securityPipelineJob ?? '', {
-      nonNullable: true,
-      validators: Validators.maxLength(500),
-    }),
+    extendedPipelineJob: text(
+      this.data.pipeline?.extendedPipelineJob,
+      Validators.pattern(JOB_PATH),
+      Validators.maxLength(500),
+    ),
+    securityPipelineJob: text(
+      this.data.pipeline?.securityPipelineJob,
+      Validators.pattern(JOB_PATH),
+      Validators.maxLength(500),
+    ),
     description: new FormControl(this.data.pipeline?.description ?? '', {
       nonNullable: true,
       validators: Validators.maxLength(1000),
@@ -102,12 +107,12 @@ export class PipelineDialog {
   protected fields(): Field[] {
     const type = this.selectedType();
     const job = (key: string, label: string, code: string, example: string, hint: string) =>
-      mono(key, label, code, 12, { placeholder: example, hint });
+      mono(key, label, code, 12, { placeholder: example, hint, error: JOB_PATH_ERROR });
     return [
       choice('type', 'Pipeline type', this.types, '', 12, { hint: type?.description ?? '' }),
       mono('agentLabels', 'Jenkins agent labels', 'agentNames', 12, {
-        placeholder: 'linux-agent docker',
-        hint: 'separated by spaces or commas; the pipeline runs on an agent with one of these labels',
+        placeholder: 'linux-agent, linux && docker',
+        hint: 'labels or label expressions, separated by commas; the pipeline runs on an agent matching one of them',
       }),
       {
         ...job(
@@ -164,7 +169,7 @@ export class PipelineDialog {
     const value = this.form.getRawValue();
     const request: PipelineRequest = {
       type: value.type,
-      agentLabels: words(value.agentLabels),
+      agentLabels: commaItems(value.agentLabels),
       extendedPipelineJob:
         value.type === 'SECURITY' ? value.extendedPipelineJob.trim() || null : null,
       securityPipelineJob:

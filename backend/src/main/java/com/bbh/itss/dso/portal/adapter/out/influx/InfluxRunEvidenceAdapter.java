@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -31,34 +32,37 @@ class InfluxRunEvidenceAdapter implements RunEvidencePort {
     }
 
     @Override
-    public Map<MetricsTag, RunEvidence> evidenceOf(Map<MetricsTag, PipelineRun> runs) {
-        if (runs.isEmpty()) {
+    public Map<PipelineRun, RunEvidence> evidenceOf(Map<MetricsTag, Set<PipelineRun>> runs) {
+        List<TaggedRun> ordered = runs.entrySet().stream()
+                .flatMap(entry -> entry.getValue().stream().map(run -> new TaggedRun(entry.getKey(), run)))
+                .sorted(Comparator.comparing((TaggedRun tagged) -> tagged.tag().project())
+                        .thenComparing(tagged -> tagged.tag().env())
+                        .thenComparing(tagged -> tagged.run().time()))
+                .toList();
+        if (ordered.isEmpty()) {
             return Map.of();
         }
-        String flux = flux(runs);
+        String flux = flux(ordered);
         return influx.read(() -> {
-            Map<MetricsTag, List<EvidencePoint>> points = new HashMap<>();
+            Map<PipelineRun, List<EvidencePoint>> points = new HashMap<>();
+            ordered.forEach(tagged -> points.put(tagged.run(), new ArrayList<>()));
             for (Map<String, String> row : influx.query(flux)) {
                 MetricsTag tag = InfluxRows.tag(row);
-                PipelineRun run = runs.get(tag);
-                if (run != null && belongsTo(row, run)) {
-                    points.computeIfAbsent(tag, ignored -> new ArrayList<>())
-                            .add(new EvidencePoint(row.get(MEASUREMENT), row));
+                for (PipelineRun run : runs.getOrDefault(tag, Set.of())) {
+                    if (belongsTo(row, run)) {
+                        points.get(run).add(new EvidencePoint(row.get(MEASUREMENT), row));
+                    }
                 }
             }
-            Map<MetricsTag, RunEvidence> evidence = new HashMap<>();
-            runs.keySet().forEach(tag -> evidence.put(tag, new RunEvidence(points.getOrDefault(tag, List.of()))));
+            Map<PipelineRun, RunEvidence> evidence = new HashMap<>();
+            points.forEach((run, found) -> evidence.put(run, new RunEvidence(found)));
             return evidence;
         });
     }
 
-    private String flux(Map<MetricsTag, PipelineRun> runs) {
-        List<Map.Entry<MetricsTag, PipelineRun>> ordered = runs.entrySet().stream()
-                .sorted(Comparator.comparing((Map.Entry<MetricsTag, PipelineRun> entry) -> entry.getKey().project())
-                        .thenComparing(entry -> entry.getKey().env()))
-                .toList();
+    private String flux(List<TaggedRun> ordered) {
         String tables = IntStream.range(0, ordered.size())
-                .mapToObj(index -> table(index, ordered.get(index).getKey(), ordered.get(index).getValue()))
+                .mapToObj(index -> table(index, ordered.get(index).tag(), ordered.get(index).run()))
                 .collect(Collectors.joining());
         String pivot = "  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n";
         if (ordered.size() == 1) {
@@ -100,5 +104,8 @@ class InfluxRunEvidenceAdapter implements RunEvidencePort {
     static Instant startOf(PipelineRun run) {
         long seconds = run.durationSeconds() == null ? 0 : run.durationSeconds();
         return run.time().minusSeconds(seconds).minus(TOLERANCE).minus(TOLERANCE);
+    }
+
+    private record TaggedRun(MetricsTag tag, PipelineRun run) {
     }
 }

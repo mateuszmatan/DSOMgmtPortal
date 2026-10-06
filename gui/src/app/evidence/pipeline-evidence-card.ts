@@ -15,7 +15,7 @@ import { DurationPipe, formatDuration } from '../shared/formatting';
 import { StatusChip } from '../shared/status-chip';
 import {
   CHECK_LABELS,
-  STAGE_LABELS,
+  SUITE_LABELS,
   evidenceText,
   formatPercent,
   formatUtc,
@@ -61,12 +61,20 @@ export class PipelineEvidenceCard {
             mono: true,
             title: build.commit ?? '',
           },
+          { label: 'Artifact version', value: build.artifactVersion, mono: true, title: '' },
           {
             label: 'Duration',
             value: build.durationSeconds === null ? null : formatDuration(build.durationSeconds),
             mono: false,
             title: '',
           },
+          {
+            label: 'Config rendered',
+            value: formatUtc(build.configRenderedAt),
+            mono: false,
+            title: 'When the portal rendered the configuration this build read',
+          },
+          { label: 'Config sha256', value: build.configSha256, mono: true, title: '' },
         ]
       : [];
   });
@@ -79,7 +87,7 @@ export class PipelineEvidenceCard {
     return run ? scanRows(run) : [];
   });
 
-  protected readonly stageLabels = STAGE_LABELS;
+  protected readonly suiteLabels = SUITE_LABELS;
   protected readonly percent = formatPercent;
   protected readonly hasFindings = hasFindings;
 

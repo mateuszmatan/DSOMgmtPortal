@@ -65,15 +65,16 @@ describe('ServiceFields', () => {
       testJobs: [
         ...stored.testJobs,
         {
+          ...stored.testJobs[0],
           stage: 'REGRESSION',
           name: 'remote',
           type: 'REMOTE',
           job: 'CERT/regression',
-          timeoutMinutes: 30,
           parameters: 'ENV=rd',
           remoteJenkins: 'qa',
-          remoteJenkinsUrl: null,
-          credentialsId: null,
+          pollIntervalSec: 20,
+          tokenCredentialsId: 'qa-trigger-token',
+          useCrumbCache: true,
         },
       ],
     });
@@ -98,32 +99,42 @@ describe('ServiceFields', () => {
   }
 
   describe('every section', () => {
-    it.each(combinations)('opens each section of a %s service on %s', async (tool, target) => {
-      await render(everything(tool, target));
+    it.each(combinations)(
+      'opens each section of a %s service on %s',
+      async (tool, target) => {
+        await render(everything(tool, target));
 
-      for (const label of railLabels()) {
-        await open(label);
-        expect(pane().querySelector('h3')?.textContent).toBe(label);
-      }
-      expect(railLabels()).toContain(target === 'VM' ? 'SSH targets' : 'OpenShift targets');
-      expect(railLabels().includes('Flutter')).toBe(tool === 'FLUTTER');
-    });
+        for (const label of railLabels()) {
+          await open(label);
+          expect(pane().querySelector('h3')?.textContent).toBe(label);
+        }
+        expect(railLabels()).toContain(target === 'VM' ? 'SSH targets' : 'OpenShift targets');
+        expect(railLabels().includes('Flutter')).toBe(tool === 'FLUTTER');
+      },
+      20_000,
+    );
 
-    it.each(combinations)('explains every problem of a %s service on %s', async (tool, target) => {
-      await render(everything(tool, target));
-      breakEveryField(form);
-      form.markAllAsTouched();
-      fixture.componentRef.setInput('submitted', true);
-      await fixture.whenStable();
+    it.each(combinations)(
+      'explains every problem of a %s service on %s',
+      async (tool, target) => {
+        await render(everything(tool, target));
+        breakEveryField(form);
+        form.markAllAsTouched();
+        fixture.componentRef.setInput('submitted', true);
+        await fixture.whenStable();
 
-      const marked = [...page().querySelectorAll('.rail-item.problem span:first-of-type')];
-      expect(marked.length).toBeGreaterThan(5);
-      for (const label of railLabels()) {
-        await open(label);
-        const errors = [...pane().querySelectorAll('mat-error')].map((e) => e.textContent?.trim());
-        expect(errors.every((error) => !!error)).toBe(true);
-      }
-    });
+        const marked = [...page().querySelectorAll('.rail-item.problem span:first-of-type')];
+        expect(marked.length).toBeGreaterThan(5);
+        for (const label of railLabels()) {
+          await open(label);
+          const errors = [...pane().querySelectorAll('mat-error')].map((e) =>
+            e.textContent?.trim(),
+          );
+          expect(errors.every((error) => !!error)).toBe(true);
+        }
+      },
+      20_000,
+    );
 
     it('works without the global settings and reveals the first section with a problem', async () => {
       await render(service(), null);
@@ -185,6 +196,48 @@ describe('ServiceFields', () => {
       await fixture.whenStable();
 
       expect(hints()).toContain('delivery.group');
+    });
+  });
+
+  describe('Nexus IQ', () => {
+    const items = () => [...pane().querySelectorAll<HTMLElement>('.list-item')];
+
+    it('lists the applications, adds and removes them and names the global server', async () => {
+      await render();
+      await open('Nexus IQ');
+      expect(hints()).toContain('tools.nexusIq.serverUrl · left empty: https://tools.bbh.com/IQ');
+      expect(hints()).toContain('tools.nexusIq.credentialsId · left empty: nexusiqP');
+      expect(items().map((item) => item.querySelector('strong')?.textContent)).toEqual([
+        'cert-gui',
+      ]);
+
+      [...pane().querySelectorAll<HTMLButtonElement>('button')]
+        .find((button) => button.textContent?.trim() === 'Add application')!
+        .click();
+      await fixture.whenStable();
+      expect(items().length).toBe(2);
+      expect(form.controls.nexusIqApplications.at(1).controls.stage.value).toBe('build');
+      expect(form.dirty).toBe(true);
+
+      for (const label of ['Remove the new application', 'Remove cert-gui']) {
+        pane().querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!.click();
+        await fixture.whenStable();
+      }
+      expect(pane().querySelector('.list-empty')?.textContent).toContain('skips the Nexus IQ scan');
+    });
+  });
+
+  describe('servers and credentials of the service', () => {
+    it('name the global value a blank field falls back to', async () => {
+      await render();
+      await open('SonarQube');
+      expect(hints()).toContain('tools.sonar.serverUrl · left empty: https://tools.bbh.com/sonar');
+      await open('DORA metrics');
+      expect(hints()).toContain('influx.credentialsId · left empty: influxdb-token');
+      await open('AppScan SAST and DAST');
+      expect(text(fieldOf(pane(), 'Secret text credentials ID'))).toContain(
+        "left empty: the product's",
+      );
     });
   });
 

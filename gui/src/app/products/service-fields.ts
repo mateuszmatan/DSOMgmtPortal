@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { FlutterPlatform, GlobalSettings, REGIONS, Region } from '../core/models';
@@ -17,11 +18,18 @@ import {
   line,
   mono,
 } from '../shared/fields';
+import {
+  HTTP_URL_ERROR,
+  POWERSHELL_PATH_ERROR,
+  SHELL_SAFE_ERROR,
+  addItem,
+} from '../shared/form-controls';
 import { GoldenFixFields } from './golden-fix-fields';
 import { OpenShiftTargetFields } from './openshift-target-fields';
 import {
   ServiceForm,
   ServiceSectionId,
+  createNexusIqApplicationForm,
   firstInvalidSection,
   sectionInvalid,
   sectionTouched,
@@ -49,14 +57,15 @@ const NOTES: Record<ServiceSectionId, string> = {
   openShift:
     'The OpenShift projects the service is built and deployed in; a region without values is not written.',
   appScan:
-    "The HCL AppScan application: SAST of the sources and, when enabled, DAST of the deployed application. The API key is the product's.",
+    "The HCL AppScan application: SAST of the sources and, when enabled, DAST of the deployed application. The API key is the product's; the service may name its own secret.",
   sonar: 'The SonarQube project (`tools.sonar`). Without a project key the scan is skipped.',
   nexusIq:
-    'The dependency scan of the built artifacts (`tools.nexusIq`). The server and its credentials are global settings.',
+    'The dependency scan of the built artifacts (`tools.nexusIq`), one entry per Nexus IQ application. Without an application the scan is skipped.',
   scm: 'The repository GoldenFix raises dependency upgrade pull requests against (`scm.bitbucket`). Without one GoldenFix lists its fixes in the report only.',
   goldenFix:
     'Dependency upgrade pull requests for the vulnerable components Nexus IQ finds (`goldenFix`).',
-  metrics: 'The InfluxDB tags the pipelines write under; monitoring reads them back.',
+  metrics:
+    'The InfluxDB tags the pipelines write under; monitoring reads them back from the global InfluxDB.',
   flutter:
     'What a Flutter build needs besides the common settings; written only for Flutter services.',
 };
@@ -64,8 +73,8 @@ const NOTES: Record<ServiceSectionId, string> = {
 const GENERAL: Field[] = [
   line('name', 'Service name', '', 5, {
     placeholder: 'backend-api',
-    hint: 'Lower case, for example gui or backend-api',
-    error: "Use lower case letters, digits, '.', '-' or '_'",
+    hint: 'for example gui or backend-api',
+    error: "Use letters, digits, '.', '-' or '_'",
   }),
   line('description', 'Description', '', 7, { placeholder: 'REST API and certificate scanner' }),
 ];
@@ -106,6 +115,7 @@ const APP_SCAN_STATIC: Field[] = [
   }),
   mono('clientPath', 'AppScan client path', 'appscanPath', 6, {
     hint: 'left empty: downloaded by the pipeline',
+    error: POWERSHELL_PATH_ERROR,
   }),
 ];
 
@@ -123,33 +133,30 @@ const DAST_ENABLED: Field[] = [
 const DAST: Field[] = [
   line('dastTargetUrl', 'DAST target URL', 'dast.targetUrl', 6, {
     placeholder: 'https://cert-scanner.testbbh.com',
-    error: 'Must be an http or https URL',
+    error: HTTP_URL_ERROR,
   }),
   line('dastScanName', 'DAST scan name', 'dast.scanName', 3),
   mono('dastPresenceId', 'Presence ID', 'dast.presenceId', 3, { hint: 'for internal hosts' }),
 ];
 
-const NEXUS_IQ: Field[] = [
-  mono('application', 'Application', 'tools.nexusIq.application', 5, {
-    hint: 'set with the scan patterns',
-  }),
-  mono('stage', 'Stage', 'tools.nexusIq.stage', 3, {
+const NEXUS_IQ_APPLICATION: Field[] = [
+  mono('application', 'Application', 'application', 5),
+  mono('stage', 'Stage', 'stage', 3, {
     placeholder: 'build',
     error: 'A Nexus IQ stage such as build, stage-release or release',
   }),
-  line('scaScanName', 'SCA scan name', 'sca.scanName', 4),
-  area('scanPatterns', 'Scan patterns', 'tools.nexusIq.scanPatterns', 8, {
+  check('failOnNetworkError', 'Fail the build on a network error', 'failOnNetworkError', 4),
+  area('scanPatterns', 'Scan patterns', 'scanPatterns', 12, {
     mono: true,
     placeholder: '**/build/libs/*.jar',
-    hint: 'one Ant pattern per line, set with the application',
+    hint: 'one Ant pattern per line',
   }),
-  check('failOnNetworkError', 'Fail the build on a network error', 'failOnNetworkError', 4),
 ];
 
 const SCM: Field[] = [
   line('repositoryUrl', 'Repository URL', 'scm.bitbucket.url', 8, {
     placeholder: 'https://bitbucket.bbh.com/projects/TA/repos/cert-scanner',
-    error: 'Must be an http or https URL',
+    error: HTTP_URL_ERROR,
   }),
   mono('credentialsId', 'Credentials ID', 'scm.bitbucket.credentialsId', 4, {
     placeholder: 'bitbucket-http-credentials',
@@ -181,7 +188,7 @@ const SCM: Field[] = [
   line('cloneUrl', 'Clone URL', 'scm.bitbucket.cloneUrl', 6, {
     placeholder: 'ssh://git@bitbucket.bbh.com/ta/cert.git',
     hint: 'left empty: the repository URL',
-    error: 'Must be an http, https or ssh URL',
+    error: 'Must be an http, https, ssh or git@ URL',
   }),
   mono('reviewers', 'Reviewers', 'scm.bitbucket.reviewers', 6, {
     placeholder: 'jsmith, akowalski',
@@ -195,7 +202,7 @@ const BITBUCKET_REPOSITORY: Field[] = [
   line('apiUrl', 'Bitbucket API URL', 'scm.bitbucket.apiUrl', 6, {
     placeholder: 'https://bitbucket.bbh.com',
     hint: 'Data Center base URL or Cloud API',
-    error: 'Must be an http or https URL',
+    error: HTTP_URL_ERROR,
   }),
   mono('workspace', 'Workspace', 'scm.bitbucket.workspace', 6, {
     placeholder: 'bbh-technology',
@@ -257,6 +264,7 @@ const FLUTTER_PLATFORMS: FlutterPlatform[] = [
   selector: 'dso-service-fields',
   imports: [
     ReactiveFormsModule,
+    MatButtonModule,
     MatButtonToggleModule,
     MatIconModule,
     Fields,
@@ -287,7 +295,7 @@ export class ServiceFields {
   protected readonly appScanFlags = APP_SCAN_FLAGS;
   protected readonly dastEnabled = DAST_ENABLED;
   protected readonly dast = DAST;
-  protected readonly nexusIq = NEXUS_IQ;
+  protected readonly nexusIqApplication = NEXUS_IQ_APPLICATION;
   protected readonly scm = SCM;
   protected readonly bitbucketRepository = BITBUCKET_REPOSITORY;
   protected readonly flutterModules = FLUTTER_MODULES;
@@ -366,6 +374,7 @@ export class ServiceFields {
           this.isVm() && maven
             ? 'the artifact the Nexus snapshot delivery uploads'
             : 'what the build produces',
+        error: SHELL_SAFE_ERROR,
       }),
     ];
   }
@@ -386,17 +395,20 @@ export class ServiceFields {
   protected deploymentFields(): Field[] {
     const openShift = this.isVm() ? '' : 'required for OpenShift';
     return [
-      line('appName', 'Application name', 'appName', 4, {
+      mono('appName', 'Application name', 'appName', 4, {
         placeholder: 'cert-scanner-api',
         hint: openShift,
+        error: SHELL_SAFE_ERROR,
       }),
-      line('artifactName', 'Artifact name', 'artifactName', 4, {
+      mono('artifactName', 'Artifact name', 'artifactName', 4, {
         placeholder: 'cert-scanner-api.jar',
         hint: openShift,
+        error: SHELL_SAFE_ERROR,
       }),
-      line('baseArtifactName', 'Built file name', 'baseArtifactName', 4, {
+      mono('baseArtifactName', 'Built file name', 'baseArtifactName', 4, {
         placeholder: 'app-1.0.0.jar',
         hint: 'renamed to the artifact name',
+        error: SHELL_SAFE_ERROR,
       }),
     ];
   }
@@ -408,32 +420,41 @@ export class ServiceFields {
       mono('host', 'Host', 'host', 4, {
         placeholder: host ?? '',
         hint: fallback(host),
-        error: 'Must be a host name such as rdltaapps1.testbbh.com',
+        error: SHELL_SAFE_ERROR,
       }),
       mono('user', 'User', 'user', 3, {
         placeholder: deployment?.sshUser ?? '',
         hint: fallback(deployment?.sshUser),
+        error: SHELL_SAFE_ERROR,
       }),
       mono('deployDir', 'Deployment folder', 'deployDir', 5, {
         placeholder: '/opt/ta/CertScanner/gui/deployment',
+        error: SHELL_SAFE_ERROR,
       }),
       mono('deployScript', 'Deployment script', 'deployScript', 6, {
         placeholder: deployment?.deployScript ?? '',
         hint: fallback(deployment?.deployScript),
+        error: SHELL_SAFE_ERROR,
       }),
       mono('versionFile', 'Version file', 'versionFile', 6, {
         placeholder: deployment?.versionFile ?? '',
         hint: fallback(deployment?.versionFile),
+        error: SHELL_SAFE_ERROR,
       }),
     ];
   }
 
   protected sonarFields(): Field[] {
-    const installation = this.defaults()?.platform?.sonarInstallationName;
+    const platform = this.defaults()?.platform;
+    const installation = platform?.sonarInstallationName;
     return [
+      line('serverUrl', 'Server URL', 'tools.sonar.serverUrl', 12, {
+        placeholder: platform?.sonarServerUrl ?? '',
+        hint: fallback(platform?.sonarServerUrl),
+        error: HTTP_URL_ERROR,
+      }),
       line('projectName', 'Project name', 'tools.sonar.projectName', 6),
       mono('projectKey', 'Project key', 'tools.sonar.projectKey', 6, {
-        hint: 'unique across BBH',
         error: "Letters, digits, '-', '_', '.' and ':' with at least one non-digit",
       }),
       line('installationName', 'Jenkins installation', 'tools.sonar.installationName', 4, {
@@ -448,6 +469,45 @@ export class ServiceFields {
       }),
       check('addBadges', 'Badges in the report', 'addBadges', 4),
       check('fullBadges', 'Every badge', 'fullBadges', 4),
+    ];
+  }
+
+  protected nexusIqFields(): Field[] {
+    const platform = this.defaults()?.platform;
+    return [
+      line('serverUrl', 'Server URL', 'tools.nexusIq.serverUrl', 5, {
+        placeholder: platform?.nexusIqServerUrl ?? '',
+        hint: fallback(platform?.nexusIqServerUrl),
+        error: HTTP_URL_ERROR,
+      }),
+      mono('credentialsId', 'Credentials ID', 'tools.nexusIq.credentialsId', 3, {
+        placeholder: platform?.nexusIqCredentialsId ?? '',
+        hint: fallback(platform?.nexusIqCredentialsId),
+      }),
+      line('scaScanName', 'SCA scan name', 'sca.scanName', 4),
+    ];
+  }
+
+  protected nexusIqApplications() {
+    this.changes();
+    return this.form().controls.nexusIqApplications.controls;
+  }
+
+  protected addNexusIqApplication(): void {
+    addItem(this.form().controls.nexusIqApplications, createNexusIqApplicationForm());
+    this.form().markAsDirty();
+  }
+
+  protected removeNexusIqApplication(index: number): void {
+    this.form().controls.nexusIqApplications.removeAt(index);
+    this.form().markAsDirty();
+  }
+
+  protected appScanSecretField(): Field[] {
+    return [
+      mono('secretCredentialsId', 'Secret text credentials ID', 'asoc.token', 6, {
+        hint: "the AppScan API key secret; left empty: the product's",
+      }),
     ];
   }
 
@@ -471,15 +531,25 @@ export class ServiceFields {
 
   protected metricsFields(): Field[] {
     const project = `${this.productCode() || 'CODE'}-${this.form().controls.name.value || 'service'}`;
-    const tag = "Letters, digits, '.', '-' and '_'";
+    const platform = this.defaults()?.platform;
     return [
       check('enabled', 'Write pipeline metrics to InfluxDB', 'influx.enabled'),
-      mono('influxProject', 'Project tag', 'influx.project', 8, {
+      line('influxProject', 'Project tag', 'influx.project', 8, {
         placeholder: project,
-        hint: `left empty: ${project}`,
-        error: tag,
+        hint: `left empty: ${project}; services may share a tag`,
       }),
-      mono('influxEnv', 'Environment tag', 'influx.env', 4, { error: tag }),
+      mono('influxEnv', 'Environment tag', 'influx.env', 4, {
+        error: "Letters, digits, '.', '-' and '_'",
+      }),
+      line('influxUrl', 'InfluxDB write URL', 'influx.url', 8, {
+        placeholder: platform?.influxWriteUrl ?? '',
+        hint: fallback(platform?.influxWriteUrl),
+        error: HTTP_URL_ERROR,
+      }),
+      mono('influxCredentialsId', 'Credentials ID', 'influx.credentialsId', 4, {
+        placeholder: platform?.influxCredentialsId ?? '',
+        hint: fallback(platform?.influxCredentialsId),
+      }),
     ];
   }
 
@@ -496,9 +566,10 @@ export class ServiceFields {
       mono('deliveryGroup', 'Group', 'delivery.group', 4, {
         placeholder: 'com.bbh.payhub',
         hint: this.isVm() ? 'required on virtual machines' : '',
+        error: SHELL_SAFE_ERROR,
       }),
-      mono('deliveryArtifact', 'Artifact', 'delivery.artifact', 4),
-      mono('deliveryPlugin', 'Maven plugin', 'delivery.plugin', 4),
+      mono('deliveryArtifact', 'Artifact', 'delivery.artifact', 4, { error: SHELL_SAFE_ERROR }),
+      mono('deliveryPlugin', 'Maven plugin', 'delivery.plugin', 4, { error: SHELL_SAFE_ERROR }),
     ];
   }
 

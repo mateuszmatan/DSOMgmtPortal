@@ -40,7 +40,6 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 @Entity
 @Table(name = "DSO_SERVICE")
@@ -67,6 +66,11 @@ public class ServiceEntity extends AuditedEntity {
     @OneToMany(mappedBy = "service", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
     private List<UrbanCodeApplicationEntity> urbanCodeApplications = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "DSO_SERVICE_NEXUS_IQ_APP", joinColumns = @JoinColumn(name = "SERVICE_ID"))
+    @OrderColumn(name = "POSITION")
+    private List<NexusIqApplicationEmbeddable> nexusIqApplications = new ArrayList<>();
 
     @ElementCollection
     @CollectionTable(name = "DSO_SERVICE_SSH_TARGET", joinColumns = @JoinColumn(name = "SERVICE_ID"))
@@ -114,6 +118,8 @@ public class ServiceEntity extends AuditedEntity {
         displayOrder = service.displayOrder();
         settings = RecordMapper.map(source, SettingsEmbeddable.class);
         replace(testJobs, source.testJobs().stream().map(job -> RecordMapper.map(job, TestJobEmbeddable.class)).toList());
+        replace(nexusIqApplications, source.nexusIqApplications().stream()
+                .map(application -> RecordMapper.map(application, NexusIqApplicationEmbeddable.class)).toList());
         replace(sshTargets, regions(source.sshTargets(), SshTargetEmbeddable.class));
         replace(openShiftTargets, regions(source.openShiftTargets(), OpenShiftTargetEmbeddable.class));
         List<UrbanCodeApplicationSettings> applications = source.urbanCodeApplications();
@@ -125,18 +131,8 @@ public class ServiceEntity extends AuditedEntity {
         }
     }
 
-    boolean holdsOtherUniqueValuesThan(Service service) {
-        ServiceSettings wanted = service.settings();
-        return !Objects.equals(name, service.name())
-                || !Objects.equals(settings.sonar().projectKey(), wanted.sonar().projectKey())
-                || !Objects.equals(settings.metrics().influxProject(), wanted.metrics().influxProject())
-                || !Objects.equals(settings.metrics().influxEnv(), wanted.metrics().influxEnv());
-    }
-
-    void releaseUniqueValues() {
-        String placeholder = "~" + id;
-        name = placeholder;
-        settings = settings.withoutUniqueValues(placeholder);
+    void releaseName() {
+        name = "~" + id;
     }
 
     private static <T> void replace(List<T> current, List<T> replacement) {
@@ -174,11 +170,6 @@ public class ServiceEntity extends AuditedEntity {
             @EmbeddedColumnNaming("GOLDEN_FIX_%s") GoldenFixPolicyEmbeddable goldenFix,
             MetricsSettingsEmbeddable metrics,
             @EmbeddedColumnNaming("FLUTTER_%s") FlutterSettingsEmbeddable flutter) {
-
-        SettingsEmbeddable withoutUniqueValues(String placeholder) {
-            return new SettingsEmbeddable(build, unitTests, tests, deployment, delivery, urbanCode, appScan,
-                    sonar.withProjectKey(null), nexusIq, scm, goldenFix, metrics.withInfluxProject(placeholder), flutter);
-        }
     }
 
     @Embeddable
@@ -202,7 +193,9 @@ public class ServiceEntity extends AuditedEntity {
 
     @Embeddable
     public record TestSettingsEmbeddable(@Column(name = "TESTS_MAX_PARALLEL") Integer maxParallel,
-            Integer smokeMaxParallel, Integer regressionMaxParallel, Integer performanceMaxParallel) {
+            Integer smokeMaxParallel, Integer regressionMaxParallel, Integer performanceMaxParallel,
+            Boolean smokeRequired, Boolean regressionRequired, Boolean performanceRequired,
+            Integer smokePollIntervalSec, Integer regressionPollIntervalSec, Integer performancePollIntervalSec) {
     }
 
     @Embeddable
@@ -211,7 +204,9 @@ public class ServiceEntity extends AuditedEntity {
             String name,
             @Enumerated(EnumType.STRING) @Column(name = "JOB_TYPE") TestJobType type,
             String job, Integer timeoutMinutes, String parameters, String remoteJenkins, String remoteJenkinsUrl,
-            String credentialsId) {
+            String credentialsId, Integer pollIntervalSec, String tokenCredentialsId, Boolean abortTriggeredJob,
+            Boolean overrideTrustAllCertificates, Boolean preventRemoteBuildQueue, Boolean trustAllCertificates,
+            Boolean useCrumbCache, Boolean useJobInfoCache) {
     }
 
     @Embeddable
@@ -224,7 +219,7 @@ public class ServiceEntity extends AuditedEntity {
     public record ToolCommandEmbeddable(
             @Convert(converter = DelimitedListConverter.Tokens.class) List<String> tasks,
             @Convert(converter = DelimitedListConverter.Tokens.class) List<String> flags,
-            String directory, String mavenHome, List<String> environment) {
+            String directory, String mavenHome, List<String> environment, String label, Boolean returnStdout) {
     }
 
     @Embeddable
@@ -234,9 +229,18 @@ public class ServiceEntity extends AuditedEntity {
     }
 
     @Embeddable
+    public record UrbanCodeApplicationEmbeddable(String applicationName, @Column(name = "DEPLOY_ORDER") Integer order,
+            @Convert(converter = DelimitedListConverter.Commas.class) List<String> environments, String snapshotName,
+            String siteName, String deployProcess, Boolean skipWait, Boolean deployWithSnapshot,
+            Boolean updateSnapshotComponents, Boolean includeOnlyDeployVersions, Boolean deployOnlyChanged,
+            String deployDescription, String description, String requestProperties) {
+    }
+
+    @Embeddable
     public record UrbanCodeComponentEmbeddable(String componentName, String baseDir, String fileIncludePatterns,
             String fileExcludePatterns, String versionPrefix, @Column(name = "COMPONENT_VERSION") String version,
-            Boolean incrementalVersion) {
+            Boolean incrementalVersion, String extensions, String charset, String pushDescription,
+            String versionProperties, String versionDescription) {
     }
 
     @Embeddable
@@ -249,7 +253,8 @@ public class ServiceEntity extends AuditedEntity {
             String buildContext, String addFile, String dockerRepoPush, String dockerRepoPull, String certDir,
             String nexusAuthFile, String projectDeployment, String deployConfigPath, String configPath,
             Boolean skipConfigDeploy, String healthCheckUrl, String routeHostname, String deploymentPath,
-            String deploymentRepoUrl, String deploymentRepoBranch, String deploymentRepoCredentialsId) {
+            String deploymentRepoUrl, String deploymentRepoBranch, String deploymentRepoCredentialsId,
+            String buildTag, String internalDockerUrl) {
     }
 
     @Embeddable
@@ -264,27 +269,26 @@ public class ServiceEntity extends AuditedEntity {
             @Column(name = "APPSCAN_INSECURE_TLS") Boolean insecureTls,
             @Column(name = "APPSCAN_CLIENT_PATH") String clientPath,
             @EmbeddedColumnNaming("APPSCAN_COMPILE_%s") ToolCommandEmbeddable compileCommand,
-            Boolean dastEnabled, String dastScanName, String dastTargetUrl, String dastPresenceId) {
+            Boolean dastEnabled, String dastScanName, String dastTargetUrl, String dastPresenceId,
+            @Column(name = "APPSCAN_SECRET_CREDENTIALS_ID") String secretCredentialsId) {
     }
 
     @Embeddable
     public record SonarSettingsEmbeddable(String projectName, String projectKey, String installationName,
             String credentialsId, String authTokenCredentialsId, String badgeToken, Boolean addBadges,
-            Boolean fullBadges, ToolCommandEmbeddable command) {
-
-        SonarSettingsEmbeddable withProjectKey(String key) {
-            return new SonarSettingsEmbeddable(projectName, key, installationName, credentialsId, authTokenCredentialsId,
-                    badgeToken, addBadges, fullBadges, command);
-        }
+            Boolean fullBadges, ToolCommandEmbeddable command, String serverUrl) {
     }
 
     @Embeddable
     public record NexusIqSettingsEmbeddable(
-            @Column(name = "NEXUS_IQ_APPLICATION") String application,
-            @Column(name = "NEXUS_IQ_SCAN_PATTERNS") List<String> scanPatterns,
-            @Column(name = "NEXUS_IQ_STAGE") String stage,
-            @Column(name = "NEXUS_IQ_FAIL_ON_NETWORK_ERROR") Boolean failOnNetworkError,
+            @Column(name = "NEXUS_IQ_SERVER_URL") String serverUrl,
+            @Column(name = "NEXUS_IQ_CREDENTIALS_ID") String credentialsId,
             String scaScanName) {
+    }
+
+    @Embeddable
+    public record NexusIqApplicationEmbeddable(String application, List<String> scanPatterns, String stage,
+            Boolean failOnNetworkError) {
     }
 
     @Embeddable
@@ -326,11 +330,7 @@ public class ServiceEntity extends AuditedEntity {
 
     @Embeddable
     public record MetricsSettingsEmbeddable(@Column(name = "METRICS_ENABLED") Boolean enabled, String influxProject,
-            String influxEnv) {
-
-        MetricsSettingsEmbeddable withInfluxProject(String project) {
-            return new MetricsSettingsEmbeddable(enabled, project, influxEnv);
-        }
+            String influxEnv, String influxUrl, String influxCredentialsId) {
     }
 
     @Embeddable

@@ -6,9 +6,10 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 public record SonarSettings(String projectName, String projectKey, String installationName, String credentialsId,
                             String authTokenCredentialsId, String badgeToken, Boolean addBadges, Boolean fullBadges,
-                            ToolCommand command) {
+                            ToolCommand command, String serverUrl) {
 
-    public static final SonarSettings NONE = new SonarSettings(null, null, null, null, null, null, false, false, null);
+    public static final SonarSettings NONE = new SonarSettings(null, null, null, null, null, null, false, false, null,
+            null);
 
     public SonarSettings {
         projectName = Text.trimToNull(projectName);
@@ -20,14 +21,16 @@ public record SonarSettings(String projectName, String projectKey, String instal
         addBadges = Boolean.TRUE.equals(addBadges);
         fullBadges = Boolean.TRUE.equals(fullBadges);
         command = command == null ? ToolCommand.NONE : command;
+        serverUrl = Text.trimToNull(serverUrl);
     }
 
     public static SonarSettings of(String projectName, String projectKey, ToolCommand command) {
-        return new SonarSettings(projectName, projectKey, null, null, null, null, false, false, command);
+        return new SonarSettings(projectName, projectKey, null, null, null, null, false, false, command, null);
     }
 
     public void writeTo(ConfigTree config, BuildTool tool) {
-        config.set("tools.sonar.projectName", projectName)
+        config.set("tools.sonar.serverUrl", serverUrl)
+                .set("tools.sonar.projectName", projectName)
                 .set("tools.sonar.projectKey", projectKey)
                 .set("tools.sonar.installationName", installationName)
                 .set("tools.sonar.credentialsId", credentialsId)
@@ -39,7 +42,7 @@ public record SonarSettings(String projectName, String projectKey, String instal
     }
 
     public void validate(ValidationProblems problems, BuildTool tool) {
-        if (tool != BuildTool.FLUTTER && projectKey != null && command.tasks().isEmpty()) {
+        if (tool != BuildTool.FLUTTER && (projectKey != null || !command.isEmpty()) && command.tasks().isEmpty()) {
             problems.add("command.tasks", tool == BuildTool.MAVEN
                     ? "add the Maven goals of the analysis, for example sonar:sonar"
                     : "add the Gradle tasks of the analysis, for example sonarqube");

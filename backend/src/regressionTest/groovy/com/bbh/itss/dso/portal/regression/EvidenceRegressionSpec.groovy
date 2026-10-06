@@ -27,7 +27,7 @@ class EvidenceRegressionSpec extends PortalSpecification {
                 contactEmail: 'treasury@bbh.com', services: [
                 service(name: 'gui', description: 'Treasury web client', deployment: [target: 'VM', artifactName: 'gui.war'],
                         sonar: [projectKey: "$code-gui".toString(), command: [tasks: ['sonarqube']]],
-                        nexusIq: [application: "$code-gui".toString(), scanPatterns: ['**/build/libs/*.war']],
+                        nexusIqApplications: [[application: "$code-gui".toString(), scanPatterns: ['**/build/libs/*.war']]],
                         scm: [repositoryUrl: 'https://bitbucket.bbh.com/projects/TRE/repos/gui',
                               credentialsId: 'bitbucket-http-credentials']),
                 service(name: 'batch')]))
@@ -41,6 +41,8 @@ class EvidenceRegressionSpec extends PortalSpecification {
         def point = { Map args -> influx.addPoint([project: project, time: finished] + args) }
         point(measurement: 'code_coverage', module: 'gui', line_pct: '87.5', required: '80', covered: '875',
                 total: '1000', met: '1', measured: 'yes')
+        point(measurement: 'test_execution', module: 'gui', suite: 'unit', total: '240', passed: '236', failed: '0',
+                skipped: '4', not_configured: '0', duration_ms: '81000', success_rate: '98.33')
         point(measurement: 'test_execution', module: 'gui', suite: 'smoke', total: '12', passed: '12', failed: '0',
                 not_configured: '0', duration_ms: '5400')
         point(measurement: 'test_execution', module: 'gui', suite: 'regression-api', total: '40', passed: '38',
@@ -54,6 +56,9 @@ class EvidenceRegressionSpec extends PortalSpecification {
         point(measurement: 'policy_status', scanner: 'coverage', status: 'pass')
         point(measurement: 'vulnerabilities', scanner: 'sonar', critical: '0', high: '0', medium: '4', low: '12')
         point(measurement: 'vulnerabilities', scanner: 'nexusiq', critical: '0', high: '1', medium: '2', low: '0')
+        point(measurement: 'build_evidence', module: 'gui', artifact_version: '2.3.0-42', sonar_quality_gate: 'WARN',
+                sast_report_url: "${JOB}42/artifact/appscan/sast-report.html".toString(),
+                config_rendered_at: '2026-10-05T08:15:00.000Z', config_sha256: '3b7e1f0a9c2d4e5f')
         point(measurement: 'release_gate', allowed: 'no', violations: '1', reason: 'Nexus IQ: 1 high finding, limit 0')
         point(measurement: 'stage_event', stage: 'Build', status: 'pass', order: '1', duration_s: '120',
                 time: finished - Duration.ofSeconds(780))
@@ -108,26 +113,37 @@ class EvidenceRegressionSpec extends PortalSpecification {
         full.run.build.testReportUrl == "${JOB}42/testReport/"
         full.run.build.artifactsUrl == "${JOB}42/artifact/"
 
-        and: 'unit test coverage and the smoke, regression and performance suites'
+        and: 'the artifact it built and the portal configuration it ran with'
+        full.run.build.artifactVersion == '2.3.0-42'
+        full.run.build.configRenderedAt == '2026-10-05T08:15:00Z'
+        full.run.build.configSha256 == '3b7e1f0a9c2d4e5f'
+
+        and: 'unit test coverage and the unit, smoke, regression and performance suites'
         full.run.coverage == [status: 'PASS', linePercent: 87.5, requiredPercent: 80.0, coveredLines: 875, totalLines: 1000]
         full.run.testSuites == [
-                [stage: 'SMOKE', status: 'PASS', jobs: 12, passed: 12, failed: 0, notConfigured: 0, durationMs: 5400],
-                [stage: 'REGRESSION', status: 'WARN', jobs: 40, passed: 38, failed: 2, notConfigured: 0, durationMs: 61000],
-                [stage: 'PERFORMANCE', status: 'NO_DATA', jobs: null, passed: null, failed: null, notConfigured: null,
-                 durationMs: null]]
+                [suite: 'UNIT', status: 'PASS', total: 240, passed: 236, failed: 0, skipped: 4, notConfigured: 0,
+                 durationMs: 81000],
+                [suite: 'SMOKE', status: 'PASS', total: 12, passed: 12, failed: 0, skipped: null, notConfigured: 0,
+                 durationMs: 5400],
+                [suite: 'REGRESSION', status: 'WARN', total: 40, passed: 38, failed: 2, skipped: null, notConfigured: 0,
+                 durationMs: 61000],
+                [suite: 'PERFORMANCE', status: 'NO_DATA', total: null, passed: null, failed: null, skipped: null,
+                 notConfigured: null, durationMs: null]]
 
-        and: 'SAST, DAST, SonarQube and Nexus IQ with links to their reports'
+        and: 'SAST, DAST, SonarQube and Nexus IQ with the reports the build recorded, else the portal links'
         full.run.scans*.scanner == ['SAST', 'DAST', 'SONARQUBE', 'NEXUS_IQ']
         full.run.scans[0] == [scanner : 'SAST', status: 'PASS', critical: 0, high: 1, medium: 3, low: 7, maxCritical: 0,
-                              maxHigh : 2, maxMedium: 10,
-                              link    : "https://bbh.cloud.appscan.com/main/myapps/$Fixtures.APP_ID/scans"]
+                              maxHigh : 2, maxMedium: 10, qualityGate: null,
+                              link    : "${JOB}42/artifact/appscan/sast-report.html"]
         full.run.scans[1].status == 'NO_DATA'
         full.run.scans[1].critical == null
-        full.run.scans[2] == [scanner : 'SONARQUBE', status: 'NO_DATA', critical: 0, high: 0, medium: 4, low: 12,
-                              maxCritical: null, maxHigh: null, maxMedium: null,
+        full.run.scans[1].link == "https://bbh.cloud.appscan.com/main/myapps/$Fixtures.APP_ID/scans"
+        full.run.scans[2] == [scanner : 'SONARQUBE', status: 'WARN', critical: 0, high: 0, medium: 4, low: 12,
+                              maxCritical: null, maxHigh: null, maxMedium: null, qualityGate: 'WARN',
                               link    : "https://tools.bbh.com/sonar/dashboard?id=$code-gui"]
         full.run.scans[3] == [scanner : 'NEXUS_IQ', status: 'FAIL', critical: 0, high: 1, medium: 2, low: 0,
-                              maxCritical: 0, maxHigh: 0, maxMedium: 5, link: 'https://tools.bbh.com/IQ/']
+                              maxCritical: 0, maxHigh: 0, maxMedium: 5, qualityGate: null,
+                              link    : 'https://tools.bbh.com/IQ/']
 
         and: 'the release gate and every stage in the order it ran'
         full.run.releaseGate == [allowed: false, violations: 1, reason: 'Nexus IQ: 1 high finding, limit 0']
@@ -179,7 +195,9 @@ class EvidenceRegressionSpec extends PortalSpecification {
         full.status == 'SUCCESS'
         full.run.build.url == "${JOB}7/"
         full.run.coverage.status == 'NO_DATA'
-        full.run.testSuites*.status == ['NO_DATA', 'NO_DATA', 'NO_DATA']
+        full.run.testSuites*.status == ['NO_DATA', 'NO_DATA', 'NO_DATA', 'NO_DATA']
+        full.run.build.subMap(['artifactVersion', 'configRenderedAt', 'configSha256']) ==
+                [artifactVersion: null, configRenderedAt: null, configSha256: null]
         full.run.scans*.status == ['NO_DATA', 'NO_DATA', 'NO_DATA', 'NO_DATA']
         full.run.releaseGate == null
         full.run.stages == []

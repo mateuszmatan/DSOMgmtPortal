@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.adapter.out.influx
 
 import com.bbh.itss.dso.portal.domain.evidence.CheckStatus
 import com.bbh.itss.dso.portal.domain.evidence.CoverageEvidence
+import com.bbh.itss.dso.portal.domain.evidence.EvidenceLinks
 import com.bbh.itss.dso.portal.domain.evidence.ReleaseGateEvidence
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsUnavailableException
@@ -27,9 +28,9 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
 
     def "the evidence of every run is read in one query, each run in its own window, and no runs need none"() {
         given:
-        def runs = new LinkedHashMap<MetricsTag, PipelineRun>()
-        runs.put(guiSast, run(FINISHED.plusSeconds(3600), null))
-        runs.put(gui, run(FINISHED, 600))
+        def runs = new LinkedHashMap<MetricsTag, Set<PipelineRun>>()
+        runs.put(guiSast, [run(FINISHED.plusSeconds(3600), null)] as Set)
+        runs.put(gui, [run(FINISHED, 600)] as Set)
 
         when:
         adapter.evidenceOf(runs)
@@ -40,13 +41,13 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
             run0 = from(bucket: "DORA-metrics")
               |> range(start: time(v: "2026-10-04T09:49:56Z"), stop: time(v: "2026-10-04T10:00:02Z"))
               |> filter(fn: (r) => r.project == "CERT-gui" and r.env == "test")
-              |> filter(fn: (r) => r._measurement == "security_findings" or r._measurement == "policy_status" or r._measurement == "code_coverage" or r._measurement == "test_execution" or r._measurement == "release_gate" or r._measurement == "vulnerabilities" or r._measurement == "stage_event")
+              |> filter(fn: (r) => r._measurement == "security_findings" or r._measurement == "policy_status" or r._measurement == "code_coverage" or r._measurement == "test_execution" or r._measurement == "release_gate" or r._measurement == "vulnerabilities" or r._measurement == "stage_event" or r._measurement == "build_evidence")
               |> filter(fn: (r) => not (r._measurement == "release_gate" and r._field == "allowed"))
               |> last()
             run1 = from(bucket: "DORA-metrics")
               |> range(start: time(v: "2026-10-04T10:59:56Z"), stop: time(v: "2026-10-04T11:00:02Z"))
               |> filter(fn: (r) => r.project == "CERT-guisast" and r.env == "test")
-              |> filter(fn: (r) => r._measurement == "security_findings" or r._measurement == "policy_status" or r._measurement == "code_coverage" or r._measurement == "test_execution" or r._measurement == "release_gate" or r._measurement == "vulnerabilities" or r._measurement == "stage_event")
+              |> filter(fn: (r) => r._measurement == "security_findings" or r._measurement == "policy_status" or r._measurement == "code_coverage" or r._measurement == "test_execution" or r._measurement == "release_gate" or r._measurement == "vulnerabilities" or r._measurement == "stage_event" or r._measurement == "build_evidence")
               |> filter(fn: (r) => not (r._measurement == "release_gate" and r._field == "allowed"))
               |> last()
             union(tables: [run0, run1])
@@ -56,8 +57,8 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
 
     def "one run is read without a union, and a run with the same key in another environment in its own window"() {
         when:
-        adapter.evidenceOf([(gui): run(FINISHED, 60)])
-        adapter.evidenceOf([(gui): run(FINISHED, 600), (guiUat): run(FINISHED.minusSeconds(3600), 60)])
+        adapter.evidenceOf([(gui): [run(FINISHED, 60)] as Set])
+        adapter.evidenceOf([(gui): [run(FINISHED, 600)] as Set, (guiUat): [run(FINISHED.minusSeconds(3600), 60)] as Set])
 
         then:
         1 * influx.query({ String flux ->
@@ -73,8 +74,10 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
 
     def "each row goes to the run of its project and environment when it was written during that run"() {
         given:
-        def runs = [(gui)    : run(FINISHED, 600), (guiSast): run(FINISHED, 300),
-                    (guiUat) : run(FINISHED.minusSeconds(3600), 60)]
+        def guiRun = run(FINISHED, 600)
+        def sastRun = run(FINISHED, 300)
+        def uatRun = run(FINISHED.minusSeconds(3600), 60)
+        def runs = [(gui): [guiRun] as Set, (guiSast): [sastRun] as Set, (guiUat): [uatRun] as Set]
         influx.query(_) >> [
                 row('release_gate', project: 'CERT-gui', env: 'test', _time: at(FINISHED), allowed: 'yes'),
                 row('stage_event', project: 'CERT-gui', env: 'test', _time: at(FINISHED.minusSeconds(590)),
@@ -95,12 +98,31 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
         def evidence = adapter.evidenceOf(runs)
 
         then:
-        evidence.keySet() == [gui, guiSast, guiUat] as Set
-        evidence[gui].stages()*.name() == ['Build']
-        evidence[gui].releaseGate() == new ReleaseGateEvidence(true, null, null)
-        evidence[gui].coverage('gui') == new CoverageEvidence(CheckStatus.WARN, null, null, null, null)
-        evidence[guiUat].stages()*.name() == ['Deploy']
-        evidence[guiSast].isEmpty()
+        evidence.keySet() == [guiRun, sastRun, uatRun] as Set
+        evidence[guiRun].stages()*.name() == ['Build']
+        evidence[guiRun].releaseGate() == new ReleaseGateEvidence(true, null, null)
+        evidence[guiRun].coverage('gui') == new CoverageEvidence(CheckStatus.WARN, null, null, null, null)
+        evidence[uatRun].stages()*.name() == ['Deploy']
+        evidence[sastRun].isEmpty()
+    }
+
+    def "the runs of services sharing a tag each get the points written during their own run"() {
+        given:
+        def earlier = run(FINISHED.minusSeconds(3600), 600)
+        def later = run(FINISHED, 600)
+        influx.query(_) >> [
+                row('build_evidence', project: 'CERT-gui', env: 'test', _time: at(FINISHED.minusSeconds(3600)),
+                        module: 'backend-api', artifact_version: '2.0.1'),
+                row('build_evidence', project: 'CERT-gui', env: 'test', _time: at(FINISHED), module: 'gui',
+                        artifact_version: '1.4.2')]
+
+        when:
+        def evidence = adapter.evidenceOf([(gui): [later, earlier] as Set])
+
+        then:
+        evidence[earlier].build(earlier, 'backend-api', links()).artifactVersion() == '2.0.1'
+        evidence[earlier].build(earlier, 'gui', links()).artifactVersion() == null
+        evidence[later].build(later, 'gui', links()).artifactVersion() == '1.4.2'
     }
 
     def "without InfluxDB no evidence is read and the reason is given"() {
@@ -109,7 +131,7 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
                 new InfluxProperties(' ', 'DevSecOps', 'DORA-metrics', null, '365d'), RestClient.builder()])
 
         when:
-        new InfluxRunEvidenceAdapter(client).evidenceOf([(gui): run(FINISHED, 600)])
+        new InfluxRunEvidenceAdapter(client).evidenceOf([(gui): [run(FINISHED, 600)] as Set])
 
         then:
         0 * client.query(_)
@@ -122,7 +144,7 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
         influx.query(_) >> [row('release_gate', project: 'CERT-gui', env: 'test', _time: 'yesterday')]
 
         when:
-        adapter.evidenceOf([(gui): run(FINISHED, 600)])
+        adapter.evidenceOf([(gui): [run(FINISHED, 600)] as Set])
 
         then:
         def e = thrown(MetricsUnavailableException)
@@ -154,6 +176,10 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
     private static PipelineRun run(Instant finished, Long durationSeconds) {
         new PipelineRun(finished, RunResult.SUCCESS, 'develop', 42L, durationSeconds, 'a1b2c3d',
                 'DevSecOps/CERT/gui-full', 12L, 12L, 0L, 0L, 0L, 0L)
+    }
+
+    private static EvidenceLinks links() {
+        EvidenceLinks.of(null, null, null, null, null, null)
     }
 
     private static Map<String, String> row(Map values, String measurement) {

@@ -58,9 +58,9 @@ const PRODUCT: Field[] = [
 
 const APP_SCAN_ACCOUNT: Field[] = [
   mono('keyId', 'API key ID', 'asoc.keyId', 6, { placeholder: 'bbh_...' }),
-  mono('secretCredentialsId', 'Secret credentials ID', '', 6, {
+  mono('secretCredentialsId', 'Secret text credentials ID', 'asoc.token', 6, {
     placeholder: 'hcl-app-scan-account',
-    hint: 'Jenkins credentials holding the key secret',
+    hint: 'a Secret text credential holding the key secret',
   }),
 ];
 

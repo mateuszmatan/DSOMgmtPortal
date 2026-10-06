@@ -2,15 +2,18 @@ package com.bbh.itss.dso.portal.adapter.out.influx;
 
 import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort;
 import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint;
+import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns;
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 @Component
 class InfluxPipelineRunsAdapter implements PipelineRunsPort {
@@ -32,48 +35,65 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort {
     }
 
     @Override
-    public Map<MetricsTag, PipelineRun> latestRuns(Collection<MetricsTag> tags) {
+    public LatestRuns latestRuns(Collection<MetricsTag> tags, Set<MetricsTag> sharedTags) {
         if (tags.isEmpty()) {
             influx.requireConfigured();
-            return Map.of();
+            return LatestRuns.none();
+        }
+        List<MetricsTag> byTag = tags.stream().filter(tag -> !sharedTags.contains(tag)).toList();
+        List<MetricsTag> byJob = tags.stream().filter(sharedTags::contains).toList();
+        return influx.read(() -> {
+            Map<MetricsTag, List<PipelineRun>> runs = new HashMap<>();
+            collect(runs, byTag, """
+                      |> last()
+                      |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+                      |> group(columns: ["project", "env"])
+                    """);
+            collect(runs, byJob, """
+                      |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+                      |> group(columns: ["project", "env", "job"])
+                    """);
+            return new LatestRuns(runs, sharedTags);
+        });
+    }
+
+    private void collect(Map<MetricsTag, List<PipelineRun>> runs, List<MetricsTag> tags, String grouping) {
+        if (tags.isEmpty()) {
+            return;
         }
         String flux = """
                 from(bucket: %s)
                   |> range(start: -%s)
                   |> filter(fn: (r) => r._measurement == "pipeline_run")
                   |> filter(fn: (r) => contains(value: r.project, set: [%s]))
-                  |> last()
-                  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
-                  |> group(columns: ["project", "env"])
-                  |> sort(columns: ["_time"])
+                %s  |> sort(columns: ["_time"])
                   |> last(column: "_time")
                 """.formatted(influx.bucket(), influx.lastRunLookback(),
-                Flux.strings(tags.stream().map(MetricsTag::project).toList()));
-        return influx.read(() -> {
-            Map<MetricsTag, PipelineRun> runs = new HashMap<>();
-            for (Map<String, String> row : influx.query(flux)) {
-                MetricsTag tag = InfluxRows.tag(row);
-                if (tags.contains(tag)) {
-                    runs.put(tag, InfluxRows.run(row));
-                }
+                Flux.strings(tags.stream().map(MetricsTag::project).toList()), grouping);
+        for (Map<String, String> row : influx.query(flux)) {
+            MetricsTag tag = InfluxRows.tag(row);
+            if (tags.contains(tag)) {
+                runs.computeIfAbsent(tag, ignored -> new ArrayList<>()).add(InfluxRows.run(row));
             }
-            return runs;
-        });
+        }
     }
 
     @Override
-    public List<PipelineRun> recentRuns(MetricsTag tag, int days, int limit) {
+    public List<PipelineRun> recentRuns(MetricsTag tag, String job, int days, int limit) {
+        String byJob = job == null ? "" : """
+                  |> filter(fn: (r) => exists r.job and (r.job == %s or strings.hasPrefix(v: r.job, prefix: %s)))
+                """.formatted(Flux.string(job), Flux.string(job + "/"));
         String flux = """
-                from(bucket: %s)
+                %sfrom(bucket: %s)
                   |> range(start: -%dd)
                   |> filter(fn: (r) => r._measurement == "pipeline_run")
                   |> filter(fn: (r) => r.project == %s and r.env == %s)
                   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
-                  |> group()
+                %s  |> group()
                   |> sort(columns: ["_time"], desc: true)
                   |> limit(n: %d)
-                """.formatted(influx.bucket(), Flux.positive(days), Flux.string(tag.project()),
-                Flux.string(tag.env()), Flux.positive(limit));
+                """.formatted(job == null ? "" : "import \"strings\"\n\n", influx.bucket(), Flux.positive(days),
+                Flux.string(tag.project()), Flux.string(tag.env()), byJob, Flux.positive(limit));
         return influx.read(() -> influx.query(flux).stream().map(InfluxRows::run).toList());
     }
 

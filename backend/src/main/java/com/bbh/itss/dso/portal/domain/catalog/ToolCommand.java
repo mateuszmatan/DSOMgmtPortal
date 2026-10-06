@@ -10,9 +10,9 @@ import java.util.List;
 import java.util.Map;
 
 public record ToolCommand(List<String> tasks, List<String> flags, String directory, String mavenHome,
-                          List<String> environment) {
+                          List<String> environment, String label, Boolean returnStdout) {
 
-    public static final ToolCommand NONE = new ToolCommand(List.of(), List.of(), null, null, List.of());
+    public static final ToolCommand NONE = new ToolCommand(List.of(), List.of(), null, null, List.of(), null, false);
 
     public ToolCommand {
         tasks = Text.trimmed(tasks);
@@ -20,28 +20,30 @@ public record ToolCommand(List<String> tasks, List<String> flags, String directo
         directory = Text.trimToNull(directory);
         mavenHome = Text.trimToNull(mavenHome);
         environment = Text.trimmed(environment);
+        label = Text.trimToNull(label);
+        returnStdout = Boolean.TRUE.equals(returnStdout);
     }
 
     public static ToolCommand of(List<String> tasks, List<String> flags) {
-        return new ToolCommand(tasks, flags, null, null, List.of());
+        return new ToolCommand(tasks, flags, null, null, List.of(), null, false);
     }
 
     public boolean isEmpty() {
-        return tasks.isEmpty() && flags.isEmpty() && directory == null && mavenHome == null && environment.isEmpty();
+        return tasks.isEmpty() && flags.isEmpty() && directory == null && mavenHome == null && environment.isEmpty()
+                && label == null && !returnStdout;
     }
 
     public void writeTo(ConfigTree config, String path, BuildTool tool) {
-        if (tool == BuildTool.GRADLE) {
-            config.set(path + ".gradle.tasks", tasks)
-                    .set(path + ".gradle.flags", flags)
-                    .set(path + ".gradle.dir", directory)
-                    .set(path + ".gradle.env", environmentMap());
-        } else if (tool == BuildTool.MAVEN) {
-            config.set(path + ".maven.goals", tasks)
-                    .set(path + ".maven.flags", flags)
-                    .set(path + ".maven.dir", directory)
-                    .set(path + ".maven.mvnPath", mavenHome)
-                    .set(path + ".maven.env", environmentMap());
+        if (tool == BuildTool.GRADLE || tool == BuildTool.MAVEN) {
+            boolean maven = tool == BuildTool.MAVEN;
+            String block = path + (maven ? ".maven." : ".gradle.");
+            config.set(block + (maven ? "goals" : "tasks"), tasks)
+                    .set(block + "flags", flags)
+                    .set(block + "dir", directory)
+                    .set(block + "mvnPath", maven ? mavenHome : null)
+                    .set(block + "env", environmentMap())
+                    .set(block + "label", label)
+                    .flag(block + "returnStdout", returnStdout);
         }
     }
 

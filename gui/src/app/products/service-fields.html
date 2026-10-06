@@ -129,6 +129,7 @@
         @let scan = f.controls.appScan;
         <div class="form-fields">
           <dso-fields [group]="scan" [fields]="appScan" />
+          <dso-fields [group]="scan" [fields]="appScanSecretField()" />
           <h4 class="sub-heading span-12">Static scan (SAST)</h4>
           <dso-fields [group]="scan" [fields]="appScanStatic" />
           <span class="span-6"></span>
@@ -169,8 +170,50 @@
 
       @case ('nexusIq') {
         <div class="form-fields">
-          <dso-fields [group]="f.controls.nexusIq" [fields]="nexusIq" />
+          <dso-fields [group]="f.controls.nexusIq" [fields]="nexusIqFields()" />
         </div>
+        <section class="list-section">
+          <header class="list-header">
+            <h4>
+              Applications <span class="count">{{ nexusIqApplications().length }}</span>
+            </h4>
+            <span class="hint"><code>tools.nexusIq.application</code></span>
+            <span class="spacer"></span>
+            <button mat-stroked-button type="button" (click)="addNexusIqApplication()">
+              Add application
+            </button>
+          </header>
+          @if (f.controls.nexusIqApplications.errors?.['server']; as message) {
+            <div class="banner list-error" role="alert">{{ message }}</div>
+          }
+          @for (application of nexusIqApplications(); track application; let i = $index) {
+            <div class="list-item" [class.invalid]="application.invalid && application.touched">
+              <div class="list-item-head">
+                <span class="index">{{ i + 1 }}</span>
+                <strong class="mono">{{
+                  application.controls.application.value || 'New application'
+                }}</strong>
+                <span class="spacer"></span>
+                <button
+                  mat-button
+                  type="button"
+                  class="danger"
+                  (click)="removeNexusIqApplication(i)"
+                  [attr.aria-label]="
+                    'Remove ' + (application.controls.application.value || 'the new application')
+                  "
+                >
+                  Remove
+                </button>
+              </div>
+              <div class="form-fields">
+                <dso-fields [group]="application" [fields]="nexusIqApplication" />
+              </div>
+            </div>
+          } @empty {
+            <p class="list-empty">No application: the pipeline skips the Nexus IQ scan.</p>
+          }
+        </section>
       }
 
       @case ('scm') {

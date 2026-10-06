@@ -6,6 +6,7 @@ import com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform
 import com.bbh.itss.dso.portal.domain.catalog.FlutterSettings
 import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
+import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings
 import com.bbh.itss.dso.portal.domain.catalog.OpenShiftTarget
 import com.bbh.itss.dso.portal.domain.catalog.ScmSettings
@@ -26,6 +27,10 @@ import spock.lang.Shared
 import spock.lang.Specification
 import tools.jackson.databind.json.JsonMapper
 
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.IMAGE_TAG_MESSAGE
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.POWERSHELL_PATH_MESSAGE
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL_MESSAGE
 import static com.bbh.itss.dso.portal.domain.catalog.Region.QC
 import static com.bbh.itss.dso.portal.domain.catalog.Region.RD
 import static com.bbh.itss.dso.portal.support.ApiJson.APP_ID
@@ -92,7 +97,7 @@ class ServiceDtoSpec extends Specification {
         dto.appScan().applicationId() == APP_ID
         dto.appScan().includedDirs() == ['src']
         dto.appScan().compile()
-        dto.appScan().compileCommand() == new ServiceDto.ToolCommandDto([], [], null, null, [])
+        dto.appScan().compileCommand() == new ServiceDto.ToolCommandDto([], [], null, null, [], null, false)
         dto.scm().reviewers() == ['alice']
         dto.sshTargets()[QC] == new ServiceDto.SshTargetDto('qc.host', null, null, null, null)
         dto.urbanCodeApplications()[0].applicationName() == 'Cert'
@@ -110,16 +115,37 @@ class ServiceDtoSpec extends Specification {
 
         where:
         description                   | changes                                                       || property                                         | message
-        'a service name in capitals'  | [name: 'Gui']                                                 || 'name'                                           | "use lower case letters, digits, '.', '-' or '_', starting with a letter or digit"
+        'a service name with a space' | [name: 'Gui app']                                             || 'name'                                           | "use letters, digits, '.', '-' or '_', starting with a letter or digit"
         'a missing build tool'        | [build: [javaPath: '/jdk']]                                   || 'build.tool'                                     | 'must not be null'
         'more than 30 build tasks'    | [build: buildJson(command: [tasks: names(31)])]               || 'build.command.tasks'                            | 'size must be between 0 and 30'
         'a variable without a value'  | [build: buildJson(command: [environment: ['JAVA']])]          || 'build.command.environment[0].<list element>'    | 'write each variable as NAME=value'
-        'a test job running a day'    | [testJobs: [[stage: 'SMOKE', job: 'j', timeoutMinutes: 1441]]] || 'testJobs[0].timeoutMinutes'                    | 'must be less than or equal to 1440'
-        'an SSH host with a space'    | [sshTargets: [RD: [host: 'rd host']]]                         || 'sshTargets[RD].host'                            | 'must be a host name such as rdltaapps1.testbbh.com'
+        'a test job without time'     | [testJobs: [[stage: 'SMOKE', job: 'j', timeoutMinutes: 0]]]   || 'testJobs[0].timeoutMinutes'                    | 'must be greater than or equal to 1'
+        'an SSH host with a space'    | [sshTargets: [RD: [host: 'rd host']]]                         || 'sshTargets[RD].host'                            | SHELL_SAFE_MESSAGE
+        'a build path with a command' | [build: buildJson(buildPath: 'target/*.jar;rm')]              || 'build.buildPath'                                | SHELL_SAFE_MESSAGE
+        'a Dockerfile with a space'   | [openShiftTargets: [RD: [dockerFilePath: 'my Dockerfile']]]   || 'openShiftTargets[RD].dockerFilePath'            | SHELL_SAFE_MESSAGE
         'a component without a name'  | [urbanCodeApplications: [[applicationName: 'C', components: [[:]]]]] || 'urbanCodeApplications[0].components[0].componentName' | 'must not be blank'
-        'a DAST URL without http'     | [appScan: [applicationId: APP_ID, dastTargetUrl: 'ftp://x']]  || 'appScan.dastTargetUrl'                          | 'must be an http or https URL'
+        'a DAST URL without http'     | [appScan: [applicationId: APP_ID, dastTargetUrl: 'ftp://x']]  || 'appScan.dastTargetUrl'                          | URL_MESSAGE
         'a workspace with a space'    | [scm: [workspace: 'ta workspace']]                            || 'scm.workspace'                                  | 'must not contain whitespace'
         'an author email without @'   | [goldenFix: [commitAuthorEmail: 'goldenfix.bbh.com']]         || 'goldenFix.commitAuthorEmail'                    | 'must be a well-formed email address'
+        'a build tag with a space'    | [openShiftTargets: [QC: [buildTag: '1.0 rc']]]                || 'openShiftTargets[QC].buildTag'                  | IMAGE_TAG_MESSAGE
+        'an image URL with a ~'       | [openShiftTargets: [QC: [internalDockerUrl: 'registry/~cert']]] || 'openShiftTargets[QC].internalDockerUrl'       | IMAGE_TAG_MESSAGE
+        'an InfluxDB URL without http'| [metrics: [influxUrl: 'influx:8086']]                         || 'metrics.influxUrl'                              | URL_MESSAGE
+        'a URL with a command'        | [scm: [repositoryUrl: 'https://bitbucket/$(id)']]             || 'scm.repositoryUrl'                              | URL_MESSAGE
+        'a URL with a backtick'       | [metrics: [influxUrl: 'http://influx/`id`']]                  || 'metrics.influxUrl'                              | URL_MESSAGE
+        'a URL with a double quote'   | [testJobs: [[stage: 'SMOKE', job: 'j', remoteJenkinsUrl: 'https://j/"x']]] || 'testJobs[0].remoteJenkinsUrl'     | URL_MESSAGE
+        'a URL with a backslash'      | [appScan: [applicationId: APP_ID, dastTargetUrl: 'https://cert\\x']] || 'appScan.dastTargetUrl'                | URL_MESSAGE
+        'a Nexus IQ app without name' | [nexusIqApplications: [[scanPatterns: ['**/*.jar']]]]         || 'nexusIqApplications[0].application'            | 'must not be blank'
+        'a poll interval of zero'     | [tests: [smokePollIntervalSec: 0]]                            || 'tests.smokePollIntervalSec'                     | 'must be greater than or equal to 1'
+        'a Maven home with a command' | [build: buildJson(command: [mavenHome: '/opt/maven;id'])]     || 'build.command.mavenHome'                        | SHELL_SAFE_MESSAGE
+        'a Flutter plugin with $()'   | [flutter: [deliveryPlugin: 'deploy:deploy-file$(id)']]        || 'flutter.deliveryPlugin'                         | SHELL_SAFE_MESSAGE
+        'an AppScan client with a ;'  | [appScan: [applicationId: APP_ID, clientPath: 'bin/appscan.bat;id']] || 'appScan.clientPath'                    | POWERSHELL_PATH_MESSAGE
+        'a folder with a quote'       | [appScan: [applicationId: APP_ID, includedDirs: ["it's"]]]    || 'appScan.includedDirs[0].<list element>'        | 'one folder per entry, without commas or quotes'
+    }
+
+    def "an AppScan client path may use Windows separators"() {
+        expect:
+        validator.validate(request(toJson(serviceJson(appScan: [applicationId: APP_ID,
+                clientPath: '\\SAClientUtil\\bin\\appscan.bat'])))).isEmpty()
     }
 
     private ServiceDto request(String body) {
@@ -133,23 +159,24 @@ class ServiceDtoSpec extends Specification {
     static ServiceSettings fullSettings() {
         new ServiceSettings(build(tool: BuildTool.MAVEN, buildPath: 'target/gui.war'),
                 new UnitTestSettings(command(['test']), '**/TEST-*.xml', null, null, true, null),
-                new TestSettings(5, 1, 2, 3),
-                [new TestJob(TestStage.SMOKE, 'smoke', null, 'CERT/gui-smoke', 10, null, null, null, null)],
+                new TestSettings(5, 1, 2, 3, true, true, true, null, null, null),
+                [TestJob.of(TestStage.SMOKE, 'smoke', null, 'CERT/gui-smoke', 10)],
                 deployment(appName: 'gui'),
                 command(['deploy:deploy-file']),
                 new UrbanCodeSettings('BBH-RD', 'Deploy', true, false, true, false, true, 'desc', 'a=b'),
-                [new UrbanCodeApplicationSettings('Cert', 1, ['RD'], 'snap',
-                        [new UrbanCodeComponent('cert-gui', 'build/libs', '*.war', null, null, null, false)])],
+                [UrbanCodeApplicationSettings.of('Cert', 1, ['RD'], 'snap',
+                        [new UrbanCodeComponent('cert-gui', 'build/libs', '*.war', null, null, null, false, null, null, null, null, null)])],
                 [(QC): new SshTarget('qc.host', null, null, null, null), (RD): new SshTarget('rd.host', null, null, null, null)],
                 [(QC): new OpenShiftTarget(null, null, null, null, null, null, 'pull/cert', null, null, 'cert-qc', null, null,
-                        true, null, null, null, null, null, null)],
+                        true, null, null, null, null, null, null, null, null)],
                 appScan(dastEnabled: true, dastTargetUrl: 'https://rdl1.testbbh.com', compileCommand: command(['compile'])),
                 SonarSettings.of('Cert', 'cert-gui', command(['sonar:sonar'])),
-                NexusIqSettings.of('cert', ['**/*.war']),
+                new NexusIqSettings('https://iq.bbh.com', 'iq-creds', null),
+                [NexusIqApplication.of('cert', ['**/*.war']), NexusIqApplication.of('cert-batch', ['**/batch/*.jar'])],
                 new ScmSettings('https://bitbucket.bbh.com/scm/ta/cert.git', 'bb-creds', null, null, null, null, null,
                         'https://bitbucket.bbh.com/rest/api/1.0', 'ta-workspace', 'TA', 'cert-gui'),
                 GoldenFixPolicy.inherit(false),
-                new MetricsSettings(false, 'cert-gui', 'qc'),
+                new MetricsSettings(false, 'cert-gui', 'qc', null, null),
                 new FlutterSettings(FlutterPlatform.WEB, ['app'], [], [], [], 's', 'p', 't', null, null, null, null, null, true,
                         null, null))
     }

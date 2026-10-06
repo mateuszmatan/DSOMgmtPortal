@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.domain.shared;
 
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 
 public final class UriEncoding {
@@ -17,6 +18,14 @@ public final class UriEncoding {
 
     public static String queryParam(String value) {
         return encode(value, QUERY_PARAM_SYMBOLS);
+    }
+
+    public static String decode(String value) {
+        try {
+            return URLDecoder.decode(value.replace("+", "%2B"), StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            return value;
+        }
     }
 
     private static String encode(String value, String allowedSymbols) {

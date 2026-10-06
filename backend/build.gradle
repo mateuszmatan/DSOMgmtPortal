@@ -151,6 +151,7 @@ testing {
                 testTask.configure {
                     description = 'Measures the p95 latencies of the main calls on a large catalogue.'
                     shouldRunAfter tasks.named('smokeTest')
+                    mustRunAfter ':gui:regressionTest', ':gui:smokeTest', ':gui:performanceTest'
                     systemProperty 'performance.report', layout.buildDirectory.file('reports/performance/performance-report.md').get().asFile.absolutePath
                     forward(it, 'performance.factor')
                     outputs.upToDateWhen { false }

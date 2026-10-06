@@ -5,14 +5,24 @@
         <span class="brand-name"><strong>BBH</strong> DevSecOps Management Portal</span>
       </a>
       <nav class="menu" aria-label="Main">
-        @for (item of navigation; track item.path) {
-          <a
-            class="menu-link"
-            [routerLink]="item.path"
-            routerLinkActive="active"
-            ariaCurrentWhenActive="page"
-            >{{ item.label }}</a
-          >
+        @for (menu of menus; track menu.label) {
+          <div class="menu-group" routerLinkActive="active">
+            <button type="button" class="menu-trigger" [matMenuTriggerFor]="items">
+              {{ menu.label }}
+            </button>
+            <mat-menu #items="matMenu" [aria-label]="menu.label">
+              @for (item of menu.sections; track item.path) {
+                <a
+                  mat-menu-item
+                  class="menu-item"
+                  [routerLink]="item.path"
+                  routerLinkActive="active"
+                  ariaCurrentWhenActive="page"
+                  >{{ item.label }}</a
+                >
+              }
+            </mat-menu>
+          </div>
         }
       </nav>
     </div>

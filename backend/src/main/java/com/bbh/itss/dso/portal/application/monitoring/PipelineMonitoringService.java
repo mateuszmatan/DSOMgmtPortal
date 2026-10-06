@@ -18,6 +18,7 @@ import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.monitoring.DoraCalculator;
 import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint;
 import com.bbh.itss.dso.portal.domain.monitoring.DoraSummary;
+import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns;
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsReading;
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.domain.monitoring.MonitoringRange;
@@ -31,7 +32,6 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @UseCase
@@ -67,7 +67,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
     public MonitoringOverview overview() {
         MonitoringTargets monitored = targets.everything();
         List<PipelineView> views = monitored.pipelines();
-        MetricsReading<Map<MetricsTag, PipelineRun>> latest = latestRuns(views);
+        MetricsReading<LatestRuns> latest = latestRuns(monitored);
         Map<Long, List<PipelineView>> byProduct = views.stream()
                 .collect(Collectors.groupingBy(view -> view.product().id()));
         List<ProductHealth> health = monitored.products().stream()
@@ -82,10 +82,10 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         MonitoringTargets monitored = targets.ofProduct(productId);
         Product product = monitored.product();
         List<PipelineView> productPipelines = monitored.pipelines();
-        MetricsReading<Map<MetricsTag, PipelineRun>> latest = latestRuns(productPipelines);
+        MetricsReading<LatestRuns> latest = latestRuns(monitored);
         List<PipelineHealth> health = productPipelines.stream()
                 .map(view -> {
-                    PipelineRun run = latest.value().get(view.metricsTag());
+                    PipelineRun run = latest.value().of(view.metricsTag(), view.pipeline());
                     return new PipelineHealth(view, RunResult.of(view.pipeline(), run), run);
                 })
                 .toList();
@@ -97,19 +97,24 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
     @WithoutTransaction
     public PipelineMonitoring pipeline(long pipelineId, String range) {
         int days = MonitoringRange.parse(range).days();
-        PipelineView view = targets.ofPipeline(pipelineId).pipeline();
+        MonitoringTargets monitored = targets.ofPipeline(pipelineId);
+        PipelineView view = monitored.pipeline();
         Pipeline pipeline = view.pipeline();
         MetricsTag tag = view.metricsTag();
+        boolean shared = monitored.sharedTags().contains(tag);
+        String job = shared ? pipeline.settings().jobPath() : null;
+        boolean attributable = !shared || job != null;
 
-        MetricsReading<List<PipelineRun>> recent = MetricsReading.of(() -> runs.recentRuns(tag, days, RECENT_RUNS),
-                List.of());
+        MetricsReading<List<PipelineRun>> recent = attributable
+                ? MetricsReading.of(() -> runs.recentRuns(tag, job, days, RECENT_RUNS), List.of())
+                : MetricsReading.of(List::of, List.of());
         MetricsReading<List<DoraPoint>> points = recent.failed()
                 ? MetricsReading.unavailable(List.of(), recent.error())
                 : MetricsReading.of(() -> runs.doraPoints(tag, days), List.of());
         List<PipelineRun> recentRuns = recent.value();
         PipelineRun last = recentRuns.isEmpty() ? null : recentRuns.getFirst();
-        if (last == null && !points.failed()) {
-            last = latestRuns(List.of(view)).value().get(tag);
+        if (last == null && attributable && !points.failed()) {
+            last = latestRuns(monitored).value().of(tag, pipeline);
         }
         DoraSummary dora = DoraCalculator.summarize(points.value(), days, Instant.now(clock));
         return new PipelineMonitoring(view, RunResult.of(pipeline, last), last, dora, recentRuns,
@@ -121,17 +126,15 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         return true;
     }
 
-    private MetricsReading<Map<MetricsTag, PipelineRun>> latestRuns(List<PipelineView> views) {
-        Set<MetricsTag> tags = views.stream().map(PipelineView::metricsTag).collect(Collectors.toSet());
-        return MetricsReading.of(() -> runs.latestRuns(tags), Map.of());
+    private MetricsReading<LatestRuns> latestRuns(MonitoringTargets monitored) {
+        return MetricsReading.of(() -> runs.latestRuns(monitored.tags(), monitored.sharedTags()), LatestRuns.none());
     }
 
-    private static ProductHealth health(Product product, List<PipelineView> productPipelines,
-                                        Map<MetricsTag, PipelineRun> latest) {
+    private static ProductHealth health(Product product, List<PipelineView> productPipelines, LatestRuns latest) {
         Map<RunResult, Integer> counts = new EnumMap<>(RunResult.class);
         Instant lastRunAt = null;
         for (PipelineView view : productPipelines) {
-            PipelineRun run = latest.get(view.metricsTag());
+            PipelineRun run = latest.of(view.metricsTag(), view.pipeline());
             counts.merge(RunResult.of(view.pipeline(), run), 1, Integer::sum);
             if (run != null && (lastRunAt == null || run.time().isAfter(lastRunAt))) {
                 lastRunAt = run.time();

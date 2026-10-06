@@ -34,3 +34,20 @@ export const SETTINGS: PortalSection = {
 };
 
 export const SECTIONS: readonly PortalSection[] = [PRODUCTS, MONITORING, EVIDENCE, SETTINGS];
+
+export const BEADLE: PortalSection = {
+  path: '/beadle',
+  label: 'Overview',
+  heading: 'Beadle',
+  description: 'New features of the BBH portal',
+};
+
+export interface PortalMenu {
+  label: string;
+  sections: readonly PortalSection[];
+}
+
+export const MENUS: readonly PortalMenu[] = [
+  { label: 'Beadle', sections: [BEADLE] },
+  { label: 'DevSecOps Management', sections: SECTIONS },
+];

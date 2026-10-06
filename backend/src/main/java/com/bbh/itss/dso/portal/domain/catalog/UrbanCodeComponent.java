@@ -8,7 +8,8 @@ import java.util.Map;
 
 public record UrbanCodeComponent(String componentName, String baseDir, String fileIncludePatterns,
                                  String fileExcludePatterns, String versionPrefix, String version,
-                                 Boolean incrementalVersion) {
+                                 Boolean incrementalVersion, String extensions, String charset,
+                                 String pushDescription, String versionProperties, String versionDescription) {
 
     public UrbanCodeComponent {
         componentName = componentName == null ? null : componentName.trim();
@@ -18,6 +19,16 @@ public record UrbanCodeComponent(String componentName, String baseDir, String fi
         versionPrefix = Text.trimToNull(versionPrefix);
         version = Text.trimToNull(version);
         incrementalVersion = !Boolean.FALSE.equals(incrementalVersion);
+        extensions = Text.trimToNull(extensions);
+        charset = Text.trimToNull(charset);
+        pushDescription = Text.trimToNull(pushDescription);
+        versionProperties = Text.trimToNull(versionProperties);
+        versionDescription = Text.trimToNull(versionDescription);
+    }
+
+    public static UrbanCodeComponent of(String componentName, String baseDir, String fileIncludePatterns) {
+        return new UrbanCodeComponent(componentName, baseDir, fileIncludePatterns, null, null, null, true, null, null,
+                null, null, null);
     }
 
     public void validate(ValidationProblems problems) {
@@ -36,6 +47,11 @@ public record UrbanCodeComponent(String componentName, String baseDir, String fi
                 .set("versionPrefix", versionPrefix)
                 .set("version", version)
                 .set("incrementalVersion", incrementalVersion)
+                .set("extensions", extensions)
+                .set("charset", charset)
+                .set("pushDescription", pushDescription)
+                .set("versionProperties", versionProperties)
+                .set("versionDescription", versionDescription)
                 .toMap();
     }
 }

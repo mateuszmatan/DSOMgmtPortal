@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { BuildTool } from '../core/models';
-import { Field, Fields, area, mono } from '../shared/fields';
+import { Field, Fields, area, check, line, mono } from '../shared/fields';
+import { SHELL_SAFE_ERROR } from '../shared/form-controls';
 import { ToolCommandForm } from './product-form-model';
 
 @Component({
@@ -40,7 +41,12 @@ export class ToolCommandFields {
       ),
       mono('directory', 'Directory', `${key}.dir`, maven ? 3 : 6, { placeholder: '.' }),
       ...(maven
-        ? [mono('mavenHome', 'Maven home', `${key}.mvnPath`, 3, { placeholder: '/opt/maven' })]
+        ? [
+            mono('mavenHome', 'Maven home', `${key}.mvnPath`, 3, {
+              placeholder: '/opt/maven',
+              error: SHELL_SAFE_ERROR,
+            }),
+          ]
         : []),
       area('flags', 'Flags', `${key}.flags`, 6, {
         mono: true,
@@ -52,6 +58,10 @@ export class ToolCommandFields {
         placeholder: 'JAVA_OPTS=-Xmx1g',
         hint: 'one NAME=value per line',
       }),
+      line('label', 'Step label', `${key}.label`, 6, {
+        hint: 'the name Jenkins shows for the step',
+      }),
+      check('returnStdout', 'Return the output to the pipeline', `${key}.returnStdout`, 6),
     ];
   }
 }

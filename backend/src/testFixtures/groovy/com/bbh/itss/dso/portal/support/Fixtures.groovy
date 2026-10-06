@@ -12,6 +12,7 @@ import com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform
 import com.bbh.itss.dso.portal.domain.catalog.FlutterSettings
 import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
+import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings
 import com.bbh.itss.dso.portal.domain.catalog.OpenShiftTarget
 import com.bbh.itss.dso.portal.domain.catalog.Product
@@ -78,7 +79,8 @@ final class Fixtures {
                 args.includedDirs as List<String>, args.excludedDirs as List<String>, args.compile as Boolean,
                 args.sourceCodeOnly as Boolean, args.useConfigFile as Boolean, args.insecureTls as Boolean,
                 args.clientPath as String, args.compileCommand as ToolCommand, args.dastEnabled as Boolean,
-                args.dastScanName as String, args.dastTargetUrl as String, args.dastPresenceId as String)
+                args.dastScanName as String, args.dastTargetUrl as String, args.dastPresenceId as String,
+                args.secretCredentialsId as String)
     }
 
     static ServiceSettings settings(Map args = [:]) {
@@ -92,7 +94,8 @@ final class Fixtures {
                 args.urbanCodeApplications as List<UrbanCodeApplicationSettings>,
                 args.sshTargets as Map<Region, SshTarget>, args.openShiftTargets as Map<Region, OpenShiftTarget>,
                 args.appScan as AppScanSettings ?: appScan(), args.sonar as SonarSettings,
-                args.nexusIq as NexusIqSettings, args.scm as ScmSettings, args.goldenFix as GoldenFixPolicy,
+                args.nexusIq as NexusIqSettings, args.nexusIqApplications as List<NexusIqApplication>,
+                args.scm as ScmSettings, args.goldenFix as GoldenFixPolicy,
                 args.metrics as MetricsSettings, args.flutter as FlutterSettings)
     }
 
@@ -100,40 +103,48 @@ final class Fixtures {
         new ServiceSettings(
                 new BuildSettings(BuildTool.MAVEN, 'app', JDK, true, 'target/*.war', fullCommand('build')),
                 new UnitTestSettings(fullCommand('test'), '**/TEST-*.xml', 'app', 'reports', true, 'target/jacoco.xml'),
-                new TestSettings(5, 1, 2, 3),
-                [new TestJob(TestStage.SMOKE, 'smoke', TestJobType.LOCAL, "CERT/${name}-smoke", 10, 'A=1', null, null, null),
+                new TestSettings(5, 1, 2, 3, true, false, true, 10, null, 30),
+                [new TestJob(TestStage.SMOKE, 'smoke', TestJobType.LOCAL, "CERT/${name}-smoke", 10, 'A=1', null, null, null,
+                        null, null, false, false, false, false, false, false),
                  new TestJob(TestStage.REGRESSION, 'regression', TestJobType.REMOTE, 'CERT/regression', 60, 'B=2\nC=3',
-                         'jenkins-qc', 'https://jenkins-qc.bbh.com', 'remote-token'),
+                         'jenkins-qc', 'https://jenkins-qc.bbh.com', 'remote-token', 20, 'remote-trigger-token', true,
+                         false, true, false, true, false),
                  new TestJob(TestStage.PERFORMANCE, null, null, 'https://jenkins-qc.bbh.com/job/load/', null, null, null,
-                         null, null)],
+                         null, null, null, null, false, false, false, false, false, false)],
                 new DeploymentSettings(DeployTarget.VM, "cert-${name}", "cert-${name}.war", 'cert-base'),
                 fullCommand('delivery'),
                 new UrbanCodeSettings('BBH-RD', 'Deploy', true, false, true, false, true, 'release', 'a=b'),
-                [new UrbanCodeApplicationSettings('Cert', 1, ['RD', 'QC'], 'snap',
-                        [new UrbanCodeComponent('cert-gui', 'build/libs', '*.war', '*.tmp', 'v', '1.0', true),
-                         new UrbanCodeComponent('cert-config', 'config', '*.yml', null, null, null, false)]),
-                 new UrbanCodeApplicationSettings('Cert Batch', 2, [], null,
-                         [new UrbanCodeComponent('cert-batch', 'batch/build', '*.jar', null, null, null, true)])],
+                [new UrbanCodeApplicationSettings('Cert', 1, ['RD', 'QC'], 'snap', 'BBH-QC', 'Deploy QC', false, null,
+                        true, null, false, 'cert release', 'cert', 'c=d',
+                        [new UrbanCodeComponent('cert-gui', 'build/libs', '*.war', '*.tmp', 'v', '1.0', true, 'war',
+                                'UTF-8', 'gui push', 'build=1', 'gui version'),
+                         new UrbanCodeComponent('cert-config', 'config', '*.yml', null, null, null, false, null, null,
+                                 null, null, null)]),
+                 UrbanCodeApplicationSettings.of('Cert Batch', 2, [], null,
+                         [UrbanCodeComponent.of('cert-batch', 'batch/build', '*.jar')])],
                 [(Region.RD): new SshTarget('rd.host', 'dsoadm', '/opt/rd', 'deploy.sh', 'version.txt'),
                  (Region.QC): new SshTarget('qc.host', null, null, null, null)],
                 [(Region.RD): new OpenShiftTarget('cert-build', 'oc/build.yaml', 'Dockerfile', '.', 'add.txt',
                         'push.bbh.com/cert', 'pull.bbh.com/cert', 'certs', 'auth.json', 'cert-rd', 'oc/deploy.yaml',
                         'oc/config', true, '/health', 'cert.apps.bbh.com', 'deploy', 'https://bitbucket.bbh.com/scm/ta/deploy.git',
-                        'main', 'deploy-creds'),
+                        'main', 'deploy-creds', '1.0.42', 'image-registry.openshift-image-registry.svc:5000/cert'),
                  (Region.QC): new OpenShiftTarget(null, null, null, null, null, null, null, null, null, 'cert-qc', null,
-                         null, false, null, null, null, null, null, null)],
+                         null, false, null, null, null, null, null, null, '1.0.41', null)],
                 new AppScanSettings(APP_ID, 'Cert scan', ['src'], ['test'], false, true, true, true, '/opt/appscan',
-                        fullCommand('compile'), true, 'Cert DAST', 'https://cert.testbbh.com', 'presence-1'),
+                        fullCommand('compile'), true, 'Cert DAST', 'https://cert.testbbh.com', 'presence-1',
+                        'cert-appscan-secret'),
                 new SonarSettings('CertScanner', "cert-${name}", 'SonarQube BBH', 'sonar-creds', 'sonar-token', 'badge',
-                        true, true, fullCommand('sonar')),
-                new NexusIqSettings("cert-${name}", ['**/*.war', '**/*.jar'], 'release', true, 'Cert SCA'),
+                        true, true, fullCommand('sonar'), 'https://sonar.cert.bbh.com'),
+                new NexusIqSettings('https://iq.cert.bbh.com', 'cert-iq', 'Cert SCA'),
+                [new NexusIqApplication("cert-${name}", ['**/*.war', '**/*.jar'], 'release', true),
+                 NexusIqApplication.of("cert-${name}-batch", ['**/batch/*.jar'])],
                 new ScmSettings('https://bitbucket.bbh.com/scm/ta/cert.git', 'bb-creds', BitbucketAuthType.BEARER,
                         BitbucketType.SERVER, 'develop', 'ssh://git@bitbucket.bbh.com/ta/cert.git', ['alice', 'bob'],
                         'https://bitbucket.bbh.com/rest/api/1.0', 'ta-workspace', 'TA', 'cert-' + name),
                 new GoldenFixPolicy(false, true, 7, ['maven', 'npm'], ['recommended-non-breaking'], ['docs', 'tests'],
                         true, 3, 30, 'mvn verify', 'gradle check', 'npm test', 'pytest', 'flutter test', 'GoldenFix Bot',
                         'goldenfix@bbh.com', 'Europe/Warsaw'),
-                new MetricsSettings(false, "cert-${name}", 'qc'),
+                new MetricsSettings(false, "cert-${name}", 'qc', 'https://influx.cert.bbh.com/api/v2/write', 'cert-influx'),
                 new FlutterSettings(FlutterPlatform.APPBUNDLE, ['core', 'app'], ['core'], ['core/sub'], ['plugin'],
                         'signing', 'prod-licence', 'test-licence', 'com.bbh', 'cert-mobile', 'deploy:deploy-file', 'lib',
                         'test', true, 'dart analyze', '5.0'))
@@ -141,7 +152,7 @@ final class Fixtures {
 
     static ToolCommand fullCommand(String prefix) {
         new ToolCommand([prefix + '-task', 'second'], ['--' + prefix], prefix, '/opt/' + prefix + '/maven',
-                [prefix.toUpperCase() + '_OPTS=-Xmx1g', 'CI=true'])
+                [prefix.toUpperCase() + '_OPTS=-Xmx1g', 'CI=true'], prefix.capitalize() + ' step', prefix == 'build')
     }
 
     static AppScanAccount account() {
@@ -209,16 +220,6 @@ final class Fixtures {
             @Override
             Optional<ProductDirectory.ProductIdentity> findProductByName(String name) {
                 Optional.ofNullable((args.byName as Map)?.get(name) as ProductDirectory.ProductIdentity)
-            }
-
-            @Override
-            List<ProductDirectory.ServiceIdentity> findServicesByMetricsTags(String influxProject, String influxEnv) {
-                ((args.byMetrics as Map)?.get("$influxProject|$influxEnv" as String) ?: []) as List<ProductDirectory.ServiceIdentity>
-            }
-
-            @Override
-            List<ProductDirectory.ServiceIdentity> findServicesBySonarProjectKey(String projectKey) {
-                ((args.bySonarKey as Map)?.get(projectKey) ?: []) as List<ProductDirectory.ServiceIdentity>
             }
         }
     }

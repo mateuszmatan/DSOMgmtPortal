@@ -17,7 +17,8 @@ Gradle downloads Node.js 24 into `gui/.gradle/nodejs`.
 
 | Folder        | Holds |
 |---------------|-------|
-| `core/`       | API clients, models mirroring the backend DTOs, error handling, the four portal sections |
+| `core/`       | API clients, models mirroring the backend DTOs, error handling, the portal sections and the header menus |
+| `beadle/`     | Beadle: the overview page of the new features of the portal |
 | `products/`   | Product Management: product list, product editor, product page with pipelines and keys |
 | `monitoring/` | Pipeline Monitoring: overview, product pipelines, pipeline details with DORA and Grafana |
 | `evidence/`   | Change Evidence: builds, tests and scans of each pipeline for ServiceNow changes |
@@ -67,9 +68,12 @@ every feature land in `build/reports/gui/screenshots`.
 
 ## Look and layout
 
-- The top menu is one compact line with short labels: Product Management, Pipeline Monitoring, Change Evidence and
-  Global Settings. Each page starts with the full name of its section as the heading and the section description
-  under it.
+- The header holds two menus, each opening a compact dropdown of short labels: Beadle, for the new features of the
+  portal, and DevSecOps Management with Product Management, Pipeline Monitoring, Change Evidence and Global
+  Settings. A new feature is a `PortalSection` added to the Beadle entry of `MENUS` in `core/sections.ts`, next to
+  its Overview page, and to `MENUS` in `GuiSpecification`, which `menuLink` uses to open the right menu. The menu
+  holding the current page is underlined. Each page starts with the full name of its section as the heading and the
+  section description under it.
 - The pages show no icons. The only icons are those of the vertical section menu in the service editor.
 - Fields are compact (Material density -4, 32px inputs). Forms reflow to two columns below 760px and to one below
   480px; the menu wraps and wide tables scroll inside their own container, so no page scrolls sideways at 800px or

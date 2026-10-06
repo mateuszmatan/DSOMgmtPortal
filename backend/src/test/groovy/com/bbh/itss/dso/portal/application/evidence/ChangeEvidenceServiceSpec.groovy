@@ -6,7 +6,8 @@ import com.bbh.itss.dso.portal.application.monitoring.MonitoringTargetsService
 import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
-import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings
+import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
+import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.Service
 import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
@@ -16,6 +17,7 @@ import com.bbh.itss.dso.portal.domain.evidence.CoverageEvidence
 import com.bbh.itss.dso.portal.domain.evidence.ReleaseGateEvidence
 import com.bbh.itss.dso.portal.domain.evidence.RunEvidence
 import com.bbh.itss.dso.portal.domain.evidence.StageEvidence
+import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsUnavailableException
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun
@@ -59,7 +61,7 @@ class ChangeEvidenceServiceSpec extends Specification {
     Product certScanner = product(id: 1L, code: 'CERT', name: 'CertScanner', services: [
             [name: 'gui', id: 10L,
              sonar: SonarSettings.of('CertScanner GUI', 'cert-gui', command(['sonarqube'])),
-             nexusIq: NexusIqSettings.of('cert-gui', ['**/build/libs/*.war'])],
+             nexusIqApplications: [NexusIqApplication.of('cert-gui', ['**/build/libs/*.war'])]],
             [name: 'backend-api', id: 11L],
             [name: 'batch', id: 12L]])
     Service gui = certScanner.services()[0]
@@ -97,8 +99,10 @@ class ChangeEvidenceServiceSpec extends Specification {
         def result = evidenceService.product(1L)
 
         then:
-        1 * runs.latestRuns([guiTag, guiSastTag, apiTag] as Set) >> [(guiTag): guiRun, (apiTag): apiRun]
-        1 * evidence.evidenceOf({ it == [(guiTag): guiRun, (apiTag): apiRun] }) >> [(guiTag): guiEvidence]
+        1 * runs.latestRuns([guiTag, guiSastTag, apiTag] as Set, [] as Set) >>
+                new LatestRuns([(guiTag): [guiRun], (apiTag): [apiRun]], [] as Set)
+        1 * evidence.evidenceOf({ it == [(guiTag): [guiRun] as Set, (apiTag): [apiRun] as Set] }) >>
+                [(guiRun): guiEvidence]
         result.product() == certScanner
         result.metricsError() == null
         result.services()*.service() == certScanner.services()
@@ -107,9 +111,9 @@ class ChangeEvidenceServiceSpec extends Specification {
         guiFullEvidence.jenkinsJobUrl() == GUI_JOB
         guiFullEvidence.status() == RunResult.SUCCESS
         with(guiFullEvidence.run()) {
-            build() == new BuildEvidence(42L, FINISHED, RunResult.SUCCESS, 'develop', 'a1b2c3d', 900L,
+            build() == new BuildEvidence(42L, FINISHED, RunResult.SUCCESS, 'develop', 'a1b2c3d', null, 900L,
                     'DevSecOps/CERT/gui-full', GUI_JOB + '42/', GUI_JOB + '42/Pipeline_20Report/',
-                    GUI_JOB + '42/testReport/', GUI_JOB + '42/artifact/')
+                    GUI_JOB + '42/testReport/', GUI_JOB + '42/artifact/', null, null)
             coverage() == new CoverageEvidence(CheckStatus.PASS, 82.5d, 60.0d, 825L, 1000L)
             scans()*.status() == [CheckStatus.WARN, CheckStatus.NO_DATA, CheckStatus.PASS, CheckStatus.NO_DATA]
             scans()*.link() == [APPSCAN, APPSCAN, 'https://tools.bbh.com/sonar/dashboard?id=cert-gui',
@@ -128,7 +132,7 @@ class ChangeEvidenceServiceSpec extends Specification {
         def result = evidenceService.product(1L)
 
         then:
-        1 * runs.latestRuns(_) >> { throw new MetricsUnavailableException(NOT_CONFIGURED) }
+        1 * runs.latestRuns(*_) >> { throw new MetricsUnavailableException(NOT_CONFIGURED) }
         0 * evidence.evidenceOf(_)
         result.metricsError() == NOT_CONFIGURED
         result.services().collect { it.pipelines()*.pipeline()*.id() } == [[100L, 101L], [102L], []]
@@ -147,7 +151,7 @@ class ChangeEvidenceServiceSpec extends Specification {
         def result = evidenceService.product(2L)
 
         then:
-        1 * runs.latestRuns([] as Set) >> [:]
+        1 * runs.latestRuns([] as Set, [] as Set) >> LatestRuns.none()
         1 * evidence.evidenceOf({ it.isEmpty() }) >> [:]
         result.metricsError() == null
         result.services()*.service()*.name() == ['gateway']
@@ -156,7 +160,7 @@ class ChangeEvidenceServiceSpec extends Specification {
 
     def "a failure reading the evidence keeps the runs already read and reports the reason"() {
         given:
-        runs.latestRuns(_) >> [(guiTag): guiRun]
+        runs.latestRuns(*_) >> new LatestRuns([(guiTag): [guiRun]], [] as Set)
 
         when:
         def result = evidenceService.product(1L)
@@ -173,6 +177,47 @@ class ChangeEvidenceServiceSpec extends Specification {
             coverage().status() == CheckStatus.NO_DATA
             stages() == []
         }
+    }
+
+    def "services sharing a tag get the run of their own job, one run of several services each its module's evidence"() {
+        given:
+        def metrics = new MetricsSettings(true, 'CertScanner', 'test', null, null)
+        Product shared = product(id: 4L, code: 'CERT', name: 'CertScanner', services: [
+                [name: 'gui', id: 40L, metrics: metrics], [name: 'backend-api', id: 41L, metrics: metrics],
+                [name: 'batch', id: 42L, metrics: metrics]])
+        def together = 'DevSecOps/CertScanner-pipeline'
+        products.load(4L) >> Optional.of(shared)
+        pipelines.findByProductId(4L) >> [pipeline(id: 400L, productId: 4L, serviceId: 40L, jenkinsJob: together),
+                                          pipeline(id: 401L, productId: 4L, serviceId: 41L, jenkinsJob: together),
+                                          pipeline(id: 402L, productId: 4L, serviceId: 42L)]
+        def tag = new MetricsTag('CertScanner', 'test')
+        pipelines.sharedMetricsTags() >> ([tag] as Set)
+        def both = new PipelineRun(FINISHED, RunResult.SUCCESS, 'develop', 42L, 900L, 'a1b2c3d', together, null, null,
+                null, null, null, null)
+        def other = new PipelineRun(FINISHED.plusSeconds(60), RunResult.FAILURE, 'develop', 8L, 60L, 'f0f0f0f',
+                'DevSecOps/CertScanner-batch', null, null, null, null, null, null)
+        def recorded = new RunEvidence([
+                point('build_evidence', module: 'backend-api', artifact_version: '2.0.1', sonar_quality_gate: 'ERROR'),
+                point('test_execution', module: 'gui', suite: 'unit', total: '120', passed: '118', failed: '2')])
+
+        when:
+        def result = evidenceService.product(4L)
+
+        then:
+        1 * runs.latestRuns([tag] as Set, [tag] as Set) >> new LatestRuns([(tag): [other, both]], [tag] as Set)
+        1 * evidence.evidenceOf({ it == [(tag): [both] as Set] }) >> [(both): recorded]
+        def gui = result.services()[0].pipelines()[0].run()
+        gui.build().number() == 42L
+        gui.build().artifactVersion() == null
+        gui.testSuites()[0].total() == 120L
+        gui.scans()[2].qualityGate() == null
+        def api = result.services()[1].pipelines()[0].run()
+        api.build().number() == 42L
+        api.build().artifactVersion() == '2.0.1'
+        api.testSuites()[0].total() == null
+        api.scans()[2].qualityGate() == 'ERROR'
+        result.services()[2].pipelines()[0].run() == null
+        result.services()[2].pipelines()[0].status() == RunResult.NO_DATA
     }
 
     def "a pipeline of a service the product no longer has is an inconsistency, and an unknown product is not found"() {
@@ -236,6 +281,6 @@ class ChangeEvidenceServiceSpec extends Specification {
         found.status() == RunResult.FAILURE
         found.jenkinsJobUrl() == GUI_JOB
         found.run().build() == new BuildEvidence(null, FINISHED, RunResult.FAILURE, null, null, null, null, null, null,
-                null, null)
+                null, null, null, null, null)
     }
 }

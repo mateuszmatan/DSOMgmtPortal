@@ -1,48 +1,54 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
-import com.bbh.itss.dso.portal.domain.shared.ConfigSection;
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.StoredList;
 import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-public record NexusIqSettings(String application, List<String> scanPatterns, String stage, Boolean failOnNetworkError,
-                              String scaScanName) implements ConfigSection {
+public record NexusIqSettings(String serverUrl, String credentialsId, String scaScanName) {
 
-    public static final String DEFAULT_STAGE = "build";
-    public static final NexusIqSettings NONE = new NexusIqSettings(null, List.of(), null, false, null);
+    public static final NexusIqSettings NONE = new NexusIqSettings(null, null, null);
 
     public NexusIqSettings {
-        application = Text.trimToNull(application);
-        scanPatterns = Text.clean(scanPatterns);
-        stage = Text.orDefault(stage, DEFAULT_STAGE);
-        failOnNetworkError = Boolean.TRUE.equals(failOnNetworkError);
+        serverUrl = Text.trimToNull(serverUrl);
+        credentialsId = Text.trimToNull(credentialsId);
         scaScanName = Text.trimToNull(scaScanName);
     }
 
-    public static NexusIqSettings of(String application, List<String> scanPatterns) {
-        return new NexusIqSettings(application, scanPatterns, null, false, null);
+    public void validate(ValidationProblems problems, List<NexusIqApplication> applications) {
+        Set<String> seen = new HashSet<>();
+        for (int i = 0; i < applications.size(); i++) {
+            NexusIqApplication application = applications.get(i);
+            ValidationProblems at = problems.at("nexusIqApplications[" + i + "]");
+            application.validate(at);
+            if (application.application() != null && !seen.add(application.application())) {
+                at.add("application", "is listed twice: each Nexus IQ application is scanned once");
+            }
+        }
     }
 
-    @Override
-    public void validate(ValidationProblems problems) {
-        if (application == null && !scanPatterns.isEmpty()) {
-            problems.add("application", "is required with scan patterns: without it the library skips the scan and reports it as passed");
+    public void writeTo(ConfigTree config, List<NexusIqApplication> applications) {
+        String path = "tools.nexusIq.";
+        config.set(path + "serverUrl", serverUrl).set(path + "credentialsId", credentialsId);
+        if (applications.size() == 1) {
+            NexusIqApplication only = applications.getFirst();
+            config.set(path + "application", only.application()).set(path + "scanPatterns", only.scanPatterns())
+                    .set(path + "stage", only.stage()).set(path + "failOnNetworkError", only.failOnNetworkError());
+        } else if (applications.size() > 1) {
+            Map<String, Object> entries = new LinkedHashMap<>();
+            applications.forEach(application -> entries.put(application.application(), new ConfigTree()
+                    .set("scanPatterns", application.scanPatterns())
+                    .set("serverUrl", config.get(path + "serverUrl"))
+                    .set("credentialsId", config.get(path + "credentialsId"))
+                    .set("stage", application.stage())
+                    .set("failOnNetworkError", application.failOnNetworkError()).toMap()));
+            config.set(path + "application", entries);
         }
-        if (application != null && scanPatterns.isEmpty()) {
-            problems.add("scanPatterns", "add at least one scan pattern for the Nexus IQ application");
-        }
-        StoredList.LINES_2000.check(problems, "scanPatterns", scanPatterns);
-    }
-
-    @Override
-    public void writeTo(ConfigTree config) {
-        config.set("tools.nexusIq.application", application)
-                .set("tools.nexusIq.scanPatterns", scanPatterns)
-                .set("tools.nexusIq.stage", stage)
-                .set("tools.nexusIq.failOnNetworkError", failOnNetworkError)
-                .set("sca.scanName", scaScanName);
+        config.set("sca.scanName", scaScanName);
     }
 }

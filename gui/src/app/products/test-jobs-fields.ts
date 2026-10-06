@@ -1,8 +1,18 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { GlobalSettings, TEST_STAGES, TestStage } from '../core/models';
-import { addItem } from '../shared/form-controls';
-import { Field, Fields, area, choice, count, formRevision, line, mono } from '../shared/fields';
+import { HTTP_URL_ERROR, addItem } from '../shared/form-controls';
+import {
+  Field,
+  Fields,
+  area,
+  check,
+  choice,
+  count,
+  formRevision,
+  line,
+  mono,
+} from '../shared/fields';
 import {
   ServiceForm,
   TestJobForm,
@@ -11,22 +21,22 @@ import {
   isRemoteJob,
 } from './product-form-model';
 
-type StageParallel = 'smokeMaxParallel' | 'regressionMaxParallel' | 'performanceMaxParallel';
+type StageNoun = 'smoke' | 'regression' | 'performance';
 
 interface Stage {
   value: TestStage;
   label: string;
-  noun: string;
-  parallel: StageParallel;
+  noun: StageNoun;
+  required: `${StageNoun}Required`;
 }
 
 const STAGES: Stage[] = TEST_STAGES.map((value) => {
-  const noun = value.toLowerCase();
+  const noun = value.toLowerCase() as StageNoun;
   return {
     value,
     label: `${noun.charAt(0).toUpperCase()}${noun.slice(1)} tests`,
     noun,
-    parallel: `${noun}MaxParallel` as StageParallel,
+    required: `${noun}Required`,
   };
 });
 
@@ -44,9 +54,27 @@ const REMOTE: Field[] = [
     span: 6,
     placeholder: 'https://perf-jenkins.bbh.com',
     code: 'remoteJenkinsUrl',
-    error: 'Must be an http or https URL',
+    error: HTTP_URL_ERROR,
   },
   { key: 'credentialsId', label: 'Credentials ID', span: 3, mono: true, code: 'credentialsId' },
+  count('pollIntervalSec', 'Poll interval (seconds)', 'pollIntervalSec', 3, {
+    min: 1,
+    hint: 'left empty: the stage interval',
+  }),
+  mono('tokenCredentialsId', 'Token credentials ID', 'tokenCredentialsId', 3, {
+    hint: 'Secret text',
+  }),
+  check('abortTriggeredJob', 'Abort the remote job with this run', 'abortTriggeredJob', 4),
+  check('preventRemoteBuildQueue', 'Wait for an idle remote job', 'preventRemoteBuildQueue', 4),
+  check('useCrumbCache', 'Cache the crumb', 'useCrumbCache', 4),
+  check('trustAllCertificates', 'Trust every certificate', 'trustAllCertificates', 4),
+  check(
+    'overrideTrustAllCertificates',
+    "Override the remote Jenkins' certificate trust",
+    'overrideTrustAllCertificates',
+    4,
+  ),
+  check('useJobInfoCache', 'Cache the job information', 'useJobInfoCache', 4),
 ];
 
 @Component({
@@ -58,9 +86,15 @@ const REMOTE: Field[] = [
     :host {
       display: block;
     }
-    .parallel {
-      display: grid;
-      width: 150px;
+    .stage-options {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 12px;
+
+      mat-form-field {
+        width: 170px;
+      }
     }
   `,
 })
@@ -77,19 +111,31 @@ export class TestJobsFields {
     return [
       count('maxParallel', 'Parallel jobs, every stage', 'tests.maxParallel', 4, {
         min: 1,
-        max: 100,
         hint: `left empty: global default${value === undefined ? '' : ` ${value}`}`,
       }),
     ];
   }
 
-  protected stageParallelField(stage: Stage): Field[] {
+  protected stageFields(stage: Stage): Field[] {
+    const path = `tests.${stage.noun}`;
     return [
-      count(stage.parallel, 'Parallel jobs', `tests.${stage.noun}.maxParallel`, 12, {
-        min: 1,
-        max: 100,
-      }),
+      count(`${stage.noun}MaxParallel`, 'Parallel jobs', `${path}.maxParallel`, 0, { min: 1 }),
+      count(
+        `${stage.noun}PollIntervalSec`,
+        'Poll interval (seconds)',
+        `${path}.pollIntervalSec`,
+        0,
+        {
+          min: 1,
+        },
+      ),
+      check(stage.required, 'Required', `${path}.required`, 0),
     ];
+  }
+
+  protected required(stage: Stage): boolean {
+    this.changes();
+    return this.form().controls.tests.controls[stage.required].value;
   }
 
   protected jobFields(job: TestJobForm, stage: Stage): Field[] {
@@ -110,7 +156,7 @@ export class TestJobsFields {
         'type',
         3,
       ),
-      count('timeoutMinutes', 'Timeout (minutes)', 'timeoutMin', 3, { min: 1, max: 1440 }),
+      count('timeoutMinutes', 'Timeout (minutes)', 'timeoutMin', 3, { min: 1 }),
       area('parameters', 'Parameters', 'parameters', 6, {
         mono: true,
         placeholder: 'ENV=rd\nSUITE=critical',

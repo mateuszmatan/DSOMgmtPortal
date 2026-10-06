@@ -42,7 +42,7 @@ public class MonitoringTargetsService implements ReadMonitoringTargetsUseCase {
                 .filter(pipeline -> byId.containsKey(pipeline.service().productId()))
                 .map(pipeline -> view(byId.get(pipeline.service().productId()), pipeline, platform))
                 .toList();
-        return new MonitoringTargets(all, views, platform);
+        return new MonitoringTargets(all, views, platform, pipelines.sharedMetricsTags());
     }
 
     @Override
@@ -52,7 +52,7 @@ public class MonitoringTargetsService implements ReadMonitoringTargetsUseCase {
         PlatformSettings platform = platform();
         return new MonitoringTargets(List.of(product), pipelines.findByProductId(productId).stream()
                 .map(pipeline -> view(product, pipeline, platform))
-                .toList(), platform);
+                .toList(), platform, pipelines.sharedMetricsTags());
     }
 
     @Override
@@ -62,7 +62,8 @@ public class MonitoringTargetsService implements ReadMonitoringTargetsUseCase {
         long productId = pipeline.service().productId();
         Product product = products.load(productId).orElseThrow(() -> NotFoundException.of("Product", productId));
         PlatformSettings platform = platform();
-        return new MonitoringTargets(List.of(product), List.of(view(product, pipeline, platform)), platform);
+        return new MonitoringTargets(List.of(product), List.of(view(product, pipeline, platform)), platform,
+                pipelines.sharedMetricsTags());
     }
 
     private PlatformSettings platform() {

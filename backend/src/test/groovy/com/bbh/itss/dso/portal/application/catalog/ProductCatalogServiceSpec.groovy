@@ -141,7 +141,6 @@ class ProductCatalogServiceSpec extends Specification {
 
     def "every invalid service is reported at once and nothing is stored"() {
         given:
-        products.findServicesBySonarProjectKey('cert') >> [new ProductDirectory.ServiceIdentity(50L, 'Payments Hub', 'gateway')]
         def command = command(services: [
                 service(name: 'gui', settings: settings(build: build(javaPath: null))),
                 service(name: 'gui'),
@@ -153,9 +152,7 @@ class ProductCatalogServiceSpec extends Specification {
 
         then:
         def e = thrown(InvalidRequestException)
-        e.problems*.field == ['services[0].build.javaPath', 'services[1].name', 'services[1].metrics.influxProject',
-                              'services[2].id', 'services[3].sonar.projectKey']
-        e.problems*.message[4] == 'SonarQube project key is already used by Payments Hub / gateway'
+        e.problems*.field == ['services[0].build.javaPath', 'services[1].name', 'services[2].id']
         0 * products.save(_)
     }
 

@@ -1,8 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GlobalSettings } from '../core/models';
-import { text } from '../testing/dom';
+import { fieldOf, text } from '../testing/dom';
 import { globalSettings, service } from '../testing/fixtures';
-import { ServiceForm, applyFieldProblems, createServiceForm } from './product-form-model';
+import {
+  ServiceForm,
+  applyFieldProblems,
+  createServiceForm,
+  toServiceRequest,
+} from './product-form-model';
 import { UrbanCodeFields } from './urban-code-fields';
 
 describe('UrbanCodeFields', () => {
@@ -71,6 +76,26 @@ describe('UrbanCodeFields', () => {
     await click(button(applications()[0], 'Remove'));
     expect(page().querySelector('.list-empty')?.textContent).toContain('No application');
     expect(text(page())).toContain('left empty: the global default');
+  });
+
+  it('lets an application override the settings above and sends its component details', async () => {
+    await render();
+    const application = form.controls.urbanCodeApplications.at(0);
+    expect(text(fieldOf(applications()[0], 'Deploy with a snapshot'))).toContain('Setting above');
+    expect(text(fieldOf(applications()[0], 'Site name'))).toContain(
+      'left empty: the setting above',
+    );
+    expect(fieldOf(applications()[0], 'Charset')).not.toBeNull();
+
+    application.patchValue({ siteName: ' deploy-qa.bbh.com ', skipWait: false });
+    application.controls.components.at(0).patchValue({ charset: 'UTF-8', extensions: 'jar' });
+
+    expect(toServiceRequest(form).urbanCodeApplications[0]).toMatchObject({
+      siteName: 'deploy-qa.bbh.com',
+      skipWait: false,
+      deployWithSnapshot: null,
+      components: [{ charset: 'UTF-8', extensions: 'jar', versionProperties: null }],
+    });
   });
 
   it('shows a problem the API reports for the whole list', async () => {

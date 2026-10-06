@@ -29,12 +29,22 @@ projects:
       nexusIq:
         serverUrl: https://tools.bbh.com/IQ
         credentialsId: nexusiqP
-        application: payhub-gateway
-        scanPatterns:
-        - '**/target/*.jar'
-        - '**/target/*.war'
-        stage: build
-        failOnNetworkError: false
+        application:
+          payhub-gateway:
+            scanPatterns:
+            - '**/target/*.jar'
+            - '**/target/*.war'
+            serverUrl: https://tools.bbh.com/IQ
+            credentialsId: nexusiqP
+            stage: build
+            failOnNetworkError: false
+          payhub-gateway-batch:
+            scanPatterns:
+            - '**/batch/*.jar'
+            serverUrl: https://tools.bbh.com/IQ
+            credentialsId: nexusiqP
+            stage: release
+            failOnNetworkError: true
     sast:
       scanName: payhub-gateway
     dast:
@@ -83,6 +93,8 @@ projects:
             url: https://bitbucket.bbh.com/scm/deploy/payhub-rd.git
             branch: main
             credentials: bitbucket-http-credentials
+          buildTag: 2.3.1
+          internalDockerUrl: image-registry.openshift-image-registry.svc:5000/payhub-rd
           skipConfigDeploy: true
         qc:
           projectBuildR: payhub-qc-build
@@ -105,6 +117,7 @@ projects:
             url: https://bitbucket.bbh.com/scm/deploy/payhub-qc.git
             branch: main
             credentials: bitbucket-http-credentials
+          buildTag: 2.3.0
           skipConfigDeploy: true
   ledger:
     appId: 109f44ac-cc06-4ca0-884e-d944904f7019
@@ -120,16 +133,16 @@ projects:
     baseArtifactName: ledger
     asoc:
       url: https://bbh.cloud.appscan.com
+      token: ledger-appscan-secret
       maven:
         goals:
         - compile
         flags:
         - -q
       keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc
-      token: hcl-app-scan-account
     influx:
-      url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
-      credentialsId: influxdb-token
+      url: https://influx-ledger.bbh.com/api/v2/write
+      credentialsId: ledger-influx
       enabled: true
       project: ledger
       env: uat
@@ -137,7 +150,7 @@ projects:
       reportPath: target/site/jacoco/jacoco.xml
     tools:
       sonar:
-        serverUrl: https://tools.bbh.com/sonar
+        serverUrl: https://sonar-ledger.bbh.com
         installationName: SonarQube
         projectName: Ledger
         projectKey: ledger
@@ -152,7 +165,7 @@ projects:
           - -Dsonar.branch.name=develop
       nexusIq:
         serverUrl: https://tools.bbh.com/IQ
-        credentialsId: nexusiqP
+        credentialsId: ledger-iq
         application: ledger
         scanPatterns:
         - '**/target/*.war'
@@ -180,6 +193,7 @@ projects:
         mvnPath: /opt/maven
         env:
           MAVEN_OPTS: -Xmx1g
+        label: Ledger build
     delivery:
       maven:
         goals:
@@ -238,7 +252,9 @@ projects:
           parameters: TARGET_ENV=uat
       regression:
         maxParallel: 3
+        pollIntervalSec: 30
       performance:
+        required: false
         maxParallel: 1
         jobs:
         - name: Ledger load
@@ -248,6 +264,10 @@ projects:
           remoteJenkins: perf-jenkins
           remoteJenkinsUrl: https://perf-jenkins.bbh.com
           credentialsId: perf-jenkins-token
+          pollIntervalSec: 20
+          tokenCredentialsId: perf-jenkins-trigger
+          trustAllCertificates: true
+          useCrumbCache: true
     deploy:
       vm:
         dod:
@@ -267,6 +287,9 @@ projects:
             - RD-UAT
             - QC-UAT
             snapshotName: ledger-snapshot
+            deployProcess: ledger-process
+            skipWait: false
+            deployDescription: Ledger to UAT
             components:
             - componentName: ledger-war
               baseDir: target
@@ -274,6 +297,9 @@ projects:
               fileExcludePatterns: '*-sources.war'
               versionPrefix: 1.4.
               incrementalVersion: true
+              extensions: war
+              charset: UTF-8
+              versionDescription: Ledger build
         rd:
           host: rdltaapps1.testbbh.com
           user: taadmin
@@ -314,8 +340,6 @@ projects:
       nexusIq:
         serverUrl: https://tools.bbh.com/IQ
         credentialsId: nexusiqP
-        stage: build
-        failOnNetworkError: false
       flutter:
         flutterModules:
         - app

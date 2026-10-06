@@ -129,9 +129,9 @@
                   <p class="not-recorded">The product has no services yet.</p>
                 }
                 <p class="library-note">
-                  The DevSecOps library does not record unit test counts, exact HCL AppScan and
-                  Nexus IQ report links or the artifact version yet, so those link to the Jenkins
-                  build.
+                  Runs of a DevSecOps library older than the portal integration record no unit test
+                  counts, artifact version, quality gate, report links or configuration hint, so
+                  their scans link to HCL AppScan, SonarQube and Nexus IQ.
                 </p>
               } @else if (state?.status === 'error') {
                 <div class="banner" role="alert">

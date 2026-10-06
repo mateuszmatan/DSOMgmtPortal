@@ -4,6 +4,7 @@ import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPor
 import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringTargets
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
+import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
@@ -66,6 +67,21 @@ class MonitoringTargetsServiceSpec extends Specification {
         pipeline.product().is(certScanner)
     }
 
+    def "every read names the tags that pipelines of several services write under"() {
+        given:
+        def shared = [new MetricsTag('CertScanner', 'test')] as Set
+        products.findAll() >> [certScanner]
+        products.load(1L) >> Optional.of(certScanner)
+        pipelines.load(100L) >> Optional.of(guiFull)
+        pipelines.sharedMetricsTags() >> shared
+
+        expect:
+        targets.everything().sharedTags() == shared
+        targets.ofProduct(1L).sharedTags() == shared
+        targets.ofPipeline(100L).sharedTags() == shared
+        targets.ofPipeline(100L).tags() == [MetricsTag.of(certScanner.services()[0], guiFull)] as Set
+    }
+
     def "an unknown #what is reported as not found"() {
         given:
         pipelines.load(100L) >> Optional.of(guiFull)
@@ -98,7 +114,7 @@ class MonitoringTargetsServiceSpec extends Specification {
 
         where:
         read << [{ MonitoringTargets it -> it.product() }, { MonitoringTargets it -> it.pipeline() },
-                 { MonitoringTargets it -> new MonitoringTargets([], [], null) }]
+                 { MonitoringTargets it -> new MonitoringTargets([], [], null, [] as Set) }]
         failure << [IllegalStateException, IllegalStateException, NullPointerException]
         message << ['these monitoring targets are not those of one product',
                     'these monitoring targets are not those of one pipeline',
