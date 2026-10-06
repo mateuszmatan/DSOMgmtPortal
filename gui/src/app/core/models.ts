@@ -18,6 +18,8 @@ export type EvidenceScanner = 'SAST' | 'DAST' | 'SONARQUBE' | 'NEXUS_IQ';
 
 export const REGIONS: Region[] = ['RD', 'QC'];
 export const TEST_STAGES: TestStage[] = ['SMOKE', 'REGRESSION', 'PERFORMANCE'];
+export type TestSuite = 'UNIT' | TestStage;
+export const TEST_SUITES: TestSuite[] = ['UNIT', ...TEST_STAGES];
 export const SCANNERS: Scanner[] = ['SAST', 'SCA', 'NEXUS_IQ', 'DAST'];
 
 export interface ProductSummary {
@@ -621,12 +623,15 @@ export interface BuildEvidence {
   result: RunResult;
   branch: string | null;
   commit: string | null;
+  artifactVersion: string | null;
   durationSeconds: number | null;
   job: string | null;
   url: string | null;
   reportUrl: string | null;
   testReportUrl: string | null;
   artifactsUrl: string | null;
+  configRenderedAt: string | null;
+  configSha256: string | null;
 }
 
 export interface CoverageEvidence {
@@ -638,11 +643,12 @@ export interface CoverageEvidence {
 }
 
 export interface TestSuiteEvidence {
-  stage: TestStage;
+  suite: TestSuite;
   status: CheckStatus;
-  jobs: number | null;
+  total: number | null;
   passed: number | null;
   failed: number | null;
+  skipped: number | null;
   notConfigured: number | null;
   durationMs: number | null;
 }
@@ -657,6 +663,7 @@ export interface ScanEvidence {
   maxCritical: number | null;
   maxHigh: number | null;
   maxMedium: number | null;
+  qualityGate: string | null;
   link: string | null;
 }
 

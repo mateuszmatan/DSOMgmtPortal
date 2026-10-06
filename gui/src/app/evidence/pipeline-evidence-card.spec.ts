@@ -57,13 +57,17 @@ describe('PipelineEvidenceCard', () => {
       Finished: '2026-10-04 08:30 UTC',
       Branch: 'release/2.4',
       Commit: '9f2c1e7b4d3a',
+      'Artifact version': '2.4.0-42',
       Duration: '22m 5s',
+      'Config rendered': '2026-10-04 07:55 UTC',
+      'Config sha256': '3b7e1f0a9c2d4e5f',
     });
     expect(text('.coverage .value')).toBe('84.25%');
     expect(text('.detail')).toBe('Required 60% · 1685 of 2000 lines');
     expect(card().querySelector<HTMLElement>('.meter .fill')?.style.width).toBe('84.25%');
     expect(card().querySelector<HTMLElement>('.meter .required')?.style.left).toBe('60%');
-    expect(cells('Smoke')).toEqual(['Passed', '2', '2', '0', '0', '1m 35s']);
+    expect(cells('Unit')).toEqual(['Passed', '412', '410', '0', '2', '0', '4m']);
+    expect(cells('Smoke')).toEqual(['Passed', '2', '2', '0', '–', '0', '1m 35s']);
     expect(row('Regression').querySelector('td.bad')?.textContent?.trim()).toBe('1');
     expect(cells('Performance')).toEqual(['Not recorded']);
   });
@@ -80,7 +84,10 @@ describe('PipelineEvidenceCard', () => {
       'Open',
     ]);
     expect(cells('DAST (HCL AppScan)')).toEqual(['Not recorded']);
-    expect(cells('SonarQube')).toEqual(['Passed', 'Quality gate only', 'Open']);
+    expect(cells('SonarQube · gate OK')).toEqual(['Passed', 'Quality gate only', 'Open']);
+    expect(row('SAST (HCL AppScan)').querySelector('a')?.getAttribute('href')).toBe(
+      'https://jenkins.bbh.com/job/DevSecOps/job/CERT/job/gui-full/42/artifact/appscan/sast-report.html',
+    );
     expect(
       [...row('Nexus IQ').querySelectorAll('td.bad')].map((cell) => cell.textContent?.trim()),
     ).toEqual(['1 / 0']);
@@ -98,11 +105,14 @@ describe('PipelineEvidenceCard', () => {
             finishedAt: null,
             branch: null,
             commit: null,
+            artifactVersion: null,
             durationSeconds: null,
             url: null,
             reportUrl: null,
             testReportUrl: null,
             artifactsUrl: null,
+            configRenderedAt: null,
+            configSha256: null,
           },
           coverage: null,
           releaseGate: null,
@@ -120,7 +130,10 @@ describe('PipelineEvidenceCard', () => {
       Finished: 'Not recorded',
       Branch: 'Not recorded',
       Commit: 'Not recorded',
+      'Artifact version': 'Not recorded',
       Duration: 'Not recorded',
+      'Config rendered': 'Not recorded',
+      'Config sha256': 'Not recorded',
     });
     expect([...card().querySelectorAll('.links span')].map((link) => link.textContent)).toEqual([
       'Build: not recorded',
@@ -132,6 +145,7 @@ describe('PipelineEvidenceCard', () => {
     expect(
       [...card().querySelectorAll('.grid section > p.not-recorded')].map((p) => p.textContent),
     ).toEqual(['Not recorded', 'Not recorded']);
+    expect(cells('Unit')).toEqual(['Not recorded']);
     expect(cells('Smoke')).toEqual(['Not recorded']);
     expect(cells('Nexus IQ')).toEqual(['Not recorded']);
   });

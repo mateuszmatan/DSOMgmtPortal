@@ -145,26 +145,28 @@
               <tr>
                 <th>Suite</th>
                 <th>Status</th>
-                <th>Jobs</th>
+                <th>Total</th>
                 <th>Passed</th>
                 <th>Failed</th>
+                <th>Skipped</th>
                 <th>Not configured</th>
                 <th>Duration</th>
               </tr>
             </thead>
             <tbody>
-              @for (row of suites(); track row.stage) {
+              @for (row of suites(); track row.suite) {
                 <tr>
-                  <td>{{ stageLabels[row.stage] }}</td>
-                  @if (row.suite; as s) {
+                  <td>{{ suiteLabels[row.suite] }}</td>
+                  @if (row.evidence; as s) {
                     <td><dso-check-chip [status]="s.status" /></td>
-                    <td>{{ s.jobs ?? '–' }}</td>
+                    <td>{{ s.total ?? '–' }}</td>
                     <td>{{ s.passed ?? '–' }}</td>
                     <td [class.bad]="!!s.failed">{{ s.failed ?? '–' }}</td>
+                    <td>{{ s.skipped ?? '–' }}</td>
                     <td>{{ s.notConfigured ?? '–' }}</td>
                     <td>{{ s.durationMs === null ? '–' : (s.durationMs / 1000 | duration) }}</td>
                   } @else {
-                    <td colspan="6"><span class="not-recorded">Not recorded</span></td>
+                    <td colspan="7"><span class="not-recorded">Not recorded</span></td>
                   }
                 </tr>
               }
@@ -191,7 +193,12 @@
             <tbody>
               @for (row of scans(); track row.scanner) {
                 <tr>
-                  <td>{{ row.label }}</td>
+                  <td>
+                    {{ row.label }}
+                    @if (row.scan?.qualityGate; as gate) {
+                      <span class="limit">· gate {{ gate }}</span>
+                    }
+                  </td>
                   @if (row.scan; as s) {
                     <td><dso-check-chip [status]="s.status" /></td>
                     @if (hasFindings(s)) {

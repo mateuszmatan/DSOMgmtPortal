@@ -107,9 +107,9 @@ class ChangeEvidenceServiceSpec extends Specification {
         guiFullEvidence.jenkinsJobUrl() == GUI_JOB
         guiFullEvidence.status() == RunResult.SUCCESS
         with(guiFullEvidence.run()) {
-            build() == new BuildEvidence(42L, FINISHED, RunResult.SUCCESS, 'develop', 'a1b2c3d', 900L,
+            build() == new BuildEvidence(42L, FINISHED, RunResult.SUCCESS, 'develop', 'a1b2c3d', null, 900L,
                     'DevSecOps/CERT/gui-full', GUI_JOB + '42/', GUI_JOB + '42/Pipeline_20Report/',
-                    GUI_JOB + '42/testReport/', GUI_JOB + '42/artifact/')
+                    GUI_JOB + '42/testReport/', GUI_JOB + '42/artifact/', null, null)
             coverage() == new CoverageEvidence(CheckStatus.PASS, 82.5d, 60.0d, 825L, 1000L)
             scans()*.status() == [CheckStatus.WARN, CheckStatus.NO_DATA, CheckStatus.PASS, CheckStatus.NO_DATA]
             scans()*.link() == [APPSCAN, APPSCAN, 'https://tools.bbh.com/sonar/dashboard?id=cert-gui',
@@ -236,6 +236,6 @@ class ChangeEvidenceServiceSpec extends Specification {
         found.status() == RunResult.FAILURE
         found.jenkinsJobUrl() == GUI_JOB
         found.run().build() == new BuildEvidence(null, FINISHED, RunResult.FAILURE, null, null, null, null, null, null,
-                null, null)
+                null, null, null, null, null)
     }
 }

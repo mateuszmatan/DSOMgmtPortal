@@ -7,8 +7,8 @@ import {
   RunResult,
   ScanEvidence,
   ServiceEvidence,
-  TEST_STAGES,
-  TestStage,
+  TEST_SUITES,
+  TestSuite,
   TestSuiteEvidence,
   pipelineTypeLabel,
 } from '../core/models';
@@ -36,7 +36,8 @@ export const RUN_LABELS: Record<RunResult, string> = {
   DISABLED: 'Key invalidated',
 };
 
-export const STAGE_LABELS: Record<TestStage, string> = {
+export const SUITE_LABELS: Record<TestSuite, string> = {
+  UNIT: 'Unit',
   SMOKE: 'Smoke',
   REGRESSION: 'Regression',
   PERFORMANCE: 'Performance',
@@ -67,10 +68,10 @@ export function formatPercent(value: number | null | undefined): string | null {
 
 export function suiteRows(
   run: RunEvidence,
-): { stage: TestStage; suite: TestSuiteEvidence | null }[] {
-  return TEST_STAGES.map((stage) => ({
-    stage,
-    suite: run.testSuites.find((suite) => suite.stage === stage) ?? null,
+): { suite: TestSuite; evidence: TestSuiteEvidence | null }[] {
+  return TEST_SUITES.map((suite) => ({
+    suite,
+    evidence: run.testSuites.find((found) => found.suite === suite) ?? null,
   }));
 }
 
@@ -131,6 +132,7 @@ export function evidenceText(
     field('Finished', formatUtc(build.finishedAt)),
     field('Branch', build.branch),
     field('Commit', build.commit),
+    field('Artifact version', build.artifactVersion),
     field(
       'Duration',
       build.durationSeconds === null ? null : formatDuration(build.durationSeconds),
@@ -140,13 +142,15 @@ export function evidenceText(
     field('Pipeline report', build.reportUrl),
     field('Unit test report', build.testReportUrl),
     field('Artifacts', build.artifactsUrl),
+    field('Config rendered', formatUtc(build.configRenderedAt)),
+    field('Config sha256', build.configSha256),
     '',
     'Unit test coverage',
     coverageLine(run),
     '',
     'Tests',
-    ...suiteRows(run).map(({ stage, suite }) =>
-      field(STAGE_LABELS[stage], suite && suiteText(suite)),
+    ...suiteRows(run).map(({ suite, evidence }) =>
+      field(SUITE_LABELS[suite], evidence && suiteText(evidence)),
     ),
     '',
     'Security and quality scans',
@@ -196,11 +200,15 @@ function coverageLine(run: RunEvidence): string {
 
 function suiteText(suite: TestSuiteEvidence): string {
   const parts = [CHECK_LABELS[suite.status] ?? suite.status];
-  if (suite.jobs !== null) {
-    parts.push(`${suite.passed ?? 0} of ${suite.jobs} jobs passed`);
+  if (suite.total !== null) {
+    const counted = suite.suite === 'UNIT' ? 'tests' : 'jobs';
+    parts.push(`${suite.passed ?? 0} of ${suite.total} ${counted} passed`);
   }
   if (suite.failed) {
     parts.push(`${suite.failed} failed`);
+  }
+  if (suite.skipped) {
+    parts.push(`${suite.skipped} skipped`);
   }
   if (suite.notConfigured) {
     parts.push(`${suite.notConfigured} not configured`);
@@ -213,9 +221,10 @@ function suiteText(suite: TestSuiteEvidence): string {
 
 function scanText(scan: ScanEvidence): string {
   const parts = [CHECK_LABELS[scan.status] ?? scan.status];
-  if (scan.scanner === 'SONARQUBE' && !hasFindings(scan)) {
-    parts.push('quality gate');
-  } else if (hasFindings(scan)) {
+  if (scan.scanner === 'SONARQUBE' && (scan.qualityGate || !hasFindings(scan))) {
+    parts.push(scan.qualityGate ? `quality gate ${scan.qualityGate}` : 'quality gate');
+  }
+  if (hasFindings(scan)) {
     parts.push(
       [
         severity('critical', scan.critical, scan.maxCritical),
