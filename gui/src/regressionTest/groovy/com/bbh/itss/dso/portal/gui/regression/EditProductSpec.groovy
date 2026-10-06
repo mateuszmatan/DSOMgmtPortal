@@ -281,7 +281,7 @@ class EditProductSpec extends EditorSpecification {
         ProductStore.recorded(api, 2)
 
         when:
-        open('/products/new')
+        startProduct('GoldenFix Check')
         showSection('GoldenFix')
 
         then:

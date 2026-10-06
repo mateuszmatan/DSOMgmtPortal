@@ -11,6 +11,14 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 
 abstract class EditorSpecification extends GuiSpecification {
 
+    void startProduct(String name) {
+        open('/products/new')
+        input(dialog(), 'Product name').fill(name)
+        dialogButton('Continue').click()
+        assertThat(dialog()).hasCount(0)
+        assertThat(input(productFields(), 'Name')).hasValue(name)
+    }
+
     Locator productFields() {
         page.locator('.product-fields')
     }
@@ -43,6 +51,7 @@ abstract class EditorSpecification extends GuiSpecification {
 
     void showSection(String label) {
         openService().locator(".rail-item:has(> span:text-is('${label}'))").click()
+        assertThat(openService().locator('.pane-header h3')).hasText(label)
     }
 
     Locator input(Locator scope, String label) {

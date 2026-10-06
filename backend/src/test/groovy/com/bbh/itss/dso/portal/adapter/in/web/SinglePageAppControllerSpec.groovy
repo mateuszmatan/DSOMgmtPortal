@@ -18,7 +18,7 @@ class SinglePageAppControllerSpec extends Specification {
         response.forwardedUrl == '/index.html'
 
         where:
-        path << ['/products', '/products/new', '/products/12/edit', '/monitoring', '/monitoring/pipelines/7']
+        path << ['/products', '/products/new', '/products/12/edit', '/monitoring', '/monitoring/pipelines/7', '/beadle']
     }
 
     def "other paths are left to the API and the static resources"() {

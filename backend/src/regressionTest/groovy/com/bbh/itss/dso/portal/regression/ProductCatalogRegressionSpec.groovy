@@ -247,6 +247,17 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         api.post('/api/products', product(code: uniqueCode(), name: "product ${code.toLowerCase()}")).status == 409
     }
 
+    def "a new product's code is suggested from its name and never repeats an existing one"() {
+        given:
+        def name = "Code Hub ${uniqueCode()}"
+        def first = api.get("/api/products/code-suggestion?name=${URLEncoder.encode(name, 'UTF-8')}").json.code
+        createProduct(product(code: first, name: name))
+
+        expect:
+        first == name.toUpperCase().replaceAll(/[^A-Z0-9]/, '')
+        api.get("/api/products/code-suggestion?name=${URLEncoder.encode(name.toLowerCase(), 'UTF-8')}").json.code == "${first}2"
+    }
+
     def "every rule a service breaks is reported against its field"() {
         given:
         def code = uniqueCode()
