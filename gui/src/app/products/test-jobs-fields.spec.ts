@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GlobalSettings, TestJob } from '../core/models';
 import { applyFieldProblems } from '../shared/form-controls';
-import { fieldOf, inputOf, text } from '../testing/dom';
+import { checkboxOf, fieldOf, inputOf, text } from '../testing/dom';
 import { globalSettings, service } from '../testing/fixtures';
 import { ServiceForm, createServiceForm } from './product-form-model';
 import { TestJobsFields } from './test-jobs-fields';
@@ -20,6 +20,14 @@ describe('TestJobsFields', () => {
     remoteJenkins: null,
     remoteJenkinsUrl: null,
     credentialsId: null,
+    pollIntervalSec: null,
+    tokenCredentialsId: null,
+    abortTriggeredJob: false,
+    overrideTrustAllCertificates: false,
+    preventRemoteBuildQueue: false,
+    trustAllCertificates: false,
+    useCrumbCache: false,
+    useJobInfoCache: false,
     ...overrides,
   });
 
@@ -122,6 +130,24 @@ describe('TestJobsFields', () => {
 
     const items = [...page().querySelectorAll('.list-item')];
     expect(fieldOf(items[0], 'Remote Jenkins')).toBeNull();
+    expect(fieldOf(items[0], 'Token credentials ID')).toBeNull();
     expect(inputOf(items[1], 'Remote Jenkins').value).toBe('qa');
+    expect(text(fieldOf(items[1], 'Token credentials ID'))).toContain('Secret text');
+    expect(checkboxOf(items[1], 'Cache the crumb')).toBeDefined();
+    expect(text(fieldOf(items[1], 'Poll interval (seconds)'))).toContain('the stage interval');
+  });
+
+  it('marks a stage not required and takes its poll interval', async () => {
+    await render([job({ stage: 'REGRESSION', name: 'nightly' })]);
+    const smoke = () => sections()[0];
+    expect(fieldOf(smoke(), 'Poll interval (seconds)')).not.toBeNull();
+    expect(smoke().querySelector('.list-empty')?.textContent).toBe('No smoke test jobs.');
+
+    checkboxOf(smoke(), 'Required').click();
+    await fixture.whenStable();
+
+    expect(form.controls.tests.controls.smokeRequired.value).toBe(false);
+    expect(text(smoke().querySelector('.list-empty'))).toContain('Not required');
+    expect(text(sections()[1])).not.toContain('Not required');
   });
 });

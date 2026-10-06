@@ -227,7 +227,8 @@ class PortalPerformanceSpec extends PortalSpecification {
     private static Map fullService(String code, String name) {
         String tag = "$code-$name"
         fullMavenService(name: name, metrics: [enabled: true, influxProject: tag, influxEnv: 'uat'],
-                sonar: fullMavenService().sonar + [projectKey: tag], nexusIq: fullMavenService().nexusIq + [application: tag])
+                sonar: fullMavenService().sonar + [projectKey: tag],
+                nexusIqApplications: [fullMavenService().nexusIqApplications[0] + [application: tag]])
     }
 
     private boolean within(LatencyStats stats, double p95LimitMillis) {

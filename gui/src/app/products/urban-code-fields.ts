@@ -3,7 +3,17 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { GlobalSettings } from '../core/models';
 import { addItem } from '../shared/form-controls';
-import { Field, Fields, area, check, count, formRevision, line, mono } from '../shared/fields';
+import {
+  Field,
+  Fields,
+  area,
+  check,
+  choice,
+  count,
+  formRevision,
+  line,
+  mono,
+} from '../shared/fields';
 import {
   ServiceForm,
   UrbanCodeApplicationForm,
@@ -31,6 +41,17 @@ const TEXTS: Field[] = [
   }),
 ];
 
+const SERVICE_SETTING = 'left empty: the setting above';
+
+const THREE_STATES = [
+  { value: null, label: 'Setting above' },
+  { value: true, label: 'Yes' },
+  { value: false, label: 'No' },
+];
+
+const threeState = (key: string, label: string, code: string) =>
+  choice(key, label, THREE_STATES, code, 4);
+
 const APPLICATION: Field[] = [
   mono('applicationName', 'Application name', 'applicationName', 5),
   count('order', 'Order', 'order', 2),
@@ -38,7 +59,26 @@ const APPLICATION: Field[] = [
     placeholder: 'DV, RD',
     hint: 'left empty: all of them',
   }),
-  line('snapshotName', 'Snapshot name', 'snapshotName'),
+  line('snapshotName', 'Snapshot name', 'snapshotName', 4),
+  line('siteName', 'Site name', 'siteName', 4, { hint: SERVICE_SETTING }),
+  line('deployProcess', 'Deployment process', 'deployProcess', 4, { hint: SERVICE_SETTING }),
+  threeState('deployWithSnapshot', 'Deploy with a snapshot', 'deployWithSnapshot'),
+  threeState(
+    'includeOnlyDeployVersions',
+    'Snapshot holds only the deployed versions',
+    'includeOnlyDeployVersions',
+  ),
+  threeState('updateSnapshotComponents', "Update the snapshot's components", 'updateSnapshotComp'),
+  threeState('deployOnlyChanged', 'Deploy only changed versions', 'deployOnlyChanged'),
+  threeState('skipWait', 'Do not wait for the result', 'skipWait'),
+  area('description', 'Description', 'description', 4),
+  area('deployDescription', 'Deployment description', 'deployDescription', 6, {
+    hint: 'left empty: the description, then the setting above',
+  }),
+  area('requestProperties', 'Request properties', 'requestProperties', 6, {
+    mono: true,
+    hint: SERVICE_SETTING,
+  }),
 ];
 
 const COMPONENT: Field[] = [
@@ -50,6 +90,11 @@ const COMPONENT: Field[] = [
     placeholder: '*.jar',
   }),
   mono('fileExcludePatterns', 'Files to exclude', 'fileExcludePatterns', 6),
+  mono('extensions', 'Extensions', 'extensions', 4, { placeholder: 'jar,war' }),
+  mono('charset', 'Charset', 'charset', 2, { placeholder: 'UTF-8' }),
+  line('pushDescription', 'Push description', 'pushDescription', 6),
+  line('versionDescription', 'Version description', 'versionDescription', 6),
+  area('versionProperties', 'Version properties', 'versionProperties', 6, { mono: true }),
   check('incrementalVersion', 'Incremental version', 'incrementalVersion'),
 ];
 

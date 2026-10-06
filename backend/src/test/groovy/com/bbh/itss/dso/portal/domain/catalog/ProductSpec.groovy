@@ -18,7 +18,7 @@ import static com.bbh.itss.dso.portal.support.Fixtures.settings
 class ProductSpec extends Specification {
 
     static final SonarSettings CERT_SONAR = SonarSettings.of(null, 'cert', ToolCommand.of(['sonarqube'], []))
-    static final MetricsSettings SHARED_METRICS = new MetricsSettings(true, 'CertScanner', 'test')
+    static final MetricsSettings SHARED_METRICS = new MetricsSettings(true, 'CertScanner', 'test', null, null)
 
     def nobody = directory()
 
@@ -46,8 +46,8 @@ class ProductSpec extends Specification {
         product.services()*.id() == [null, null]
         product.services()*.settings()*.metrics()*.influxProject() == ['CERT-gui', 'CERT-backend-api']
         product.serviceIds() == [] as Set
-        Product.create(details(), account(), [draft(metrics: new MetricsSettings(true, 'cert-scanner', 'uat'))], nobody)
-                .services()[0].settings().metrics() == new MetricsSettings(true, 'cert-scanner', 'uat')
+        Product.create(details(), account(), [draft(metrics: new MetricsSettings(true, 'cert-scanner', 'uat', null, null))], nobody)
+                .services()[0].settings().metrics() == new MetricsSettings(true, 'cert-scanner', 'uat', null, null)
     }
 
     def "a stored product lists its services by display order and name, finds them by id and keeps the list to itself"() {
@@ -74,7 +74,7 @@ class ProductSpec extends Specification {
     def "a service writes its config.yaml entry with the product's AppScan account"() {
         given:
         def product = product(services: [[name: 'gui', id: 10, testJobs: [
-                new TestJob(TestStage.SMOKE, 'smoke', null, 'CERT/gui-smoke', null, null, null, null, null)]]])
+                TestJob.of(TestStage.SMOKE, 'smoke', null, 'CERT/gui-smoke', null)]]])
         def tree = new ConfigTree()
 
         when:

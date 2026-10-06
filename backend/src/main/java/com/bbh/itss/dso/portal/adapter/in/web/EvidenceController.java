@@ -4,6 +4,7 @@ import com.bbh.itss.dso.portal.application.evidence.port.in.PipelineEvidence;
 import com.bbh.itss.dso.portal.application.evidence.port.in.ProductEvidence;
 import com.bbh.itss.dso.portal.application.evidence.port.in.QueryEvidenceUseCase;
 import com.bbh.itss.dso.portal.application.evidence.port.in.ServiceEvidence;
+import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
 import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings;
@@ -11,6 +12,7 @@ import com.bbh.itss.dso.portal.domain.evidence.RunEvidenceReport;
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
+import com.bbh.itss.dso.portal.domain.shared.Text;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -52,7 +54,8 @@ public class EvidenceController {
             return new ServiceEvidenceResponse(service.id(), service.name(), service.description(),
                     settings.scm().repositoryUrl(), settings.deployment().artifactName(),
                     settings.appScan().applicationId(), settings.sonar().projectKey(),
-                    settings.nexusIq().application(),
+                    Text.trimToNull(String.join(", ",
+                            settings.nexusIqApplications().stream().map(NexusIqApplication::application).toList())),
                     evidence.pipelines().stream().map(PipelineEvidenceResponse::of).toList());
         }
     }

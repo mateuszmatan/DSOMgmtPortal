@@ -363,8 +363,6 @@ projects:
       nexusIq:
         serverUrl: https://tools.bbh.com/IQ
         credentialsId: nexusiqP
-        stage: build
-        failOnNetworkError: false
       flutter:
         flutterModules:
         - core

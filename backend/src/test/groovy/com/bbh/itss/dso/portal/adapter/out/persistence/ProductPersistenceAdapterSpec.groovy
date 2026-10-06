@@ -61,7 +61,7 @@ class ProductPersistenceAdapterSpec extends Specification {
         loaded.services()*.description() == ['Angular', null]
         loaded.services()*.displayOrder() == [0, 1]
         loaded.services()[0].settings() == fullSettings('gui')
-        loaded.services()[1].settings() == settings(metrics: new MetricsSettings(true, 'CERT-api', 'test'))
+        loaded.services()[1].settings() == settings(metrics: new MetricsSettings(true, 'CERT-api', 'test', null, null))
         loaded.services()[0].settings().sshTargets().keySet() as List == [RD, QC]
     }
 
@@ -75,11 +75,16 @@ class ProductPersistenceAdapterSpec extends Specification {
         jdbc.queryForMap('SELECT CODE, NAME, ASOC_KEY_ID, ASOC_SECRET_CREDENTIALS_ID FROM DSO_PRODUCT') ==
                 [CODE: 'CERT', NAME: 'CertScanner', ASOC_KEY_ID: 'bbh_key-id',
                  ASOC_SECRET_CREDENTIALS_ID: 'hcl-app-scan-account']
-        jdbc.queryForMap('''SELECT BUILD_TOOL, BUILD_TASKS, DELIVERY_TASKS, BITBUCKET_REVIEWERS, NEXUS_IQ_SCAN_PATTERNS,
-                GOLDEN_FIX_ENABLED, INFLUX_PROJECT FROM DSO_SERVICE WHERE ID = ?''', serviceId) ==
+        jdbc.queryForMap('''SELECT BUILD_TOOL, BUILD_TASKS, DELIVERY_TASKS, BITBUCKET_REVIEWERS, GOLDEN_FIX_ENABLED,
+                INFLUX_PROJECT, REGRESSION_REQUIRED, BUILD_RETURN_STDOUT, NEXUS_IQ_SERVER_URL FROM DSO_SERVICE WHERE ID = ?''',
+                serviceId) ==
                 [BUILD_TOOL: 'MAVEN', BUILD_TASKS: 'build-task\nsecond', DELIVERY_TASKS: 'delivery-task\nsecond',
-                 BITBUCKET_REVIEWERS: 'alice,bob', NEXUS_IQ_SCAN_PATTERNS: '**/*.war\n**/*.jar', GOLDEN_FIX_ENABLED: 0,
-                 INFLUX_PROJECT: 'cert-gui']
+                 BITBUCKET_REVIEWERS: 'alice,bob', GOLDEN_FIX_ENABLED: 0, INFLUX_PROJECT: 'cert-gui', REGRESSION_REQUIRED: 0,
+                 BUILD_RETURN_STDOUT: 1, NEXUS_IQ_SERVER_URL: 'https://iq.cert.bbh.com']
+        jdbc.queryForList('''SELECT APPLICATION, SCAN_PATTERNS, STAGE, FAIL_ON_NETWORK_ERROR FROM DSO_SERVICE_NEXUS_IQ_APP
+                WHERE SERVICE_ID = ? ORDER BY POSITION''', serviceId) ==
+                [[APPLICATION: 'cert-gui', SCAN_PATTERNS: '**/*.war\n**/*.jar', STAGE: 'release', FAIL_ON_NETWORK_ERROR: 1],
+                 [APPLICATION: 'cert-gui-batch', SCAN_PATTERNS: '**/batch/*.jar', STAGE: 'build', FAIL_ON_NETWORK_ERROR: 0]]
         jdbc.queryForMap('''SELECT BITBUCKET_API_URL, BITBUCKET_WORKSPACE, BITBUCKET_PROJECT_KEY, BITBUCKET_REPO_SLUG
                 FROM DSO_SERVICE WHERE ID = ?''', serviceId) ==
                 [BITBUCKET_API_URL    : 'https://bitbucket.bbh.com/rest/api/1.0', BITBUCKET_WORKSPACE: 'ta-workspace',
@@ -244,7 +249,7 @@ class ProductPersistenceAdapterSpec extends Specification {
     def "the directory finds products by code and name, and services may share metrics tags and a SonarQube key"() {
         given:
         def shared = settings(sonar: SonarSettings.of(null, 'cert', command(['sonarqube'])),
-                metrics: new MetricsSettings(true, 'Cert Scanner', 'test'))
+                metrics: new MetricsSettings(true, 'Cert Scanner', 'test', null, null))
         def stored = adapter.save(Product.create(details(), account(), [draft('gui', null, shared),
                                                                        draft('api', null, shared)], adapter))
         entities.clear()
@@ -278,7 +283,7 @@ class ProductPersistenceAdapterSpec extends Specification {
     }
 
     private static ServiceSettings tagged(String tag) {
-        settings(sonar: SonarSettings.of(null, tag, command(['sonarqube'])), metrics: new MetricsSettings(true, tag, 'uat'))
+        settings(sonar: SonarSettings.of(null, tag, command(['sonarqube'])), metrics: new MetricsSettings(true, tag, 'uat', null, null))
     }
 
     private static ServiceDraft draft(String name, Long id = null, ServiceSettings settings = settings()) {

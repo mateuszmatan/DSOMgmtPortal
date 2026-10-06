@@ -24,7 +24,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
 
         when:
         def created = api.post('/api/products', product(code: code, name: "Product $code", ownerTeam: 'Payments Engineering',
-                services: [service(name: 'gateway'),
+                services: [service(name: 'gateway', nexusIqApplications: [[application: 'gateway', scanPatterns: ['**/*.jar']]]),
                            mavenService(name: 'ledger', build: build(tool: 'MAVEN', javaPath: null, autoSetup: true,
                                    buildPath: 'target/*.jar', command: [tasks: ['clean', 'verify']]))]))
 
@@ -39,11 +39,11 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
             services*.metrics*.influxProject == ["$code-gateway", "$code-ledger"]
             services[1].build == [tool   : 'MAVEN', sourceDir: '.', javaPath: null, autoSetup: true, buildPath: 'target/*.jar',
                                   command: [tasks: ['clean', 'verify'], flags: [], directory: null, mavenHome: null,
-                                            environment: []]]
+                                            environment: [], label: null, returnStdout: false]]
             services[1].delivery.tasks == ['deploy:deploy-file']
             services[0].goldenFix.enabled == null
             services[0].goldenFix.minThreatLevel == null
-            services[0].nexusIq.stage == 'build'
+            services[0].nexusIqApplications*.stage == ['build']
         }
 
         and:
@@ -59,7 +59,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
     def "every setting of a service is stored and returned as it was entered"() {
         given:
         def code = uniqueCode()
-        def services = [fullMavenService(metrics: [enabled: true, influxProject: "$code-ledger".toString(), influxEnv: 'uat'],
+        def services = [fullMavenService(metrics: fullMavenService().metrics + [influxProject: "$code-ledger".toString()],
                                          sonar: fullMavenService().sonar + [projectKey: "$code-ledger".toString()],
                                          scm: fullMavenService().scm + [apiUrl    : 'https://bitbucket.bbh.com/rest/api/1.0',
                                                                         workspace : 'bbh', projectKey: 'LED',
@@ -296,7 +296,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         rule                         | submitted                                                                                || fields
         'Flutter needs its JDK'      | fullFlutterService(build: fullFlutterService().build + [javaPath: null, autoSetup: true]) || ['services[0].build.javaPath', 'services[0].build.autoSetup']
         'Flutter needs its modules'  | fullFlutterService(flutter: fullFlutterService().flutter + [modules: [], testModules: [], deliveryGroup: null]) || ['services[0].flutter.modules', 'services[0].flutter.testModules', 'services[0].flutter.deliveryGroup']
-        'Nexus IQ needs both'        | service(nexusIq: [scanPatterns: ['**/*.war']])                                           || ['services[0].nexusIq.application']
+        'Nexus IQ needs both'        | service(nexusIqApplications: [[scanPatterns: ['**/*.war']]])                             || ['services[0].nexusIqApplications[0].application']
         'Maven on VMs needs a path'  | mavenService(build: build(tool: 'MAVEN', command: [tasks: ['verify']]))                  || ['services[0].build.buildPath']
         'OpenShift needs RD'         | fullOpenShiftService(openShiftTargets: [RD: openShiftTarget('x') + [nexusAuthFile: null, buildContext: ' ']]) || ['services[0].openShiftTargets[RD].buildContext', 'services[0].openShiftTargets[RD].nexusAuthFile']
         'UrbanCode needs components' | service(urbanCodeApplications: [[applicationName: 'LEDGER', components: []], [applicationName: 'BATCH', components: [[componentName: 'batch']]]]) || ['services[0].urbanCodeApplications[0].components', 'services[0].urbanCodeApplications[1].components[0].baseDir', 'services[0].urbanCodeApplications[1].components[0].fileIncludePatterns']

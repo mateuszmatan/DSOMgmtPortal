@@ -18,14 +18,14 @@ class RecordMapperSpec extends Specification {
 
         then:
         dto.tool() == settings().build().tool()
-        dto.command() == new ServiceDto.ToolCommandDto(['clean', 'build'], [], null, null, [])
+        dto.command() == new ServiceDto.ToolCommandDto(['clean', 'build'], [], null, null, [], null, false)
         RecordMapper.map(dto, settings().build().class) == settings().build()
     }
 
     def "a record that mirrors another one is normalised by it"() {
         expect:
-        RecordMapper.map(new ServiceDto.ToolCommandDto([' clean ', ' '], null, ' ', null, null), ServiceDto.ToolCommandDto) ==
-                new ServiceDto.ToolCommandDto(['clean'], [], null, null, [])
+        RecordMapper.map(new ServiceDto.ToolCommandDto([' clean ', ' '], null, ' ', null, null, ' ', null), ServiceDto.ToolCommandDto) ==
+                new ServiceDto.ToolCommandDto(['clean'], [], null, null, [], null, false)
         RecordMapper.map(null, ToolCommand) == null
     }
 
@@ -34,7 +34,7 @@ class RecordMapperSpec extends Specification {
         def targets = new LinkedHashMap()
         targets.put(QC, new ServiceDto.SshTargetDto('qc', null, null, null, null))
         targets.put(RD, null)
-        def application = new ServiceDto.UrbanCodeApplicationSettingsDto('Cert', null, null, null, [null])
+        def application = new ServiceDto.UrbanCodeApplicationSettingsDto('Cert', *([null] * 13), [null])
 
         expect:
         RecordMapper.map(application, ServiceDto.UrbanCodeApplicationSettingsDto).components() == [null]
@@ -65,6 +65,6 @@ class RecordMapperSpec extends Specification {
 
     private static ServiceDto service(Map targets) {
         new ServiceDto(null, 'gui', null, null, null, null, null, null, null, null, null, targets, null, null, null, null,
-                null, null, null, null)
+                null, null, null, null, null)
     }
 }

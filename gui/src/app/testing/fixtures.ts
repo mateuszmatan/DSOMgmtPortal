@@ -21,7 +21,16 @@ import {
 } from '../core/models';
 
 export function command(overrides: Partial<ToolCommand> = {}): ToolCommand {
-  return { tasks: [], flags: [], directory: null, mavenHome: null, environment: [], ...overrides };
+  return {
+    tasks: [],
+    flags: [],
+    directory: null,
+    mavenHome: null,
+    environment: [],
+    label: null,
+    returnStdout: false,
+    ...overrides,
+  };
 }
 
 export function service(overrides: Partial<Service> = {}): Service {
@@ -50,6 +59,12 @@ export function service(overrides: Partial<Service> = {}): Service {
       smokeMaxParallel: 10,
       regressionMaxParallel: null,
       performanceMaxParallel: null,
+      smokeRequired: true,
+      regressionRequired: true,
+      performanceRequired: true,
+      smokePollIntervalSec: null,
+      regressionPollIntervalSec: null,
+      performancePollIntervalSec: null,
     },
     testJobs: [
       {
@@ -62,6 +77,14 @@ export function service(overrides: Partial<Service> = {}): Service {
         remoteJenkins: null,
         remoteJenkinsUrl: null,
         credentialsId: null,
+        pollIntervalSec: null,
+        tokenCredentialsId: null,
+        abortTriggeredJob: false,
+        overrideTrustAllCertificates: false,
+        preventRemoteBuildQueue: false,
+        trustAllCertificates: false,
+        useCrumbCache: false,
+        useJobInfoCache: false,
       },
     ],
     deployment: { target: 'VM', appName: null, artifactName: null, baseArtifactName: null },
@@ -83,6 +106,16 @@ export function service(overrides: Partial<Service> = {}): Service {
         order: 1,
         environments: ['DV', 'RD'],
         snapshotName: null,
+        siteName: null,
+        deployProcess: null,
+        skipWait: null,
+        deployWithSnapshot: null,
+        updateSnapshotComponents: null,
+        includeOnlyDeployVersions: null,
+        deployOnlyChanged: null,
+        deployDescription: null,
+        description: null,
+        requestProperties: null,
         components: [
           {
             componentName: 'CERT-GUI-app',
@@ -92,6 +125,11 @@ export function service(overrides: Partial<Service> = {}): Service {
             versionPrefix: null,
             version: null,
             incrementalVersion: true,
+            extensions: null,
+            charset: null,
+            pushDescription: null,
+            versionProperties: null,
+            versionDescription: null,
           },
         ],
       },
@@ -121,6 +159,7 @@ export function service(overrides: Partial<Service> = {}): Service {
       dastScanName: null,
       dastTargetUrl: null,
       dastPresenceId: null,
+      secretCredentialsId: null,
     },
     sonar: {
       projectName: 'CertScanner GUI',
@@ -132,14 +171,17 @@ export function service(overrides: Partial<Service> = {}): Service {
       addBadges: false,
       fullBadges: false,
       command: command({ tasks: ['sonarqube'] }),
+      serverUrl: null,
     },
-    nexusIq: {
-      application: 'cert-gui',
-      scanPatterns: ['**/build/libs/*.jar'],
-      stage: 'build',
-      failOnNetworkError: false,
-      scaScanName: null,
-    },
+    nexusIq: { serverUrl: null, credentialsId: null, scaScanName: null },
+    nexusIqApplications: [
+      {
+        application: 'cert-gui',
+        scanPatterns: ['**/build/libs/*.jar'],
+        stage: 'build',
+        failOnNetworkError: false,
+      },
+    ],
     scm: {
       repositoryUrl: 'https://bitbucket.bbh.com/projects/CERT/repos/gui',
       credentialsId: 'bitbucket-http-credentials',
@@ -172,7 +214,13 @@ export function service(overrides: Partial<Service> = {}): Service {
       commitAuthorEmail: null,
       timeZone: null,
     },
-    metrics: { enabled: true, influxProject: 'CERT-gui', influxEnv: 'test' },
+    metrics: {
+      enabled: true,
+      influxProject: 'CERT-gui',
+      influxEnv: 'test',
+      influxUrl: null,
+      influxCredentialsId: null,
+    },
     flutter: {
       platform: null,
       modules: [],

@@ -118,12 +118,22 @@ projects:
       nexusIq:
         serverUrl: https://tools.bbh.com/IQ
         credentialsId: nexusiqP
-        application: payhub-gateway
-        scanPatterns:
-        - '**/target/*.jar'
-        - '**/target/*.war'
-        stage: build
-        failOnNetworkError: false
+        application:
+          payhub-gateway:
+            scanPatterns:
+            - '**/target/*.jar'
+            - '**/target/*.war'
+            serverUrl: https://tools.bbh.com/IQ
+            credentialsId: nexusiqP
+            stage: build
+            failOnNetworkError: false
+          payhub-gateway-batch:
+            scanPatterns:
+            - '**/batch/*.jar'
+            serverUrl: https://tools.bbh.com/IQ
+            credentialsId: nexusiqP
+            stage: release
+            failOnNetworkError: true
     sast:
       scanName: payhub-gateway
     dast:
@@ -172,6 +182,8 @@ projects:
             url: https://bitbucket.bbh.com/scm/deploy/payhub-rd.git
             branch: main
             credentials: bitbucket-http-credentials
+          buildTag: 2.3.1
+          internalDockerUrl: image-registry.openshift-image-registry.svc:5000/payhub-rd
           skipConfigDeploy: true
         qc:
           projectBuildR: payhub-qc-build
@@ -194,4 +206,5 @@ projects:
             url: https://bitbucket.bbh.com/scm/deploy/payhub-qc.git
             branch: main
             credentials: bitbucket-http-credentials
+          buildTag: 2.3.0
           skipConfigDeploy: true

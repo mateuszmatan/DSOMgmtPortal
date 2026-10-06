@@ -53,6 +53,11 @@ const REPOSITORY: Field[] = [
   mono('deploymentRepoCredentialsId', 'Credentials ID', 'deploymentRepo.credentials', 3),
 ];
 
+const PINNED_IMAGE: Field[] = [
+  mono('buildTag', 'Build tag', 'buildTag', 4, { placeholder: '1.4.2-20261006', ...SAFE }),
+  mono('internalDockerUrl', 'Internal image URL', 'internalDockerUrl', 8, SAFE),
+];
+
 @Component({
   selector: 'dso-openshift-target-fields',
   imports: [MatButtonToggleModule, Fields],
@@ -95,6 +100,9 @@ const REPOSITORY: Field[] = [
       <dso-fields [group]="t" [fields]="deployment" />
       <h5 class="sub-heading span-12">Deployment repository</h5>
       <dso-fields [group]="t" [fields]="repository" />
+      <h5 class="sub-heading span-12">Pinned image</h5>
+      <p class="note span-12">Optional; a run that builds the image replaces these values.</p>
+      <dso-fields [group]="t" [fields]="pinnedImage(region())" />
     </div>
   `,
   styles: `
@@ -130,6 +138,10 @@ export class OpenShiftTargetFields {
   protected target(region: Region): OpenShiftTargetForm {
     this.changes();
     return this.form().controls.openShiftTargets.controls[region];
+  }
+
+  protected pinnedImage(region: Region): Field[] {
+    return region === 'RD' ? PINNED_IMAGE : PINNED_IMAGE.slice(0, 1);
   }
 
   protected hasImageBuild(target: OpenShiftTargetForm): boolean {

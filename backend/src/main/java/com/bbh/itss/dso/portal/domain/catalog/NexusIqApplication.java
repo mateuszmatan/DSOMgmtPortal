@@ -1,0 +1,30 @@
+package com.bbh.itss.dso.portal.domain.catalog;
+
+import com.bbh.itss.dso.portal.domain.shared.StoredList;
+import com.bbh.itss.dso.portal.domain.shared.Text;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+
+import java.util.List;
+
+public record NexusIqApplication(String application, List<String> scanPatterns, String stage,
+                                 Boolean failOnNetworkError) {
+
+    public static final String DEFAULT_STAGE = "build";
+
+    public NexusIqApplication {
+        application = Text.trimToNull(application);
+        scanPatterns = Text.clean(scanPatterns);
+        stage = Text.orDefault(stage, DEFAULT_STAGE);
+        failOnNetworkError = Boolean.TRUE.equals(failOnNetworkError);
+    }
+
+    public static NexusIqApplication of(String application, List<String> scanPatterns) {
+        return new NexusIqApplication(application, scanPatterns, null, false);
+    }
+
+    public void validate(ValidationProblems problems) {
+        problems.require("application", application, "must not be blank")
+                .require("scanPatterns", scanPatterns, "add at least one scan pattern for the Nexus IQ application");
+        StoredList.LINES_2000.check(problems, "scanPatterns", scanPatterns);
+    }
+}

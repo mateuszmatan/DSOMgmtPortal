@@ -38,6 +38,8 @@ export interface ToolCommand {
   directory: string | null;
   mavenHome: string | null;
   environment: string[];
+  label: string | null;
+  returnStdout: boolean;
 }
 
 export interface BuildSettings {
@@ -63,6 +65,12 @@ export interface TestSettings {
   smokeMaxParallel: number | null;
   regressionMaxParallel: number | null;
   performanceMaxParallel: number | null;
+  smokeRequired: boolean;
+  regressionRequired: boolean;
+  performanceRequired: boolean;
+  smokePollIntervalSec: number | null;
+  regressionPollIntervalSec: number | null;
+  performancePollIntervalSec: number | null;
 }
 
 export interface TestJob {
@@ -75,6 +83,14 @@ export interface TestJob {
   remoteJenkins: string | null;
   remoteJenkinsUrl: string | null;
   credentialsId: string | null;
+  pollIntervalSec: number | null;
+  tokenCredentialsId: string | null;
+  abortTriggeredJob: boolean;
+  overrideTrustAllCertificates: boolean;
+  preventRemoteBuildQueue: boolean;
+  trustAllCertificates: boolean;
+  useCrumbCache: boolean;
+  useJobInfoCache: boolean;
 }
 
 export interface DeploymentSettings {
@@ -104,6 +120,11 @@ export interface UrbanCodeComponent {
   versionPrefix: string | null;
   version: string | null;
   incrementalVersion: boolean;
+  extensions: string | null;
+  charset: string | null;
+  pushDescription: string | null;
+  versionProperties: string | null;
+  versionDescription: string | null;
 }
 
 export interface UrbanCodeApplicationSettings {
@@ -111,6 +132,16 @@ export interface UrbanCodeApplicationSettings {
   order: number | null;
   environments: string[];
   snapshotName: string | null;
+  siteName: string | null;
+  deployProcess: string | null;
+  skipWait: boolean | null;
+  deployWithSnapshot: boolean | null;
+  updateSnapshotComponents: boolean | null;
+  includeOnlyDeployVersions: boolean | null;
+  deployOnlyChanged: boolean | null;
+  deployDescription: string | null;
+  description: string | null;
+  requestProperties: string | null;
   components: UrbanCodeComponent[];
 }
 
@@ -142,6 +173,8 @@ export interface OpenShiftTarget {
   deploymentRepoUrl: string | null;
   deploymentRepoBranch: string | null;
   deploymentRepoCredentialsId: string | null;
+  buildTag: string | null;
+  internalDockerUrl: string | null;
 }
 
 export interface AppScanSettings {
@@ -159,6 +192,7 @@ export interface AppScanSettings {
   dastScanName: string | null;
   dastTargetUrl: string | null;
   dastPresenceId: string | null;
+  secretCredentialsId: string | null;
 }
 
 export interface SonarSettings {
@@ -171,14 +205,20 @@ export interface SonarSettings {
   addBadges: boolean;
   fullBadges: boolean;
   command: ToolCommand;
+  serverUrl: string | null;
 }
 
 export interface NexusIqSettings {
-  application: string | null;
+  serverUrl: string | null;
+  credentialsId: string | null;
+  scaScanName: string | null;
+}
+
+export interface NexusIqApplication {
+  application: string;
   scanPatterns: string[];
   stage: string;
   failOnNetworkError: boolean;
-  scaScanName: string | null;
 }
 
 export interface ScmSettings {
@@ -223,6 +263,8 @@ export interface MetricsSettings {
   enabled: boolean;
   influxProject: string | null;
   influxEnv: string | null;
+  influxUrl: string | null;
+  influxCredentialsId: string | null;
 }
 
 export interface FlutterSettings {
@@ -258,6 +300,7 @@ export interface ServiceSettings {
   appScan: AppScanSettings;
   sonar: SonarSettings;
   nexusIq: NexusIqSettings;
+  nexusIqApplications: NexusIqApplication[];
   scm: ScmSettings;
   goldenFix: GoldenFixPolicy;
   metrics: MetricsSettings;

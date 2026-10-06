@@ -11,7 +11,7 @@ public record OpenShiftTarget(String projectBuild, String buildConfigPath, Strin
                               String nexusAuthFile, String projectDeployment, String deployConfigPath,
                               String configPath, Boolean skipConfigDeploy, String healthCheckUrl, String routeHostname,
                               String deploymentPath, String deploymentRepoUrl, String deploymentRepoBranch,
-                              String deploymentRepoCredentialsId) {
+                              String deploymentRepoCredentialsId, String buildTag, String internalDockerUrl) {
 
     public OpenShiftTarget {
         projectBuild = Text.trimToNull(projectBuild);
@@ -33,10 +33,12 @@ public record OpenShiftTarget(String projectBuild, String buildConfigPath, Strin
         deploymentRepoUrl = Text.trimToNull(deploymentRepoUrl);
         deploymentRepoBranch = Text.trimToNull(deploymentRepoBranch);
         deploymentRepoCredentialsId = Text.trimToNull(deploymentRepoCredentialsId);
+        buildTag = Text.trimToNull(buildTag);
+        internalDockerUrl = Text.trimToNull(internalDockerUrl);
     }
 
     public static final OpenShiftTarget NONE = new OpenShiftTarget(null, null, null, null, null, null, null, null, null,
-            null, null, null, false, null, null, null, null, null, null);
+            null, null, null, false, null, null, null, null, null, null, null, null);
 
     public void validateImageBuild(ValidationProblems problems) {
         String message = "is required for OpenShift: the Nexus snapshot delivery builds the image in the RD project";
@@ -69,6 +71,8 @@ public record OpenShiftTarget(String projectBuild, String buildConfigPath, Strin
                 .set("deploymentRepo.url", deploymentRepoUrl)
                 .set("deploymentRepo.branch", deploymentRepoBranch)
                 .set("deploymentRepo.credentials", deploymentRepoCredentialsId)
+                .set("buildTag", buildTag)
+                .set("internalDockerUrl", internalDockerUrl)
                 .flag("skipConfigDeploy", skipConfigDeploy);
         return entry.toMap();
     }

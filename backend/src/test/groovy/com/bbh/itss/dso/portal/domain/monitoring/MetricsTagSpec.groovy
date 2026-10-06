@@ -12,7 +12,7 @@ class MetricsTagSpec extends Specification {
     def "a #type pipeline is tagged #project in the environment of its service"() {
         given:
         def service = product(code: 'CERT', services: [[name: 'gui', id: 10L,
-                metrics: new MetricsSettings(true, null, 'uat')]]).services()[0]
+                metrics: new MetricsSettings(true, null, 'uat', null, null)]]).services()[0]
 
         expect:
         MetricsTag.of(service, pipeline(serviceId: 10L, type: type)) == new MetricsTag(project, 'uat')

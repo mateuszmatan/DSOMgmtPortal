@@ -42,7 +42,9 @@ describe('OpenShiftTargetFields', () => {
       'Image registry',
       'Deployment',
       'Deployment repository',
+      'Pinned image',
     ]);
+    expect(field('Internal image URL')).toBeDefined();
     expect(toggle('RD region').querySelector('.problem-mark')).not.toBeNull();
 
     const projectBuild = field('Build project');
@@ -68,6 +70,8 @@ describe('OpenShiftTargetFields', () => {
 
     expect(page().querySelector('.region-note')?.textContent).toContain('deploy.openshift.qc');
     expect(headings()).not.toContain('Image build');
+    expect(field('Build tag')).toBeDefined();
+    expect(field('Internal image URL')).toBeUndefined();
 
     form.controls.openShiftTargets.controls.QC.controls.dockerFilePath.setValue('Dockerfile.qc');
     await choose('RD region');

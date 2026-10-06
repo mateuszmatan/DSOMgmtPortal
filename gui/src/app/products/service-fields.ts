@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { FlutterPlatform, GlobalSettings, REGIONS, Region } from '../core/models';
@@ -17,12 +18,13 @@ import {
   line,
   mono,
 } from '../shared/fields';
-import { SHELL_SAFE_ERROR } from '../shared/form-controls';
+import { SHELL_SAFE_ERROR, addItem } from '../shared/form-controls';
 import { GoldenFixFields } from './golden-fix-fields';
 import { OpenShiftTargetFields } from './openshift-target-fields';
 import {
   ServiceForm,
   ServiceSectionId,
+  createNexusIqApplicationForm,
   firstInvalidSection,
   sectionInvalid,
   sectionTouched,
@@ -50,14 +52,15 @@ const NOTES: Record<ServiceSectionId, string> = {
   openShift:
     'The OpenShift projects the service is built and deployed in; a region without values is not written.',
   appScan:
-    "The HCL AppScan application: SAST of the sources and, when enabled, DAST of the deployed application. The API key is the product's.",
+    "The HCL AppScan application: SAST of the sources and, when enabled, DAST of the deployed application. The API key is the product's; the service may name its own secret.",
   sonar: 'The SonarQube project (`tools.sonar`). Without a project key the scan is skipped.',
   nexusIq:
-    'The dependency scan of the built artifacts (`tools.nexusIq`). The server and its credentials are global settings.',
+    'The dependency scan of the built artifacts (`tools.nexusIq`), one entry per Nexus IQ application. Without an application the scan is skipped.',
   scm: 'The repository GoldenFix raises dependency upgrade pull requests against (`scm.bitbucket`). Without one GoldenFix lists its fixes in the report only.',
   goldenFix:
     'Dependency upgrade pull requests for the vulnerable components Nexus IQ finds (`goldenFix`).',
-  metrics: 'The InfluxDB tags the pipelines write under; monitoring reads them back.',
+  metrics:
+    'The InfluxDB tags the pipelines write under; monitoring reads them back from the global InfluxDB.',
   flutter:
     'What a Flutter build needs besides the common settings; written only for Flutter services.',
 };
@@ -130,21 +133,18 @@ const DAST: Field[] = [
   mono('dastPresenceId', 'Presence ID', 'dast.presenceId', 3, { hint: 'for internal hosts' }),
 ];
 
-const NEXUS_IQ: Field[] = [
-  mono('application', 'Application', 'tools.nexusIq.application', 5, {
-    hint: 'set with the scan patterns',
-  }),
-  mono('stage', 'Stage', 'tools.nexusIq.stage', 3, {
+const NEXUS_IQ_APPLICATION: Field[] = [
+  mono('application', 'Application', 'application', 5),
+  mono('stage', 'Stage', 'stage', 3, {
     placeholder: 'build',
     error: 'A Nexus IQ stage such as build, stage-release or release',
   }),
-  line('scaScanName', 'SCA scan name', 'sca.scanName', 4),
-  area('scanPatterns', 'Scan patterns', 'tools.nexusIq.scanPatterns', 8, {
+  check('failOnNetworkError', 'Fail the build on a network error', 'failOnNetworkError', 4),
+  area('scanPatterns', 'Scan patterns', 'scanPatterns', 12, {
     mono: true,
     placeholder: '**/build/libs/*.jar',
-    hint: 'one Ant pattern per line, set with the application',
+    hint: 'one Ant pattern per line',
   }),
-  check('failOnNetworkError', 'Fail the build on a network error', 'failOnNetworkError', 4),
 ];
 
 const SCM: Field[] = [
@@ -258,6 +258,7 @@ const FLUTTER_PLATFORMS: FlutterPlatform[] = [
   selector: 'dso-service-fields',
   imports: [
     ReactiveFormsModule,
+    MatButtonModule,
     MatButtonToggleModule,
     MatIconModule,
     Fields,
@@ -288,7 +289,7 @@ export class ServiceFields {
   protected readonly appScanFlags = APP_SCAN_FLAGS;
   protected readonly dastEnabled = DAST_ENABLED;
   protected readonly dast = DAST;
-  protected readonly nexusIq = NEXUS_IQ;
+  protected readonly nexusIqApplication = NEXUS_IQ_APPLICATION;
   protected readonly scm = SCM;
   protected readonly bitbucketRepository = BITBUCKET_REPOSITORY;
   protected readonly flutterModules = FLUTTER_MODULES;
@@ -438,8 +439,14 @@ export class ServiceFields {
   }
 
   protected sonarFields(): Field[] {
-    const installation = this.defaults()?.platform?.sonarInstallationName;
+    const platform = this.defaults()?.platform;
+    const installation = platform?.sonarInstallationName;
     return [
+      line('serverUrl', 'Server URL', 'tools.sonar.serverUrl', 12, {
+        placeholder: platform?.sonarServerUrl ?? '',
+        hint: fallback(platform?.sonarServerUrl),
+        error: 'Must be an http or https URL',
+      }),
       line('projectName', 'Project name', 'tools.sonar.projectName', 6),
       mono('projectKey', 'Project key', 'tools.sonar.projectKey', 6, {
         error: "Letters, digits, '-', '_', '.' and ':' with at least one non-digit",
@@ -456,6 +463,45 @@ export class ServiceFields {
       }),
       check('addBadges', 'Badges in the report', 'addBadges', 4),
       check('fullBadges', 'Every badge', 'fullBadges', 4),
+    ];
+  }
+
+  protected nexusIqFields(): Field[] {
+    const platform = this.defaults()?.platform;
+    return [
+      line('serverUrl', 'Server URL', 'tools.nexusIq.serverUrl', 5, {
+        placeholder: platform?.nexusIqServerUrl ?? '',
+        hint: fallback(platform?.nexusIqServerUrl),
+        error: 'Must be an http or https URL',
+      }),
+      mono('credentialsId', 'Credentials ID', 'tools.nexusIq.credentialsId', 3, {
+        placeholder: platform?.nexusIqCredentialsId ?? '',
+        hint: fallback(platform?.nexusIqCredentialsId),
+      }),
+      line('scaScanName', 'SCA scan name', 'sca.scanName', 4),
+    ];
+  }
+
+  protected nexusIqApplications() {
+    this.changes();
+    return this.form().controls.nexusIqApplications.controls;
+  }
+
+  protected addNexusIqApplication(): void {
+    addItem(this.form().controls.nexusIqApplications, createNexusIqApplicationForm());
+    this.form().markAsDirty();
+  }
+
+  protected removeNexusIqApplication(index: number): void {
+    this.form().controls.nexusIqApplications.removeAt(index);
+    this.form().markAsDirty();
+  }
+
+  protected appScanSecretField(): Field[] {
+    return [
+      mono('secretCredentialsId', 'Secret text credentials ID', 'asoc.token', 6, {
+        hint: "the AppScan API key secret; left empty: the product's",
+      }),
     ];
   }
 
@@ -479,6 +525,7 @@ export class ServiceFields {
 
   protected metricsFields(): Field[] {
     const project = `${this.productCode() || 'CODE'}-${this.form().controls.name.value || 'service'}`;
+    const platform = this.defaults()?.platform;
     return [
       check('enabled', 'Write pipeline metrics to InfluxDB', 'influx.enabled'),
       line('influxProject', 'Project tag', 'influx.project', 8, {
@@ -487,6 +534,15 @@ export class ServiceFields {
       }),
       mono('influxEnv', 'Environment tag', 'influx.env', 4, {
         error: "Letters, digits, '.', '-' and '_'",
+      }),
+      line('influxUrl', 'InfluxDB write URL', 'influx.url', 8, {
+        placeholder: platform?.influxWriteUrl ?? '',
+        hint: fallback(platform?.influxWriteUrl),
+        error: 'Must be an http or https URL',
+      }),
+      mono('influxCredentialsId', 'Credentials ID', 'influx.credentialsId', 4, {
+        placeholder: platform?.influxCredentialsId ?? '',
+        hint: fallback(platform?.influxCredentialsId),
       }),
     ];
   }

@@ -12,6 +12,7 @@ import {
   SERVICE_SECTIONS,
   applyFieldProblems,
   controlAt,
+  createNexusIqApplicationForm,
   createProductForm,
   createServiceForm,
   createServiceGoldenFixForm,
@@ -56,14 +57,31 @@ describe('createServiceForm', () => {
       javaPath: '',
       autoSetup: false,
       buildPath: '',
-      command: { tasks: '', flags: '', directory: '', mavenHome: '', environment: '' },
+      command: {
+        tasks: '',
+        flags: '',
+        directory: '',
+        mavenHome: '',
+        environment: '',
+        label: '',
+        returnStdout: false,
+      },
     });
     expect(value.deployment.target).toBe('VM');
     expect(value.testJobs).toEqual([]);
-    expect(value.nexusIq.stage).toBe('build');
+    expect(value.nexusIqApplications).toEqual([]);
+    expect(createNexusIqApplicationForm().getRawValue().stage).toBe('build');
+    expect(value.tests.smokeRequired && value.tests.regressionRequired).toBe(true);
+    expect(value.tests.performanceRequired).toBe(true);
     expect(value.goldenFix.inherit).toBe(true);
     expect(value.goldenFix.enabled).toBeNull();
-    expect(value.metrics).toEqual({ enabled: true, influxProject: '', influxEnv: 'test' });
+    expect(value.metrics).toEqual({
+      enabled: true,
+      influxProject: '',
+      influxEnv: 'test',
+      influxUrl: '',
+      influxCredentialsId: '',
+    });
   });
 
   it('starts a new service from the service defaults of the global settings', () => {
@@ -156,10 +174,13 @@ describe('createServiceForm', () => {
     form.controls.appScan.controls.applicationId.setValue(' 109f44ac-cc06-4ca0-884e-d944904f7019 ');
     expect(form.controls.appScan.controls.applicationId.valid).toBe(true);
 
-    form.controls.nexusIq.controls.scanPatterns.setValue(
+    const nexusIq = createNexusIqApplicationForm();
+    expect(nexusIq.controls.application.hasError('required')).toBe(true);
+    expect(nexusIq.controls.scanPatterns.hasError('required')).toBe(true);
+    nexusIq.controls.scanPatterns.setValue(
       Array.from({ length: 21 }, (_, i) => `p${i}`).join('\n'),
     );
-    expect(form.controls.nexusIq.controls.scanPatterns.hasError('maxLines')).toBe(true);
+    expect(nexusIq.controls.scanPatterns.hasError('maxLines')).toBe(true);
   });
 });
 
@@ -298,6 +319,8 @@ describe('tool commands', () => {
       directory: '',
       mavenHome: '',
       environment: 'A=1',
+      label: '',
+      returnStdout: false,
     });
 
     form.patchValue({
@@ -306,6 +329,8 @@ describe('tool commands', () => {
       directory: ' app ',
       mavenHome: ' ',
       environment: 'JAVA_OPTS=-Xmx2g\nCI=true',
+      label: ' Unit tests ',
+      returnStdout: true,
     });
 
     expect(toToolCommand(form)).toEqual({
@@ -314,6 +339,8 @@ describe('tool commands', () => {
       directory: 'app',
       mavenHome: null,
       environment: ['JAVA_OPTS=-Xmx2g', 'CI=true'],
+      label: 'Unit tests',
+      returnStdout: true,
     });
   });
 });
@@ -342,6 +369,9 @@ describe('test jobs', () => {
       timeoutMinutes: 90,
       remoteJenkins: 'qa',
       credentialsId: 'jenkins-qa',
+      pollIntervalSec: 20,
+      tokenCredentialsId: 'qa-trigger-token',
+      useCrumbCache: true,
     });
 
     expect(toTestJob(job)).toEqual({
@@ -354,10 +384,25 @@ describe('test jobs', () => {
       remoteJenkins: null,
       remoteJenkinsUrl: null,
       credentialsId: null,
+      pollIntervalSec: null,
+      tokenCredentialsId: null,
+      abortTriggeredJob: false,
+      overrideTrustAllCertificates: false,
+      preventRemoteBuildQueue: false,
+      trustAllCertificates: false,
+      useCrumbCache: false,
+      useJobInfoCache: false,
     });
+    expect(job.controls.tokenCredentialsId.disabled).toBe(true);
 
     job.controls.type.setValue('REMOTE');
-    expect(toTestJob(job)).toMatchObject({ remoteJenkins: 'qa', credentialsId: 'jenkins-qa' });
+    expect(toTestJob(job)).toMatchObject({
+      remoteJenkins: 'qa',
+      credentialsId: 'jenkins-qa',
+      pollIntervalSec: 20,
+      tokenCredentialsId: 'qa-trigger-token',
+      useCrumbCache: true,
+    });
   });
 
   it('sends blank parameters as null', () => {
@@ -482,7 +527,7 @@ describe('toServiceRequest', () => {
     form.patchValue({
       description: '  ',
       build: { sourceDir: ' ' },
-      nexusIq: { scanPatterns: ' **/*.jar \n\n**/*.war\n**/*.jar', stage: '' },
+      nexusIqApplications: [{ scanPatterns: ' **/*.jar \n\n**/*.war\n**/*.jar', stage: '' }],
     });
 
     const request = toServiceRequest(form);
@@ -490,8 +535,8 @@ describe('toServiceRequest', () => {
     expect(request.id).toBe(10);
     expect(request.description).toBeNull();
     expect(request.build.sourceDir).toBe('.');
-    expect(request.nexusIq.scanPatterns).toEqual(['**/*.jar', '**/*.war']);
-    expect(request.nexusIq.stage).toBe('build');
+    expect(request.nexusIqApplications[0].scanPatterns).toEqual(['**/*.jar', '**/*.war']);
+    expect(request.nexusIqApplications[0].stage).toBe('build');
     expect(request.build.command).toEqual(
       command({ tasks: ['clean', 'build'], flags: ['--refresh-dependencies'] }),
     );

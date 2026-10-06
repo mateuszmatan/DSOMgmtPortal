@@ -2,7 +2,7 @@ package com.bbh.itss.dso.portal.domain.dsoconfig
 
 import com.bbh.itss.dso.portal.domain.catalog.BuildTool
 import com.bbh.itss.dso.portal.domain.catalog.DeployTarget
-import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings
+import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.Region
 import com.bbh.itss.dso.portal.domain.catalog.Service
@@ -17,6 +17,7 @@ import spock.lang.Subject
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.command
 import static com.bbh.itss.dso.portal.support.Fixtures.deployment
+import static com.bbh.itss.dso.portal.support.Fixtures.fullSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
@@ -28,7 +29,7 @@ class DsoConfigBuilderSpec extends Specification {
 
     static final Map GUI = [id: 10L, name: 'gui',
                             sonar: SonarSettings.of('CertScanner GUI', 'cert-gui', command(['sonarqube'])),
-                            nexusIq: NexusIqSettings.of('cert-gui', ['**/build/libs/*.jar'])]
+                            nexusIqApplications: [NexusIqApplication.of('cert-gui', ['**/build/libs/*.jar'])]]
     static final Map API = [id: 11L, name: 'backend-api', build: build(tool: BuildTool.MAVEN),
                             deployment: deployment(target: DeployTarget.OPENSHIFT, appName: 'cert-api',
                                     artifactName: 'cert-api.jar')]
@@ -65,12 +66,29 @@ class DsoConfigBuilderSpec extends Specification {
                                 scanPatterns: ['**/build/libs/*.jar'], stage: 'build', failOnNetworkError: false]
     }
 
+    def "a service's own servers, credentials and AppScan secret replace the global and product values"() {
+        when:
+        Map entry = builder.productConfig(product(services: [[id: 10L, name: 'gui', settings: fullSettings('gui')]]))
+                .projects.gui
+
+        then:
+        entry.asoc.token == 'cert-appscan-secret'
+        entry.influx.subMap(['url', 'credentialsId']) ==
+                [url: 'https://influx.cert.bbh.com/api/v2/write', credentialsId: 'cert-influx']
+        entry.tools.sonar.serverUrl == 'https://sonar.cert.bbh.com'
+        entry.tools.nexusIq.subMap(['serverUrl', 'credentialsId']) ==
+                [serverUrl: 'https://iq.cert.bbh.com', credentialsId: 'cert-iq']
+        entry.tools.nexusIq.application.keySet() as List == ['cert-gui', 'cert-gui-batch']
+        entry.tools.nexusIq.application.values()*.serverUrl.unique() == ['https://iq.cert.bbh.com']
+        entry.tools.nexusIq.application.values()*.credentialsId.unique() == ['cert-iq']
+    }
+
     def "the global deployment defaults fill in what a VM deployment leaves out"() {
         given:
         certScanner = product(services: [GUI, API, [id: 12L, name: 'batch',
                 sshTargets: [(Region.RD): new SshTarget(null, 'batchadm', '/opt/batch', null, null)],
-                urbanCodeApplications: [new UrbanCodeApplicationSettings('Batch', 1, ['RD'], null,
-                        [new UrbanCodeComponent('batch-app', 'build/libs', '*.jar', null, null, null, false)])]]])
+                urbanCodeApplications: [UrbanCodeApplicationSettings.of('Batch', 1, ['RD'], null,
+                        [new UrbanCodeComponent('batch-app', 'build/libs', '*.jar', null, null, null, false, null, null, null, null, null)])]]])
 
         when:
         Map deploy = builder.productConfig(certScanner).projects.batch.deploy

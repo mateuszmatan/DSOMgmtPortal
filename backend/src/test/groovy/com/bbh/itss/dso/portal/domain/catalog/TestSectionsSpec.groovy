@@ -28,7 +28,7 @@ class TestSectionsSpec extends Specification {
     def "a Gradle unit tests stage writes its command, its reports and the coverage report path"() {
         given:
         def unitTests = new UnitTestSettings(new ToolCommand(['test', 'jacocoTestReport'], ['--continue'], 'gui', null,
-                ['CI=true']), '**/TEST-*.xml', 'gui', 'build/reports', true, 'build/reports/jacoco/test/jacocoTestReport.xml')
+                ['CI=true'], null, false), '**/TEST-*.xml', 'gui', 'build/reports', true, 'build/reports/jacoco/test/jacocoTestReport.xml')
 
         expect:
         written { unitTests.writeTo(it, GRADLE) } ==
@@ -45,7 +45,7 @@ class TestSectionsSpec extends Specification {
 
         where:
         tool << [MAVEN, FLUTTER, GRADLE, MAVEN, FLUTTER]
-        unitTests << [new UnitTestSettings(new ToolCommand(['test', 'jacoco:report'], [], null, '/opt/maven', []), null, null,
+        unitTests << [new UnitTestSettings(new ToolCommand(['test', 'jacoco:report'], [], null, '/opt/maven', [], null, false), null, null,
                 null, false, 'target/site/jacoco/jacoco.xml'),
                       new UnitTestSettings(ToolCommand.of(['test'], []), 'test-results/*.xml', null, null, false, null),
                       UnitTestSettings.NONE, UnitTestSettings.NONE, UnitTestSettings.NONE]
@@ -82,14 +82,14 @@ class TestSectionsSpec extends Specification {
 
     def "a test job trims its values and stores blank ones as null"() {
         expect:
-        new TestJob(SMOKE, ' ', null, ' CERT/gui-smoke ', null, ' ', ' ', ' ', ' ') ==
-                new TestJob(SMOKE, null, null, 'CERT/gui-smoke', null, null, null, null, null)
-        new TestJob(SMOKE, null, null, null, null, null, null, null, null).job() == null
+        new TestJob(SMOKE, ' ', null, ' CERT/gui-smoke ', null, ' ', ' ', ' ', ' ', null, null, false, false, false, false, false, false) ==
+                TestJob.of(SMOKE, null, null, 'CERT/gui-smoke', null)
+        TestJob.of(SMOKE, null, null, null, null).job() == null
     }
 
     def "a job given as #job is a URL: #url"() {
         expect:
-        new TestJob(SMOKE, null, null, job, null, null, null, null, null).isUrl() == url
+        TestJob.of(SMOKE, null, null, job, null).isUrl() == url
 
         where:
         job                                   || url
@@ -102,7 +102,7 @@ class TestSectionsSpec extends Specification {
 
     def "a #type job given as #job with remote Jenkins #remote and URL #remoteUrl must name its Jenkins: #needed"() {
         expect:
-        new TestJob(SMOKE, null, type, job, null, null, remote, remoteUrl, null).needsRemoteJenkins() == needed
+        new TestJob(SMOKE, null, type, job, null, null, remote, remoteUrl, null, null, null, false, false, false, false, false, false).needsRemoteJenkins() == needed
 
         where:
         type   | job                          | remote | remoteUrl            || needed
@@ -117,7 +117,7 @@ class TestSectionsSpec extends Specification {
     def "a job URL is written as url, a path as job, with only the fields that are set in the library's order"() {
         when:
         def entry = new TestJob(REGRESSION, 'regression', REMOTE, REMOTE_URL, 90, 'ENV=qc\nBROWSER=chrome', 'jenkins-qc',
-                'https://jenkins-qc.bbh.com', 'jenkins-qc-token').toConfig()
+                'https://jenkins-qc.bbh.com', 'jenkins-qc-token', null, null, false, false, false, false, false, false).toConfig()
 
         then:
         entry == [name            : 'regression', type: 'remote', url: REMOTE_URL, timeoutMin: 90,
@@ -125,19 +125,19 @@ class TestSectionsSpec extends Specification {
                   remoteJenkinsUrl: 'https://jenkins-qc.bbh.com', credentialsId: 'jenkins-qc-token']
         entry.keySet() as List == ['name', 'type', 'url', 'timeoutMin', 'parameters', 'remoteJenkins', 'remoteJenkinsUrl',
                                    'credentialsId']
-        new TestJob(SMOKE, null, LOCAL, 'CERT/smoke', 15, null, null, null, null).toConfig() ==
+        TestJob.of(SMOKE, null, LOCAL, 'CERT/smoke', 15).toConfig() ==
                 [type: 'local', job: 'CERT/smoke', timeoutMin: 15]
-        new TestJob(SMOKE, null, null, 'CERT/gui-smoke', null, null, null, null, null).toConfig() == [job: 'CERT/gui-smoke']
+        TestJob.of(SMOKE, null, null, 'CERT/gui-smoke', null).toConfig() == [job: 'CERT/gui-smoke']
     }
 
     def "each stage writes its own limit and its jobs in the order they were entered"() {
         given:
-        def smoke1 = new TestJob(SMOKE, 'smoke-api', null, 'CERT/api-smoke', null, null, null, null, null)
-        def regression = new TestJob(REGRESSION, null, REMOTE, REMOTE_URL, 60, null, null, null, null)
-        def smoke2 = new TestJob(SMOKE, 'smoke-gui', null, 'CERT/gui-smoke', 10, null, null, null, null)
+        def smoke1 = TestJob.of(SMOKE, 'smoke-api', null, 'CERT/api-smoke', null)
+        def regression = TestJob.of(REGRESSION, null, REMOTE, REMOTE_URL, 60)
+        def smoke2 = TestJob.of(SMOKE, 'smoke-gui', null, 'CERT/gui-smoke', 10)
 
         when:
-        def tests = written { new TestSettings(4, 2, null, 1).writeTo(it, [smoke1, regression, smoke2]) }.tests
+        def tests = written { new TestSettings(4, 2, null, 1, true, true, true, null, null, null).writeTo(it, [smoke1, regression, smoke2]) }.tests
 
         then:
         tests == [maxParallel: 4,
@@ -151,13 +151,31 @@ class TestSectionsSpec extends Specification {
     def "a stage limit is written even when the stage has no jobs, and the defaults without jobs write nothing"() {
         expect:
         TestStage.values()*.configKey() == ['smoke', 'regression', 'performance']
-        TestSettings.DEFAULTS == new TestSettings(null, null, null, null)
+        TestSettings.DEFAULTS == new TestSettings(null, null, null, null, true, true, true, null, null, null)
         written { TestSettings.DEFAULTS.writeTo(it, []) } == [:]
-        written { new TestSettings(null, null, 3, null).writeTo(it, []) } == [tests: [regression: [maxParallel: 3]]]
-        written { new TestSettings(null, null, null, 5).writeTo(it, []) } == [tests: [performance: [maxParallel: 5]]]
+        written { new TestSettings(null, null, 3, null, true, true, true, null, null, null).writeTo(it, []) } == [tests: [regression: [maxParallel: 3]]]
+        written { new TestSettings(null, null, null, 5, true, true, true, null, null, null).writeTo(it, []) } == [tests: [performance: [maxParallel: 5]]]
         written {
-            new TestSettings(null, null, null, null)
-                    .writeTo(it, [new TestJob(PERFORMANCE, null, null, 'CERT/load', null, null, null, null, null)])
+            new TestSettings(null, null, null, null, true, true, true, null, null, null)
+                    .writeTo(it, [TestJob.of(PERFORMANCE, null, null, 'CERT/load', null)])
         } == [tests: [performance: [jobs: [[job: 'CERT/load']]]]]
+    }
+
+    def "a remote job writes its poll interval, its token credential and the trigger options that are on"() {
+        when:
+        def entry = new TestJob(SMOKE, null, REMOTE, REMOTE_URL, null, null, null, null, null, 30, ' trigger-token ', true,
+                true, null, true, false, true).toConfig()
+
+        then:
+        entry == [type: 'remote', url: REMOTE_URL, pollIntervalSec: 30, tokenCredentialsId: 'trigger-token',
+                  abortTriggeredJob: true, overrideTrustAllCertificates: true, trustAllCertificates: true,
+                  useJobInfoCache: true]
+    }
+
+    def "a stage that is not required is written as required false even without jobs, with its poll interval"() {
+        expect:
+        new TestSettings(null, null, null, null, null, null, null, null, null, null) == TestSettings.DEFAULTS
+        written { new TestSettings(null, null, null, null, false, true, null, 20, null, 45).writeTo(it, []) } ==
+                [tests: [smoke: [required: false, pollIntervalSec: 20], performance: [pollIntervalSec: 45]]]
     }
 }

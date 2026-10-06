@@ -13,6 +13,6 @@ public record AppScanAccount(String keyId, String secretCredentialsId) implement
 
     @Override
     public void writeTo(ConfigTree config) {
-        config.set("asoc.keyId", keyId).set("asoc.token", secretCredentialsId);
+        config.set("asoc.keyId", keyId).setIfAbsent("asoc.token", secretCredentialsId);
     }
 }

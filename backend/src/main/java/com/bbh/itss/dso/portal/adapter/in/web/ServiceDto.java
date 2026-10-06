@@ -13,6 +13,7 @@ import com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform;
 import com.bbh.itss.dso.portal.domain.catalog.FlutterSettings;
 import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy;
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings;
+import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication;
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings;
 import com.bbh.itss.dso.portal.domain.catalog.OpenShiftTarget;
 import com.bbh.itss.dso.portal.domain.catalog.Region;
@@ -69,6 +70,7 @@ public record ServiceDto(
         @NotNull @Valid AppScanSettingsDto appScan,
         @Valid SonarSettingsDto sonar,
         @Valid NexusIqSettingsDto nexusIq,
+        @Size(max = 20) List<@NotNull @Valid NexusIqApplicationDto> nexusIqApplications,
         @Valid ScmSettingsDto scm,
         @Valid GoldenFixPolicyDto goldenFix,
         @Valid MetricsSettingsDto metrics,
@@ -104,7 +106,13 @@ public record ServiceDto(
             @Min(1) Integer maxParallel,
             @Min(1) Integer smokeMaxParallel,
             @Min(1) Integer regressionMaxParallel,
-            @Min(1) Integer performanceMaxParallel) implements Mirrors<TestSettings> {
+            @Min(1) Integer performanceMaxParallel,
+            Boolean smokeRequired,
+            Boolean regressionRequired,
+            Boolean performanceRequired,
+            @Min(1) Integer smokePollIntervalSec,
+            @Min(1) Integer regressionPollIntervalSec,
+            @Min(1) Integer performancePollIntervalSec) implements Mirrors<TestSettings> {
     }
 
     public record TestJobDto(
@@ -116,7 +124,15 @@ public record ServiceDto(
             @Size(max = 2000) String parameters,
             @Size(max = 200) String remoteJenkins,
             @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String remoteJenkinsUrl,
-            @Size(max = 200) String credentialsId) implements Mirrors<TestJob> {
+            @Size(max = 200) String credentialsId,
+            @Min(1) Integer pollIntervalSec,
+            @Size(max = 200) String tokenCredentialsId,
+            Boolean abortTriggeredJob,
+            Boolean overrideTrustAllCertificates,
+            Boolean preventRemoteBuildQueue,
+            Boolean trustAllCertificates,
+            Boolean useCrumbCache,
+            Boolean useJobInfoCache) implements Mirrors<TestJob> {
     }
 
     public record DeploymentSettingsDto(
@@ -134,7 +150,9 @@ public record ServiceDto(
             @Size(max = 500) String mavenHome,
             @Size(max = 30)
             List<@Pattern(regexp = "^[A-Za-z_][A-Za-z0-9_+]*=.*$", message = "write each variable as NAME=value")
-                    @Size(max = 500) String> environment) implements Mirrors<ToolCommand> {
+                    @Size(max = 500) String> environment,
+            @Size(max = 200) String label,
+            Boolean returnStdout) implements Mirrors<ToolCommand> {
     }
 
     public record UrbanCodeSettingsDto(
@@ -155,6 +173,16 @@ public record ServiceDto(
             @Size(max = 20) List<@Pattern(regexp = "^[A-Za-z0-9_-]{1,20}$",
                     message = "environment names may contain letters, digits, '-' and '_'") String> environments,
             @Size(max = 200) String snapshotName,
+            @Size(max = 200) String siteName,
+            @Size(max = 200) String deployProcess,
+            Boolean skipWait,
+            Boolean deployWithSnapshot,
+            Boolean updateSnapshotComponents,
+            Boolean includeOnlyDeployVersions,
+            Boolean deployOnlyChanged,
+            @Size(max = 1000) String deployDescription,
+            @Size(max = 1000) String description,
+            @Size(max = 2000) String requestProperties,
             @NotNull @Size(max = 50) List<@NotNull @Valid UrbanCodeComponentDto> components)
             implements Mirrors<UrbanCodeApplicationSettings> {
     }
@@ -166,7 +194,12 @@ public record ServiceDto(
             @Size(max = 500) String fileExcludePatterns,
             @Size(max = 200) String versionPrefix,
             @Size(max = 200) String version,
-            Boolean incrementalVersion) implements Mirrors<UrbanCodeComponent> {
+            Boolean incrementalVersion,
+            @Size(max = 200) String extensions,
+            @Size(max = 50) String charset,
+            @Size(max = 1000) String pushDescription,
+            @Size(max = 2000) String versionProperties,
+            @Size(max = 1000) String versionDescription) implements Mirrors<UrbanCodeComponent> {
     }
 
     public record SshTargetDto(
@@ -199,7 +232,10 @@ public record ServiceDto(
             @Pattern(regexp = "^(https?://\\S+|ssh://\\S+|git@\\S+)?$", message = "must be a Git repository URL")
             String deploymentRepoUrl,
             @Size(max = 200) String deploymentRepoBranch,
-            @Size(max = 200) String deploymentRepoCredentialsId) implements Mirrors<OpenShiftTarget> {
+            @Size(max = 200) String deploymentRepoCredentialsId,
+            @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String buildTag,
+            @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE)
+            String internalDockerUrl) implements Mirrors<OpenShiftTarget> {
     }
 
     public record AppScanSettingsDto(
@@ -221,7 +257,8 @@ public record ServiceDto(
             Boolean dastEnabled,
             @Size(max = 200) String dastScanName,
             @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String dastTargetUrl,
-            @Size(max = 100) String dastPresenceId) implements Mirrors<AppScanSettings> {
+            @Size(max = 100) String dastPresenceId,
+            @Size(max = 200) String secretCredentialsId) implements Mirrors<AppScanSettings> {
     }
 
     public record SonarSettingsDto(
@@ -237,17 +274,24 @@ public record ServiceDto(
             String badgeToken,
             Boolean addBadges,
             Boolean fullBadges,
-            @Valid ToolCommandDto command) implements Mirrors<SonarSettings> {
+            @Valid ToolCommandDto command,
+            @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String serverUrl)
+            implements Mirrors<SonarSettings> {
     }
 
     public record NexusIqSettingsDto(
-            @Size(max = 200) String application,
+            @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String serverUrl,
+            @Size(max = 200) String credentialsId,
+            @Size(max = 200) String scaScanName) implements Mirrors<NexusIqSettings> {
+    }
+
+    public record NexusIqApplicationDto(
+            @NotBlank @Size(max = 200) String application,
             @Size(max = 20) List<@NotBlank @Size(max = 300) String> scanPatterns,
             @Size(max = 50)
             @Pattern(regexp = "^[a-z-]*$", message = "must be a Nexus IQ stage such as build, stage-release or release")
             String stage,
-            Boolean failOnNetworkError,
-            @Size(max = 200) String scaScanName) implements Mirrors<NexusIqSettings> {
+            Boolean failOnNetworkError) implements Mirrors<NexusIqApplication> {
     }
 
     public record ScmSettingsDto(
@@ -299,7 +343,9 @@ public record ServiceDto(
             @Size(max = 200) String influxProject,
             @Size(max = 50)
             @Pattern(regexp = "^[A-Za-z0-9._-]*$", message = "may contain letters, digits, '.', '-' and '_'")
-            String influxEnv) implements Mirrors<MetricsSettings> {
+            String influxEnv,
+            @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String influxUrl,
+            @Size(max = 200) String influxCredentialsId) implements Mirrors<MetricsSettings> {
     }
 
     public record FlutterSettingsDto(

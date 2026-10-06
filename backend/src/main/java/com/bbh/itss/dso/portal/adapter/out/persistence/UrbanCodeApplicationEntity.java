@@ -1,11 +1,10 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
 import com.bbh.itss.dso.portal.adapter.RecordMapper;
+import com.bbh.itss.dso.portal.adapter.out.persistence.ServiceEntity.UrbanCodeApplicationEmbeddable;
 import com.bbh.itss.dso.portal.adapter.out.persistence.ServiceEntity.UrbanCodeComponentEmbeddable;
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings;
-import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeComponent;
 import jakarta.persistence.CollectionTable;
-import jakarta.persistence.Convert;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -33,13 +32,7 @@ public class UrbanCodeApplicationEntity {
     private ServiceEntity service;
 
     private int position;
-    private String applicationName;
-    private Integer deployOrder;
-
-    @Convert(converter = DelimitedListConverter.Commas.class)
-    private List<String> environments;
-
-    private String snapshotName;
+    private UrbanCodeApplicationEmbeddable settings;
 
     @ElementCollection
     @CollectionTable(name = "DSO_UCD_COMPONENT", joinColumns = @JoinColumn(name = "APPLICATION_ID"))
@@ -52,16 +45,12 @@ public class UrbanCodeApplicationEntity {
     UrbanCodeApplicationEntity(ServiceEntity service, int position, UrbanCodeApplicationSettings settings) {
         this.service = service;
         this.position = position;
-        this.applicationName = settings.applicationName();
-        this.deployOrder = settings.order();
-        this.environments = settings.environments();
-        this.snapshotName = settings.snapshotName();
+        this.settings = RecordMapper.map(settings, UrbanCodeApplicationEmbeddable.class);
         settings.components()
                 .forEach(component -> components.add(RecordMapper.map(component, UrbanCodeComponentEmbeddable.class)));
     }
 
     UrbanCodeApplicationSettings toDomain() {
-        return new UrbanCodeApplicationSettings(applicationName, deployOrder, environments, snapshotName,
-                components.stream().map(component -> RecordMapper.map(component, UrbanCodeComponent.class)).toList());
+        return RecordMapper.map(UrbanCodeApplicationSettings.class, settings, this);
     }
 }

@@ -16,6 +16,7 @@ import {
   FlutterSettings,
   GlobalGoldenFixPolicy,
   GoldenFixPolicy,
+  NexusIqApplication,
   OpenShiftTarget,
   Product,
   ProductRequest,
@@ -92,6 +93,8 @@ export const NO_COMMAND: ToolCommand = {
   directory: null,
   mavenHome: null,
   environment: [],
+  label: null,
+  returnStdout: false,
 };
 
 export function createToolCommandForm(command?: Partial<ToolCommand> | null) {
@@ -117,6 +120,8 @@ export function createToolCommandForm(command?: Partial<ToolCommand> | null) {
       eachItem(tokenLines, upTo(500), 'At most 500 characters per variable'),
       fitsColumn(tokenLines, '\n', 4000),
     ),
+    label: text(command?.label, Validators.maxLength(200)),
+    returnStdout: flag(command?.returnStdout),
   });
 }
 
@@ -130,6 +135,8 @@ export function toToolCommand(form: ToolCommandForm): ToolCommand {
     directory: optional(v.directory),
     mavenHome: kept(form.controls.mavenHome),
     environment: lines(v.environment, false),
+    label: optional(v.label),
+    returnStdout: v.returnStdout,
   };
 }
 
@@ -140,6 +147,22 @@ export function isJobUrl(job: unknown): boolean {
 
 export const REMOTE_JENKINS_MESSAGE =
   'Name the remote Jenkins or its URL, or give the job as a full URL';
+
+const LOCAL_JOB = {
+  remoteJenkins: null,
+  remoteJenkinsUrl: null,
+  credentialsId: null,
+  pollIntervalSec: null,
+  tokenCredentialsId: null,
+  abortTriggeredJob: false,
+  overrideTrustAllCertificates: false,
+  preventRemoteBuildQueue: false,
+  trustAllCertificates: false,
+  useCrumbCache: false,
+  useJobInfoCache: false,
+} satisfies Partial<TestJob>;
+
+const REMOTE_ONLY = Object.keys(LOCAL_JOB) as (keyof typeof LOCAL_JOB)[];
 
 export function createTestJobForm(job?: Partial<TestJob> | null) {
   const form = new FormGroup({
@@ -168,15 +191,21 @@ export function createTestJobForm(job?: Partial<TestJob> | null) {
       Validators.maxLength(1000),
     ),
     credentialsId: text(job?.credentialsId, Validators.maxLength(200)),
+    pollIntervalSec: integer(job?.pollIntervalSec, 1, INT_MAX),
+    tokenCredentialsId: text(job?.tokenCredentialsId, Validators.maxLength(200)),
+    abortTriggeredJob: flag(job?.abortTriggeredJob),
+    overrideTrustAllCertificates: flag(job?.overrideTrustAllCertificates),
+    preventRemoteBuildQueue: flag(job?.preventRemoteBuildQueue),
+    trustAllCertificates: flag(job?.trustAllCertificates),
+    useCrumbCache: flag(job?.useCrumbCache),
+    useJobInfoCache: flag(job?.useJobInfoCache),
   });
-  const { type, remoteJenkins, remoteJenkinsUrl, credentialsId } = form.controls;
+  const { type, remoteJenkins, remoteJenkinsUrl } = form.controls;
   revalidateOnChange(type, remoteJenkins);
   revalidateOnChange(form.controls.job, remoteJenkins);
   revalidateOnChange(remoteJenkinsUrl, remoteJenkins);
   const syncRemote = () =>
-    [remoteJenkins, remoteJenkinsUrl, credentialsId].forEach((control) =>
-      setEnabled(control, isRemoteJob(form)),
-    );
+    REMOTE_ONLY.forEach((key) => setEnabled(form.controls[key], isRemoteJob(form)));
   type.valueChanges.subscribe(syncRemote);
   form.controls.job.valueChanges.subscribe(syncRemote);
   syncRemote();
@@ -192,14 +221,8 @@ export function isRemoteJob(form: TestJobForm): boolean {
 
 export function toTestJob(form: TestJobForm): TestJob {
   const v = form.getRawValue();
-  const remote = isRemoteJob(form);
-  return {
-    ...sent(v),
-    parameters: v.parameters.trim() ? v.parameters : null,
-    remoteJenkins: remote ? optional(v.remoteJenkins) : null,
-    remoteJenkinsUrl: remote ? optional(v.remoteJenkinsUrl) : null,
-    credentialsId: remote ? optional(v.credentialsId) : null,
-  };
+  const job = { ...sent(v), parameters: v.parameters.trim() ? v.parameters : null };
+  return isRemoteJob(form) ? job : { ...job, ...LOCAL_JOB };
 }
 
 export function createUrbanCodeComponentForm(component?: Partial<UrbanCodeComponent> | null) {
@@ -215,6 +238,11 @@ export function createUrbanCodeComponentForm(component?: Partial<UrbanCodeCompon
     versionPrefix: text(component?.versionPrefix, Validators.maxLength(200)),
     version: text(component?.version, Validators.maxLength(200)),
     incrementalVersion: flag(component?.incrementalVersion, true),
+    extensions: text(component?.extensions, Validators.maxLength(200)),
+    charset: text(component?.charset, Validators.maxLength(50)),
+    pushDescription: text(component?.pushDescription, Validators.maxLength(1000)),
+    versionProperties: text(component?.versionProperties, Validators.maxLength(2000)),
+    versionDescription: text(component?.versionDescription, Validators.maxLength(1000)),
   });
 }
 
@@ -224,6 +252,8 @@ export function createUrbanCodeApplicationForm(
   application?: Partial<UrbanCodeApplicationSettings> | null,
 ) {
   const components = application ? (application.components ?? []) : [null];
+  const threeState = (value: boolean | null | undefined) =>
+    new FormControl<boolean | null>(value ?? null);
   return new FormGroup({
     applicationName: text(
       application?.applicationName,
@@ -237,6 +267,16 @@ export function createUrbanCodeApplicationForm(
       eachItem(words, UCD_ENVIRONMENT, "Use letters, digits, '-' and '_', at most 20 characters"),
     ),
     snapshotName: text(application?.snapshotName, Validators.maxLength(200)),
+    siteName: text(application?.siteName, Validators.maxLength(200)),
+    deployProcess: text(application?.deployProcess, Validators.maxLength(200)),
+    skipWait: threeState(application?.skipWait),
+    deployWithSnapshot: threeState(application?.deployWithSnapshot),
+    updateSnapshotComponents: threeState(application?.updateSnapshotComponents),
+    includeOnlyDeployVersions: threeState(application?.includeOnlyDeployVersions),
+    deployOnlyChanged: threeState(application?.deployOnlyChanged),
+    deployDescription: text(application?.deployDescription, Validators.maxLength(1000)),
+    description: text(application?.description, Validators.maxLength(1000)),
+    requestProperties: text(application?.requestProperties, Validators.maxLength(2000)),
     components: new FormArray(
       components.map(createUrbanCodeComponentForm),
       requiredRule('Add at least one component'),
@@ -254,6 +294,27 @@ function toUrbanCodeApplication(form: UrbanCodeApplicationForm): UrbanCodeApplic
     components: v.components.map(sent),
   };
 }
+
+export function createNexusIqApplicationForm(application?: Partial<NexusIqApplication> | null) {
+  return new FormGroup({
+    application: text(application?.application, Validators.required, Validators.maxLength(200)),
+    scanPatterns: text(
+      joinLines(application?.scanPatterns),
+      Validators.required,
+      maxLines(20),
+      eachItem(lines, upTo(300), 'At most 300 characters per pattern'),
+      fitsColumn(lines, '\n', 2000),
+    ),
+    stage: text(
+      application?.stage ?? 'build',
+      Validators.pattern(NEXUS_STAGE),
+      Validators.maxLength(50),
+    ),
+    failOnNetworkError: flag(application?.failOnNetworkError),
+  });
+}
+
+export type NexusIqApplicationForm = ReturnType<typeof createNexusIqApplicationForm>;
 
 export function createSshTargetForm(target?: Partial<SshTarget> | null) {
   return new FormGroup({
@@ -302,6 +363,8 @@ export function createOpenShiftTargetForm(
     deploymentRepoUrl: text(t?.deploymentRepoUrl, Validators.pattern(GIT_URL), max(1000)),
     deploymentRepoBranch: text(t?.deploymentRepoBranch, max(200)),
     deploymentRepoCredentialsId: text(t?.deploymentRepoCredentialsId, max(200)),
+    buildTag: shellSafe(t?.buildTag, 500),
+    internalDockerUrl: shellSafe(t?.internalDockerUrl, 500),
   });
   required.forEach((key) => {
     form.controls[key].addValidators(Validators.required);
@@ -445,6 +508,8 @@ export function createServiceForm(
       fitsColumn(lines, '\n', 1000),
     );
   const parallel = (value: number | null | undefined) => integer(value, 1, INT_MAX);
+  const url = (value: string | null | undefined) =>
+    text(value, Validators.pattern(HTTP_URL), max(1000));
 
   const form = new FormGroup({
     id: new FormControl<number | null>(s?.id ?? null),
@@ -473,6 +538,12 @@ export function createServiceForm(
       smokeMaxParallel: parallel(s?.tests?.smokeMaxParallel),
       regressionMaxParallel: parallel(s?.tests?.regressionMaxParallel),
       performanceMaxParallel: parallel(s?.tests?.performanceMaxParallel),
+      smokeRequired: flag(s?.tests?.smokeRequired, true),
+      regressionRequired: flag(s?.tests?.regressionRequired, true),
+      performanceRequired: flag(s?.tests?.performanceRequired, true),
+      smokePollIntervalSec: parallel(s?.tests?.smokePollIntervalSec),
+      regressionPollIntervalSec: parallel(s?.tests?.regressionPollIntervalSec),
+      performancePollIntervalSec: parallel(s?.tests?.performancePollIntervalSec),
     }),
     testJobs: new FormArray((s?.testJobs ?? []).map(createTestJobForm)),
     deployment: new FormGroup({
@@ -522,6 +593,7 @@ export function createServiceForm(
       dastScanName: text(s?.appScan?.dastScanName, max(200)),
       dastTargetUrl: text(s?.appScan?.dastTargetUrl, Validators.pattern(HTTP_URL), max(1000)),
       dastPresenceId: text(s?.appScan?.dastPresenceId, max(100)),
+      secretCredentialsId: text(s?.appScan?.secretCredentialsId, max(200)),
     }),
     sonar: new FormGroup({
       projectName: text(s?.sonar?.projectName, max(200)),
@@ -533,19 +605,16 @@ export function createServiceForm(
       addBadges: flag(s?.sonar?.addBadges),
       fullBadges: flag(s?.sonar?.fullBadges),
       command: createToolCommandForm(s?.sonar?.command),
+      serverUrl: url(s?.sonar?.serverUrl),
     }),
     nexusIq: new FormGroup({
-      application: text(s?.nexusIq?.application, max(200)),
-      scanPatterns: text(
-        joinLines(s?.nexusIq?.scanPatterns),
-        maxLines(20),
-        eachItem(lines, upTo(300), 'At most 300 characters per pattern'),
-        fitsColumn(lines, '\n', 2000),
-      ),
-      stage: text(s?.nexusIq?.stage ?? 'build', Validators.pattern(NEXUS_STAGE), max(50)),
-      failOnNetworkError: flag(s?.nexusIq?.failOnNetworkError),
+      serverUrl: url(s?.nexusIq?.serverUrl),
+      credentialsId: text(s?.nexusIq?.credentialsId, max(200)),
       scaScanName: text(s?.nexusIq?.scaScanName, max(200)),
     }),
+    nexusIqApplications: new FormArray(
+      (s?.nexusIqApplications ?? []).map(createNexusIqApplicationForm),
+    ),
     scm: new FormGroup({
       repositoryUrl: text(s?.scm?.repositoryUrl, Validators.pattern(HTTP_URL), max(1000)),
       credentialsId: text(s?.scm?.credentialsId, max(200)),
@@ -571,6 +640,8 @@ export function createServiceForm(
       enabled: flag(s?.metrics?.enabled, true),
       influxProject: text(s?.metrics?.influxProject, max(200)),
       influxEnv: text(s?.metrics?.influxEnv ?? 'test', Validators.pattern(METRICS_TAG), max(50)),
+      influxUrl: url(s?.metrics?.influxUrl),
+      influxCredentialsId: text(s?.metrics?.influxCredentialsId, max(200)),
     }),
     flutter: new FormGroup({
       platform: new FormControl<FlutterPlatform | null>(s?.flutter?.platform ?? null),
@@ -608,7 +679,7 @@ export function createServiceForm(
     }),
   });
 
-  const { build, deployment, appScan, unitTests, sonar, nexusIq, scm, flutter } = form.controls;
+  const { build, deployment, appScan, unitTests, sonar, scm, flutter } = form.controls;
   const tool = build.controls.tool;
   const target = deployment.controls.target;
   const openShift = () => target.value === 'OPENSHIFT';
@@ -622,16 +693,6 @@ export function createServiceForm(
     build.controls.autoSetup,
   );
   requireWhile(build.controls.buildPath, () => vm() && tool.value === 'MAVEN', tool, target);
-  requireWhile(
-    nexusIq.controls.application,
-    () => lines(nexusIq.controls.scanPatterns.value).length > 0,
-    nexusIq.controls.scanPatterns,
-  );
-  requireWhile(
-    nexusIq.controls.scanPatterns,
-    () => !!optional(nexusIq.controls.application.value),
-    nexusIq.controls.application,
-  );
   [
     flutter.controls.deliveryGroup,
     flutter.controls.deliveryArtifact,
@@ -678,7 +739,9 @@ export type ServiceForm = ReturnType<typeof createServiceForm>;
 export function unitTestsConfigured(form: ServiceForm): boolean {
   const v = form.controls.unitTests.getRawValue();
   return (
-    Object.values(v.command).some((value) => !!optional(value)) ||
+    Object.values(v.command).some((value) =>
+      typeof value === 'string' ? !!optional(value) : value,
+    ) ||
     [v.resultPattern, v.rootDir, v.reportOutDir].some((value) => !!optional(value)) ||
     v.allowEmptyResults
   );
@@ -885,11 +948,12 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
       ...sent(v.sonar),
       command: command(c.sonar.controls.command, !flutter),
     },
-    nexusIq: {
-      ...sent(v.nexusIq),
-      scanPatterns: lines(v.nexusIq.scanPatterns),
-      stage: optional(v.nexusIq.stage) ?? 'build',
-    },
+    nexusIq: sent(v.nexusIq),
+    nexusIqApplications: v.nexusIqApplications.map((application) => ({
+      ...sent(application),
+      scanPatterns: lines(application.scanPatterns),
+      stage: optional(application.stage) ?? 'build',
+    })),
     scm: {
       ...sent(v.scm),
       reviewers: words(v.scm.reviewers),
@@ -983,7 +1047,7 @@ export const SERVICE_SECTIONS: ServiceSection[] = [
   section('openShift', 'OpenShift targets', 'cloud', ['openShiftTargets'], onOpenShift),
   section('appScan', 'AppScan SAST and DAST', 'security', ['appScan']),
   section('sonar', 'SonarQube', 'analytics', ['sonar']),
-  section('nexusIq', 'Nexus IQ', 'inventory', ['nexusIq']),
+  section('nexusIq', 'Nexus IQ', 'inventory', ['nexusIq', 'nexusIqApplications']),
   section('scm', 'Bitbucket', 'merge', ['scm']),
   section('goldenFix', 'GoldenFix', 'auto_fix_high', ['goldenFix']),
   section('metrics', 'DORA metrics', 'insights', ['metrics']),

@@ -22,6 +22,7 @@ import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.settings.PlatformSettings;
+import com.bbh.itss.dso.portal.domain.shared.Text;
 
 import java.util.List;
 import java.util.Map;
@@ -90,8 +91,9 @@ public class ChangeEvidenceService implements QueryEvidenceUseCase {
         ServiceSettings settings = service.settings();
         EvidenceLinks links = EvidenceLinks.of(run.buildUrl(platform.jenkinsUrl(), pipeline.settings().jenkinsJob()),
                 platform.asocUrl(),
-                settings.appScan().applicationId(), platform.sonarServerUrl(), settings.sonar().projectKey(),
-                platform.nexusIqServerUrl());
+                settings.appScan().applicationId(),
+                Text.orDefault(settings.sonar().serverUrl(), platform.sonarServerUrl()), settings.sonar().projectKey(),
+                Text.orDefault(settings.nexusIq().serverUrl(), platform.nexusIqServerUrl()));
         RunEvidence points = recorded == null ? RunEvidence.none() : recorded;
         return new PipelineEvidence(pipeline, jobUrl, status, points.report(run, service.name(), links));
     }

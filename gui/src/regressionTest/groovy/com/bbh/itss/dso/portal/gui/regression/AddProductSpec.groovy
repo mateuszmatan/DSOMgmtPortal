@@ -58,7 +58,7 @@ class AddProductSpec extends EditorSpecification {
         input(productFields(), 'Code').pressSequentially('cert-2')
         fillIn(productFields(), ['Name'         : 'CertScanner Next', 'Owner team': 'Technology Architecture',
                                  'Description'  : 'The next generation of the certificate scanner',
-                                 'Contact e-mail': 'ta-team@bbh.com', 'Secret credentials ID': 'hcl-app-scan-account',
+                                 'Contact e-mail': 'ta-team@bbh.com', 'Secret text credentials ID': 'hcl-app-scan-account',
                                  'API key ID'   : 'bbh_5f0c2a9e-1b7d-4c3e-8a6f-2d9b0e4c7a15'])
 
         then:

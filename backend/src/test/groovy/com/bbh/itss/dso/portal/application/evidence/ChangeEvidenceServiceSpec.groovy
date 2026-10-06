@@ -6,7 +6,7 @@ import com.bbh.itss.dso.portal.application.monitoring.MonitoringTargetsService
 import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
-import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings
+import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.Service
 import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
@@ -59,7 +59,7 @@ class ChangeEvidenceServiceSpec extends Specification {
     Product certScanner = product(id: 1L, code: 'CERT', name: 'CertScanner', services: [
             [name: 'gui', id: 10L,
              sonar: SonarSettings.of('CertScanner GUI', 'cert-gui', command(['sonarqube'])),
-             nexusIq: NexusIqSettings.of('cert-gui', ['**/build/libs/*.war'])],
+             nexusIqApplications: [NexusIqApplication.of('cert-gui', ['**/build/libs/*.war'])]],
             [name: 'backend-api', id: 11L],
             [name: 'batch', id: 12L]])
     Service gui = certScanner.services()[0]

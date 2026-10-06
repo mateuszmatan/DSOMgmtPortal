@@ -28,7 +28,9 @@
           "flags": [],
           "directory": null,
           "mavenHome": null,
-          "environment": []
+          "environment": [],
+          "label": null,
+          "returnStdout": false
         }
       },
       "unitTests": {
@@ -37,7 +39,9 @@
           "flags": [],
           "directory": null,
           "mavenHome": null,
-          "environment": []
+          "environment": [],
+          "label": null,
+          "returnStdout": false
         },
         "resultPattern": null,
         "rootDir": null,
@@ -49,7 +53,13 @@
         "maxParallel": null,
         "smokeMaxParallel": null,
         "regressionMaxParallel": null,
-        "performanceMaxParallel": null
+        "performanceMaxParallel": null,
+        "smokeRequired": true,
+        "regressionRequired": true,
+        "performanceRequired": true,
+        "smokePollIntervalSec": null,
+        "regressionPollIntervalSec": null,
+        "performancePollIntervalSec": null
       },
       "testJobs": [],
       "deployment": {
@@ -63,7 +73,9 @@
         "flags": [],
         "directory": null,
         "mavenHome": null,
-        "environment": []
+        "environment": [],
+        "label": null,
+        "returnStdout": false
       },
       "urbanCode": {
         "siteName": null,
@@ -94,12 +106,15 @@
           "flags": [],
           "directory": null,
           "mavenHome": null,
-          "environment": []
+          "environment": [],
+          "label": null,
+          "returnStdout": false
         },
         "dastEnabled": false,
         "dastScanName": null,
         "dastTargetUrl": null,
-        "dastPresenceId": null
+        "dastPresenceId": null,
+        "secretCredentialsId": null
       },
       "sonar": {
         "projectName": null,
@@ -115,16 +130,18 @@
           "flags": [],
           "directory": null,
           "mavenHome": null,
-          "environment": []
-        }
+          "environment": [],
+          "label": null,
+          "returnStdout": false
+        },
+        "serverUrl": null
       },
       "nexusIq": {
-        "application": null,
-        "scanPatterns": [],
-        "stage": "build",
-        "failOnNetworkError": false,
+        "serverUrl": null,
+        "credentialsId": null,
         "scaScanName": null
       },
+      "nexusIqApplications": [],
       "scm": {
         "repositoryUrl": null,
         "credentialsId": null,
@@ -160,7 +177,9 @@
       "metrics": {
         "enabled": true,
         "influxProject": null,
-        "influxEnv": "test"
+        "influxEnv": "test",
+        "influxUrl": null,
+        "influxCredentialsId": null
       },
       "flutter": null
     },
@@ -182,7 +201,9 @@
           "flags": [],
           "directory": null,
           "mavenHome": null,
-          "environment": []
+          "environment": [],
+          "label": null,
+          "returnStdout": false
         }
       },
       "unitTests": {
@@ -191,7 +212,9 @@
           "flags": [],
           "directory": null,
           "mavenHome": null,
-          "environment": []
+          "environment": [],
+          "label": null,
+          "returnStdout": false
         },
         "resultPattern": null,
         "rootDir": null,
@@ -203,7 +226,13 @@
         "maxParallel": null,
         "smokeMaxParallel": null,
         "regressionMaxParallel": null,
-        "performanceMaxParallel": null
+        "performanceMaxParallel": null,
+        "smokeRequired": true,
+        "regressionRequired": true,
+        "performanceRequired": true,
+        "smokePollIntervalSec": null,
+        "regressionPollIntervalSec": null,
+        "performancePollIntervalSec": null
       },
       "testJobs": [],
       "deployment": {
@@ -219,7 +248,9 @@
         "flags": [],
         "directory": null,
         "mavenHome": null,
-        "environment": []
+        "environment": [],
+        "label": null,
+        "returnStdout": false
       },
       "urbanCode": {
         "siteName": null,
@@ -250,12 +281,15 @@
           "flags": [],
           "directory": null,
           "mavenHome": null,
-          "environment": []
+          "environment": [],
+          "label": null,
+          "returnStdout": false
         },
         "dastEnabled": false,
         "dastScanName": null,
         "dastTargetUrl": null,
-        "dastPresenceId": null
+        "dastPresenceId": null,
+        "secretCredentialsId": null
       },
       "sonar": {
         "projectName": null,
@@ -271,16 +305,18 @@
           "flags": [],
           "directory": null,
           "mavenHome": null,
-          "environment": []
-        }
+          "environment": [],
+          "label": null,
+          "returnStdout": false
+        },
+        "serverUrl": null
       },
       "nexusIq": {
-        "application": null,
-        "scanPatterns": [],
-        "stage": "build",
-        "failOnNetworkError": false,
+        "serverUrl": null,
+        "credentialsId": null,
         "scaScanName": null
       },
+      "nexusIqApplications": [],
       "scm": {
         "repositoryUrl": null,
         "credentialsId": null,
@@ -316,7 +352,9 @@
       "metrics": {
         "enabled": true,
         "influxProject": null,
-        "influxEnv": "test"
+        "influxEnv": "test",
+        "influxUrl": null,
+        "influxCredentialsId": null
       },
       "flutter": null
     }

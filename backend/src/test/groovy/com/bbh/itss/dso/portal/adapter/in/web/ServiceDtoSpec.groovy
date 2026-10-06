@@ -6,6 +6,7 @@ import com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform
 import com.bbh.itss.dso.portal.domain.catalog.FlutterSettings
 import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
+import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings
 import com.bbh.itss.dso.portal.domain.catalog.OpenShiftTarget
 import com.bbh.itss.dso.portal.domain.catalog.ScmSettings
@@ -93,7 +94,7 @@ class ServiceDtoSpec extends Specification {
         dto.appScan().applicationId() == APP_ID
         dto.appScan().includedDirs() == ['src']
         dto.appScan().compile()
-        dto.appScan().compileCommand() == new ServiceDto.ToolCommandDto([], [], null, null, [])
+        dto.appScan().compileCommand() == new ServiceDto.ToolCommandDto([], [], null, null, [], null, false)
         dto.scm().reviewers() == ['alice']
         dto.sshTargets()[QC] == new ServiceDto.SshTargetDto('qc.host', null, null, null, null)
         dto.urbanCodeApplications()[0].applicationName() == 'Cert'
@@ -123,6 +124,10 @@ class ServiceDtoSpec extends Specification {
         'a DAST URL without http'     | [appScan: [applicationId: APP_ID, dastTargetUrl: 'ftp://x']]  || 'appScan.dastTargetUrl'                          | 'must be an http or https URL'
         'a workspace with a space'    | [scm: [workspace: 'ta workspace']]                            || 'scm.workspace'                                  | 'must not contain whitespace'
         'an author email without @'   | [goldenFix: [commitAuthorEmail: 'goldenfix.bbh.com']]         || 'goldenFix.commitAuthorEmail'                    | 'must be a well-formed email address'
+        'a build tag with a space'    | [openShiftTargets: [QC: [buildTag: '1.0 rc']]]                || 'openShiftTargets[QC].buildTag'                  | SHELL_SAFE_MESSAGE
+        'an InfluxDB URL without http'| [metrics: [influxUrl: 'influx:8086']]                         || 'metrics.influxUrl'                              | 'must be an http or https URL'
+        'a Nexus IQ app without name' | [nexusIqApplications: [[scanPatterns: ['**/*.jar']]]]         || 'nexusIqApplications[0].application'            | 'must not be blank'
+        'a poll interval of zero'     | [tests: [smokePollIntervalSec: 0]]                            || 'tests.smokePollIntervalSec'                     | 'must be greater than or equal to 1'
     }
 
     private ServiceDto request(String body) {
@@ -136,23 +141,24 @@ class ServiceDtoSpec extends Specification {
     static ServiceSettings fullSettings() {
         new ServiceSettings(build(tool: BuildTool.MAVEN, buildPath: 'target/gui.war'),
                 new UnitTestSettings(command(['test']), '**/TEST-*.xml', null, null, true, null),
-                new TestSettings(5, 1, 2, 3),
-                [new TestJob(TestStage.SMOKE, 'smoke', null, 'CERT/gui-smoke', 10, null, null, null, null)],
+                new TestSettings(5, 1, 2, 3, true, true, true, null, null, null),
+                [TestJob.of(TestStage.SMOKE, 'smoke', null, 'CERT/gui-smoke', 10)],
                 deployment(appName: 'gui'),
                 command(['deploy:deploy-file']),
                 new UrbanCodeSettings('BBH-RD', 'Deploy', true, false, true, false, true, 'desc', 'a=b'),
-                [new UrbanCodeApplicationSettings('Cert', 1, ['RD'], 'snap',
-                        [new UrbanCodeComponent('cert-gui', 'build/libs', '*.war', null, null, null, false)])],
+                [UrbanCodeApplicationSettings.of('Cert', 1, ['RD'], 'snap',
+                        [new UrbanCodeComponent('cert-gui', 'build/libs', '*.war', null, null, null, false, null, null, null, null, null)])],
                 [(QC): new SshTarget('qc.host', null, null, null, null), (RD): new SshTarget('rd.host', null, null, null, null)],
                 [(QC): new OpenShiftTarget(null, null, null, null, null, null, 'pull/cert', null, null, 'cert-qc', null, null,
-                        true, null, null, null, null, null, null)],
+                        true, null, null, null, null, null, null, null, null)],
                 appScan(dastEnabled: true, dastTargetUrl: 'https://rdl1.testbbh.com', compileCommand: command(['compile'])),
                 SonarSettings.of('Cert', 'cert-gui', command(['sonar:sonar'])),
-                NexusIqSettings.of('cert', ['**/*.war']),
+                new NexusIqSettings('https://iq.bbh.com', 'iq-creds', null),
+                [NexusIqApplication.of('cert', ['**/*.war']), NexusIqApplication.of('cert-batch', ['**/batch/*.jar'])],
                 new ScmSettings('https://bitbucket.bbh.com/scm/ta/cert.git', 'bb-creds', null, null, null, null, null,
                         'https://bitbucket.bbh.com/rest/api/1.0', 'ta-workspace', 'TA', 'cert-gui'),
                 GoldenFixPolicy.inherit(false),
-                new MetricsSettings(false, 'cert-gui', 'qc'),
+                new MetricsSettings(false, 'cert-gui', 'qc', null, null),
                 new FlutterSettings(FlutterPlatform.WEB, ['app'], [], [], [], 's', 'p', 't', null, null, null, null, null, true,
                         null, null))
     }

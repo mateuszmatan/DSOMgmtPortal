@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { BuildTool } from '../core/models';
-import { Field, Fields, area, mono } from '../shared/fields';
+import { Field, Fields, area, check, line, mono } from '../shared/fields';
 import { ToolCommandForm } from './product-form-model';
 
 @Component({
@@ -52,6 +52,10 @@ export class ToolCommandFields {
         placeholder: 'JAVA_OPTS=-Xmx1g',
         hint: 'one NAME=value per line',
       }),
+      line('label', 'Step label', `${key}.label`, 6, {
+        hint: 'the name Jenkins shows for the step',
+      }),
+      check('returnStdout', 'Return the output to the pipeline', `${key}.returnStdout`, 6),
     ];
   }
 }

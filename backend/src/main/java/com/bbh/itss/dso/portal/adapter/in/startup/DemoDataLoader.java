@@ -15,6 +15,7 @@ import com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform;
 import com.bbh.itss.dso.portal.domain.catalog.FlutterSettings;
 import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy;
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings;
+import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication;
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings;
 import com.bbh.itss.dso.portal.domain.catalog.OpenShiftTarget;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
@@ -123,22 +124,23 @@ public class DemoDataLoader implements ApplicationRunner {
                         ToolCommand.of(List.of("clean", "build", "bootJar"), List.of("--refresh-dependencies"))),
                 new UnitTestSettings(ToolCommand.of(List.of("test", "jacocoTestReport"), List.of()),
                         "build/test-results/test/*.xml", null, null, false, null),
-                new TestSettings(null, 10, 5, null),
+                new TestSettings(null, 10, 5, null, true, true, true, null, null, null),
                 testJobs(title, repo),
                 new DeploymentSettings(DeployTarget.VM, null, null, null),
                 null,
                 UrbanCodeSettings.DEFAULTS,
-                List.of(new UrbanCodeApplicationSettings(title, 1, List.of("DV", "RD"), null, List.of(
-                        new UrbanCodeComponent(title + "-app", "build/libs", "*.jar", null, null, null, true)))),
+                List.of(UrbanCodeApplicationSettings.of(title, 1, List.of("DV", "RD"), null, List.of(
+                        UrbanCodeComponent.of(title + "-app", "build/libs", "*.jar")))),
                 Map.of(Region.RD, new SshTarget(null, null, deployDir, DEPLOY_SCRIPT, null),
                         Region.QC, new SshTarget(null, null, deployDir, DEPLOY_SCRIPT, null)),
                 null,
                 appScan(appScanId, sonarKey, dast),
                 SonarSettings.of(title, sonarKey, ToolCommand.of(List.of("sonarqube"), List.of())),
-                NexusIqSettings.of(sonarKey, List.of("**/build/libs/*.jar")),
+                NexusIqSettings.NONE,
+                List.of(NexusIqApplication.of(sonarKey, List.of("**/build/libs/*.jar"))),
                 ScmSettings.of(BITBUCKET.formatted(bitbucketProject, repo), "bitbucket-http-credentials"),
                 GoldenFixPolicy.INHERITED,
-                new MetricsSettings(true, null, "test"),
+                MetricsSettings.of(true, null, "test"),
                 null));
     }
 
@@ -149,7 +151,7 @@ public class DemoDataLoader implements ApplicationRunner {
         return new ServiceDraft(null, name, description, new ServiceSettings(
                 new BuildSettings(BuildTool.MAVEN, ".", JDK_17, false, "target/*.jar",
                         new ToolCommand(List.of("clean", "verify"), List.of("-B", "-U"), null, null,
-                                List.of("MAVEN_OPTS=-Xms512m -Xmx1g"))),
+                                List.of("MAVEN_OPTS=-Xms512m -Xmx1g"), null, false)),
                 new UnitTestSettings(ToolCommand.of(List.of("test", "jacoco:report"), List.of()),
                         "target/surefire-reports/*.xml", null, null, false, null),
                 null,
@@ -160,16 +162,17 @@ public class DemoDataLoader implements ApplicationRunner {
                                 "openshift/Dockerfile", "target/docker", null, image, image, "/etc/pki/openshift",
                                 "/home/jenkins/.docker/nexus-auth.json", namespace + "-rd", "openshift/deployment.yaml",
                                 "openshift/config-rd.yaml", false, "/actuator/health",
-                                sonarKey + "-rd.apps.ocp-rd.testbbh.com", null, null, null, null),
+                                sonarKey + "-rd.apps.ocp-rd.testbbh.com", null, null, null, null, null, null),
                         Region.QC, new OpenShiftTarget(null, null, null, null, null, null, image, null, null,
                                 namespace + "-qc", "openshift/deployment.yaml", "openshift/config-qc.yaml", false,
-                                "/actuator/health", sonarKey + "-qc.apps.ocp-qc.testbbh.com", null, null, null, null)),
+                                "/actuator/health", sonarKey + "-qc.apps.ocp-qc.testbbh.com", null, null, null, null, null, null)),
                 appScan(appScanId, sonarKey, true),
                 SonarSettings.of(title, sonarKey, ToolCommand.of(List.of("sonar:sonar"), List.of())),
-                NexusIqSettings.of(sonarKey, List.of("**/target/*.jar")),
+                NexusIqSettings.NONE,
+                List.of(NexusIqApplication.of(sonarKey, List.of("**/target/*.jar"))),
                 ScmSettings.of(BITBUCKET.formatted(bitbucketProject, repo), "bitbucket-http-credentials"),
                 GoldenFixPolicy.INHERITED,
-                new MetricsSettings(true, null, "test"),
+                MetricsSettings.of(true, null, "test"),
                 null));
     }
 
@@ -183,9 +186,10 @@ public class DemoDataLoader implements ApplicationRunner {
                 AppScanSettings.of(appScanId),
                 null,
                 null,
+                null,
                 ScmSettings.of(BITBUCKET.formatted(bitbucketProject, repo), "bitbucket-http-credentials"),
                 GoldenFixPolicy.inherit(false),
-                new MetricsSettings(true, null, "test"),
+                MetricsSettings.of(true, null, "test"),
                 new FlutterSettings(FlutterPlatform.APK, List.of("core", "payments"), List.of("core", "payments"),
                         List.of("core", "payments"), List.of("secure_storage"), "payhub-mobile-signing-password",
                         "payhub-mobile-prod-licence", "payhub-mobile-test-licence", "com.bbh.payhub", "payhub-mobile",
@@ -196,20 +200,20 @@ public class DemoDataLoader implements ApplicationRunner {
     private static AppScanSettings appScan(String appScanId, String scanName, boolean dast) {
         return new AppScanSettings(appScanId, scanName + "-sast", List.of(), List.of("node_modules"), true, false,
                 false, false, null, null, dast, dast ? scanName + "-dast" : null,
-                dast ? "http://rdltaapps1.testbbh.com" : null, null);
+                dast ? "http://rdltaapps1.testbbh.com" : null, null, null);
     }
 
     private static List<TestJob> testJobs(String title, String repo) {
         return List.of(
-                new TestJob(TestStage.SMOKE, title + " - smoke", TestJobType.LOCAL, repo + "/smoke-tests", 15, null,
-                        null, null, null),
+                TestJob.of(TestStage.SMOKE, title + " - smoke", TestJobType.LOCAL, repo + "/smoke-tests", 15),
                 new TestJob(TestStage.SMOKE, title + " - login smoke", null,
                         "https://jenkins-a.bbh.com/job/smoke/job/" + repo + "-login", null, null, null, null,
-                        "remote-jenkins-api-token"),
+                        "remote-jenkins-api-token", null, null, false, false, false, false, false, false),
                 new TestJob(TestStage.REGRESSION, title + " - regression", TestJobType.LOCAL,
-                        repo + "/regression-tests", 60, "ENV=rd", null, null, null),
-                new TestJob(TestStage.PERFORMANCE, title + " - performance", TestJobType.LOCAL,
-                        repo + "/performance-tests", 120, null, null, null, null));
+                        repo + "/regression-tests", 60, "ENV=rd", null, null, null, null, null, false, false, false,
+                        false, false, false),
+                TestJob.of(TestStage.PERFORMANCE, title + " - performance", TestJobType.LOCAL,
+                        repo + "/performance-tests", 120));
     }
 
     private PipelineView pipeline(Product product, String serviceName, PipelineType type) {

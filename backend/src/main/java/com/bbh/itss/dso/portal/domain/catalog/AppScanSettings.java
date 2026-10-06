@@ -11,7 +11,8 @@ import java.util.Locale;
 public record AppScanSettings(String applicationId, String sastScanName, List<String> includedDirs,
                               List<String> excludedDirs, Boolean compile, Boolean sourceCodeOnly, Boolean useConfigFile,
                               Boolean insecureTls, String clientPath, ToolCommand compileCommand, Boolean dastEnabled,
-                              String dastScanName, String dastTargetUrl, String dastPresenceId) {
+                              String dastScanName, String dastTargetUrl, String dastPresenceId,
+                              String secretCredentialsId) {
 
     public AppScanSettings {
         applicationId = applicationId == null ? null : applicationId.trim().toLowerCase(Locale.ROOT);
@@ -28,11 +29,12 @@ public record AppScanSettings(String applicationId, String sastScanName, List<St
         dastScanName = Text.trimToNull(dastScanName);
         dastTargetUrl = Text.trimToNull(dastTargetUrl);
         dastPresenceId = Text.trimToNull(dastPresenceId);
+        secretCredentialsId = Text.trimToNull(secretCredentialsId);
     }
 
     public static AppScanSettings of(String applicationId) {
         return new AppScanSettings(applicationId, null, List.of(), List.of(), true, false, false, false, null, null,
-                false, null, null, null);
+                false, null, null, null, null);
     }
 
     public void writeTo(ConfigTree config, BuildTool tool) {
@@ -40,6 +42,7 @@ public record AppScanSettings(String applicationId, String sastScanName, List<St
                 .set("includedDirs", String.join(",", includedDirs))
                 .set("excludedDirs", String.join(",", excludedDirs))
                 .set("appscanPath", clientPath)
+                .set("asoc.token", secretCredentialsId)
                 .set("asoc.doCompile", compile ? null : false)
                 .flag("asoc.sourceCodeOnly", sourceCodeOnly)
                 .flag("asoc.useAppScanConfig", useConfigFile)

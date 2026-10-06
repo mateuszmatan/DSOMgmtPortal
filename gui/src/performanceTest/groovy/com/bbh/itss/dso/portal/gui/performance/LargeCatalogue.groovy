@@ -80,7 +80,7 @@ class LargeCatalogue {
         [serviceId           : service.id, name: service.name, description: service.description,
          repositoryUrl       : service.scm.repositoryUrl, artifactName: service.deployment.artifactName,
          appScanApplicationId: service.appScan.applicationId, sonarProjectKey: service.sonar.projectKey,
-         nexusIqApplication  : service.nexusIq.application,
+         nexusIqApplication  : (service.nexusIqApplications as List<Map>)*.application.join(', ') ?: null,
          pipelines           : pipelines.collect { [pipelineId: it.id, type: it.type, enabled: it.enabled, jenkinsJobUrl: it.jenkinsJobUrl,
                                                     status    : status(it), run: evidenceRun] }]
     }
