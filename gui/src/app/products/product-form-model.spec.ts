@@ -13,6 +13,7 @@ import {
   applyFieldProblems,
   controlAt,
   createNexusIqApplicationForm,
+  createOpenShiftTargetForm,
   createProductForm,
   createServiceForm,
   createServiceGoldenFixForm,
@@ -191,6 +192,18 @@ describe('createServiceForm', () => {
 
     expect(sonar.controls.command.controls.tasks.hasError('required')).toBe(true);
     expect(scm.controls.credentialsId.hasError('required')).toBe(true);
+  });
+
+  it('takes the pinned image tags the library accepts from a security pipeline', () => {
+    const { buildTag, internalDockerUrl } = createOpenShiftTargetForm().controls;
+    buildTag.setValue('1.4.2+20261006');
+    internalDockerUrl.setValue('registry.svc:5000/cert/gui@sha256:4f2a');
+    expect([buildTag.valid, internalDockerUrl.valid]).toEqual([true, true]);
+
+    buildTag.setValue('1.4.2,rc');
+    internalDockerUrl.setValue('registry/~cert');
+    expect(buildTag.hasError('pattern')).toBe(true);
+    expect(internalDockerUrl.hasError('pattern')).toBe(true);
   });
 
   it('needs the tasks of an analysis or compile command that sets anything else', () => {

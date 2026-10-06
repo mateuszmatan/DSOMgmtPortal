@@ -46,6 +46,8 @@ import java.util.Map;
 
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.FOLDER;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.FOLDER_MESSAGE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.IMAGE_TAG;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.IMAGE_TAG_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.NO_WHITESPACE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.NO_WHITESPACE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.POWERSHELL_PATH;
@@ -237,9 +239,8 @@ public record ServiceDto(
             String deploymentRepoUrl,
             @Size(max = 200) String deploymentRepoBranch,
             @Size(max = 200) String deploymentRepoCredentialsId,
-            @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String buildTag,
-            @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE)
-            String internalDockerUrl) implements Mirrors<OpenShiftTarget> {
+            @Size(max = 500) @Pattern(regexp = IMAGE_TAG, message = IMAGE_TAG_MESSAGE) String buildTag,
+            @Size(max = 500) @Pattern(regexp = IMAGE_TAG, message = IMAGE_TAG_MESSAGE) String internalDockerUrl) implements Mirrors<OpenShiftTarget> {
     }
 
     public record AppScanSettingsDto(

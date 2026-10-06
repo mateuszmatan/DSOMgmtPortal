@@ -34,6 +34,7 @@ import {
 } from '../core/models';
 import {
   HTTP_URL,
+  IMAGE_TAG,
   INT_MAX,
   INT_MIN,
   POWERSHELL_PATH,
@@ -364,8 +365,8 @@ export function createOpenShiftTargetForm(
     deploymentRepoUrl: text(t?.deploymentRepoUrl, Validators.pattern(GIT_URL), max(1000)),
     deploymentRepoBranch: text(t?.deploymentRepoBranch, max(200)),
     deploymentRepoCredentialsId: text(t?.deploymentRepoCredentialsId, max(200)),
-    buildTag: shellSafe(t?.buildTag, 500),
-    internalDockerUrl: shellSafe(t?.internalDockerUrl, 500),
+    buildTag: text(t?.buildTag, Validators.pattern(IMAGE_TAG), max(500)),
+    internalDockerUrl: text(t?.internalDockerUrl, Validators.pattern(IMAGE_TAG), max(500)),
   });
   required.forEach((key) => {
     form.controls[key].addValidators(Validators.required);

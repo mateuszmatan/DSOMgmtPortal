@@ -27,6 +27,7 @@ import spock.lang.Shared
 import spock.lang.Specification
 import tools.jackson.databind.json.JsonMapper
 
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.IMAGE_TAG_MESSAGE
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.POWERSHELL_PATH_MESSAGE
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL_MESSAGE
@@ -126,7 +127,8 @@ class ServiceDtoSpec extends Specification {
         'a DAST URL without http'     | [appScan: [applicationId: APP_ID, dastTargetUrl: 'ftp://x']]  || 'appScan.dastTargetUrl'                          | URL_MESSAGE
         'a workspace with a space'    | [scm: [workspace: 'ta workspace']]                            || 'scm.workspace'                                  | 'must not contain whitespace'
         'an author email without @'   | [goldenFix: [commitAuthorEmail: 'goldenfix.bbh.com']]         || 'goldenFix.commitAuthorEmail'                    | 'must be a well-formed email address'
-        'a build tag with a space'    | [openShiftTargets: [QC: [buildTag: '1.0 rc']]]                || 'openShiftTargets[QC].buildTag'                  | SHELL_SAFE_MESSAGE
+        'a build tag with a space'    | [openShiftTargets: [QC: [buildTag: '1.0 rc']]]                || 'openShiftTargets[QC].buildTag'                  | IMAGE_TAG_MESSAGE
+        'an image URL with a ~'       | [openShiftTargets: [QC: [internalDockerUrl: 'registry/~cert']]] || 'openShiftTargets[QC].internalDockerUrl'       | IMAGE_TAG_MESSAGE
         'an InfluxDB URL without http'| [metrics: [influxUrl: 'influx:8086']]                         || 'metrics.influxUrl'                              | URL_MESSAGE
         'a URL with a command'        | [scm: [repositoryUrl: 'https://bitbucket/$(id)']]             || 'scm.repositoryUrl'                              | URL_MESSAGE
         'a URL with a backtick'       | [metrics: [influxUrl: 'http://influx/`id`']]                  || 'metrics.influxUrl'                              | URL_MESSAGE

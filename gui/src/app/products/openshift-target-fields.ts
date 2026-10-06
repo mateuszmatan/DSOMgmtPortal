@@ -2,10 +2,11 @@ import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { REGIONS, Region } from '../core/models';
 import { Field, Fields, check, formRevision, mono } from '../shared/fields';
-import { SHELL_SAFE_ERROR } from '../shared/form-controls';
+import { IMAGE_TAG_ERROR, SHELL_SAFE_ERROR } from '../shared/form-controls';
 import { OpenShiftTargetForm, ServiceForm } from './product-form-model';
 
 const SAFE = { error: SHELL_SAFE_ERROR };
+const TAG = { error: IMAGE_TAG_ERROR };
 
 export const IMAGE_BUILD: Field[] = [
   mono('projectBuild', 'Build project', 'projectBuildR', 4),
@@ -54,8 +55,8 @@ const REPOSITORY: Field[] = [
 ];
 
 const PINNED_IMAGE: Field[] = [
-  mono('buildTag', 'Build tag', 'buildTag', 4, { placeholder: '1.4.2-20261006', ...SAFE }),
-  mono('internalDockerUrl', 'Internal image URL', 'internalDockerUrl', 8, SAFE),
+  mono('buildTag', 'Build tag', 'buildTag', 4, { placeholder: '1.4.2-20261006', ...TAG }),
+  mono('internalDockerUrl', 'Internal image URL', 'internalDockerUrl', 8, TAG),
 ];
 
 @Component({

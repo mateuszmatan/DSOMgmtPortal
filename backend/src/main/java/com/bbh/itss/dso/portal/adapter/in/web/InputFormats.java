@@ -16,6 +16,9 @@ final class InputFormats {
     static final String POWERSHELL_PATH = "^[A-Za-z0-9._/\\\\-]*$";
     static final String POWERSHELL_PATH_MESSAGE = "may contain letters, digits and . _ / \\ - only:"
             + " the library runs it unquoted in PowerShell";
+    static final String IMAGE_TAG = "^[A-Za-z0-9._:/@+-]*$";
+    static final String IMAGE_TAG_MESSAGE = "may contain letters, digits and . _ : / @ + - only, like the tags the"
+            + " library copies from the security pipeline";
     static final String FOLDER = "^[^,']{1,300}$";
     static final String FOLDER_MESSAGE = "one folder per entry, without commas or quotes";
     static final String JOB_PATH = "^((?!.*\\.\\.)[A-Za-z0-9._ /-]+)?$";
