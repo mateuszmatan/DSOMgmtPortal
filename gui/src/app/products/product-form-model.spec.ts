@@ -136,6 +136,28 @@ describe('createServiceForm', () => {
     expect(flutter.deliveryGroup.valid).toBe(true);
     expect(flutter.deliveryArtifact.valid).toBe(true);
     expect(flutter.deliveryPlugin.valid).toBe(true);
+
+    flutter.deliveryPlugin.setValue('deploy:deploy-file $(id)');
+    expect(flutter.deliveryPlugin.hasError('pattern')).toBe(true);
+  });
+
+  it('accepts only the AppScan client path, folders and Maven home the shell can take', () => {
+    const form = createServiceForm();
+    form.controls.build.controls.tool.setValue('MAVEN');
+    const { clientPath, includedDirs } = form.controls.appScan.controls;
+    const { mavenHome } = form.controls.build.controls.command.controls;
+
+    clientPath.setValue('\\SAClientUtil\\bin\\appscan.bat');
+    includedDirs.setValue('src/main');
+    mavenHome.setValue('/opt/maven-3.9');
+    expect([clientPath.valid, includedDirs.valid, mavenHome.valid]).toEqual([true, true, true]);
+
+    clientPath.setValue('bin/appscan.bat; id');
+    includedDirs.setValue("src/main\nit's");
+    mavenHome.setValue('/opt/maven;id');
+    expect(clientPath.hasError('pattern')).toBe(true);
+    expect(includedDirs.hasError('item')).toBe(true);
+    expect(mavenHome.hasError('pattern')).toBe(true);
   });
 
   it('needs a DAST target URL once DAST is switched on', () => {

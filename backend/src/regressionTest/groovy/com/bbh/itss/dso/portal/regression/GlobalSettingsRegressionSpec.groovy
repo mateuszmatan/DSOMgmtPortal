@@ -240,6 +240,8 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
         change << [{ Map it -> it + [platform: null] },
                    { Map it -> it + [platform: it.platform + [jenkinsUrl: 'jenkins.bbh.com']] },
                    { Map it -> it + [platform: it.platform + [asocUrl: ' ']] },
+                   { Map it -> it + [platform: it.platform + [nexusSnapshotRepositoryId: 'snapshots;id']] },
+                   { Map it -> it + [platform: it.platform + [nexusSnapshotRepositoryUrl: 'http://nexus/snapshots&id']] },
                    { Map it -> it + [limits: it.limits + [SAST: [maxCritical: -1, maxHigh: 0, maxMedium: 0]]] },
                    { Map it -> it + [scans: it.scans + [coverageMinLine: 101]] },
                    { Map it -> it + [releaseGate: it.releaseGate + [scanners: ['SONAR']]] }]

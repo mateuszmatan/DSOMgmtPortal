@@ -36,6 +36,7 @@ import {
   HTTP_URL,
   INT_MAX,
   INT_MIN,
+  POWERSHELL_PATH,
   Sent,
   applyFieldProblems,
   eachItem,
@@ -81,7 +82,7 @@ export const TIME_ZONE = /^[A-Za-z0-9_+/-]*$/;
 export const REMEDIATION_TYPE = /^[a-z-]{1,100}$/;
 export const GOLDEN_FIX_ECOSYSTEMS = ['maven', 'npm', 'pypi', 'pub'];
 
-const FOLDER = /^[^,]{1,300}$/;
+const FOLDER = /^[^,']{1,300}$/;
 const tokenLines = (value: string) => lines(value, false);
 const parameterLines = (value: string) => value.split('\n').filter((line) => line.trim());
 const tokenWords = (value: string) => words(value, false);
@@ -112,7 +113,7 @@ export function createToolCommandForm(command?: Partial<ToolCommand> | null) {
       fitsColumn(tokenLines, '\n', 2000),
     ),
     directory: text(command?.directory, Validators.maxLength(500)),
-    mavenHome: text(command?.mavenHome, Validators.maxLength(500)),
+    mavenHome: shellSafe(command?.mavenHome, 500),
     environment: text(
       joinLines(command?.environment),
       maxLines(30, false),
@@ -496,7 +497,7 @@ export function createServiceForm(
     text(
       joinLines(values),
       maxLines(30),
-      eachItem(lines, FOLDER, 'One folder per line, without commas'),
+      eachItem(lines, FOLDER, 'One folder per line, without commas or quotes'),
       fitsColumn(lines, '\n', 2000),
     );
   const modules = (values: string[] | undefined, ...validators: ValidatorFn[]) =>
@@ -587,7 +588,7 @@ export function createServiceForm(
       sourceCodeOnly: flag(s?.appScan?.sourceCodeOnly),
       useConfigFile: flag(s?.appScan?.useConfigFile),
       insecureTls: flag(s?.appScan?.insecureTls),
-      clientPath: text(s?.appScan?.clientPath, max(500)),
+      clientPath: text(s?.appScan?.clientPath, Validators.pattern(POWERSHELL_PATH), max(500)),
       compileCommand: createToolCommandForm(s?.appScan?.compileCommand),
       dastEnabled: flag(s?.appScan?.dastEnabled),
       dastScanName: text(s?.appScan?.dastScanName, max(200)),
@@ -664,9 +665,9 @@ export function createServiceForm(
         Validators.required,
         max(200),
       ),
-      deliveryGroup: text(s?.flutter?.deliveryGroup, max(200)),
-      deliveryArtifact: text(s?.flutter?.deliveryArtifact, max(200)),
-      deliveryPlugin: text(s?.flutter?.deliveryPlugin, max(300)),
+      deliveryGroup: shellSafe(s?.flutter?.deliveryGroup, 200),
+      deliveryArtifact: shellSafe(s?.flutter?.deliveryArtifact, 200),
+      deliveryPlugin: shellSafe(s?.flutter?.deliveryPlugin, 300),
       sonarSources: text(s?.flutter?.sonarSources, max(500)),
       sonarTests: text(s?.flutter?.sonarTests, max(500)),
       sonarFlutterPlugin: flag(s?.flutter?.sonarFlutterPlugin),

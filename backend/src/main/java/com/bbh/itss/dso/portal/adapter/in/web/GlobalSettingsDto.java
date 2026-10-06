@@ -30,6 +30,8 @@ import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.HOST;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.HOST_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_URL;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_URL_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL_MESSAGE;
 
@@ -67,8 +69,9 @@ public record GlobalSettingsDto(
             @NotBlank @Size(max = 200) String sonarInstallationName,
             @NotBlank @Size(max = 500) @Pattern(regexp = URL, message = URL_MESSAGE) String nexusIqServerUrl,
             @NotBlank @Size(max = 200) String nexusIqCredentialsId,
-            @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String nexusSnapshotRepositoryUrl,
-            @Size(max = 200) String nexusSnapshotRepositoryId,
+            @Size(max = 1000) @Pattern(regexp = SHELL_SAFE_URL, message = SHELL_SAFE_URL_MESSAGE)
+            String nexusSnapshotRepositoryUrl,
+            @Size(max = 200) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String nexusSnapshotRepositoryId,
             @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String influxWriteUrl,
             @Size(max = 200) String influxCredentialsId,
             @Size(max = 255) String iosBuildAgent) implements Mirrors<PlatformSettings> {

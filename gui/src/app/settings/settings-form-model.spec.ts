@@ -56,8 +56,12 @@ describe('createSettingsForm', () => {
     scans.controls.coverageMinLine.setValue(100.5);
     scans.controls.sastPollIntervalSeconds.setValue(3601);
     releaseGate.controls.stateFile.setValue('state/gate.json');
+    platform.controls.nexusSnapshotRepositoryUrl.setValue('https://nexus/snapshots&id');
+    platform.controls.nexusSnapshotRepositoryId.setValue('snapshots;id');
 
     expect(platform.controls.jenkinsUrl.hasError('pattern')).toBe(true);
+    expect(platform.controls.nexusSnapshotRepositoryUrl.hasError('pattern')).toBe(true);
+    expect(platform.controls.nexusSnapshotRepositoryId.hasError('pattern')).toBe(true);
     expect(deployment.controls.qcHost.hasError('pattern')).toBe(true);
     expect(limits.controls.SAST.controls.maxCritical.hasError('min')).toBe(true);
     expect(scans.controls.coverageMinLine.hasError('integer')).toBe(true);

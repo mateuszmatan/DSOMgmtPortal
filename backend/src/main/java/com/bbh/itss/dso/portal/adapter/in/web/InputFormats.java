@@ -9,6 +9,14 @@ final class InputFormats {
     static final String SHELL_SAFE = "^[A-Za-z0-9._/*+@:=,~-]*$";
     static final String SHELL_SAFE_MESSAGE = "may contain letters, digits and . _ / * + @ : = , ~ - only:"
             + " the library puts it unquoted into a shell command";
+    static final String SHELL_SAFE_URL = "^(https?://[A-Za-z0-9._/+@:=,~%-]+)?$";
+    static final String SHELL_SAFE_URL_MESSAGE = "must be an http or https URL with letters, digits and"
+            + " . _ / + @ : = , ~ % - only: the library puts it unquoted into a shell command";
+    static final String POWERSHELL_PATH = "^[A-Za-z0-9._/\\\\-]*$";
+    static final String POWERSHELL_PATH_MESSAGE = "may contain letters, digits and . _ / \\ - only:"
+            + " the library runs it unquoted in PowerShell";
+    static final String FOLDER = "^[^,']{1,300}$";
+    static final String FOLDER_MESSAGE = "one folder per entry, without commas or quotes";
     static final String JOB_PATH = "^((?!.*\\.\\.)[A-Za-z0-9._ /-]+)?$";
     static final String JOB_PATH_MESSAGE = "must be a Jenkins job path such as DevSecOps/CertScanner-extended,"
             + " with letters, digits, spaces and . _ / - but no '..'";

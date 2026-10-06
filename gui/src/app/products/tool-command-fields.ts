@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { BuildTool } from '../core/models';
 import { Field, Fields, area, check, line, mono } from '../shared/fields';
+import { SHELL_SAFE_ERROR } from '../shared/form-controls';
 import { ToolCommandForm } from './product-form-model';
 
 @Component({
@@ -40,7 +41,12 @@ export class ToolCommandFields {
       ),
       mono('directory', 'Directory', `${key}.dir`, maven ? 3 : 6, { placeholder: '.' }),
       ...(maven
-        ? [mono('mavenHome', 'Maven home', `${key}.mvnPath`, 3, { placeholder: '/opt/maven' })]
+        ? [
+            mono('mavenHome', 'Maven home', `${key}.mvnPath`, 3, {
+              placeholder: '/opt/maven',
+              error: SHELL_SAFE_ERROR,
+            }),
+          ]
         : []),
       area('flags', 'Flags', `${key}.flags`, 6, {
         mono: true,

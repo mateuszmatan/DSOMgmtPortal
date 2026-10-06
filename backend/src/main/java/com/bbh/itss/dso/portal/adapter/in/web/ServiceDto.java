@@ -44,8 +44,12 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.Map;
 
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.FOLDER;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.FOLDER_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.NO_WHITESPACE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.NO_WHITESPACE_MESSAGE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.POWERSHELL_PATH;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.POWERSHELL_PATH_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL;
@@ -147,7 +151,7 @@ public record ServiceDto(
             @Size(max = 30) List<@NotBlank @Size(max = 200) String> tasks,
             @Size(max = 40) List<@NotBlank @Size(max = 300) String> flags,
             @Size(max = 500) String directory,
-            @Size(max = 500) String mavenHome,
+            @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String mavenHome,
             @Size(max = 30)
             List<@Pattern(regexp = "^[A-Za-z_][A-Za-z0-9_+]*=.*$", message = "write each variable as NAME=value")
                     @Size(max = 500) String> environment,
@@ -245,14 +249,14 @@ public record ServiceDto(
             String applicationId,
             @Size(max = 200) String sastScanName,
             @Size(max = 30)
-            List<@Pattern(regexp = "^[^,]{1,300}$", message = "one folder per entry, without commas") String> includedDirs,
+            List<@Pattern(regexp = FOLDER, message = FOLDER_MESSAGE) String> includedDirs,
             @Size(max = 30)
-            List<@Pattern(regexp = "^[^,]{1,300}$", message = "one folder per entry, without commas") String> excludedDirs,
+            List<@Pattern(regexp = FOLDER, message = FOLDER_MESSAGE) String> excludedDirs,
             Boolean compile,
             Boolean sourceCodeOnly,
             Boolean useConfigFile,
             Boolean insecureTls,
-            @Size(max = 500) String clientPath,
+            @Size(max = 500) @Pattern(regexp = POWERSHELL_PATH, message = POWERSHELL_PATH_MESSAGE) String clientPath,
             @Valid ToolCommandDto compileCommand,
             Boolean dastEnabled,
             @Size(max = 200) String dastScanName,
@@ -357,9 +361,9 @@ public record ServiceDto(
             @Size(max = 200) String signingPasswordCredentialsId,
             @Size(max = 200) String prodLicenseCredentialsId,
             @Size(max = 200) String testLicenseCredentialsId,
-            @Size(max = 200) String deliveryGroup,
-            @Size(max = 200) String deliveryArtifact,
-            @Size(max = 300) String deliveryPlugin,
+            @Size(max = 200) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String deliveryGroup,
+            @Size(max = 200) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String deliveryArtifact,
+            @Size(max = 300) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String deliveryPlugin,
             @Size(max = 500) String sonarSources,
             @Size(max = 500) String sonarTests,
             Boolean sonarFlutterPlugin,

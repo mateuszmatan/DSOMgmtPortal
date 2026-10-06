@@ -18,7 +18,7 @@ import {
   line,
   mono,
 } from '../shared/fields';
-import { SHELL_SAFE_ERROR, addItem } from '../shared/form-controls';
+import { POWERSHELL_PATH_ERROR, SHELL_SAFE_ERROR, addItem } from '../shared/form-controls';
 import { GoldenFixFields } from './golden-fix-fields';
 import { OpenShiftTargetFields } from './openshift-target-fields';
 import {
@@ -110,6 +110,7 @@ const APP_SCAN_STATIC: Field[] = [
   }),
   mono('clientPath', 'AppScan client path', 'appscanPath', 6, {
     hint: 'left empty: downloaded by the pipeline',
+    error: POWERSHELL_PATH_ERROR,
   }),
 ];
 
@@ -560,9 +561,10 @@ export class ServiceFields {
       mono('deliveryGroup', 'Group', 'delivery.group', 4, {
         placeholder: 'com.bbh.payhub',
         hint: this.isVm() ? 'required on virtual machines' : '',
+        error: SHELL_SAFE_ERROR,
       }),
-      mono('deliveryArtifact', 'Artifact', 'delivery.artifact', 4),
-      mono('deliveryPlugin', 'Maven plugin', 'delivery.plugin', 4),
+      mono('deliveryArtifact', 'Artifact', 'delivery.artifact', 4, { error: SHELL_SAFE_ERROR }),
+      mono('deliveryPlugin', 'Maven plugin', 'delivery.plugin', 4, { error: SHELL_SAFE_ERROR }),
     ];
   }
 

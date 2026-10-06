@@ -8,7 +8,7 @@ import {
   line,
   mono,
 } from '../shared/fields';
-import { SHELL_SAFE_ERROR } from '../shared/form-controls';
+import { SHELL_SAFE_ERROR, SHELL_SAFE_URL_ERROR } from '../shared/form-controls';
 import { SettingsSectionId } from './settings-form-model';
 
 export interface SettingsBlock {
@@ -102,12 +102,14 @@ export const SETTINGS_PAGE: SettingsSection[] = [
             'Nexus snapshot repository URL',
             'platform.nexusSnapshotRepositoryUrl',
             7,
+            { error: SHELL_SAFE_URL_ERROR },
           ),
           mono(
             'nexusSnapshotRepositoryId',
             'Nexus snapshot repository ID',
             'platform.nexusSnapshotRepositoryId',
             5,
+            { error: SHELL_SAFE_ERROR },
           ),
           mono('influxWriteUrl', 'InfluxDB write URL', 'influx.url', 7),
           mono('influxCredentialsId', 'InfluxDB credentials ID', 'influx.credentialsId', 5),
