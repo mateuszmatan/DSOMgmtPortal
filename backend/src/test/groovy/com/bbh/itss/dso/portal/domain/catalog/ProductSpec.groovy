@@ -6,6 +6,7 @@ import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.support.Fixtures.DEPARTMENT_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.account
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.details
@@ -24,9 +25,9 @@ class ProductSpec extends Specification {
 
     def "product details trim the code and the name and store blank values as null"() {
         expect:
-        new ProductDetails(' CERT ', ' CertScanner ', ' ', ' Technology Architecture ', '') ==
-                new ProductDetails('CERT', 'CertScanner', null, 'Technology Architecture', null)
-        new ProductDetails(null, null, null, null, null).code() == null
+        new ProductDetails(' CERT ', ' CertScanner ', ' ', ' Technology Architecture ', '', 3L) ==
+                new ProductDetails('CERT', 'CertScanner', null, 'Technology Architecture', null, 3L)
+        new ProductDetails(null, null, null, null, null, null).code() == null
     }
 
     def "a new product places its services in the requested order and names their metrics after itself"() {
@@ -39,6 +40,7 @@ class ProductSpec extends Specification {
                 [null] * 5
         product.version() == 0
         product.details() == details(description: 'TLS')
+        product.departmentId() == DEPARTMENT_ID
         product.appScanAccount() == account()
         product.services()*.name() == ['gui', 'backend-api']
         product.services()*.displayOrder() == [0, 1]
@@ -188,15 +190,15 @@ class ProductSpec extends Specification {
         noExceptionThrown()
     }
 
-    def "a product needs a code, a name, an AppScan key and named services"() {
+    def "a product needs a code, a name, a department, an AppScan key and named services"() {
         when:
-        Product.create(new ProductDetails(' ', null, null, null, null), new AppScanAccount(' ', null),
+        Product.create(new ProductDetails(' ', null, null, null, null, null), new AppScanAccount(' ', null),
                 [draft(name: ' ')], nobody)
 
         then:
         def e = thrown(InvalidRequestException)
-        e.problems*.field == ['code', 'name', 'appScan.keyId', 'services[0].name']
-        e.problems*.message.unique() == ['must not be blank']
+        e.problems*.field == ['code', 'name', 'departmentId', 'appScan.keyId', 'services[0].name']
+        e.problems*.message.unique() == ['must not be blank', "choose the product's department"]
 
         when:
         Product.create(details(), null, [], nobody)
@@ -204,6 +206,38 @@ class ProductSpec extends Specification {
         then:
         def missing = thrown(InvalidRequestException)
         missing.problems*.field == ['appScan.keyId']
+    }
+
+    def "a product without a department or in one that does not exist is refused, also when an older product is edited: #departmentId"() {
+        given:
+        def older = product(departmentId: null, services: [[name: 'gui', id: 10]])
+
+        when:
+        Product.create(details(departmentId: departmentId), account(), [draft()], nobody)
+
+        then:
+        def created = thrown(InvalidRequestException)
+        created.problems*.field == ['departmentId']
+        created.problems*.message == [message]
+
+        when:
+        older.update(0L, details(departmentId: departmentId), account(), [draft(id: 10, name: 'gui')], nobody)
+
+        then:
+        def updated = thrown(InvalidRequestException)
+        updated.problems == created.problems
+        older.departmentId() == null
+
+        when:
+        older.update(0L, details(), account(), [draft(id: 10, name: 'gui')], nobody)
+
+        then:
+        older.departmentId() == DEPARTMENT_ID
+
+        where:
+        departmentId || message
+        null         || "choose the product's department"
+        99L          || 'department 99 does not exist'
     }
 
     def "a service and a draft trim their name and store a blank description as null"() {

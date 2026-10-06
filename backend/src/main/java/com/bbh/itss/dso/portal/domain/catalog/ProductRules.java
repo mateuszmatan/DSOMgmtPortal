@@ -59,6 +59,11 @@ final class ProductRules {
         if (Text.isBlank(details.name())) {
             problems.add("name", "must not be blank");
         }
+        if (details.departmentId() == null) {
+            problems.add("departmentId", "choose the product's department");
+        } else if (!directory.departmentExists(details.departmentId())) {
+            problems.add("departmentId", "department " + details.departmentId() + " does not exist");
+        }
         if (appScanAccount == null || appScanAccount.keyId() == null) {
             problems.add("appScan.keyId", "must not be blank");
         }

@@ -50,6 +50,7 @@ final class Fixtures {
     static final String APP_ID = '109f44ac-cc06-4ca0-884e-d944904f7019'
     static final String JDK = '/usr/lib/jvm/java-17-openjdk'
     static final String KEY = '0f8fad5b-d9cb-469f-a165-70867728950e'
+    static final long DEPARTMENT_ID = 3L
     static final Instant CREATED = Instant.parse('2026-10-01T08:00:00Z')
     static final Instant UPDATED = Instant.parse('2026-10-02T09:30:00Z')
 
@@ -161,7 +162,8 @@ final class Fixtures {
 
     static ProductDetails details(Map args = [:]) {
         new ProductDetails(args.code as String ?: 'CERT', args.name as String ?: 'CertScanner',
-                args.description as String, args.ownerTeam as String, args.contactEmail as String)
+                args.description as String, args.ownerTeam as String, args.contactEmail as String,
+                args.containsKey('departmentId') ? args.departmentId as Long : DEPARTMENT_ID)
     }
 
     static ServiceDraft draft(Map args = [:]) {
@@ -220,6 +222,11 @@ final class Fixtures {
             @Override
             Optional<ProductDirectory.ProductIdentity> findProductByName(String name) {
                 Optional.ofNullable((args.byName as Map)?.get(name) as ProductDirectory.ProductIdentity)
+            }
+
+            @Override
+            boolean departmentExists(long id) {
+                id in (args.departments ?: [DEPARTMENT_ID])
             }
         }
     }

@@ -5,11 +5,11 @@ import java.util.Locale;
 import java.util.stream.Stream;
 
 public record ProductSummary(long id, String code, String name, String description, String ownerTeam,
-                             Instant updatedAt) {
+                             Long departmentId, String departmentName, Instant updatedAt) {
 
     public boolean matches(String search) {
         String needle = search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
-        return needle.isEmpty() || Stream.of(name, code, ownerTeam, description)
+        return needle.isEmpty() || Stream.of(name, code, ownerTeam, departmentName, description)
                 .anyMatch(value -> value != null && value.toLowerCase(Locale.ROOT).contains(needle));
     }
 }

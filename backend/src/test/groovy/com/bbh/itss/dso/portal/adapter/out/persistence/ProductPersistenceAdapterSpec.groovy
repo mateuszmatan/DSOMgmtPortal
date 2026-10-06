@@ -17,6 +17,7 @@ import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.domain.catalog.Region.QC
 import static com.bbh.itss.dso.portal.domain.catalog.Region.RD
+import static com.bbh.itss.dso.portal.support.Fixtures.DEPARTMENT_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.account
 import static com.bbh.itss.dso.portal.support.Fixtures.command
 import static com.bbh.itss.dso.portal.support.Fixtures.copy
@@ -72,9 +73,9 @@ class ProductPersistenceAdapterSpec extends Specification {
         def serviceId = saved.services()[0].id()
 
         then:
-        jdbc.queryForMap('SELECT CODE, NAME, ASOC_KEY_ID, ASOC_SECRET_CREDENTIALS_ID FROM DSO_PRODUCT') ==
+        jdbc.queryForMap('SELECT CODE, NAME, ASOC_KEY_ID, ASOC_SECRET_CREDENTIALS_ID, DEPARTMENT_ID FROM DSO_PRODUCT') ==
                 [CODE: 'CERT', NAME: 'CertScanner', ASOC_KEY_ID: 'bbh_key-id',
-                 ASOC_SECRET_CREDENTIALS_ID: 'hcl-app-scan-account']
+                 ASOC_SECRET_CREDENTIALS_ID: 'hcl-app-scan-account', DEPARTMENT_ID: DEPARTMENT_ID]
         jdbc.queryForMap('''SELECT BUILD_TOOL, BUILD_TASKS, DELIVERY_TASKS, BITBUCKET_REVIEWERS, GOLDEN_FIX_ENABLED,
                 INFLUX_PROJECT, REGRESSION_REQUIRED, BUILD_RETURN_STDOUT, NEXUS_IQ_SERVER_URL FROM DSO_SERVICE WHERE ID = ?''',
                 serviceId) ==
@@ -107,9 +108,10 @@ class ProductPersistenceAdapterSpec extends Specification {
         def (gui, api, batch) = stored.services()*.id()
 
         when:
-        stored.update(stored.version(), details(name: 'CertScanner 2', ownerTeam: 'Architecture'), account(),
-                [new ServiceDraft(api, 'api', 'REST API', settings()), new ServiceDraft(null, 'batch', null, settings()),
-                 new ServiceDraft(gui, 'web', null, settings())], adapter)
+        stored.update(stored.version(), details(name: 'CertScanner 2', ownerTeam: 'Architecture', departmentId: 5L),
+                account(), [new ServiceDraft(api, 'api', 'REST API', settings()),
+                            new ServiceDraft(null, 'batch', null, settings()), new ServiceDraft(gui, 'web', null, settings())],
+                adapter)
         def saved = adapter.save(stored)
         entities.clear()
         def loaded = adapter.load(stored.id()).get()
@@ -119,6 +121,8 @@ class ProductPersistenceAdapterSpec extends Specification {
         loaded.version() == saved.version()
         loaded.name() == 'CertScanner 2'
         loaded.ownerTeam() == 'Architecture'
+        loaded.departmentId() == 5L
+        adapter.summaries()[0].departmentName() == 'Fund Services'
         loaded.services()*.name() == ['api', 'batch', 'web']
         loaded.services()*.displayOrder() == [0, 1, 2]
         loaded.services()[0].id() == api
@@ -219,12 +223,13 @@ class ProductPersistenceAdapterSpec extends Specification {
         'deleted in the meantime'             | 404L
     }
 
-    def "products are listed by name with their summaries and service counts"() {
+    def "products are listed by name with their summaries, departments and service counts"() {
         given:
-        def payments = adapter.save(Product.create(details(code: 'PAY', name: 'Payments Hub', description: 'Payments'),
-                account(), [draft('gateway'), draft('ledger'), draft('mobile')], adapter))
+        def payments = adapter.save(Product.create(details(code: 'PAY', name: 'Payments Hub', description: 'Payments',
+                departmentId: 5L), account(), [draft('gateway'), draft('ledger'), draft('mobile')], adapter))
         def cert = adapter.save(Product.create(details(ownerTeam: 'TA'), account(), [draft('gui')], adapter))
         def empty = adapter.save(Product.create(details(code: 'EMPTY', name: 'Empty'), account(), [], adapter))
+        jdbc.update('UPDATE DSO_PRODUCT SET DEPARTMENT_ID = NULL WHERE ID = ?', empty.id())
         entities.clear()
 
         expect:
@@ -237,8 +242,13 @@ class ProductPersistenceAdapterSpec extends Specification {
             ownerTeam() == 'TA'
             description() == null
             updatedAt() == cert.updatedAt()
+            departmentId() == DEPARTMENT_ID
+            departmentName() == 'Corporate Technology'
         }
         adapter.summaries()[2].description() == 'Payments'
+        adapter.summaries()*.departmentName() == ['Corporate Technology', null, 'Fund Services']
+        adapter.summaries()*.departmentId() == [DEPARTMENT_ID, null, 5L]
+        adapter.load(empty.id()).get().departmentId() == null
         adapter.servicesPerProduct() == [(payments.id()): 3L, (cert.id()): 1L]
         !adapter.servicesPerProduct().containsKey(empty.id())
         adapter.findByServiceId(payments.services()[1].id()).get().services()*.name() == ['gateway', 'ledger', 'mobile']
@@ -246,7 +256,7 @@ class ProductPersistenceAdapterSpec extends Specification {
         adapter.load(9999L) == Optional.empty()
     }
 
-    def "the directory finds products by code and name, and services may share metrics tags and a SonarQube key"() {
+    def "the directory finds products by code and name and departments by id, and services may share metrics tags and a SonarQube key"() {
         given:
         def shared = settings(sonar: SonarSettings.of(null, 'cert', command(['sonarqube'])),
                 metrics: new MetricsSettings(true, 'Cert Scanner', 'test', null, null))
@@ -259,6 +269,8 @@ class ProductPersistenceAdapterSpec extends Specification {
         adapter.findProductByName('CERTSCANNER') == Optional.of(new ProductIdentity(stored.id(), 'CertScanner'))
         adapter.findProductByCode('PAY') == Optional.empty()
         adapter.findProductByName('Payments') == Optional.empty()
+        adapter.departmentExists(DEPARTMENT_ID)
+        !adapter.departmentExists(9999L)
         adapter.load(stored.id()).get().services()*.settings()*.metrics()*.influxProject() == ['Cert Scanner', 'Cert Scanner']
         adapter.load(stored.id()).get().services()*.settings()*.sonar()*.projectKey() == ['cert', 'cert']
     }

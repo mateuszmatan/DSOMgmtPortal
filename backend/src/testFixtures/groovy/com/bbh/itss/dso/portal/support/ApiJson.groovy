@@ -11,10 +11,11 @@ final class ApiJson {
     }
 
     static Map product(Map overrides = [:]) {
-        [code    : 'CERT',
-         name    : 'CertScanner',
-         appScan : [keyId: 'bbh_key-id', secretCredentialsId: 'hcl-app-scan-account'],
-         services: [service()]] + overrides
+        [code        : 'CERT',
+         name        : 'CertScanner',
+         departmentId: Fixtures.DEPARTMENT_ID,
+         appScan     : [keyId: 'bbh_key-id', secretCredentialsId: 'hcl-app-scan-account'],
+         services    : [service()]] + overrides
     }
 
     static Map service(Map overrides = [:]) {
