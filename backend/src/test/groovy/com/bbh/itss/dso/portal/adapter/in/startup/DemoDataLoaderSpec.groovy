@@ -53,16 +53,22 @@ class DemoDataLoaderSpec extends Specification {
 
         then:
         updates * settings.update(null, { it.platform().jenkinsUrl() == 'https://jenkins.bbh.com' })
-        1 * pipelines.revokeKey(9L, 'Mobile app moved to the new mobile platform pipeline')
+        1 * pipelines.revokeKey(13L, 'Mobile app moved to the new mobile platform pipeline')
         created*.details()*.code() == ['CERTSCANNER', 'PAYHUB']
         created*.services()*.size() == [2, 4]
         created.every { it.services().every { service -> problems(service.settings()) == [] } }
-        requested*.get(1) == [FULL, SAST, FULL, FULL, SECURITY, EXTENDED, FULL, FULL, SAST]
-        requested*.get(0) == ['update', 'create', 'update', 'update', 'create', 'create', 'update', 'update', 'create']
-        requested.find { it[1] == SECURITY }[2].extendedPipelineJob() == 'DevSecOps/PAYHUB/gateway-extended'
-        requested.find { it[1] == EXTENDED }[2].securityPipelineJob() == 'DevSecOps/PAYHUB/gateway-security'
-        requested[0][2].jenkinsJob() == 'DevSecOps/CERTSCANNER/gui-full'
-        requested.collect { it[2].agentLabels() }.unique() == [['linux-agent']]
+        requested*.get(1) == [FULL, SECURITY, EXTENDED, FULL, SECURITY, EXTENDED, SAST, FULL, SECURITY, EXTENDED, FULL,
+                              FULL, SAST]
+        requested*.get(0) == ['update', 'create', 'create', 'update', 'create', 'create', 'create', 'update', 'create',
+                              'create', 'update', 'update', 'create']
+        requested[0][2].agentLabels() == ['linux-agent', 'windows-agent']
+        requested[0][2].jenkinsJob() == 'DevSecOps/CertScanner-pipeline'
+        requested[1][2].extendedPipelineJob() == 'DevSecOps/CertScanner-extended-pipeline'
+        requested[4][2].extendedPipelineJob() == null
+        requested[5][2].securityPipelineJob() == 'DevSecOps/CertScanner-security-pipeline'
+        requested[8][2].extendedPipelineJob() == 'DevSecOps/PAYHUB/gateway-extended'
+        requested[9][2].securityPipelineJob() == 'DevSecOps/PAYHUB/gateway-security'
+        requested.drop(6).collect { it[2].agentLabels() }.unique() == [['linux-agent']]
 
         where:
         jenkinsUrl             || updates
