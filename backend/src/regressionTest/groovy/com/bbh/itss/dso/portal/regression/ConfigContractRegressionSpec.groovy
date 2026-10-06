@@ -116,20 +116,6 @@ class ConfigContractRegressionSpec extends PortalSpecification {
         matchesExpected('global-config.yaml', globalConfig.body)
     }
 
-    def "the published configuration the library reads from the database is the one the API renders"() {
-        given:
-        def mobile = createProduct(PAYMENTS + [code: uniqueCode('VIEW'), name: "View Payments Hub ${uniqueCode()}",
-                                               services: [PAYMENTS.services[2]]])
-        def full = pipelineFor(mobile.services[0].id as long, pipeline(type: 'FULL'))
-
-        when:
-        def published = libraryConfig(full.activeKey.value as String)
-
-        then:
-        published.KEY_STATUS == 'ACTIVE'
-        ApiJson.parse(published.CONFIG_JSON as String) == api.get("/api/pipelines/$full.id/config?format=json").json
-    }
-
     def "the portal shows a pipeline the same config its key gets, without marking the key as used"() {
         given:
         def mobile = createProduct(PAYMENTS + [code: uniqueCode('PREVIEW'), name: 'Preview Payments Hub',

@@ -45,11 +45,6 @@ abstract class PortalSpecification extends Specification {
         "${prefix}${SEQUENCE.incrementAndGet()}${System.nanoTime() % 100_000}"
     }
 
-    Map libraryConfig(String key) {
-        jdbc.queryForMap('SELECT * FROM DSO_LIBRARY_CONFIG_V WHERE PIPELINE_KEY = ?', key)
-                .collectEntries { name, value -> [name.toUpperCase(), value] }
-    }
-
     Map createProduct(Map product) {
         def response = api.post('/api/products', product)
         assert response.status == 201: response

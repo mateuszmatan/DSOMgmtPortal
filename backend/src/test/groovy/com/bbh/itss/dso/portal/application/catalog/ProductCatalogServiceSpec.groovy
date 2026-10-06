@@ -4,7 +4,6 @@ import com.bbh.itss.dso.portal.application.catalog.port.in.ProductCommand
 import com.bbh.itss.dso.portal.application.catalog.port.out.PipelineCountsPort
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductSummary
-import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.ProductDirectory
@@ -34,9 +33,8 @@ class ProductCatalogServiceSpec extends Specification {
 
     ProductRepositoryPort products = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
     PipelineCountsPort pipelineCounts = Stub()
-    PublishPipelineConfigsUseCase publisher = Mock()
     PipelinesUseCase pipelines = Mock()
-    def catalog = new ProductCatalogService(products, pipelineCounts, publisher, pipelines)
+    def catalog = new ProductCatalogService(products, pipelineCounts, pipelines)
 
     def "the list shows each product with its service and pipeline counts"() {
         given:
@@ -109,7 +107,7 @@ class ProductCatalogServiceSpec extends Specification {
         action << [{ it.get(5L) }, { it.update(5L, command()) }, { it.delete(5L) }]
     }
 
-    def "a new product is stored with its services in order, published, and gives every service a pipeline"() {
+    def "a new product is stored with its services in order and gives every service a pipeline"() {
         given:
         def command = command(services: [service(name: 'gui'), service(name: 'backend-api')])
 
@@ -120,9 +118,6 @@ class ProductCatalogServiceSpec extends Specification {
         1 * products.save({ Product p -> p.id() == null && p.services()*.displayOrder() == [0, 1] }) >> { Product p ->
             stored(9L, p, [10L, 11L])
         }
-
-        then:
-        1 * publisher.productChanged(9L)
 
         then:
         1 * pipelines.createMissing(9L, [10L, 11L], PipelineType.FULL)
@@ -182,7 +177,7 @@ class ProductCatalogServiceSpec extends Specification {
         0 * products.save(_)
     }
 
-    def "an update replaces the details and the service list and publishes the product"() {
+    def "an update replaces the details and the service list"() {
         given:
         products.load(5L) >> Optional.of(product(id: 5, services: [[name: 'gui', id: 10], [name: 'api', id: 11],
                                                                    [name: 'batch', id: 12]]))
@@ -197,9 +192,6 @@ class ProductCatalogServiceSpec extends Specification {
             p.name() == 'CertScanner 2' && p.services()*.name() == ['api', 'worker', 'web'] &&
                     p.services()*.id() == [11L, null, 10L] && p.services()*.displayOrder() == [0, 1, 2]
         }) >> { Product p -> p }
-
-        then:
-        1 * publisher.productChanged(5L)
         updated.services()[0].description() == 'REST API'
     }
 
@@ -215,48 +207,11 @@ class ProductCatalogServiceSpec extends Specification {
         def e = thrown(ConflictException)
         e.message == message
         0 * products.save(_)
-        0 * publisher.productChanged(_)
 
         where:
         refusal                       | action                                    || message
         'a product code in use'       | { it.create(command()) }                  || 'Product code CERT is already used by Certificates'
         'an update of an old version' | { it.update(1L, command(version: 3L)) }   || ConflictException.STALE_VERSION
-    }
-
-    def "a new product, a change and a deletion take the configuration lock before they read or write anything"() {
-        when:
-        catalog.create(command())
-
-        then:
-        1 * publisher.lockConfigurations()
-
-        then:
-        1 * products.save(_) >> { Product p -> stored(9L, p) }
-
-        when:
-        catalog.update(5L, command(version: 0L))
-
-        then:
-        1 * publisher.lockConfigurations()
-
-        then:
-        1 * products.load(5L) >> Optional.of(product(id: 5))
-
-        then:
-        1 * products.save(_) >> { Product p -> p }
-
-        then:
-        1 * publisher.productChanged(5L)
-
-        when:
-        catalog.delete(5L)
-
-        then:
-        1 * publisher.lockConfigurations()
-
-        then:
-        1 * products.load(5L) >> Optional.of(product(id: 5))
-        1 * products.delete(5L)
     }
 
     private static ProductSummary summary(long id, String code, String name, String ownerTeam, String description) {

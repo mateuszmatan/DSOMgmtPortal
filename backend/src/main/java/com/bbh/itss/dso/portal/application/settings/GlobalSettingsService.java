@@ -2,7 +2,6 @@ package com.bbh.itss.dso.portal.application.settings;
 
 import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
-import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase;
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
 import com.bbh.itss.dso.portal.application.settings.port.out.GlobalSettingsRepositoryPort;
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettings;
@@ -13,11 +12,9 @@ import com.bbh.itss.dso.portal.domain.settings.MissingGlobalSettingsException;
 public class GlobalSettingsService implements ManageGlobalSettingsUseCase {
 
     private final GlobalSettingsRepositoryPort repository;
-    private final PublishPipelineConfigsUseCase publisher;
 
-    public GlobalSettingsService(GlobalSettingsRepositoryPort repository, PublishPipelineConfigsUseCase publisher) {
+    public GlobalSettingsService(GlobalSettingsRepositoryPort repository) {
         this.repository = repository;
-        this.publisher = publisher;
     }
 
     @Override
@@ -33,10 +30,7 @@ public class GlobalSettingsService implements ManageGlobalSettingsUseCase {
 
     @Override
     public GlobalSettings update(Long expectedVersion, GlobalSettingsValues values) {
-        publisher.lockConfigurations();
-        GlobalSettings saved = repository.save(load().change(expectedVersion, values));
-        publisher.settingsChanged();
-        return saved;
+        return repository.save(load().change(expectedVersion, values));
     }
 
     private GlobalSettings load() {

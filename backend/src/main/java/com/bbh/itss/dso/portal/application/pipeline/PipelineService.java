@@ -3,7 +3,6 @@ package com.bbh.itss.dso.portal.application.pipeline;
 import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort;
-import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.ServicePipelinesView;
@@ -34,17 +33,14 @@ public class PipelineService implements PipelinesUseCase {
     private final PipelineRepositoryPort pipelines;
     private final ProductRepositoryPort products;
     private final ManageGlobalSettingsUseCase settings;
-    private final PublishPipelineConfigsUseCase publisher;
     private final KeyGenerator keys;
     private final Clock clock;
 
     public PipelineService(PipelineRepositoryPort pipelines, ProductRepositoryPort products,
-                           ManageGlobalSettingsUseCase settings, PublishPipelineConfigsUseCase publisher,
-                           KeyGenerator keys, Clock clock) {
+                           ManageGlobalSettingsUseCase settings, KeyGenerator keys, Clock clock) {
         this.pipelines = pipelines;
         this.products = products;
         this.settings = settings;
-        this.publisher = publisher;
         this.keys = keys;
         this.clock = clock;
     }
@@ -70,7 +66,6 @@ public class PipelineService implements PipelinesUseCase {
 
     @Override
     public PipelineView create(long serviceId, PipelineType type, PipelineSettings settings) {
-        publisher.lockConfigurations();
         Product product = products.findByServiceId(serviceId)
                 .orElseThrow(() -> NotFoundException.of("Service", serviceId));
         Service service = product.service(serviceId).orElseThrow(() -> NotFoundException.of("Service", serviceId));
@@ -85,7 +80,6 @@ public class PipelineService implements PipelinesUseCase {
         if (serviceIds.isEmpty()) {
             return List.of();
         }
-        publisher.lockConfigurations();
         Product product = products.load(productId).orElseThrow(() -> NotFoundException.of("Product", productId));
         String jenkinsUrl = jenkinsUrl();
         return serviceIds.stream()
@@ -98,25 +92,18 @@ public class PipelineService implements PipelinesUseCase {
     }
 
     private Pipeline create(Product product, long serviceId, PipelineType type, PipelineSettings settings) {
-        Pipeline saved = pipelines.save(Pipeline.create(new ServiceRef(product.id(), serviceId), type, settings,
-                keys, now()));
-        publisher.pipelineChanged(saved.id());
-        return saved;
+        return pipelines.save(Pipeline.create(new ServiceRef(product.id(), serviceId), type, settings, keys, now()));
     }
 
     @Override
     public PipelineView update(long id, PipelineType type, PipelineSettings settings) {
-        publisher.lockConfigurations();
         Pipeline pipeline = find(id);
         pipeline.reconfigure(type, settings);
-        Pipeline saved = pipelines.save(pipeline);
-        publisher.pipelineChanged(saved.id());
-        return view(saved);
+        return view(pipelines.save(pipeline));
     }
 
     @Override
     public void delete(long id) {
-        publisher.lockConfigurations();
         find(id);
         pipelines.delete(id);
     }

@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.application.settings
 
-import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase
 import com.bbh.itss.dso.portal.application.settings.port.out.GlobalSettingsRepositoryPort
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettings
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues
@@ -13,8 +12,7 @@ import java.time.Instant
 class GlobalSettingsServiceSpec extends Specification {
 
     GlobalSettingsRepositoryPort repository = Mock()
-    PublishPipelineConfigsUseCase publisher = Mock()
-    def service = new GlobalSettingsService(repository, publisher)
+    def service = new GlobalSettingsService(repository)
     def bbh = GlobalSettingsValues.bbhDefaults()
     def stored = new GlobalSettings(bbh, 3, Instant.parse('2026-10-04T12:00:00Z'))
 
@@ -25,7 +23,6 @@ class GlobalSettingsServiceSpec extends Specification {
         then:
         1 * repository.load() >> Optional.ofNullable(existing)
         (existing ? 0 : 1) * repository.save(GlobalSettings.bbhDefaults()) >> stored
-        0 * publisher._
         result.is(existing ?: stored)
 
         where:
@@ -46,7 +43,7 @@ class GlobalSettingsServiceSpec extends Specification {
         thrown(MissingGlobalSettingsException)
     }
 
-    def "a change reads the stored settings once every configuration is locked, then publishes every pipeline"() {
+    def "a change is checked against the stored settings and saved"() {
         given:
         def changed = bbh.withPlatform(bbh.platform().withJenkinsUrl('https://jenkins.bbh.com'))
         def saved = new GlobalSettings(changed, 4, Instant.EPOCH)
@@ -55,23 +52,18 @@ class GlobalSettingsServiceSpec extends Specification {
         def result = service.update(version, changed)
 
         then:
-        1 * publisher.lockConfigurations()
-
-        then:
         1 * repository.load() >> Optional.of(stored)
 
         then:
         1 * repository.save(new GlobalSettings(changed, 3, stored.updatedAt())) >> saved
 
-        then:
-        1 * publisher.settingsChanged()
         result.is(saved)
 
         where:
         version << [3L, null]
     }
 
-    def "a refused change is neither saved nor published"() {
+    def "a refused change is not saved"() {
         given:
         repository.load() >> Optional.of(stored)
 
@@ -81,6 +73,5 @@ class GlobalSettingsServiceSpec extends Specification {
         then:
         thrown(ConflictException)
         0 * repository.save(_)
-        0 * publisher.settingsChanged()
     }
 }

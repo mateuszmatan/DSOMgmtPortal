@@ -107,28 +107,15 @@ class PortalPerformanceSpec extends PortalSpecification {
         def keys = pipelines*.activeKey*.value
 
         when:
-        def stats = LatencyStats.measure('Fetch config.yaml by key, 32 at once', calls: 2000, threads: 32) { int i ->
-            api.get("/api/dso/config/${keys[i % keys.size()]}").status == 200
+        def stats = LatencyStats.measure('Fetch a configuration by key as the library does, 32 at once', calls: 2000, threads: 32) { int i ->
+            api.get("/api/dso/config/${keys[i % keys.size()]}?format=json").status == 200
         }
 
         then:
-        within(stats, 300)
+        within(stats, 400)
     }
 
-    def "a burst of pipelines reading their configuration from the database view is served"() {
-        given:
-        def keys = pipelines*.activeKey*.value
-
-        when:
-        def stats = LatencyStats.measure('Read config from the DB view, 32 at once', calls: 2000, threads: 32) { int i ->
-            libraryConfig(keys[i % keys.size()] as String).CONFIG_JSON != null
-        }
-
-        then:
-        within(stats, 100)
-    }
-
-    def "a global settings change publishes the configuration of every pipeline"() {
+    def "a global settings change is saved and the next read of every pipeline sees it"() {
         given:
         Map original = api.get('/api/settings').json as Map
 
@@ -141,8 +128,8 @@ class PortalPerformanceSpec extends PortalSpecification {
         }
 
         then:
-        within(stats, 5000)
-        libraryConfig(pipelines.last().activeKey.value as String).CONFIG_JSON.contains('"minLine":65')
+        within(stats, 1000)
+        api.get("/api/dso/config/${pipelines.last().activeKey.value}?format=json").json.defaults.coverage.minLine == 65
 
         cleanup:
         def current = api.get('/api/settings').json

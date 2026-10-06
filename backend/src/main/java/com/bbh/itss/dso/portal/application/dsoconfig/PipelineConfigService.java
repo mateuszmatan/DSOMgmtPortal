@@ -2,8 +2,8 @@ package com.bbh.itss.dso.portal.application.dsoconfig;
 
 import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
+import com.bbh.itss.dso.portal.application.WithoutTransaction;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
-import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase;
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.RenderConfigUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
@@ -15,23 +15,21 @@ import java.util.Map;
 @UseCase
 public class PipelineConfigService implements RenderConfigUseCase {
 
-    private final PublishPipelineConfigsUseCase published;
     private final PipelinesUseCase pipelines;
     private final ProductsUseCase products;
     private final ManageGlobalSettingsUseCase settings;
 
-    public PipelineConfigService(PublishPipelineConfigsUseCase published, PipelinesUseCase pipelines,
-                                 ProductsUseCase products, ManageGlobalSettingsUseCase settings) {
-        this.published = published;
+    public PipelineConfigService(PipelinesUseCase pipelines, ProductsUseCase products,
+                                 ManageGlobalSettingsUseCase settings) {
         this.pipelines = pipelines;
         this.products = products;
         this.settings = settings;
     }
 
     @Override
+    @WithoutTransaction
     public Map<String, Object> readByKey(String key) {
-        long pipelineId = pipelines.authorizeKey(key);
-        return published.currentConfig(pipelineId).orElseGet(() -> config(pipelines.get(pipelineId)));
+        return config(pipelines.get(pipelines.authorizeKey(key)));
     }
 
     @Override
