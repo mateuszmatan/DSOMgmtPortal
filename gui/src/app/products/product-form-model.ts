@@ -849,6 +849,7 @@ export function createProductForm() {
     description: text('', Validators.maxLength(4000)),
     ownerTeam: text('', Validators.maxLength(200)),
     contactEmail: text('', Validators.email, Validators.maxLength(320)),
+    departmentId: new FormControl<number | null>(null, Validators.required),
     appScan: new FormGroup({
       keyId: text('', Validators.required, Validators.maxLength(200)),
       secretCredentialsId: text('', Validators.maxLength(200)),
@@ -878,6 +879,7 @@ export function patchProduct(form: ProductForm, product: Product): void {
     description: product.description ?? '',
     ownerTeam: product.ownerTeam ?? '',
     contactEmail: product.contactEmail ?? '',
+    departmentId: product.departmentId,
     appScan: {
       keyId: product.appScan.keyId,
       secretCredentialsId: product.appScan.secretCredentialsId ?? '',
@@ -906,6 +908,7 @@ export function toProductRequest(form: ProductForm, version: number | null): Pro
     description: optional(value.description),
     ownerTeam: optional(value.ownerTeam),
     contactEmail: optional(value.contactEmail),
+    departmentId: value.departmentId,
     appScan: {
       keyId: value.appScan.keyId.trim(),
       secretCredentialsId: optional(value.appScan.secretCredentialsId),

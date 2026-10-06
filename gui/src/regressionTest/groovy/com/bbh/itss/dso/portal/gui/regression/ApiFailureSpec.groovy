@@ -27,6 +27,7 @@ class ApiFailureSpec extends EditorSpecification {
         where:
         path                      | endpoint
         '/products'               | '/api/products'
+        '/products'               | '/api/departments'
         '/products/1'             | '/api/products/1'
         '/products/1/edit'        | '/api/products/1/pipelines'
         '/monitoring'             | '/api/monitoring/products'

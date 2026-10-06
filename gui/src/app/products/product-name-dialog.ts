@@ -1,10 +1,22 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { Department } from '../core/models';
 import { errorText } from '../shared/form-errors';
+
+export interface ProductNameDialogData {
+  departments: readonly Department[];
+  departmentId: number | null;
+}
+
+export interface NamedProduct {
+  name: string;
+  departmentId: number;
+}
 
 @Component({
   selector: 'dso-product-name-dialog',
@@ -14,13 +26,26 @@ import { errorText } from '../shared/form-errors';
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSelectModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h2 mat-dialog-title>Add product</h2>
     <form [formGroup]="form" (ngSubmit)="next()" novalidate>
       <mat-dialog-content>
-        <p>Start with the product's name. The portal makes the product's unique code from it.</p>
+        <p>
+          Start with the product's department and name. The portal makes the product's unique code
+          from the name.
+        </p>
+        <mat-form-field class="full-width">
+          <mat-label>Department</mat-label>
+          <mat-select formControlName="departmentId">
+            @for (department of data.departments; track department.id) {
+              <mat-option [value]="department.id">{{ department.name }}</mat-option>
+            }
+          </mat-select>
+          <mat-error>{{ errorText(form.controls.departmentId) }}</mat-error>
+        </mat-form-field>
         <mat-form-field class="full-width">
           <mat-label>Product name</mat-label>
           <input matInput formControlName="name" placeholder="CertScanner" />
@@ -35,14 +60,26 @@ import { errorText } from '../shared/form-errors';
   `,
   styles: `
     mat-dialog-content {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
       width: min(420px, 80vw);
+    }
+    p {
+      margin: 0;
     }
   `,
 })
 export class ProductNameDialog {
-  private readonly dialogRef = inject<MatDialogRef<ProductNameDialog, string>>(MatDialogRef);
+  protected readonly data = inject<ProductNameDialogData>(MAT_DIALOG_DATA);
+  private readonly dialogRef = inject<MatDialogRef<ProductNameDialog, NamedProduct>>(MatDialogRef);
 
   protected readonly form = new FormGroup({
+    departmentId: new FormControl(
+      this.data.departments.find((department) => department.id === this.data.departmentId)?.id ??
+        null,
+      Validators.required,
+    ),
     name: new FormControl('', {
       nonNullable: true,
       validators: [Validators.required, Validators.maxLength(200)],
@@ -52,12 +89,12 @@ export class ProductNameDialog {
   protected readonly errorText = errorText;
 
   protected next(): void {
-    this.name.markAsTouched();
+    this.form.markAllAsTouched();
     const name = this.name.value.trim();
     if (!name) {
       this.name.setErrors({ required: true });
-    } else if (this.name.valid) {
-      this.dialogRef.close(name);
+    } else if (this.form.valid) {
+      this.dialogRef.close({ name, departmentId: this.form.controls.departmentId.value! });
     }
   }
 }

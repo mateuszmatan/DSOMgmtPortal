@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ClipboardModule } from '@angular/cdk/clipboard';
+import { NgTemplateOutlet } from '@angular/common';
 import {
   AbstractControl,
   FormControl,
@@ -35,12 +36,13 @@ import {
   switchMap,
   tap,
 } from 'rxjs';
-import { PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
+import { DepartmentsApi, PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
 import { Product } from '../core/models';
 import { Notifier } from '../core/notifier';
 import { ONBOARDING } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
+import { byDepartment } from '../products/departments';
 import { jenkinsfile } from '../products/jenkinsfile';
 import { errorText } from '../shared/form-errors';
 import { ChoiceTiles } from './choice-tiles';
@@ -78,6 +80,7 @@ export const STEPS = ['Pipeline', 'Product', 'Services', 'Review', 'Next steps']
   imports: [
     ReactiveFormsModule,
     RouterLink,
+    NgTemplateOutlet,
     ClipboardModule,
     MatButtonModule,
     MatFormFieldModule,
@@ -124,6 +127,15 @@ export class Onboarding implements HasUnsavedChanges {
   protected readonly products = computed(() =>
     this.catalogue.hasValue() ? this.catalogue.value() : [],
   );
+  protected readonly departments = toSignal(
+    inject(DepartmentsApi)
+      .list()
+      .pipe(catchError(() => of([]))),
+    { initialValue: [] },
+  );
+  protected readonly productGroups = computed(() =>
+    byDepartment(this.departments(), this.products()).filter((group) => group.products.length),
+  );
   private readonly library = toSignal(
     inject(SettingsApi)
       .get()
@@ -135,6 +147,7 @@ export class Onboarding implements HasUnsavedChanges {
   );
 
   protected readonly productForm = new FormGroup({
+    departmentId: new FormControl<number | null>(null, Validators.required),
     name: new FormControl('', {
       nonNullable: true,
       validators: [
@@ -162,6 +175,15 @@ export class Onboarding implements HasUnsavedChanges {
   protected readonly productName = computed(
     () => this.existing()?.name ?? this.typedName() ?? 'your product',
   );
+  private readonly chosenDepartment = toSignal(
+    this.productForm.controls.departmentId.valueChanges,
+    { initialValue: null },
+  );
+  protected readonly needsDepartment = computed(() => this.existing()?.departmentId === null);
+  protected readonly departmentName = computed(() => {
+    const id = this.existing()?.departmentId ?? this.chosenDepartment();
+    return this.departments().find((department) => department.id === id)?.name ?? 'not set';
+  });
 
   protected readonly nextLabel = computed(() =>
     this.step() === 3 ? 'Save and create the pipelines' : 'Continue',
@@ -290,7 +312,10 @@ export class Onboarding implements HasUnsavedChanges {
       case 0:
         return this.pipeline() !== null;
       case 1:
-        return this.mode() === 'new' ? this.productForm.valid : this.existing() !== null;
+        return this.mode() === 'new'
+          ? this.productForm.valid
+          : this.existing() !== null &&
+              (!this.needsDepartment() || this.productForm.controls.departmentId.valid);
       case 2:
         return this.services().length > 0;
       default:
@@ -342,7 +367,12 @@ export class Onboarding implements HasUnsavedChanges {
     const saved: Observable<Product> = existing
       ? this.productsApi.update(
           existing.id,
-          productRequest(existing, this.services(), pipeline),
+          productRequest(
+            existing,
+            this.services(),
+            pipeline,
+            this.productForm.controls.departmentId.value,
+          ),
           pipeline,
         )
       : this.suggestCode(this.productForm.controls.name.value.trim()).pipe(

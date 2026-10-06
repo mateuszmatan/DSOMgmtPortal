@@ -9,6 +9,7 @@ import { CodeDialog } from '../shared/code-dialog';
 import { ConfirmDialog } from '../shared/confirm-dialog';
 import {
   anotherService,
+  department,
   globalSettings,
   pipeline,
   product,
@@ -44,6 +45,9 @@ describe('ProductDetail', () => {
     fixture.detectChanges();
     http.expectOne('/api/products/1').flush(stored);
     http.expectOne('/api/products/1/pipelines').flush(services);
+    http
+      .expectOne('/api/departments')
+      .flush([department({ id: 5, name: 'Fund Services' }), department()]);
     await fixture.whenStable();
   }
 
@@ -77,9 +81,10 @@ describe('ProductDetail', () => {
     await load();
 
     expect(page().querySelector('h1')?.textContent).toBe('CertScanner');
-    expect(page().querySelector('.breadcrumb')?.textContent).toContain(
-      'DevSecOps Product Management',
-    );
+    expect(
+      [...page().querySelectorAll('.breadcrumb > :not(.sep)')].map((part) => part.textContent),
+    ).toEqual(['DevSecOps Product Management', 'Corporate Technology', 'CertScanner']);
+    expect(page().querySelector('.meta div')?.textContent).toBe('DepartmentCorporate Technology');
     expect([...page().querySelectorAll('.stat')].map((stat) => stat.textContent?.trim())).toEqual([
       '1Services',
       '1Pipelines',
@@ -88,6 +93,13 @@ describe('ProductDetail', () => {
     ]);
     expect(page().querySelector('.pipeline-title strong')?.textContent).toBe('Full pipeline');
     expect(page().querySelector('mat-icon')).toBeNull();
+  });
+
+  it('leaves the department out of a product that is not in one', async () => {
+    await load(product({ departmentId: null }));
+
+    expect(page().querySelector('.breadcrumb')?.textContent).not.toContain('Corporate');
+    expect(page().querySelector('.meta')?.textContent).not.toContain('Department');
   });
 
   it('builds the repository link from the Bitbucket fields when the service has no URL', async () => {
@@ -145,6 +157,7 @@ describe('ProductDetail', () => {
         { status: 404, statusText: 'Not Found' },
       );
     http.expectOne('/api/products/1/pipelines').flush([]);
+    http.expectOne('/api/departments').flush(null, { status: 500, statusText: 'Error' });
     await fixture.whenStable();
 
     expect(page().querySelector('.banner')?.textContent).toBe('Product 1 does not exist');

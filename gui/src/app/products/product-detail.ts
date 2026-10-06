@@ -1,6 +1,6 @@
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
@@ -9,7 +9,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { Observable, catchError, filter, finalize, of, switchMap, tap } from 'rxjs';
-import { PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
+import { DepartmentsApi, PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import {
   PIPELINE_TYPES,
@@ -61,6 +61,16 @@ export class ProductDetail {
   protected readonly product = rxResource({
     params: () => this.productId(),
     stream: ({ params }) => this.products.get(params),
+  });
+  private readonly departments = toSignal(
+    inject(DepartmentsApi)
+      .list()
+      .pipe(catchError(() => of([]))),
+    { initialValue: [] },
+  );
+  protected readonly departmentName = computed(() => {
+    const id = this.product.hasValue() ? this.product.value().departmentId : null;
+    return this.departments().find((department) => department.id === id)?.name;
   });
   protected readonly services = rxResource({
     params: () => this.productId(),

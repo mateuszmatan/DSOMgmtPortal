@@ -135,6 +135,7 @@ describe('onboarding model', () => {
   it('makes a new product from the answers, leaving empty answers out', () => {
     const request = productRequest(
       {
+        departmentId: 5,
         name: ' Payments Hub ',
         code: 'PAYMENTSHUB',
         ownerTeam: ' ',
@@ -152,6 +153,7 @@ describe('onboarding model', () => {
         description: null,
         ownerTeam: null,
         contactEmail: 'pay@bbh.com',
+        departmentId: 5,
         appScan: { keyId: 'bbh_key', secretCredentialsId: null },
         version: null,
       }),
@@ -161,7 +163,7 @@ describe('onboarding model', () => {
 
   it('keeps every detail of a product in the portal and adds the new services after its own', () => {
     const stored = product();
-    const request = productRequest(stored, [fromService(stored.services[0]), added()], 'FULL');
+    const request = productRequest(stored, [fromService(stored.services[0]), added()], 'FULL', 5);
 
     expect(request).toEqual(
       expect.objectContaining({
@@ -169,6 +171,7 @@ describe('onboarding model', () => {
         name: 'CertScanner',
         description: 'TLS certificate scanner',
         ownerTeam: 'Technology Architecture',
+        departmentId: 3,
         appScan: stored.appScan,
         version: 3,
       }),
@@ -177,6 +180,13 @@ describe('onboarding model', () => {
       [10, 'gui'],
       [null, 'gateway'],
     ]);
+  });
+
+  it('puts a product in the portal without a department into the chosen one', () => {
+    const stored = product({ departmentId: null });
+
+    expect(productRequest(stored, [], 'SAST', 5).departmentId).toBe(5);
+    expect(productRequest(stored, [], 'SAST').departmentId).toBeNull();
   });
 
   it('names the service a problem of the portal belongs to', () => {

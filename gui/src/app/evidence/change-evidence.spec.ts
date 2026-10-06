@@ -20,6 +20,8 @@ function summary(overrides: Partial<ProductSummary> = {}): ProductSummary {
     name: 'CertScanner',
     description: null,
     ownerTeam: 'Technology Architecture',
+    departmentId: 3,
+    departmentName: 'Corporate Technology',
     serviceCount: 1,
     pipelineCount: 2,
     activePipelineCount: 2,

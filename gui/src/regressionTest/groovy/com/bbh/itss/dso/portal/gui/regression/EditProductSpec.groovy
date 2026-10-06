@@ -30,6 +30,32 @@ class EditProductSpec extends EditorSpecification {
         id << [1, 2]
     }
 
+    def "a product without a department is saved only once its department is chosen"() {
+        given:
+        def store = ProductStore.recorded(api, 1)
+        store.product.departmentId = null
+        open('/products/1/edit')
+
+        when:
+        button('Save changes', true).click()
+
+        then:
+        assertThat(saveError()).hasText('Some fields need your attention.')
+        assertThat(errorOf(productFields(), 'Department')).hasText('Required')
+        api.requests('PUT', '/api/products/1').isEmpty()
+
+        when:
+        choose(productFields(), 'Department', 'Custody')
+        button('Save changes', true).click()
+        page.waitForURL('**/products/1')
+
+        then:
+        awaitRequest('PUT', '/api/products/1').json().departmentId == 4
+        assertThat(page.locator('.breadcrumb > :not(.sep)'))
+                .hasText(['DevSecOps Product Management', 'Custody', 'CertScanner'] as String[])
+        ownErrors().isEmpty()
+    }
+
     def "leaving the editor with unsaved changes asks first, and only Discard leaves"() {
         given:
         ProductStore.recorded(api, 1)

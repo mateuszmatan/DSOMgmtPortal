@@ -56,8 +56,23 @@
           [value]="mode()"
           (valueChange)="chooseMode($event)"
         />
+        <ng-template #departmentField>
+          <mat-form-field>
+            <mat-label>Department</mat-label>
+            <mat-select [formControl]="productForm.controls.departmentId">
+              @for (department of departments(); track department.id) {
+                <mat-option [value]="department.id">{{ department.name }}</mat-option>
+              }
+            </mat-select>
+            @if (needsDepartment()) {
+              <mat-hint>The product is not in a department yet</mat-hint>
+            }
+            <mat-error>{{ errorText(productForm.controls.departmentId) }}</mat-error>
+          </mat-form-field>
+        </ng-template>
         @if (mode() === 'new') {
           <form class="fields" [formGroup]="productForm" novalidate>
+            <ng-container [ngTemplateOutlet]="departmentField" />
             <mat-form-field>
               <mat-label>Product name</mat-label>
               <input matInput formControlName="name" placeholder="CertScanner" autocomplete="off" />
@@ -101,20 +116,31 @@
             <mat-form-field>
               <mat-label>Product</mat-label>
               <mat-select [formControl]="productId">
-                @for (product of products(); track product.id) {
-                  <mat-option [value]="product.id"
-                    >{{ product.name }} ({{ product.code }})</mat-option
-                  >
+                @for (group of productGroups(); track group.name) {
+                  <mat-optgroup [label]="group.name">
+                    @for (product of group.products; track product.id) {
+                      <mat-option [value]="product.id"
+                        >{{ product.name }} ({{ product.code }})</mat-option
+                      >
+                    }
+                  </mat-optgroup>
                 }
               </mat-select>
               <mat-hint>{{ products().length }} products in the portal</mat-hint>
             </mat-form-field>
+            @if (needsDepartment()) {
+              <ng-container [ngTemplateOutlet]="departmentField" />
+            }
           </div>
           @if (productError(); as error) {
             <p class="choice-error">{{ error }}</p>
           }
           @if (existing(); as product) {
             <dl class="rows">
+              @if (!needsDepartment()) {
+                <dt>Department</dt>
+                <dd>{{ departmentName() }}</dd>
+              }
               <dt>Owner team</dt>
               <dd>{{ product.ownerTeam ?? 'not set' }}</dd>
               <dt>Services</dt>
@@ -176,6 +202,8 @@
           <dd>{{ pipelineLabel(pipeline()!) }}</dd>
           <dt>Product</dt>
           <dd>{{ productName() }} ({{ existing()?.code ?? code() }})</dd>
+          <dt>Department</dt>
+          <dd>{{ departmentName() }}</dd>
           @if (!existing()) {
             <dt>Owner team</dt>
             <dd>{{ productForm.controls.ownerTeam.value || 'not set' }}</dd>

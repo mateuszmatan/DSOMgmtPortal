@@ -31,13 +31,20 @@ import {
   of,
   switchMap,
 } from 'rxjs';
-import { PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
+import { DepartmentsApi, PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
-import { BuildTool, DeployTarget, FieldProblem, GlobalSettings, Product } from '../core/models';
+import {
+  BuildTool,
+  DeployTarget,
+  Department,
+  FieldProblem,
+  GlobalSettings,
+  Product,
+} from '../core/models';
 import { Notifier } from '../core/notifier';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
-import { Field, Fields, area, line, mono } from '../shared/fields';
+import { Field, Fields, area, choice, line, mono } from '../shared/fields';
 import { addItem, revalidateAll } from '../shared/form-controls';
 import {
   ServiceForm,
@@ -50,10 +57,10 @@ import {
   toProductRequest,
 } from './product-form-model';
 import { GeneratedKeys } from './generated-keys';
-import { ProductNameDialog } from './product-name-dialog';
+import { NamedProduct, ProductNameDialog, ProductNameDialogData } from './product-name-dialog';
 import { ServiceFields } from './service-fields';
 
-const PRODUCT: Field[] = [
+const productFields = (departments: readonly Department[]): Field[] => [
   mono('code', 'Code', '', 3, {
     placeholder: 'CERT',
     maxLength: 50,
@@ -61,6 +68,13 @@ const PRODUCT: Field[] = [
     error: "Start with a letter; use A-Z, 0-9, '-' or '_'",
   }),
   line('name', 'Name', '', 5, { placeholder: 'CertScanner' }),
+  choice(
+    'departmentId',
+    'Department',
+    departments.map(({ id, name }) => ({ value: id, label: name })),
+    '',
+    4,
+  ),
   line('ownerTeam', 'Owner team', '', 4, { placeholder: 'Security Engineering' }),
   area('description', 'Description', '', 8, {
     placeholder: 'What the product does and who uses it',
@@ -94,8 +108,10 @@ const APP_SCAN_ACCOUNT: Field[] = [
 })
 export class ProductEditor implements OnInit, HasUnsavedChanges {
   readonly id = input<string>();
+  readonly department = input<string>();
 
   private readonly products = inject(ProductsApi);
+  private readonly departmentsApi = inject(DepartmentsApi);
   private readonly pipelines = inject(PipelinesApi);
   private readonly settingsApi = inject(SettingsApi);
   private readonly router = inject(Router);
@@ -108,6 +124,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   protected readonly form = createProductForm();
   protected readonly product = signal<Product | null>(null);
   protected readonly settings = signal<GlobalSettings | null>(null);
+  protected readonly departments = signal<Department[]>([]);
   protected readonly loading = signal(false);
   protected readonly loadError = signal<string | null>(null);
   protected readonly saving = signal(false);
@@ -127,7 +144,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   private saved = false;
   private generatedCode = '';
 
-  protected readonly productFields = PRODUCT;
+  protected readonly productFields = computed(() => productFields(this.departments()));
   protected readonly appScanFields = APP_SCAN_ACCOUNT;
   protected readonly toolLabels: Record<BuildTool, string> = {
     GRADLE: 'Gradle',
@@ -143,31 +160,46 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     const id = this.id();
     this.loading.set(true);
     if (id === undefined) {
-      this.dialog
-        .open<ProductNameDialog, void, string>(ProductNameDialog)
-        .afterClosed()
+      this.departmentsApi
+        .list()
         .pipe(
-          switchMap((name) =>
-            name
-              ? forkJoin({ settings: this.loadSettings(), code: this.suggestCode(name) }).pipe(
-                  map((loaded) => ({ ...loaded, name })),
-                )
+          switchMap((departments) => {
+            this.departments.set(departments);
+            return this.dialog
+              .open<ProductNameDialog, ProductNameDialogData, NamedProduct>(ProductNameDialog, {
+                data: { departments, departmentId: Number(this.department()) || null },
+              })
+              .afterClosed();
+          }),
+          switchMap((named) =>
+            named
+              ? forkJoin({
+                  settings: this.loadSettings(),
+                  code: this.suggestCode(named.name),
+                }).pipe(map((loaded) => ({ ...loaded, ...named })))
               : of(null),
           ),
           finalize(() => this.loading.set(false)),
           takeUntilDestroyed(this.destroyRef),
         )
-        .subscribe((started) => {
-          if (!started) {
-            this.router.navigate(['/products']);
-            return;
-          }
-          this.settings.set(started.settings);
-          this.generatedCode = started.code;
-          this.form.patchValue({ name: started.name, code: started.code });
-          this.addService();
-          this.form.markAsPristine();
-          this.followNameWithCode();
+        .subscribe({
+          next: (started) => {
+            if (!started) {
+              this.router.navigate(['/products']);
+              return;
+            }
+            this.settings.set(started.settings);
+            this.generatedCode = started.code;
+            this.form.patchValue({
+              name: started.name,
+              code: started.code,
+              departmentId: started.departmentId,
+            });
+            this.addService();
+            this.form.markAsPristine();
+            this.followNameWithCode();
+          },
+          error: (error) => this.loadError.set(errorMessage(error)),
         });
       return;
     }
@@ -175,17 +207,19 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       product: this.products.get(Number(id)),
       pipelines: this.pipelines.listForProduct(Number(id)),
       settings: this.loadSettings(),
+      departments: this.departmentsApi.list(),
     })
       .pipe(
         finalize(() => this.loading.set(false)),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
-        next: ({ product, pipelines, settings }) => {
+        next: ({ product, pipelines, settings, departments }) => {
           patchProduct(this.form, product);
           this.form.markAsPristine();
           this.product.set(product);
           this.settings.set(settings);
+          this.departments.set(departments);
           this.pipelineCounts.set(
             new Map(pipelines.map((service) => [service.serviceId, service.pipelines.length])),
           );

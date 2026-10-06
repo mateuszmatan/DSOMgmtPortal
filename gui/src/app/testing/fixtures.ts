@@ -1,4 +1,5 @@
 import {
+  Department,
   DoraSummary,
   GlobalSettings,
   MonitoringOverview,
@@ -13,6 +14,7 @@ import {
   ProductMonitoring,
   Product,
   ProductEvidence,
+  ProductSummary,
   RunEvidence,
   Service,
   ServiceEvidence,
@@ -263,9 +265,40 @@ export function product(overrides: Partial<Product> = {}): Product {
     description: 'TLS certificate scanner',
     ownerTeam: 'Technology Architecture',
     contactEmail: 'arch@bbh.com',
+    departmentId: 3,
     appScan: { keyId: 'bbh_key', secretCredentialsId: 'hcl-app-scan-account' },
     updatedAt: '2026-10-04T08:00:00Z',
     services: [service()],
+    ...overrides,
+  };
+}
+
+export function productSummary(overrides: Partial<ProductSummary> = {}): ProductSummary {
+  return {
+    id: 1,
+    code: 'CERT',
+    name: 'CertScanner',
+    description: 'TLS certificate scanner',
+    ownerTeam: 'Technology Architecture',
+    departmentId: 3,
+    departmentName: 'Corporate Technology',
+    serviceCount: 2,
+    pipelineCount: 3,
+    activePipelineCount: 2,
+    updatedAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+export function department(overrides: Partial<Department> = {}): Department {
+  return {
+    id: 3,
+    name: 'Corporate Technology',
+    version: 0,
+    productCount: 1,
+    serviceCount: 2,
+    pipelineCount: 3,
+    activePipelineCount: 2,
     ...overrides,
   };
 }

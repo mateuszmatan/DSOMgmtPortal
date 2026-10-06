@@ -1,18 +1,23 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { Router, RouterLink } from '@angular/router';
-import { debounceTime, distinctUntilChanged, map } from 'rxjs';
-import { ProductsApi } from '../core/api';
+import { debounceTime, distinctUntilChanged, filter, map, switchMap } from 'rxjs';
+import { DepartmentsApi, ProductsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
-import { ProductSummary } from '../core/models';
+import { Department, ProductSummary } from '../core/models';
+import { Notifier } from '../core/notifier';
 import { PRODUCTS } from '../core/sections';
-import { RelativeTimePipe } from '../shared/formatting';
+import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
+import { RelativeTimePipe, counted } from '../shared/formatting';
+import { DepartmentDialog } from './department-dialog';
+import { byDepartment, tally } from './departments';
 
 @Component({
   selector: 'dso-product-list',
@@ -32,7 +37,10 @@ import { RelativeTimePipe } from '../shared/formatting';
 })
 export class ProductList {
   private readonly api = inject(ProductsApi);
+  private readonly departmentsApi = inject(DepartmentsApi);
   private readonly router = inject(Router);
+  private readonly dialog = inject(MatDialog);
+  private readonly notifier = inject(Notifier);
 
   protected readonly section = PRODUCTS;
   protected readonly columns = ['product', 'ownerTeam', 'services', 'pipelines', 'updatedAt'];
@@ -50,10 +58,79 @@ export class ProductList {
     params: () => this.query(),
     stream: ({ params }) => this.api.list(params),
   });
+  protected readonly departments = rxResource({ stream: () => this.departmentsApi.list() });
+
+  protected readonly groups = computed(() =>
+    this.products.hasValue() && this.departments.hasValue()
+      ? byDepartment(this.departments.value(), this.products.value()).filter(
+          (group) => group.products.length || !this.query(),
+        )
+      : null,
+  );
+  protected readonly total = computed(() => {
+    const groups = this.groups() ?? [];
+    const products = groups.reduce((sum, group) => sum + group.products.length, 0);
+    const departments = groups.filter((group) => group.department).length;
+    return `${counted(products, 'product')} in ${counted(departments, 'department')}`;
+  });
 
   protected readonly errorMessage = errorMessage;
+  protected readonly tally = tally;
 
   protected open(product: ProductSummary): void {
     this.router.navigate(['/products', product.id]);
+  }
+
+  protected addDepartment(): void {
+    this.editDepartment(null, (saved) => `${saved.name} added`);
+  }
+
+  protected renameDepartment(department: Department): void {
+    this.editDepartment(department, (saved) => `${department.name} renamed to ${saved.name}`);
+  }
+
+  protected deleteHint(department: Department): string | null {
+    return department.productCount
+      ? `${department.name} still has ${counted(department.productCount, 'product')}. ` +
+          'Move them to another department first.'
+      : null;
+  }
+
+  protected deleteDepartment(department: Department): void {
+    this.dialog
+      .open<ConfirmDialog, ConfirmDialogData, boolean>(ConfirmDialog, {
+        data: {
+          title: `Delete ${department.name}?`,
+          message: 'The department has no products. It is removed from the portal.',
+          confirmLabel: 'Delete department',
+          danger: true,
+        },
+      })
+      .afterClosed()
+      .pipe(
+        filter((confirmed) => confirmed === true),
+        switchMap(() => this.departmentsApi.delete(department.id)),
+      )
+      .subscribe({
+        next: () => {
+          this.notifier.success(`${department.name} deleted`);
+          this.departments.reload();
+        },
+        error: (error) => this.notifier.error(error),
+      });
+  }
+
+  private editDepartment(
+    department: Department | null,
+    message: (saved: Department) => string,
+  ): void {
+    this.dialog
+      .open<DepartmentDialog, Department | null, Department>(DepartmentDialog, { data: department })
+      .afterClosed()
+      .pipe(filter((saved): saved is Department => !!saved))
+      .subscribe((saved) => {
+        this.notifier.success(message(saved));
+        this.departments.reload();
+      });
   }
 }

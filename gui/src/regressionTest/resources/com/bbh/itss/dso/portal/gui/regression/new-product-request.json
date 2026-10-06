@@ -4,6 +4,7 @@
   "description": "The next generation of the certificate scanner",
   "ownerTeam": "Technology Architecture",
   "contactEmail": "ta-team@bbh.com",
+  "departmentId": 3,
   "appScan": {
     "keyId": "bbh_5f0c2a9e-1b7d-4c3e-8a6f-2d9b0e4c7a15",
     "secretCredentialsId": "hcl-app-scan-account"
