@@ -91,7 +91,7 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
             openShiftTargets.getOrDefault(Region.RD, OpenShiftTarget.NONE)
                     .validateImageBuild(problems.at("openShiftTargets[" + Region.RD.name() + "]"));
         }
-        appScan.validate(problems.at("appScan"));
+        appScan.validate(problems.at("appScan"), tool);
         sonar.validate(problems.at("sonar"), tool);
         nexusIq.validate(problems, nexusIqApplications);
         scm.validate(problems.at("scm"));

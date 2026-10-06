@@ -42,7 +42,7 @@ public record SonarSettings(String projectName, String projectKey, String instal
     }
 
     public void validate(ValidationProblems problems, BuildTool tool) {
-        if (tool != BuildTool.FLUTTER && projectKey != null && command.tasks().isEmpty()) {
+        if (tool != BuildTool.FLUTTER && (projectKey != null || !command.isEmpty()) && command.tasks().isEmpty()) {
             problems.add("command.tasks", tool == BuildTool.MAVEN
                     ? "add the Maven goals of the analysis, for example sonar:sonar"
                     : "add the Gradle tasks of the analysis, for example sonarqube");

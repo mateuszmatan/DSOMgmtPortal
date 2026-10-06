@@ -55,9 +55,14 @@ public record AppScanSettings(String applicationId, String sastScanName, List<St
                 .set("dast.presenceId", dastPresenceId);
     }
 
-    public void validate(ValidationProblems problems) {
+    public void validate(ValidationProblems problems, BuildTool tool) {
         if (dastEnabled && dastTargetUrl == null) {
             problems.add("dastTargetUrl", "is required when DAST is enabled");
+        }
+        if (compile && tool != BuildTool.FLUTTER && !compileCommand.isEmpty() && compileCommand.tasks().isEmpty()) {
+            problems.add("compileCommand.tasks", tool == BuildTool.MAVEN
+                    ? "add the Maven goals that compile the code for the scan, or clear the command to use the build goals"
+                    : "add the Gradle tasks that compile the code for the scan, or clear the command to use the build tasks");
         }
         StoredList.LINES_2000.check(problems, "includedDirs", includedDirs);
         StoredList.LINES_2000.check(problems, "excludedDirs", excludedDirs);

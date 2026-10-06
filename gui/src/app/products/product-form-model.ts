@@ -713,8 +713,14 @@ export function createServiceForm(
   );
   requireWhile(
     sonar.controls.command.controls.tasks,
-    () => !!optional(sonar.controls.projectKey.value),
+    () => !!optional(sonar.controls.projectKey.value) || commandEntered(sonar.controls.command),
     sonar.controls.projectKey,
+    sonar.controls.command,
+  );
+  requireWhile(
+    appScan.controls.compileCommand.controls.tasks,
+    () => commandEntered(appScan.controls.compileCommand),
+    appScan.controls.compileCommand,
   );
   requireWhile(
     scm.controls.credentialsId,
@@ -740,11 +746,15 @@ export type ServiceForm = ReturnType<typeof createServiceForm>;
 export function unitTestsConfigured(form: ServiceForm): boolean {
   const v = form.controls.unitTests.getRawValue();
   return (
-    Object.values(v.command).some((value) =>
-      typeof value === 'string' ? !!optional(value) : value,
-    ) ||
+    commandEntered(form.controls.unitTests.controls.command) ||
     [v.resultPattern, v.rootDir, v.reportOutDir].some((value) => !!optional(value)) ||
     v.allowEmptyResults
+  );
+}
+
+function commandEntered(command: ToolCommandForm): boolean {
+  return Object.values(command.getRawValue()).some((value) =>
+    typeof value === 'string' ? !!optional(value) : value,
   );
 }
 

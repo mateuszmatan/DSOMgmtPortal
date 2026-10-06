@@ -140,10 +140,28 @@ class ConfigSectionsSpec extends Specification {
 
     def "enabled DAST needs a target URL"() {
         expect:
-        reported { dast(null).validate(it) }.collect { [it.field, it.message] } ==
+        reported { dast(null).validate(it, GRADLE) }.collect { [it.field, it.message] } ==
                 [['dastTargetUrl', 'is required when DAST is enabled']]
-        problems { dast('https://x').validate(it) } == []
-        problems { AppScanSettings.of(APP_ID).validate(it) } == []
+        problems { dast('https://x').validate(it, GRADLE) } == []
+        problems { AppScanSettings.of(APP_ID).validate(it, MAVEN) } == []
+    }
+
+    def "a #tool compile command that sets #description reports #fields"() {
+        given:
+        def appScan = new AppScanSettings(APP_ID, null, [], [], compile, false, false, false, null, command, false, null,
+                null, null, null)
+
+        expect:
+        problems { appScan.validate(it, tool) } == fields
+
+        where:
+        description              | tool    | compile | command                                                       || fields
+        'nothing'                | GRADLE  | true    | ToolCommand.NONE                                              || []
+        'only a step label'      | GRADLE  | true    | new ToolCommand([], [], null, null, [], 'Compile', false)     || ['compileCommand.tasks']
+        'only returnStdout'      | MAVEN   | true    | new ToolCommand([], [], null, null, [], null, true)           || ['compileCommand.tasks']
+        'a label, not compiling' | GRADLE  | false   | new ToolCommand([], [], null, null, [], 'Compile', false)     || []
+        'a label'                | FLUTTER | true    | new ToolCommand([], [], null, null, [], 'Compile', false)     || []
+        'tasks and a label'      | GRADLE  | true    | new ToolCommand(['classes'], [], null, null, [], 'Compile', false) || []
     }
 
     def "SonarQube settings trim their values and switch the badges off by default"() {
@@ -189,6 +207,14 @@ class ConfigSectionsSpec extends Specification {
         FLUTTER | 'cert' | []              || []
         MAVEN   | 'cert' | ['sonar:sonar'] || []
         GRADLE  | 'cert' | ['sonarqube']   || []
+    }
+
+    def "a SonarQube command that sets only a step label or the output switch needs its tasks without a project key too"() {
+        expect:
+        problems { SonarSettings.of(null, null, new ToolCommand([], [], null, null, [], 'Analyse', false)).validate(it, GRADLE) } ==
+                ['command.tasks']
+        problems { SonarSettings.of(null, null, new ToolCommand([], [], null, null, [], null, true)).validate(it, MAVEN) } ==
+                ['command.tasks']
     }
 
     def "a missing #tool command of the #stage is explained in the words of the build tool"() {

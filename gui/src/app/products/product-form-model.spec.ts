@@ -193,6 +193,20 @@ describe('createServiceForm', () => {
     expect(scm.controls.credentialsId.hasError('required')).toBe(true);
   });
 
+  it('needs the tasks of an analysis or compile command that sets anything else', () => {
+    const form = createServiceForm();
+    const { sonar, appScan } = form.controls;
+    const compile = appScan.controls.compileCommand.controls;
+
+    sonar.controls.command.controls.label.setValue('Analyse');
+    compile.returnStdout.setValue(true);
+    expect(sonar.controls.command.controls.tasks.hasError('required')).toBe(true);
+    expect(compile.tasks.hasError('required')).toBe(true);
+
+    compile.tasks.setValue('classes');
+    expect(compile.tasks.valid).toBe(true);
+  });
+
   it('checks names, the AppScan application id and the number of scan patterns', () => {
     const form = createServiceForm({ name: 'Backend API' });
     expect(form.controls.name.hasError('pattern')).toBe(true);

@@ -67,6 +67,7 @@ class TestSectionsSpec extends Specification {
         'a report directory'       | GRADLE  | new UnitTestSettings(null, null, null, 'reports', false, null)                 || ['command.tasks']
         'empty results allowed'    | MAVEN   | new UnitTestSettings(null, null, null, null, true, null)                       || ['command.tasks']
         'flags without tasks'      | GRADLE  | new UnitTestSettings(ToolCommand.of([], ['--info']), null, null, null, false, null) || ['command.tasks']
+        'a step label'             | MAVEN   | new UnitTestSettings(new ToolCommand([], [], null, null, [], 'Tests', false), null, null, null, false, null) || ['command.tasks']
         'tasks'                    | GRADLE  | new UnitTestSettings(ToolCommand.of(['test'], []), '**/*.xml', null, null, false, null) || []
         'a result pattern'         | FLUTTER | new UnitTestSettings(null, '**/TEST-*.xml', null, null, true, null)            || []
     }
