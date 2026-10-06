@@ -13,7 +13,7 @@ public interface PipelinesUseCase {
 
     PipelineView create(long serviceId, PipelineType type, PipelineSettings settings);
 
-    List<PipelineView> createForNewServices(long productId, List<Long> serviceIds);
+    List<PipelineView> createMissing(long productId, List<Long> serviceIds, PipelineType type);
 
     PipelineView update(long id, PipelineType type, PipelineSettings settings);
 

@@ -6,6 +6,7 @@ import com.bbh.itss.dso.portal.application.catalog.port.in.ProductCommand;
 import com.bbh.itss.dso.portal.domain.catalog.AppScanAccount;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.ProductDetails;
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -40,9 +41,10 @@ public record ProductDto(
                 product.createdAt(), product.updatedAt(), product.services().stream().map(ServiceDto::from).toList());
     }
 
-    ProductCommand toCommand() {
+    ProductCommand toCommand(PipelineType pipelineType) {
         return new ProductCommand(version, new ProductDetails(code, name, description, ownerTeam, contactEmail),
-                RecordMapper.map(appScan, AppScanAccount.class), services.stream().map(ServiceDto::toDraft).toList());
+                RecordMapper.map(appScan, AppScanAccount.class), services.stream().map(ServiceDto::toDraft).toList(),
+                pipelineType);
     }
 
     public record AppScanAccountDto(@NotBlank @Size(max = 200) String keyId, @Size(max = 200) String secretCredentialsId)

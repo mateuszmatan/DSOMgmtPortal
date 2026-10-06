@@ -76,7 +76,7 @@ public class PipelineService implements PipelinesUseCase {
     }
 
     @Override
-    public List<PipelineView> createForNewServices(long productId, List<Long> serviceIds) {
+    public List<PipelineView> createMissing(long productId, List<Long> serviceIds, PipelineType type) {
         if (serviceIds.isEmpty()) {
             return List.of();
         }
@@ -85,8 +85,8 @@ public class PipelineService implements PipelinesUseCase {
         return serviceIds.stream()
                 .map(serviceId -> product.service(serviceId)
                         .orElseThrow(() -> NotFoundException.of("Service", serviceId)))
-                .filter(service -> !pipelines.existsForService(service.id(), PipelineType.FULL))
-                .map(service -> PipelineView.of(product, create(product, service.id(), PipelineType.FULL,
+                .filter(service -> !pipelines.existsForService(service.id(), type))
+                .map(service -> PipelineView.of(product, create(product, service.id(), type,
                         PipelineSettings.forNewService()), jenkinsUrl))
                 .toList();
     }

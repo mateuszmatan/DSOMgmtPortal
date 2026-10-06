@@ -11,6 +11,7 @@ import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.ProductCode;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 
 import java.util.Collections;
@@ -57,7 +58,7 @@ public class ProductCatalogService implements ProductsUseCase {
     @Override
     public Product create(ProductCommand command) {
         Product saved = products.save(Product.create(command.details(), command.appScan(), command.services(), products));
-        return withPipelinesForNewServices(saved, Collections.emptySet());
+        return withPipelines(saved, Collections.emptySet(), command.pipelineType());
     }
 
     @Override
@@ -65,7 +66,7 @@ public class ProductCatalogService implements ProductsUseCase {
         Product product = find(id);
         Set<Long> known = new HashSet<>(serviceIds(product));
         product.update(command.version(), command.details(), command.appScan(), command.services(), products);
-        return withPipelinesForNewServices(products.save(product), known);
+        return withPipelines(products.save(product), known, command.pipelineType());
     }
 
     @Override
@@ -80,10 +81,10 @@ public class ProductCatalogService implements ProductsUseCase {
         return ProductCode.suggest(name, products);
     }
 
-    private Product withPipelinesForNewServices(Product saved, Set<Long> known) {
-        pipelines.createForNewServices(saved.id(), serviceIds(saved).stream()
-                .filter(serviceId -> !known.contains(serviceId))
-                .toList());
+    private Product withPipelines(Product saved, Set<Long> known, PipelineType type) {
+        pipelines.createMissing(saved.id(), serviceIds(saved).stream()
+                .filter(serviceId -> type != null || !known.contains(serviceId))
+                .toList(), type == null ? PipelineType.FULL : type);
         return saved;
     }
 

@@ -83,8 +83,8 @@ class PipelineServiceSpec extends Specification {
         'listing'               | 'Product 2'    | { it.listForProduct(2L) }
         'reading'               | 'Pipeline 100' | { it.get(100L) }
         'reading'               | 'Product 2'    | { it.get(101L) }
-        'starting new services' | 'Service 12'   | { it.createForNewServices(1L, [12L]) }
-        'starting new services' | 'Product 7'    | { it.createForNewServices(7L, [10L]) }
+        'starting new services' | 'Service 12'   | { it.createMissing(1L, [12L], PipelineType.FULL) }
+        'starting new services' | 'Product 7'    | { it.createMissing(7L, [10L], PipelineType.FULL) }
         'creating'              | 'Service 10'   | { it.create(10L, PipelineType.FULL, pipelineSettings()) }
         'creating'              | 'Service 12'   | { it.create(12L, PipelineType.FULL, pipelineSettings()) }
         'deleting'              | 'Pipeline 100' | { it.delete(100L) }
@@ -110,30 +110,33 @@ class PipelineServiceSpec extends Specification {
         view.pipeline().activeKey().get().status() == KeyStatus.ACTIVE
     }
 
-    def "every service a save created starts with a full pipeline and a key"() {
+    def "every service a save covers starts with a #type pipeline and a key"() {
         given:
         products.load(1L) >> Optional.of(certScanner)
 
         when:
-        def views = service.createForNewServices(1L, [10L, 11L])
+        def views = service.createMissing(1L, [10L, 11L], type)
 
         then:
         2 * pipelines.save({ Pipeline p ->
-            p.type() == PipelineType.FULL && p.settings().agentLabels() == ['linux-agent'] &&
+            p.type() == type && p.settings().agentLabels() == ['linux-agent'] &&
                     p.settings().jenkinsJob() == null && p.keys()*.value() == [NEW_KEY]
         }) >>> [stored(100L, pipeline(id: null, serviceId: 10L)), stored(101L, pipeline(id: null, serviceId: 11L))]
         views*.pipeline()*.id() == [100L, 101L]
         views*.service()*.name() == ['gui', 'backend-api']
         views.every { it.pipeline().isEnabled() }
+
+        where:
+        type << [PipelineType.FULL, PipelineType.SAST]
     }
 
-    def "a service that already has a full pipeline keeps it, and a save that created no service reads nothing"() {
+    def "a service that already has a pipeline of the type keeps it, and a save that covered no service reads nothing"() {
         given:
         products.load(1L) >> Optional.of(certScanner)
-        pipelines.existsForService(10L, PipelineType.FULL) >> true
+        pipelines.existsForService(10L, PipelineType.SECURITY) >> true
 
         when:
-        def views = service.createForNewServices(1L, [10L, 11L])
+        def views = service.createMissing(1L, [10L, 11L], PipelineType.SECURITY)
 
         then:
         1 * pipelines.save({ Pipeline p -> p.service().serviceId() == 11L }) >> { Pipeline p -> stored(101L, p) }
@@ -141,7 +144,7 @@ class PipelineServiceSpec extends Specification {
         views*.pipeline()*.id() == [101L]
 
         when:
-        def none = service.createForNewServices(1L, [])
+        def none = service.createMissing(1L, [], PipelineType.SECURITY)
 
         then:
         none == []

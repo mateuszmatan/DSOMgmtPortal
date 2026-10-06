@@ -17,6 +17,7 @@
                   class="menu-item"
                   [routerLink]="item.path"
                   routerLinkActive="active"
+                  [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
                   ariaCurrentWhenActive="page"
                   >{{ item.label }}</a
                 >

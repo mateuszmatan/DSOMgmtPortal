@@ -26,11 +26,15 @@ class ApiData {
         (StubApi.fixture('pipeline-1.json') as Map) + [keys: null] + overrides
     }
 
-    static Map fullPipeline(long id, Map product, Map service, Map key) {
+    static final Map<String, String> ENTRY_POINTS = [FULL    : 'devSecOpsPipeline', SECURITY: 'devSecOpsSecurityPipeline',
+                                                     EXTENDED: 'devSecOpsExtendedPipeline',
+                                                     SAST    : 'devSecOpsSASTScanningPipeline']
+
+    static Map newPipeline(long id, Map product, Map service, Map key, String type) {
         def code = product.code as String
         def metrics = service.metrics as Map
         [id                 : id, productId: product.id, productCode: code, productName: product.name,
-         serviceId          : service.id, serviceName: service.name, type: 'FULL', entryPoint: 'devSecOpsPipeline',
+         serviceId          : service.id, serviceName: service.name, type: type, entryPoint: ENTRY_POINTS[type],
          agentLabels        : ['linux-agent'], extendedPipelineJob: null, securityPipelineJob: null, jenkinsJob: null,
          jenkinsJobUrl      : null, description: null, enabled: true, activeKey: key,
          influxProjectTag   : metrics?.influxProject ?: "${code}-${service.name}".toString(),
