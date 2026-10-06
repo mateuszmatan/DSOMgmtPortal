@@ -164,7 +164,11 @@ export class ProductDetail {
       .flatMap((service) => service.pipelines)
       .filter(
         (other) =>
-          other.type === pipeline.type && other.serviceId !== pipeline.serviceId && other.activeKey,
+          other.type === pipeline.type &&
+          other.serviceId !== pipeline.serviceId &&
+          other.activeKey &&
+          (pipeline.type !== 'EXTENDED' ||
+            other.securityPipelineJob === pipeline.securityPipelineJob),
       );
   }
 
