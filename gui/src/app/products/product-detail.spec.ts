@@ -105,6 +105,20 @@ describe('ProductDetail', () => {
     );
   });
 
+  it('shows the last REST fetch of a key only when one is recorded', async () => {
+    const fetched = pipeline({
+      id: 101,
+      type: 'SAST',
+      activeKey: { ...pipeline().activeKey!, lastUsedAt: '2026-10-04T07:00:00Z' },
+    });
+    await load(product(), [servicePipelines({ pipelines: [pipeline(), fetched] })]);
+
+    const dates = [...page().querySelectorAll('.key-dates')].map((dates) => dates.textContent);
+    expect(dates[0]).not.toContain('REST');
+    expect(dates[0]).not.toContain('not used');
+    expect(dates[1]).toContain('last fetched over REST');
+  });
+
   it('reveals and hides the active key with a text button', async () => {
     await load();
     const toggle = () => page().querySelector<HTMLButtonElement>('.key .text-link')!;
@@ -281,6 +295,28 @@ describe('ProductDetail', () => {
         data: { code: 'projects: {}', fileName: 'cert-config.yaml' },
       });
       expect(opened(1).data['fileName']).toBe('cert-gui-full.yaml');
+    });
+
+    it('offers one Jenkinsfile for the services that share a pipeline type, this one first', async () => {
+      const api = pipeline({
+        id: 200,
+        serviceId: 11,
+        serviceName: 'api',
+        activeKey: { ...pipeline().activeKey!, value: 'a1b2c3d4-0000-4abc-9def-123456789abc' },
+      });
+      await load(product(), [
+        servicePipelines(),
+        servicePipelines({ serviceId: 11, serviceName: 'api', pipelines: [api] }),
+      ]);
+
+      await menu('Jenkinsfile for several services');
+      http.expectOne('/api/settings').flush(globalSettings());
+
+      expect(opened().data['title']).toBe('Jenkinsfile for several services');
+      expect(opened().data['subtitle']).toContain('One run builds gui, api');
+      expect(opened().data['code']).toContain(
+        "pipelineKeys: [\n    '6f1c2d3e-0000-4abc-9def-123456789abc',\n    'a1b2c3d4",
+      );
     });
 
     it('replaces the key once confirmed and reveals the new one', async () => {

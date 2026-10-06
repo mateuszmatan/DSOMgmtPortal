@@ -60,7 +60,7 @@ describe('KeyHistoryDialog', () => {
     expect(cells('key')).toEqual(['6f1c2d3e…9abc', '1a2b3c4d…eeff']);
     expect(page().textContent).not.toContain(active.value!);
     expect(cells('status')).toEqual(['Active', 'Invalidated']);
-    expect(cells('lastUsedAt')[0]).toBe('Never');
+    expect(cells('lastUsedAt')[0]).toBe('');
     expect(cells('revoked')[0]).toBe('–');
     expect(cells('revoked')[1]).toContain('Leaked in a build log');
     expect(button('Regenerate key')).toBeUndefined();
