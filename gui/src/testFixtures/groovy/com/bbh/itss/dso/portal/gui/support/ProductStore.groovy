@@ -28,7 +28,9 @@ class ProductStore {
 
     static ProductStore created(StubApi api, int id) {
         def store = new ProductStore(api, id, null, [])
-        api.on('POST', '/api/products') { RecordedRequest request -> StubResponse.json(store.save(request.json() as Map), 201) }
+        api.on('POST', '/api/products') { RecordedRequest request ->
+            StubResponse.json(store.save(request.json() as Map, request.params().pipelineType), 201)
+        }
         store.serve()
     }
 
@@ -48,13 +50,13 @@ class ProductStore {
         api.get("$path/pipelines") { StubResponse.json(services) }
         api.on('PUT', path) { RecordedRequest request ->
             def body = request.json() as Map
-            body.version == product.version ? StubResponse.json(save(body))
+            body.version == product.version ? StubResponse.json(save(body, request.params().pipelineType))
                     : StubResponse.problem(409, 'Conflict', 'The product was changed by someone else; reload it and try again')
         }
         this
     }
 
-    private synchronized Map save(Map request) {
+    private synchronized Map save(Map request, String type) {
         def saved = request.services.collect { Map service ->
             def stored = service.id == null ? service + [id: nextServiceId++] : service
             stored + [flutter: stored.flutter ?: ApiData.noFlutterSettings()]
@@ -62,18 +64,20 @@ class ProductStore {
         def previous = product
         product = request + [id       : id, version: previous == null ? 0 : (previous.version as int) + 1,
                              createdAt: previous?.createdAt ?: SAVED_AT, updatedAt: SAVED_AT, services: saved]
-        services = saved.collect { Map service -> ApiData.servicePipelines(service, pipelinesOf(service)) }
+        services = saved.collect { Map service -> ApiData.servicePipelines(service, pipelinesOf(service, type)) }
         product
     }
 
-    private List<Map> pipelinesOf(Map service) {
-        def existing = services.find { it.serviceId == service.id }
-        if (existing) {
-            return (existing.pipelines as List<Map>).collect { it + [serviceName: service.name] }
+    private List<Map> pipelinesOf(Map service, String type) {
+        def existing = ((services.find { it.serviceId == service.id }?.pipelines ?: []) as List<Map>)
+                .collect { it + [serviceName: service.name] }
+        def wanted = type ?: (existing ? null : 'FULL')
+        if (wanted == null || existing.any { it.type == wanted }) {
+            return existing
         }
         def value = ApiData.keyValue(nextKeyId)
         generatedKeys[service.name as String] = value
         def key = ApiData.activeKey(nextKeyId++, value, SAVED_AT)
-        [ApiData.fullPipeline(nextPipelineId++, product, service, key)]
+        existing + [ApiData.newPipeline(nextPipelineId++, product, service, key, wanted)]
     }
 }

@@ -1,0 +1,315 @@
+<div class="page wizard">
+  <header class="page-header">
+    <div>
+      <h1>{{ section.heading }}</h1>
+      <p class="page-description">{{ section.description }}</p>
+    </div>
+  </header>
+
+  <ol class="step-bar" aria-label="Steps">
+    @for (label of steps; track label; let index = $index) {
+      <li [class.done]="index < step()" [class.current]="index === step()">
+        <button
+          type="button"
+          [disabled]="!canRevisit(index)"
+          [attr.aria-current]="index === step() ? 'step' : null"
+          (click)="goTo(index)"
+        >
+          <span class="number">{{ index + 1 }}</span>
+          <span class="step-label">{{ label }}</span>
+        </button>
+      </li>
+    }
+  </ol>
+
+  <section class="card step">
+    @switch (step()) {
+      @case (0) {
+        <h2>Which pipeline does your product need?</h2>
+        <p class="lead">
+          A pipeline checks your code automatically every time it runs. Choose one for the whole
+          product; every service gets its own.
+        </p>
+        <dso-choice-tiles label="Pipeline" [options]="pipelines" [(value)]="pipeline" />
+        @if (checked() && !pipeline()) {
+          <p class="choice-error">Choose a pipeline to continue</p>
+        }
+        @if (pipeline(); as chosen) {
+          <div class="prepare">
+            <h3>Have these at hand</h3>
+            <ul>
+              @for (need of preparation(chosen); track need) {
+                <li>{{ need }}</li>
+              }
+            </ul>
+          </div>
+        } @else {
+          <p class="hint">Not sure? Start with Security. You can add another pipeline later.</p>
+        }
+      }
+      @case (1) {
+        <h2>Which product is it?</h2>
+        <p class="lead">Start a new product or pick one that is already in the portal.</p>
+        <dso-choice-tiles
+          label="Product"
+          [options]="modes"
+          [value]="mode()"
+          (valueChange)="chooseMode($event)"
+        />
+        @if (mode() === 'new') {
+          <form class="fields" [formGroup]="productForm" novalidate>
+            <mat-form-field>
+              <mat-label>Product name</mat-label>
+              <input matInput formControlName="name" placeholder="CertScanner" autocomplete="off" />
+              <mat-hint>{{
+                code() ? 'Its code will be ' + code() : 'The portal makes a unique code from it'
+              }}</mat-hint>
+              <mat-error>{{ errorText(productForm.controls.name) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Owner team</mat-label>
+              <input matInput formControlName="ownerTeam" placeholder="Technology Architecture" />
+              <mat-hint>Optional</mat-hint>
+              <mat-error>{{ errorText(productForm.controls.ownerTeam) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Contact e-mail</mat-label>
+              <input
+                matInput
+                type="email"
+                formControlName="contactEmail"
+                placeholder="team@bbh.com"
+              />
+              <mat-hint>Optional</mat-hint>
+              <mat-error>{{ errorText(productForm.controls.contactEmail) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>AppScan API key ID</mat-label>
+              <input
+                matInput
+                class="mono"
+                formControlName="appScanKeyId"
+                placeholder="bbh_..."
+                autocomplete="off"
+              />
+              <mat-hint>The Application Security team gives it to you</mat-hint>
+              <mat-error>{{ errorText(productForm.controls.appScanKeyId) }}</mat-error>
+            </mat-form-field>
+          </form>
+        } @else {
+          <div class="fields">
+            <mat-form-field>
+              <mat-label>Product</mat-label>
+              <mat-select [formControl]="productId">
+                @for (product of products(); track product.id) {
+                  <mat-option [value]="product.id"
+                    >{{ product.name }} ({{ product.code }})</mat-option
+                  >
+                }
+              </mat-select>
+              <mat-hint>{{ products().length }} products in the portal</mat-hint>
+            </mat-form-field>
+          </div>
+          @if (productError(); as error) {
+            <p class="choice-error">{{ error }}</p>
+          }
+          @if (existing(); as product) {
+            <dl class="rows">
+              <dt>Owner team</dt>
+              <dd>{{ product.ownerTeam ?? 'not set' }}</dd>
+              <dt>Services</dt>
+              <dd>{{ product.services.length }}</dd>
+            </dl>
+          } @else if (checked()) {
+            <p class="choice-error">Choose the product</p>
+          }
+        }
+      }
+      @case (2) {
+        <h2>Which services does {{ productName() }} have?</h2>
+        <p class="lead">
+          A service is a part of the product that is built on its own, for example its web front end
+          or its REST API. Each one gets its own {{ pipelineLabel(pipeline()!) }} pipeline.
+        </p>
+        @if (services().length) {
+          <ol class="service-list">
+            @for (service of services(); track $index; let index = $index) {
+              <li>
+                <span class="index">{{ index + 1 }}</span>
+                <div class="service-text">
+                  <div class="row-wrap">
+                    <strong>{{ service.name }}</strong>
+                    @if (service.id === null) {
+                      <span class="tag new">New</span>
+                    }
+                  </div>
+                  <span class="muted">{{ serviceSummary(service) }}</span>
+                  @if (service.description) {
+                    <span class="muted">{{ service.description }}</span>
+                  }
+                </div>
+                <button mat-button type="button" (click)="changeService(index)">Change</button>
+                @if (service.id === null) {
+                  <button mat-button type="button" class="danger" (click)="removeService(index)">
+                    Remove
+                  </button>
+                }
+              </li>
+            }
+          </ol>
+        } @else {
+          <p class="empty">No services yet. Add the first one.</p>
+        }
+        <button mat-stroked-button type="button" (click)="addService()">Add a service</button>
+        @if (checked() && !services().length) {
+          <p class="choice-error">Add at least one service</p>
+        }
+      }
+      @case (3) {
+        <h2>Check and save</h2>
+        <p class="lead">
+          Saving {{ existing() ? 'updates' : 'adds' }} {{ productName() }} and gives every service a
+          {{ pipelineLabel(pipeline()!) }} pipeline with its own key, unless it has one already.
+        </p>
+        <dl class="rows">
+          <dt>Pipeline</dt>
+          <dd>{{ pipelineLabel(pipeline()!) }}</dd>
+          <dt>Product</dt>
+          <dd>{{ productName() }} ({{ existing()?.code ?? code() }})</dd>
+          @if (!existing()) {
+            <dt>Owner team</dt>
+            <dd>{{ productForm.controls.ownerTeam.value || 'not set' }}</dd>
+            <dt>Contact e-mail</dt>
+            <dd>{{ productForm.controls.contactEmail.value || 'not set' }}</dd>
+          }
+          <dt>Services</dt>
+          <dd>
+            <ul class="review-services">
+              @for (service of services(); track $index) {
+                <li>
+                  <strong>{{ service.name }}</strong> · {{ serviceSummary(service) }}
+                  @if (service.id === null) {
+                    <span class="tag new">New</span>
+                  }
+                </li>
+              }
+            </ul>
+          </dd>
+        </dl>
+        <p class="note">
+          The portal fills in everything else from BBH defaults and the Global Settings. The
+          DevSecOps team can fine-tune it in Product Management.
+        </p>
+        @if (saving()) {
+          <mat-progress-bar mode="indeterminate" />
+        }
+        @if (saveError(); as error) {
+          <div class="banner save-problem" role="alert">
+            <div>
+              <strong>{{ error }}</strong>
+              @if (saveProblems().length) {
+                <ul class="problems">
+                  @for (problem of saveProblems(); track problem) {
+                    <li>{{ problem }}</li>
+                  }
+                </ul>
+              }
+            </div>
+          </div>
+        }
+      }
+      @case (4) {
+        @if (result(); as done) {
+          <h2>{{ done.product.name }} is ready. Do these steps in order</h2>
+          <ol class="next-steps">
+            <li>
+              <h3>Put the Jenkinsfile in each repository</h3>
+              <p>
+                Save the text below as a file named <code>Jenkinsfile</code> in the top folder of
+                the service's Bitbucket repository and merge it.
+              </p>
+              @for (start of done.starts; track start.serviceName) {
+                <div class="jenkinsfile">
+                  <div class="jenkinsfile-head">
+                    <strong>{{ start.serviceName }}</strong>
+                    @if (start.pipeline) {
+                      <button
+                        mat-button
+                        type="button"
+                        [cdkCopyToClipboard]="jenkinsfileOf(start)"
+                        (cdkCopyToClipboardCopied)="copied()"
+                      >
+                        Copy
+                      </button>
+                    }
+                  </div>
+                  @if (start.pipeline) {
+                    <pre class="code mono">{{ jenkinsfileOf(start) }}</pre>
+                  } @else {
+                    <p class="muted">Its pipeline is shown on the product page.</p>
+                  }
+                </div>
+              } @empty {
+                <p class="muted">Open the product page to see the keys of its pipelines.</p>
+              }
+            </li>
+            <li>
+              <h3>Create a Jenkins job for each service</h3>
+              <p>
+                Ask your Jenkins administrator for a Pipeline job that reads the Jenkinsfile from
+                the repository (Pipeline script from SCM).
+                @if (done.starts[0]?.pipeline; as first) {
+                  A good name is <code>{{ jobName(first) }}</code
+                  >.
+                }
+              </p>
+            </li>
+            <li>
+              <h3>Run each job once</h3>
+              <p>
+                Choose Build with Parameters and an agent. The pipeline reads all its settings from
+                this portal through its key.
+              </p>
+            </li>
+            @if (pipeline() === 'FULL') {
+              <li>
+                <h3>Connect your tests and deployment</h3>
+                <p>
+                  Add the smoke, regression and performance test jobs and the deployment details of
+                  each service in Product Management, or ask the DevSecOps team to do it.
+                </p>
+              </li>
+            }
+            <li>
+              <h3>Follow the results</h3>
+              <p>
+                <a [routerLink]="['/monitoring/products', done.product.id]">Pipeline Monitoring</a>
+                shows every run, and
+                <a routerLink="/evidence">Change Evidence</a> collects the results for ServiceNow
+                changes.
+              </p>
+            </li>
+          </ol>
+        }
+      }
+    }
+
+    <div class="step-actions">
+      @if (step() === 4) {
+        <a mat-button [routerLink]="['/products', result()?.product?.id]"
+          >Open in Product Management</a
+        >
+        <span class="spacer"></span>
+        <button mat-flat-button type="button" (click)="restart()">Onboard another product</button>
+      } @else {
+        @if (step() > 0) {
+          <button mat-button type="button" [disabled]="saving()" (click)="back()">Back</button>
+        }
+        <span class="spacer"></span>
+        <button mat-flat-button type="button" [disabled]="saving()" (click)="next()">
+          {{ nextLabel() }}
+        </button>
+      }
+    </div>
+  </section>
+</div>

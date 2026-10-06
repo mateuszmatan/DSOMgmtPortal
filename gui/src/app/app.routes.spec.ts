@@ -14,6 +14,7 @@ import { Observable, firstValueFrom, of } from 'rxjs';
 import { appConfig } from './app.config';
 import { routes } from './app.routes';
 import { BeadleOverview } from './beadle/beadle-overview';
+import { Onboarding } from './beadle/onboarding';
 import { PortalTitleStrategy } from './core/title-strategy';
 import { HasUnsavedChanges, unsavedChangesGuard } from './core/unsaved-changes';
 import { ChangeEvidencePage } from './evidence/change-evidence';
@@ -48,12 +49,13 @@ describe('routes', () => {
       evidence: ChangeEvidencePage,
       settings: GlobalSettingsPage,
       beadle: BeadleOverview,
+      'beadle/onboarding': Onboarding,
     });
   });
 
   it('guards the editors against leaving with unsaved changes', () => {
     const guarded = routes.filter((route) => route.canDeactivate).map((route) => route.path);
-    expect(guarded).toEqual(['products/new', 'products/:id/edit', 'settings']);
+    expect(guarded).toEqual(['products/new', 'products/:id/edit', 'settings', 'beadle/onboarding']);
   });
 });
 

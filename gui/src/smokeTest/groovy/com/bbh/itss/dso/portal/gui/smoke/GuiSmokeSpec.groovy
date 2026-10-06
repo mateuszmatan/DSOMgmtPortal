@@ -19,7 +19,9 @@ class GuiSmokeSpec extends GuiSpecification {
              description: 'Builds, tests and scans for ServiceNow changes'],
             [label: 'Global Settings', heading: 'DevSecOps Global Settings', path: '/settings',
              description: 'Tools, policy and defaults of every pipeline'],
-            [label: 'Overview', heading: 'Beadle', path: '/beadle', description: 'New features of the BBH portal']]
+            [label: 'Overview', heading: 'Beadle', path: '/beadle', description: 'New features of the BBH portal'],
+            [label: 'Product Onboarding', heading: 'Product Onboarding', path: '/beadle/onboarding',
+             description: 'Set up DevSecOps for your product, step by step']]
 
     static final String REGENERATED_KEY = '3f9d2c4e-8a1b-4c7d-9e2f-5b6a7c8d1e04'
 
@@ -70,13 +72,14 @@ class GuiSmokeSpec extends GuiSpecification {
         ownErrors().isEmpty()
 
         where:
-        path            | heading
-        '/products'     | 'DevSecOps Product Management'
-        '/monitoring'   | 'DevSecOps Pipeline Monitoring'
-        '/evidence'     | 'DevSecOps Change Evidence'
-        '/settings'     | 'DevSecOps Global Settings'
-        '/products/new' | 'Add product'
-        '/beadle'       | 'Beadle'
+        path                 | heading
+        '/products'          | 'DevSecOps Product Management'
+        '/monitoring'        | 'DevSecOps Pipeline Monitoring'
+        '/evidence'          | 'DevSecOps Change Evidence'
+        '/settings'          | 'DevSecOps Global Settings'
+        '/products/new'      | 'Add product'
+        '/beadle'            | 'Beadle'
+        '/beadle/onboarding' | 'Product Onboarding'
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
@@ -107,7 +110,7 @@ class GuiSmokeSpec extends GuiSpecification {
 
         where:
         path << ['/products', '/products/1', '/monitoring', '/monitoring/products/1', '/monitoring/pipelines/1',
-                 '/evidence', '/settings', '/beadle']
+                 '/evidence', '/settings', '/beadle', '/beadle/onboarding']
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
@@ -136,7 +139,7 @@ class GuiSmokeSpec extends GuiSpecification {
 
         where:
         [path, width] << [['/products', '/products/1', '/products/1/edit', '/monitoring', '/monitoring/products/1',
-                           '/evidence', '/settings'], [800, 600]].combinations()
+                           '/evidence', '/settings', '/beadle/onboarding'], [800, 600]].combinations()
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })

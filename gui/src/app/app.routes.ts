@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { BEADLE, EVIDENCE, MONITORING, PRODUCTS, SETTINGS } from './core/sections';
+import { BEADLE, EVIDENCE, MONITORING, ONBOARDING, PRODUCTS, SETTINGS } from './core/sections';
 import { unsavedChangesGuard } from './core/unsaved-changes';
 
 export const routes: Routes = [
@@ -59,6 +59,12 @@ export const routes: Routes = [
     path: 'beadle',
     title: BEADLE.heading,
     loadComponent: () => import('./beadle/beadle-overview').then((m) => m.BeadleOverview),
+  },
+  {
+    path: 'beadle/onboarding',
+    title: ONBOARDING.heading,
+    canDeactivate: [unsavedChangesGuard],
+    loadComponent: () => import('./beadle/onboarding').then((m) => m.Onboarding),
   },
   { path: '**', redirectTo: 'products' },
 ];

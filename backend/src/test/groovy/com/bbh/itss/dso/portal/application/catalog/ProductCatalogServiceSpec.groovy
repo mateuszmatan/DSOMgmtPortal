@@ -11,6 +11,7 @@ import com.bbh.itss.dso.portal.domain.catalog.ProductDirectory
 import com.bbh.itss.dso.portal.domain.catalog.Service
 import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
 import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException
@@ -124,7 +125,7 @@ class ProductCatalogServiceSpec extends Specification {
         1 * publisher.productChanged(9L)
 
         then:
-        1 * pipelines.createForNewServices(9L, [10L, 11L])
+        1 * pipelines.createMissing(9L, [10L, 11L], PipelineType.FULL)
         created.id() == 9
         created.services()*.name() == ['gui', 'backend-api']
         created.services()*.settings()*.metrics()*.influxProject() == ['CERT-gui', 'CERT-backend-api']
@@ -139,12 +140,29 @@ class ProductCatalogServiceSpec extends Specification {
 
         then:
         1 * products.save(_) >> { Product p -> stored(5L, p, [10L] + created) }
-        1 * pipelines.createForNewServices(5L, created)
+        1 * pipelines.createMissing(5L, created, PipelineType.FULL)
 
         where:
         added                                         || created
         [service(name: 'worker'), service(name: 'b')] || [12L, 13L]
         []                                            || []
+    }
+
+    def "a save naming a pipeline type gives that pipeline to every service of the product that lacks one"() {
+        given:
+        products.load(5L) >> Optional.of(product(id: 5, services: [[name: 'gui', id: 10]]))
+
+        when:
+        save(catalog)
+
+        then:
+        1 * products.save(_) >> { Product p -> stored(5L, p, [10L, 12L]) }
+        1 * pipelines.createMissing(5L, [10L, 12L], PipelineType.SAST)
+
+        where:
+        save << [{ it.create(command(services: [service(name: 'gui'), service(name: 'worker')], pipelineType: PipelineType.SAST)) },
+                 { it.update(5L, command(version: 0L, services: [service(id: 10L, name: 'gui'), service(name: 'worker')],
+                         pipelineType: PipelineType.SAST)) }]
     }
 
     def "every invalid service is reported at once and nothing is stored"() {
@@ -252,7 +270,7 @@ class ProductCatalogServiceSpec extends Specification {
 
     private static ProductCommand command(Map args = [:]) {
         new ProductCommand(args.version as Long, details(args), account(),
-                args.services as List<ServiceDraft> ?: [service(name: 'gui')])
+                args.services as List<ServiceDraft> ?: [service(name: 'gui')], args.pipelineType as PipelineType)
     }
 
     private static Product stored(long id, Product product, List<Long> serviceIds = []) {

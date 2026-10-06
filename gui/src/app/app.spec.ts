@@ -28,7 +28,7 @@ describe('App', () => {
       .find((trigger) => text(trigger) === label)!
       .click();
     await fixture.whenStable();
-    return document.querySelector<HTMLElement>('.mat-mdc-menu-panel')!;
+    return [...document.querySelectorAll<HTMLElement>('.mat-mdc-menu-panel')].at(-1)!;
   }
 
   it('names the portal in its header and offers the Beadle and DevSecOps Management menus', () => {
@@ -39,7 +39,7 @@ describe('App', () => {
   });
 
   it.each([
-    ['Beadle', ['Overview'], ['/beadle']],
+    ['Beadle', ['Overview', 'Product Onboarding'], ['/beadle', '/beadle/onboarding']],
     [
       'DevSecOps Management',
       ['Product Management', 'Pipeline Monitoring', 'Change Evidence', 'Global Settings'],
@@ -77,10 +77,11 @@ describe('App', () => {
       'Pipeline Monitoring',
     );
 
-    await TestBed.inject(Router).navigateByUrl('/beadle');
+    await TestBed.inject(Router).navigateByUrl('/beadle/onboarding');
     await fixture.whenStable();
 
     expect(text(page().querySelector('.menu-group.active'))).toBe('Beadle');
+    expect(text((await open('Beadle')).querySelector('a.active'))).toBe('Product Onboarding');
   });
 
   it('gives every section the full DevSecOps name as its page heading', () => {

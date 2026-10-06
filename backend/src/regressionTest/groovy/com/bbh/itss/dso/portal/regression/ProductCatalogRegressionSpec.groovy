@@ -387,6 +387,34 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         api.get("/api/products/$created.id/pipelines").json[1].pipelines == []
     }
 
+    def "a save naming a pipeline type gives every service of the product a pipeline of that type"() {
+        given:
+        def code = uniqueCode()
+
+        when:
+        def created = api.post('/api/products?pipelineType=SAST', product(code: code, name: "Product $code",
+                services: [service(name: 'gui')]))
+
+        then:
+        created.status == 201
+        api.get("/api/products/$created.json.id/pipelines").json*.pipelines*.type == [['SAST']]
+
+        when:
+        def updated = api.put("/api/products/$created.json.id?pipelineType=SECURITY", product(code: code,
+                name: "Product $code", services: [service(id: created.json.services[0].id, name: 'gui'),
+                                                  service(name: 'worker')]))
+        def pipelines = api.get("/api/products/$created.json.id/pipelines").json
+
+        then:
+        updated.status == 200
+        pipelines*.pipelines*.type == [['SAST', 'SECURITY'], ['SECURITY']]
+        pipelines.every { it.pipelines.every { it.activeKey.status == 'ACTIVE' } }
+
+        expect:
+        api.post('/api/products?pipelineType=NIGHTLY', product(code: uniqueCode(), name: 'Nightly',
+                services: [service(name: 'gui')])).status == 400
+    }
+
     def "#refusal is a problem detail that keeps the portal's internals to itself"() {
         when:
         def response = call.call(api)
