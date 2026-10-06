@@ -7,7 +7,6 @@ import com.bbh.itss.dso.portal.application.catalog.port.in.ProductSummaryView;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.out.PipelineCountsPort;
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort;
-import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.ProductCode;
@@ -25,14 +24,12 @@ public class ProductCatalogService implements ProductsUseCase {
 
     private final ProductRepositoryPort products;
     private final PipelineCountsPort pipelineCounts;
-    private final PublishPipelineConfigsUseCase publisher;
     private final PipelinesUseCase pipelines;
 
     public ProductCatalogService(ProductRepositoryPort products, PipelineCountsPort pipelineCounts,
-                                 PublishPipelineConfigsUseCase publisher, PipelinesUseCase pipelines) {
+                                 PipelinesUseCase pipelines) {
         this.products = products;
         this.pipelineCounts = pipelineCounts;
-        this.publisher = publisher;
         this.pipelines = pipelines;
     }
 
@@ -59,23 +56,20 @@ public class ProductCatalogService implements ProductsUseCase {
 
     @Override
     public Product create(ProductCommand command) {
-        publisher.lockConfigurations();
-        Product saved = saved(Product.create(command.details(), command.appScan(), command.services(), products));
+        Product saved = products.save(Product.create(command.details(), command.appScan(), command.services(), products));
         return withPipelinesForNewServices(saved, Collections.emptySet());
     }
 
     @Override
     public Product update(long id, ProductCommand command) {
-        publisher.lockConfigurations();
         Product product = find(id);
         Set<Long> known = new HashSet<>(serviceIds(product));
         product.update(command.version(), command.details(), command.appScan(), command.services(), products);
-        return withPipelinesForNewServices(saved(product), known);
+        return withPipelinesForNewServices(products.save(product), known);
     }
 
     @Override
     public void delete(long id) {
-        publisher.lockConfigurations();
         find(id);
         products.delete(id);
     }
@@ -95,12 +89,6 @@ public class ProductCatalogService implements ProductsUseCase {
 
     private static List<Long> serviceIds(Product product) {
         return product.services().stream().map(Service::id).toList();
-    }
-
-    private Product saved(Product product) {
-        Product saved = products.save(product);
-        publisher.productChanged(saved.id());
-        return saved;
     }
 
     private Product find(long id) {

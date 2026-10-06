@@ -1,7 +1,6 @@
 package com.bbh.itss.dso.portal.application.dsoconfig
 
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase
-import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
@@ -20,38 +19,21 @@ class PipelineConfigServiceSpec extends Specification {
 
     static final String KEY = '6f1c2d3e-0000-4abc-9def-123456789abc'
 
-    PublishPipelineConfigsUseCase published = Mock()
     PipelinesUseCase pipelines = Mock()
     ProductsUseCase products = Mock()
     ManageGlobalSettingsUseCase settings = Stub() {
         current() >> storedSettings('https://jenkins.test')
     }
-    def service = new PipelineConfigService(published, pipelines, products, settings)
+    def service = new PipelineConfigService(pipelines, products, settings)
 
     Product certScanner = product(id: 1L, code: 'CERT', services: [[name: 'gui', id: 10L], [name: 'backend-api', id: 11L]])
 
-    def "a pipeline key reads the configuration its pipeline published"() {
-        given:
-        Map<String, Object> current = [pipeline: [type: 'full', product: 'CERT']]
-
+    def "a pipeline key renders the configuration of its pipeline from the current settings"() {
         when:
         def config = service.readByKey(KEY)
 
         then:
         1 * pipelines.authorizeKey(KEY) >> 100L
-        1 * published.currentConfig(100L) >> Optional.of(current)
-        0 * pipelines.get(_)
-        0 * products._
-        config.is(current)
-    }
-
-    def "a pipeline key renders the configuration of its pipeline when none is published since the start"() {
-        when:
-        def config = service.readByKey(KEY)
-
-        then:
-        1 * pipelines.authorizeKey(KEY) >> 100L
-        1 * published.currentConfig(100L) >> Optional.empty()
         1 * pipelines.get(100L) >> view(PipelineType.FULL)
         config.keySet() as List == ['pipeline', 'platform', 'defaults', 'projects']
         config.pipeline.product == 'CERT'
@@ -69,7 +51,6 @@ class PipelineConfigServiceSpec extends Specification {
 
         then:
         thrown(failure.class)
-        0 * published._
         0 * pipelines.get(_)
 
         where:

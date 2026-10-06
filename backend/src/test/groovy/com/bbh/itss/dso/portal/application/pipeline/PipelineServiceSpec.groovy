@@ -1,7 +1,6 @@
 package com.bbh.itss.dso.portal.application.pipeline
 
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort
-import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
@@ -39,9 +38,8 @@ class PipelineServiceSpec extends Specification {
     ManageGlobalSettingsUseCase settings = Stub() {
         current() >> storedSettings('https://jenkins.test')
     }
-    PublishPipelineConfigsUseCase publisher = Mock()
     KeyGenerator keys = { -> NEW_KEY } as KeyGenerator
-    def service = new PipelineService(pipelines, products, settings, publisher, keys, Clock.fixed(NOW, ZoneOffset.UTC))
+    def service = new PipelineService(pipelines, products, settings, keys, Clock.fixed(NOW, ZoneOffset.UTC))
 
     def certScanner = product(id: 1, services: [[name: 'gui', id: 10], [name: 'backend-api', id: 11]])
 
@@ -93,7 +91,7 @@ class PipelineServiceSpec extends Specification {
         'issuing a key'         | 'Pipeline 100' | { it.issueKey(100L) }
     }
 
-    def "a pipeline is created with its first key and published"() {
+    def "a pipeline is created with its first key"() {
         given:
         products.findByServiceId(10L) >> Optional.of(certScanner)
 
@@ -106,16 +104,13 @@ class PipelineServiceSpec extends Specification {
             p.id() == null && p.type() == PipelineType.SECURITY && p.service().serviceId() == 10L &&
                     p.service().productId() == 1L && p.keys()*.value() == [NEW_KEY] && p.keys()[0].issuedAt() == NOW_MICROS
         }) >> { Pipeline p -> stored(100L, p) }
-
-        then:
-        1 * publisher.pipelineChanged(100L)
         view.pipeline().id() == 100
         view.pipeline().settings().extendedPipelineJob() == 'CERT/gui-extended'
         view.jenkinsJobUrl() == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-security/'
         view.pipeline().activeKey().get().status() == KeyStatus.ACTIVE
     }
 
-    def "every service a save created starts with a full pipeline, a key and a published configuration"() {
+    def "every service a save created starts with a full pipeline and a key"() {
         given:
         products.load(1L) >> Optional.of(certScanner)
 
@@ -123,21 +118,16 @@ class PipelineServiceSpec extends Specification {
         def views = service.createForNewServices(1L, [10L, 11L])
 
         then:
-        1 * publisher.lockConfigurations()
-
-        then:
         2 * pipelines.save({ Pipeline p ->
             p.type() == PipelineType.FULL && p.settings().agentLabels() == ['linux-agent'] &&
                     p.settings().jenkinsJob() == null && p.keys()*.value() == [NEW_KEY]
         }) >>> [stored(100L, pipeline(id: null, serviceId: 10L)), stored(101L, pipeline(id: null, serviceId: 11L))]
-        1 * publisher.pipelineChanged(100L)
-        1 * publisher.pipelineChanged(101L)
         views*.pipeline()*.id() == [100L, 101L]
         views*.service()*.name() == ['gui', 'backend-api']
         views.every { it.pipeline().isEnabled() }
     }
 
-    def "a service that already has a full pipeline keeps it, and a save that created no service takes no lock"() {
+    def "a service that already has a full pipeline keeps it, and a save that created no service reads nothing"() {
         given:
         products.load(1L) >> Optional.of(certScanner)
         pipelines.existsForService(10L, PipelineType.FULL) >> true
@@ -155,12 +145,11 @@ class PipelineServiceSpec extends Specification {
 
         then:
         none == []
-        0 * publisher.lockConfigurations()
         0 * products.load(_)
         0 * pipelines.save(_)
     }
 
-    def "#refusal is refused before anything is saved or published"() {
+    def "#refusal is refused before anything is saved"() {
         given:
         products.findByServiceId(10L) >> Optional.of(certScanner)
         pipelines.existsForService(10L, PipelineType.FULL) >> true
@@ -173,7 +162,6 @@ class PipelineServiceSpec extends Specification {
         def e = thrown(ConflictException)
         e.message == message
         0 * pipelines.save(_)
-        0 * publisher.pipelineChanged(_)
 
         where:
         refusal                       | action                                                     || message
@@ -181,7 +169,7 @@ class PipelineServiceSpec extends Specification {
         'a change of the type'        | { it.update(100L, PipelineType.SAST, pipelineSettings()) } || 'The type of a pipeline cannot change; add a new pipeline instead'
     }
 
-    def "a pipeline's settings can change and the pipeline is published"() {
+    def "a pipeline's settings can change"() {
         given:
         pipelines.load(100L) >> Optional.of(pipeline(id: 100))
         products.load(1L) >> Optional.of(certScanner)
@@ -193,47 +181,9 @@ class PipelineServiceSpec extends Specification {
 
         then:
         1 * pipelines.save({ Pipeline p -> p.settings().agentLabels() == ['windows', 'linux'] }) >> { Pipeline p -> p }
-
-        then:
-        1 * publisher.pipelineChanged(100L)
         view.pipeline().settings().description() == 'Nightly'
         view.pipeline().settings().extendedPipelineJob() == null
         view.pipeline().settings().securityPipelineJob() == null
-    }
-
-    def "a pipeline is created, changed and deleted only under the configuration lock, taken before anything is read"() {
-        given:
-        products.load(1L) >> Optional.of(certScanner)
-
-        when:
-        service.create(10L, PipelineType.FULL, pipelineSettings())
-
-        then:
-        1 * publisher.lockConfigurations()
-
-        then:
-        1 * products.findByServiceId(10L) >> Optional.of(certScanner)
-        1 * pipelines.save(_) >> { Pipeline p -> stored(100L, p) }
-
-        when:
-        service.update(100L, PipelineType.FULL, pipelineSettings(agentLabels: ['windows']))
-
-        then:
-        1 * publisher.lockConfigurations()
-
-        then:
-        1 * pipelines.load(100L) >> Optional.of(pipeline(id: 100))
-        1 * pipelines.save(_) >> { Pipeline p -> p }
-
-        when:
-        service.delete(100L)
-
-        then:
-        1 * publisher.lockConfigurations()
-
-        then:
-        1 * pipelines.load(100L) >> Optional.of(pipeline(id: 100))
-        1 * pipelines.delete(100L)
     }
 
     def "a key is revoked on the pipeline loaded under a row lock"() {
@@ -249,7 +199,6 @@ class PipelineServiceSpec extends Specification {
 
         then:
         1 * pipelines.save({ Pipeline p -> !p.enabled }) >> { Pipeline p -> p }
-        0 * publisher._
         !view.pipeline().enabled
         view.pipeline().keys()[0].revokeReason() == 'Leaked in a build log'
         view.pipeline().keys()[0].revokedAt() == NOW_MICROS
@@ -267,7 +216,6 @@ class PipelineServiceSpec extends Specification {
 
         then:
         1 * pipelines.save(_) >> { Pipeline p -> p }
-        0 * publisher._
         view.pipeline().activeKey().get().value() == NEW_KEY
         view.pipeline().keys()*.status() == [KeyStatus.ACTIVE, KeyStatus.REVOKED]
     }

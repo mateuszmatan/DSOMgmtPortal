@@ -349,7 +349,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                  [code: 'X']]
     }
 
-    def "every service a save creates starts with a full pipeline, a key and a published configuration"() {
+    def "every service a save creates starts with a full pipeline and a key that reads its configuration"() {
         given:
         def code = uniqueCode()
 

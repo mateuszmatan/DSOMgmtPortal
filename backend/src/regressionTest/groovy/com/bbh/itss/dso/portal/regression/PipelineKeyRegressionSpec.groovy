@@ -48,14 +48,6 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
         yaml.projects.keySet() == ['gui'] as Set
         yaml.projects.gui.influx.project == "$code-gui"
 
-        and: 'the library can read the same configuration from the database view'
-        with(libraryConfig(key)) {
-            KEY_STATUS == 'ACTIVE'
-            REVOKE_REASON == null
-            CONFIG_JSON != null
-            RENDERED_AT != null
-        }
-
         when:
         def revoked = api.post("/api/pipelines/$created.id/keys/revoke", [reason: 'Leaked in a build log'])
         def refused = api.get("/api/dso/config/$key")
@@ -67,13 +59,6 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
         refused.status == 403
         refused.json.title == 'Pipeline key invalidated'
         refused.json.detail.endsWith(': Leaked in a build log')
-
-        and: 'the database view no longer hands out the configuration for that key'
-        with(libraryConfig(key)) {
-            KEY_STATUS == 'REVOKED'
-            REVOKE_REASON == 'Leaked in a build log'
-            CONFIG_JSON == null
-        }
     }
 
     def "a pipeline links its Jenkins job given as a URL; a path needs the Jenkins URL of the global settings"() {
@@ -257,7 +242,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
                 assert api.post("/api/pipelines/$created.id/keys/revoke", [reason: 'Leaked in a build log']).status == 200
             }
             [pipeline: api.get("/api/pipelines/$created.id").json, key: key, fetches: fetches,
-             library: libraryConfig(key), refused: api.get("/api/dso/config/$key")]
+             refused: api.get("/api/dso/config/$key")]
         }
 
         then:
@@ -267,8 +252,6 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
                     outcome.pipeline.keys*.status == ['REVOKED'] &&
                     outcome.pipeline.keys[0].revokeReason == 'Leaked in a build log' &&
                     outcome.pipeline.activeKey == null &&
-                    outcome.library.KEY_STATUS == 'REVOKED' &&
-                    outcome.library.CONFIG_JSON == null &&
                     outcome.refused.status == 403
         }
 
@@ -326,7 +309,6 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
         api.get("/api/dso/config/$first").status == 403
         api.get("/api/dso/config/$second").status == 403
         api.get("/api/dso/config/$third").status == 200
-        libraryConfig(third).KEY_STATUS == 'ACTIVE'
     }
 
     private List<Map> fetchDuring(ExecutorService pool, String key, Closure change) {
