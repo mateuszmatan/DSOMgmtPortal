@@ -12,9 +12,53 @@ class AddProductSpec extends EditorSpecification {
     static final String API_APPLICATION = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b32'
     static final String TAKEN_APPLICATION = '209f44ac-dd06-4ca0-884e-d944904f8020'
 
+    def "a new product starts from its name, and its code follows the name until the code is typed"() {
+        when:
+        open('/products/new')
+        dialogButton('Cancel').click()
+        page.waitForURL('**/products')
+
+        then:
+        assertThat(page.locator('h1')).hasText('DevSecOps Product Management')
+
+        when:
+        open('/products/new')
+        dialogButton('Continue').click()
+
+        then:
+        assertThat(errorOf(dialog(), 'Product name')).hasText('Required')
+
+        when:
+        input(dialog(), 'Product name').fill('Cert Scanner')
+        dialogButton('Continue').click()
+
+        then:
+        assertThat(dialog()).hasCount(0)
+        assertThat(input(productFields(), 'Name')).hasValue('Cert Scanner')
+        assertThat(input(productFields(), 'Code')).hasValue('CERTSCANNER')
+
+        when:
+        input(productFields(), 'Name').fill('Cert Scanner Next')
+
+        then:
+        assertThat(input(productFields(), 'Code')).hasValue('CERTSCANNERNEXT')
+
+        when:
+        input(productFields(), 'Code').fill('CERTNEXT')
+        input(productFields(), 'Name').fill('Cert Scanner Two')
+        page.waitForTimeout(600)
+
+        then:
+        assertThat(input(productFields(), 'Code')).hasValue('CERTNEXT')
+        api.requests('GET', '/api/products/code-suggestion')*.params()*.name == ['Cert Scanner', 'Cert Scanner Next']
+        ownErrors().isEmpty()
+    }
+
     def "an empty product is refused in the browser and names every required field"() {
         given:
-        open('/products/new')
+        startProduct('CertScanner Next')
+        input(productFields(), 'Code').clear()
+        input(productFields(), 'Name').clear()
 
         when:
         button('Add product', true).click()
@@ -52,9 +96,10 @@ class AddProductSpec extends EditorSpecification {
                 [field: 'code', message: 'another product already uses this code'],
                 [field: 'services[1].appScan.applicationId', message: 'the AppScan application belongs to CertScanner'],
                 [field: 'version', message: 'must be empty for a new product']]]))
-        open('/products/new')
+        startProduct('CertScanner Next')
 
         when:
+        input(productFields(), 'Code').clear()
         input(productFields(), 'Code').pressSequentially('cert-2')
         fillIn(productFields(), ['Name'         : 'CertScanner Next', 'Owner team': 'Technology Architecture',
                                  'Description'  : 'The next generation of the certificate scanner',

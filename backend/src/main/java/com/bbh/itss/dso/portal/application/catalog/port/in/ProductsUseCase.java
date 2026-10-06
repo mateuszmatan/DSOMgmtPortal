@@ -15,4 +15,6 @@ public interface ProductsUseCase {
     Product update(long id, ProductCommand command);
 
     void delete(long id);
+
+    String suggestCode(String name);
 }

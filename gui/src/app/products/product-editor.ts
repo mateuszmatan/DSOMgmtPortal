@@ -19,7 +19,18 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterLink } from '@angular/router';
-import { Observable, catchError, finalize, forkJoin, of } from 'rxjs';
+import {
+  Observable,
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  filter,
+  finalize,
+  forkJoin,
+  map,
+  of,
+  switchMap,
+} from 'rxjs';
 import { PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
 import { BuildTool, DeployTarget, FieldProblem, GlobalSettings, Product } from '../core/models';
@@ -39,13 +50,14 @@ import {
   toProductRequest,
 } from './product-form-model';
 import { GeneratedKeys } from './generated-keys';
+import { ProductNameDialog } from './product-name-dialog';
 import { ServiceFields } from './service-fields';
 
 const PRODUCT: Field[] = [
   mono('code', 'Code', '', 3, {
     placeholder: 'CERT',
     maxLength: 50,
-    hint: 'Upper case as you type, unique',
+    hint: 'Unique; a new product gets it from its name',
     error: "Start with a letter; use A-Z, 0-9, '-' or '_'",
   }),
   line('name', 'Name', '', 5, { placeholder: 'CertScanner' }),
@@ -113,6 +125,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   private readonly pipelineCounts = signal(new Map<number, number>());
   private readonly serviceFields = viewChildren(ServiceFields);
   private saved = false;
+  private generatedCode = '';
 
   protected readonly productFields = PRODUCT;
   protected readonly appScanFields = APP_SCAN_ACCOUNT;
@@ -130,15 +143,31 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     const id = this.id();
     this.loading.set(true);
     if (id === undefined) {
-      this.loadSettings()
+      this.dialog
+        .open<ProductNameDialog, void, string>(ProductNameDialog)
+        .afterClosed()
         .pipe(
+          switchMap((name) =>
+            name
+              ? forkJoin({ settings: this.loadSettings(), code: this.suggestCode(name) }).pipe(
+                  map((loaded) => ({ ...loaded, name })),
+                )
+              : of(null),
+          ),
           finalize(() => this.loading.set(false)),
           takeUntilDestroyed(this.destroyRef),
         )
-        .subscribe((settings) => {
-          this.settings.set(settings);
+        .subscribe((started) => {
+          if (!started) {
+            this.router.navigate(['/products']);
+            return;
+          }
+          this.settings.set(started.settings);
+          this.generatedCode = started.code;
+          this.form.patchValue({ name: started.name, code: started.code });
           this.addService();
           this.form.markAsPristine();
+          this.followNameWithCode();
         });
       return;
     }
@@ -311,6 +340,29 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       },
       { injector: this.injector },
     );
+  }
+
+  private followNameWithCode(): void {
+    const code = this.form.controls.code;
+    this.form.controls.name.valueChanges
+      .pipe(
+        map((name) => name.trim()),
+        debounceTime(300),
+        distinctUntilChanged(),
+        filter((name) => name !== '' && code.value === this.generatedCode),
+        switchMap((name) => this.suggestCode(name)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((suggested) => {
+        if (suggested && code.value === this.generatedCode) {
+          this.generatedCode = suggested;
+          code.setValue(suggested);
+        }
+      });
+  }
+
+  private suggestCode(name: string): Observable<string> {
+    return this.products.suggestCode(name).pipe(catchError(() => of('')));
   }
 
   private loadSettings(): Observable<GlobalSettings | null> {

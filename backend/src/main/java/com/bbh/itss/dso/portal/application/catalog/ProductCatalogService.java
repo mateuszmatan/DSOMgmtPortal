@@ -10,6 +10,7 @@ import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPor
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.PublishPipelineConfigsUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
+import com.bbh.itss.dso.portal.domain.catalog.ProductCode;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 
@@ -77,6 +78,12 @@ public class ProductCatalogService implements ProductsUseCase {
         publisher.lockConfigurations();
         find(id);
         products.delete(id);
+    }
+
+    @Override
+    @ReadOnly
+    public String suggestCode(String name) {
+        return ProductCode.suggest(name, products);
     }
 
     private Product withPipelinesForNewServices(Product saved, Set<Long> known) {

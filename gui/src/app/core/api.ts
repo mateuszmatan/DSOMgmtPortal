@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import {
   GlobalSettings,
   GlobalSettingsRequest,
@@ -40,6 +40,14 @@ export class ProductsApi {
 
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`/api/products/${id}`);
+  }
+
+  suggestCode(name: string): Observable<string> {
+    return this.http
+      .get<{ code: string }>('/api/products/code-suggestion', {
+        params: new HttpParams().set('name', name),
+      })
+      .pipe(map((suggestion) => suggestion.code));
   }
 
   config(id: number): Observable<string> {

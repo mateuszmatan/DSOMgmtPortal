@@ -78,6 +78,14 @@ class ProductCatalogServiceSpec extends Specification {
         'nothing'       || []
     }
 
+    def "a new product's code is suggested from its name, past the codes in use"() {
+        given:
+        products.findProductByCode('PAYMENTSHUB') >> Optional.of(new ProductDirectory.ProductIdentity(2, 'Payments Hub'))
+
+        expect:
+        catalog.suggestCode('Payments Hub') == 'PAYMENTSHUB2'
+    }
+
     def "a product is returned with its services"() {
         given:
         products.load(5L) >> Optional.of(product(id: 5, services: [[name: 'gui', id: 10]]))

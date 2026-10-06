@@ -15,6 +15,7 @@ import {
 import { inputOf } from '../testing/dom';
 import { GeneratedKeys } from './generated-keys';
 import { ProductEditor } from './product-editor';
+import { ProductNameDialog } from './product-name-dialog';
 
 describe('ProductEditor', () => {
   let fixture: ComponentFixture<ProductEditor>;
@@ -37,10 +38,28 @@ describe('ProductEditor', () => {
   const editor = () => fixture.componentInstance;
   const page = () => fixture.nativeElement as HTMLElement;
 
-  async function start() {
+  const naming = (name: string | undefined) =>
+    vi
+      .spyOn(TestBed.inject(MatDialog), 'open')
+      .mockReturnValue({ afterClosed: () => of(name) } as unknown as MatDialogRef<unknown>);
+
+  const suggestion = (name: string) =>
+    http.expectOne(
+      (request) =>
+        request.url === '/api/products/code-suggestion' && request.params.get('name') === name,
+    );
+
+  async function start(name = 'CertScanner', code = 'CERTSCANNER') {
+    naming(name);
     await fixture.whenStable();
     http.expectOne('/api/settings').flush(globalSettings());
+    suggestion(name).flush({ code });
     await fixture.whenStable();
+  }
+
+  async function rename(name: string) {
+    editor()['form'].controls.name.setValue(name);
+    await new Promise((resolve) => setTimeout(resolve, 350));
   }
 
   async function submit() {
@@ -111,6 +130,41 @@ describe('ProductEditor', () => {
     expect(page().querySelectorAll('mat-expansion-panel').length).toBe(1);
     expect(editor()['expanded']()).toBe(0);
     expect(editor().hasUnsavedChanges()).toBe(false);
+  });
+
+  it('asks for the name first and makes the unique code from it', async () => {
+    const open = naming('Payments Hub');
+    await fixture.whenStable();
+    http.expectOne('/api/settings').flush(globalSettings());
+    suggestion('Payments Hub').flush({ code: 'PAYMENTSHUB2' });
+    await fixture.whenStable();
+
+    expect(open).toHaveBeenCalledWith(ProductNameDialog);
+    expect(inputOf(page(), 'Name').value).toBe('Payments Hub');
+    expect(inputOf(page(), 'Code').value).toBe('PAYMENTSHUB2');
+    expect(editor().hasUnsavedChanges()).toBe(false);
+  });
+
+  it('goes back to the products when the name is not given', async () => {
+    naming(undefined);
+    await fixture.whenStable();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/products']);
+  });
+
+  it('keeps the code in step with the name until the code is changed by hand', async () => {
+    await start();
+    await rename('Cert Scanner Next');
+    suggestion('Cert Scanner Next').flush({ code: 'CERTSCANNERNEXT' });
+    await fixture.whenStable();
+
+    expect(editor()['form'].controls.code.value).toBe('CERTSCANNERNEXT');
+
+    editor()['form'].controls.code.setValue('CERTNEXT');
+    await rename('Cert Scanner Two');
+
+    http.expectNone((request) => request.url === '/api/products/code-suggestion');
+    expect(editor()['form'].controls.code.value).toBe('CERTNEXT');
   });
 
   it('adds the product and opens it', async () => {
