@@ -136,13 +136,13 @@ describe('PipelineDialog', () => {
   it('refuses unusable agent labels and job paths before sending', async () => {
     await render({ service: servicePipelines({ pipelines: [] }) });
 
-    await type('Jenkins agent labels', 'linux agent!');
+    await type('Jenkins agent labels', `linux && docker, ${'x'.repeat(101)}`);
     await type('Jenkins job', 'DevSecOps/CERT?branch=main');
     await submit();
 
     http.expectNone('/api/services/10/pipelines');
     const errors = [...page().querySelectorAll('mat-error')].map((e) => e.textContent?.trim());
-    expect(errors).toContain("Use letters, digits, '.', '-' or '_' in a Jenkins label: agent!");
+    expect(errors).toContain(`At most 100 characters per label: ${'x'.repeat(101)}`);
     expect(errors).toContain(
       'A job path such as DevSecOps/CERT/backend-api-full, or an http or https URL',
     );

@@ -273,10 +273,10 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                                         'services[1].openShiftTargets[RD].buildContext',
                                         'services[1].openShiftTargets[RD].dockerRepoPush',
                                         'services[1].openShiftTargets[RD].nexusAuthFile',
-                                        'services[1].sonar.command.tasks', 'services[1].sonar.projectKey',
+                                        'services[1].sonar.command.tasks',
                                         'services[2].appScan.dastTargetUrl', 'services[2].scm.credentialsId',
                                         'services[2].delivery.tasks', 'services[2].testJobs[0].remoteJenkins',
-                                        'services[3].name', 'services[3].metrics.influxProject']
+                                        'services[3].name']
         api.get("/api/products?search=$code").json == []
     }
 

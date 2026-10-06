@@ -77,7 +77,6 @@ export class TestJobsFields {
     return [
       count('maxParallel', 'Parallel jobs, every stage', 'tests.maxParallel', 4, {
         min: 1,
-        max: 100,
         hint: `left empty: global default${value === undefined ? '' : ` ${value}`}`,
       }),
     ];
@@ -85,10 +84,7 @@ export class TestJobsFields {
 
   protected stageParallelField(stage: Stage): Field[] {
     return [
-      count(stage.parallel, 'Parallel jobs', `tests.${stage.noun}.maxParallel`, 12, {
-        min: 1,
-        max: 100,
-      }),
+      count(stage.parallel, 'Parallel jobs', `tests.${stage.noun}.maxParallel`, 12, { min: 1 }),
     ];
   }
 
@@ -110,7 +106,7 @@ export class TestJobsFields {
         'type',
         3,
       ),
-      count('timeoutMinutes', 'Timeout (minutes)', 'timeoutMin', 3, { min: 1, max: 1440 }),
+      count('timeoutMinutes', 'Timeout (minutes)', 'timeoutMin', 3, { min: 1 }),
       area('parameters', 'Parameters', 'parameters', 6, {
         mono: true,
         placeholder: 'ENV=rd\nSUITE=critical',

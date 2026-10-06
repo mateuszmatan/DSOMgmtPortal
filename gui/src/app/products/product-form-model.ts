@@ -32,8 +32,9 @@ import {
   UrbanCodeComponent,
 } from '../core/models';
 import {
-  HOST_NAME,
   HTTP_URL,
+  INT_MAX,
+  INT_MIN,
   Sent,
   applyFieldProblems,
   eachItem,
@@ -53,6 +54,7 @@ import {
   revalidateOnChange,
   sent,
   setEnabled,
+  shellSafe,
   text,
   words,
 } from '../shared/form-controls';
@@ -60,15 +62,14 @@ import {
 export { HTTP_URL, applyFieldProblems, controlAt } from '../shared/form-controls';
 
 export const PRODUCT_CODE = /^[A-Z][A-Z0-9_-]{1,49}$/;
-export const SERVICE_NAME = /^[a-z0-9][a-z0-9._-]{0,99}$/;
+export const SERVICE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 export const UUID =
   /^\s*[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\s*$/;
 export const METRICS_TAG = /^[A-Za-z0-9._-]*$/;
 export const SONAR_KEY = /^([a-zA-Z0-9_.:-]*[a-zA-Z_.:-][a-zA-Z0-9_.:-]*)?$/;
-export const ENV_VARIABLE = /^[A-Za-z_][A-Za-z0-9_]*=.*$/;
+export const ENV_VARIABLE = /^[A-Za-z_][A-Za-z0-9_+]*=.*$/;
 export const JOB_PARAMETER = /^[A-Za-z_][A-Za-z0-9_.-]*=.*$/;
 export const GIT_URL = /^(https?:\/\/\S+|ssh:\/\/\S+|git@\S+)$/;
-export const CLONE_URL = /^(https?:\/\/\S+|ssh:\/\/\S+)$/;
 export const BITBUCKET_NAME = /^[^\s/]*$/;
 export const UCD_ENVIRONMENT = /^[A-Za-z0-9_-]{1,20}$/;
 export const MODULE_FOLDER = /^[A-Za-z0-9._/-]{1,100}$/;
@@ -146,7 +147,7 @@ export function createTestJobForm(job?: Partial<TestJob> | null) {
     name: text(job?.name, Validators.maxLength(200)),
     type: new FormControl<TestJobType | null>(job?.type ?? null),
     job: text(job?.job, Validators.required, Validators.maxLength(1000)),
-    timeoutMinutes: integer(job?.timeoutMinutes, 1, 1440),
+    timeoutMinutes: integer(job?.timeoutMinutes, 1, INT_MAX),
     parameters: text(
       job?.parameters,
       Validators.maxLength(2000),
@@ -229,7 +230,7 @@ export function createUrbanCodeApplicationForm(
       Validators.required,
       Validators.maxLength(200),
     ),
-    order: integer(application?.order, 1, 999),
+    order: integer(application?.order, INT_MIN, INT_MAX),
     environments: text(
       joinWords(application?.environments, ', '),
       maxWords(20),
@@ -256,11 +257,11 @@ function toUrbanCodeApplication(form: UrbanCodeApplicationForm): UrbanCodeApplic
 
 export function createSshTargetForm(target?: Partial<SshTarget> | null) {
   return new FormGroup({
-    host: text(target?.host, Validators.pattern(HOST_NAME), Validators.maxLength(255)),
-    user: text(target?.user, Validators.maxLength(100)),
-    deployDir: text(target?.deployDir, Validators.maxLength(500)),
-    deployScript: text(target?.deployScript, Validators.maxLength(500)),
-    versionFile: text(target?.versionFile, Validators.maxLength(500)),
+    host: shellSafe(target?.host, 255),
+    user: shellSafe(target?.user, 100),
+    deployDir: shellSafe(target?.deployDir, 500),
+    deployScript: shellSafe(target?.deployScript, 500),
+    versionFile: shellSafe(target?.versionFile, 500),
   });
 }
 
@@ -283,14 +284,14 @@ export function createOpenShiftTargetForm(
   const max = (length: number) => Validators.maxLength(length);
   const form = new FormGroup({
     projectBuild: text(t?.projectBuild, max(200)),
-    buildConfigPath: text(t?.buildConfigPath, max(500)),
-    dockerFilePath: text(t?.dockerFilePath, max(500)),
-    buildContext: text(t?.buildContext, max(500)),
-    addFile: text(t?.addFile, max(500)),
-    dockerRepoPush: text(t?.dockerRepoPush, max(500)),
+    buildConfigPath: shellSafe(t?.buildConfigPath, 500),
+    dockerFilePath: shellSafe(t?.dockerFilePath, 500),
+    buildContext: shellSafe(t?.buildContext, 500),
+    addFile: shellSafe(t?.addFile, 500),
+    dockerRepoPush: shellSafe(t?.dockerRepoPush, 500),
     dockerRepoPull: text(t?.dockerRepoPull, max(500)),
-    certDir: text(t?.certDir, max(500)),
-    nexusAuthFile: text(t?.nexusAuthFile, max(500)),
+    certDir: shellSafe(t?.certDir, 500),
+    nexusAuthFile: shellSafe(t?.nexusAuthFile, 500),
     projectDeployment: text(t?.projectDeployment, max(200)),
     deployConfigPath: text(t?.deployConfigPath, max(500)),
     configPath: text(t?.configPath, max(500)),
@@ -319,7 +320,7 @@ export function goldenFixControls(policy?: Partial<GoldenFixPolicy> | null, comp
       policy?.onlyDirectDependencies ?? null,
       required,
     ),
-    minThreatLevel: integer(policy?.minThreatLevel, 1, 10, ...required),
+    minThreatLevel: integer(policy?.minThreatLevel, 0, 10, ...required),
     ecosystems: new FormControl<string[]>(policy?.ecosystems ?? [], {
       nonNullable: true,
       validators: required,
@@ -338,8 +339,8 @@ export function goldenFixControls(policy?: Partial<GoldenFixPolicy> | null, comp
       fitsColumn(lines, '\n', 2000),
     ),
     verifyEnabled: new FormControl<boolean | null>(policy?.verifyEnabled ?? null, required),
-    verifyMaxAttempts: integer(policy?.verifyMaxAttempts, 1, 10, ...required),
-    verifyTimeoutMinutes: integer(policy?.verifyTimeoutMinutes, 1, 240, ...required),
+    verifyMaxAttempts: integer(policy?.verifyMaxAttempts, 1, INT_MAX, ...required),
+    verifyTimeoutMinutes: integer(policy?.verifyTimeoutMinutes, 1, INT_MAX, ...required),
     verifyMavenCommand: command(policy?.verifyMavenCommand),
     verifyGradleCommand: command(policy?.verifyGradleCommand),
     verifyNpmCommand: command(policy?.verifyNpmCommand),
@@ -443,16 +444,11 @@ export function createServiceForm(
       eachItem(lines, MODULE_FOLDER, 'Not a folder name'),
       fitsColumn(lines, '\n', 1000),
     );
-  const parallel = (value: number | null | undefined) => integer(value, 1, 100);
+  const parallel = (value: number | null | undefined) => integer(value, 1, INT_MAX);
 
   const form = new FormGroup({
     id: new FormControl<number | null>(s?.id ?? null),
-    name: text(
-      s?.name,
-      Validators.required,
-      Validators.pattern(SERVICE_NAME),
-      uniqueInProduct(serviceName, SAME_NAME),
-    ),
+    name: text(s?.name, Validators.required, Validators.pattern(SERVICE_NAME), uniqueName),
     description: text(s?.description, max(2000)),
     build: new FormGroup({
       tool: new FormControl<BuildTool>(s?.build?.tool ?? defaults?.buildTool ?? 'GRADLE', {
@@ -461,7 +457,7 @@ export function createServiceForm(
       sourceDir: text(s?.build?.sourceDir ?? defaults?.sourceDir ?? '.', max(500)),
       javaPath: text(s?.build?.javaPath, max(500)),
       autoSetup: flag(s?.build?.autoSetup),
-      buildPath: text(s?.build?.buildPath, max(500)),
+      buildPath: shellSafe(s?.build?.buildPath, 500),
       command: createToolCommandForm(s?.build?.command),
     }),
     unitTests: new FormGroup({
@@ -484,9 +480,9 @@ export function createServiceForm(
         s?.deployment?.target ?? defaults?.deployTarget ?? 'VM',
         { nonNullable: true },
       ),
-      appName: text(s?.deployment?.appName, max(200)),
-      artifactName: text(s?.deployment?.artifactName, max(300)),
-      baseArtifactName: text(s?.deployment?.baseArtifactName, max(300)),
+      appName: shellSafe(s?.deployment?.appName, 200),
+      artifactName: shellSafe(s?.deployment?.artifactName, 300),
+      baseArtifactName: shellSafe(s?.deployment?.baseArtifactName, 300),
     }),
     delivery: createToolCommandForm(s?.delivery),
     urbanCode: new FormGroup({
@@ -529,12 +525,7 @@ export function createServiceForm(
     }),
     sonar: new FormGroup({
       projectName: text(s?.sonar?.projectName, max(200)),
-      projectKey: text(
-        s?.sonar?.projectKey,
-        Validators.pattern(SONAR_KEY),
-        max(400),
-        uniqueInProduct(sonarKey, SAME_SONAR_KEY),
-      ),
+      projectKey: text(s?.sonar?.projectKey, Validators.pattern(SONAR_KEY), max(400)),
       installationName: text(s?.sonar?.installationName, max(200)),
       credentialsId: text(s?.sonar?.credentialsId, max(200)),
       authTokenCredentialsId: text(s?.sonar?.authTokenCredentialsId, max(200)),
@@ -563,7 +554,7 @@ export function createServiceForm(
       }),
       type: new FormControl<BitbucketType | null>(s?.scm?.type ?? null),
       targetBranch: text(s?.scm?.targetBranch, max(200)),
-      cloneUrl: text(s?.scm?.cloneUrl, Validators.pattern(CLONE_URL), max(1000)),
+      cloneUrl: text(s?.scm?.cloneUrl, Validators.pattern(GIT_URL), max(1000)),
       reviewers: text(
         joinWords(s?.scm?.reviewers, ', '),
         maxWords(20),
@@ -578,12 +569,7 @@ export function createServiceForm(
     goldenFix: createServiceGoldenFixForm(s?.goldenFix),
     metrics: new FormGroup({
       enabled: flag(s?.metrics?.enabled, true),
-      influxProject: text(
-        s?.metrics?.influxProject,
-        Validators.pattern(METRICS_TAG),
-        max(200),
-        uniqueInProduct(metricsTag, SAME_METRICS_TAG),
-      ),
+      influxProject: text(s?.metrics?.influxProject, max(200)),
       influxEnv: text(s?.metrics?.influxEnv ?? 'test', Validators.pattern(METRICS_TAG), max(50)),
     }),
     flutter: new FormGroup({
@@ -741,44 +727,25 @@ function kept(control: FormControl<string>): string | null {
 }
 
 export const SAME_NAME = 'another service of this product already uses this name';
-export const SAME_SONAR_KEY = 'another service of this product uses this key';
-export const SAME_METRICS_TAG =
-  'another service of this product writes metrics under the same project and environment';
-export const PRODUCT_WIDE_FIELD =
-  /^services\[\d+]\.(name|sonar\.projectKey|metrics\.influxProject)$/;
+export const PRODUCT_WIDE_FIELD = /^services\[\d+]\.name$/;
 
-type ServiceKey = (service: AbstractControl, code: string) => string | null;
+const serviceName = (service: AbstractControl) =>
+  String(service.get('name')?.value ?? '')
+    .trim()
+    .toLowerCase() || null;
 
-const valueAt = (service: AbstractControl, path: string) =>
-  String(service.get(path)?.value ?? '').trim();
-
-const serviceName: ServiceKey = (service) => valueAt(service, 'name').toLowerCase() || null;
-
-const sonarKey: ServiceKey = (service) =>
-  valueAt(service, 'sonar.projectKey').toLowerCase() || null;
-
-const metricsTag: ServiceKey = (service, code) => {
-  const project =
-    valueAt(service, 'metrics.influxProject') || `${code.trim()}-${valueAt(service, 'name')}`;
-  const env = valueAt(service, 'metrics.influxEnv') || 'test';
-  return `${project}|${env}`.toLowerCase();
+const uniqueName: ValidatorFn = (control) => {
+  const service = serviceAround(control);
+  const services = service?.parent;
+  if (!service || !(services instanceof FormArray)) {
+    return null;
+  }
+  const own = serviceName(service);
+  const earlier = services.controls.slice(0, services.controls.indexOf(service));
+  return own !== null && earlier.some((other) => serviceName(other) === own)
+    ? { rule: SAME_NAME }
+    : null;
 };
-
-function uniqueInProduct(key: ServiceKey, message: string): ValidatorFn {
-  return (control) => {
-    const service = serviceAround(control);
-    const services = service?.parent;
-    if (!service || !(services instanceof FormArray)) {
-      return null;
-    }
-    const code = String(services.parent?.get('code')?.value ?? '');
-    const own = key(service, code);
-    const earlier = services.controls.slice(0, services.controls.indexOf(service));
-    return own !== null && earlier.some((other) => key(other, code) === own)
-      ? { rule: message }
-      : null;
-  };
-}
 
 function serviceAround(control: AbstractControl): AbstractControl | null {
   let current = control.parent;
@@ -790,11 +757,7 @@ function serviceAround(control: AbstractControl): AbstractControl | null {
 
 function revalidateUniqueValues(form: ProductForm): void {
   form.controls.services.controls.forEach((service) =>
-    [
-      service.controls.name,
-      service.controls.sonar.controls.projectKey,
-      service.controls.metrics.controls.influxProject,
-    ].forEach((control) => control.updateValueAndValidity({ emitEvent: false })),
+    service.controls.name.updateValueAndValidity({ emitEvent: false }),
   );
 }
 

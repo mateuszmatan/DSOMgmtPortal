@@ -45,19 +45,21 @@ import java.util.Map;
 
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.NO_WHITESPACE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.NO_WHITESPACE_MESSAGE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL_MESSAGE;
 
 public record ServiceDto(
         Long id,
-        @NotBlank @Pattern(regexp = "^[a-z0-9][a-z0-9._-]{0,99}$",
-                message = "use lower case letters, digits, '.', '-' or '_', starting with a letter or digit")
+        @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$",
+                message = "use letters, digits, '.', '-' or '_', starting with a letter or digit")
         String name,
         @Size(max = 2000) String description,
         @NotNull @Valid BuildSettingsDto build,
         @Valid UnitTestSettingsDto unitTests,
         @Valid TestSettingsDto tests,
-        @Size(max = 100) List<@NotNull @Valid TestJobDto> testJobs,
+        @Size(max = 1000) List<@NotNull @Valid TestJobDto> testJobs,
         @NotNull @Valid DeploymentSettingsDto deployment,
         @Valid ToolCommandDto delivery,
         @Valid UrbanCodeSettingsDto urbanCode,
@@ -85,7 +87,7 @@ public record ServiceDto(
             @Size(max = 500) String sourceDir,
             @Size(max = 500) String javaPath,
             Boolean autoSetup,
-            @Size(max = 500) String buildPath,
+            @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String buildPath,
             @Valid ToolCommandDto command) implements Mirrors<BuildSettings> {
     }
 
@@ -99,10 +101,10 @@ public record ServiceDto(
     }
 
     public record TestSettingsDto(
-            @Min(1) @Max(100) Integer maxParallel,
-            @Min(1) @Max(100) Integer smokeMaxParallel,
-            @Min(1) @Max(100) Integer regressionMaxParallel,
-            @Min(1) @Max(100) Integer performanceMaxParallel) implements Mirrors<TestSettings> {
+            @Min(1) Integer maxParallel,
+            @Min(1) Integer smokeMaxParallel,
+            @Min(1) Integer regressionMaxParallel,
+            @Min(1) Integer performanceMaxParallel) implements Mirrors<TestSettings> {
     }
 
     public record TestJobDto(
@@ -110,7 +112,7 @@ public record ServiceDto(
             @Size(max = 200) String name,
             TestJobType type,
             @NotBlank @Size(max = 1000) String job,
-            @Min(1) @Max(1440) Integer timeoutMinutes,
+            @Min(1) Integer timeoutMinutes,
             @Size(max = 2000) String parameters,
             @Size(max = 200) String remoteJenkins,
             @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String remoteJenkinsUrl,
@@ -119,9 +121,10 @@ public record ServiceDto(
 
     public record DeploymentSettingsDto(
             @NotNull DeployTarget target,
-            @Size(max = 200) String appName,
-            @Size(max = 300) String artifactName,
-            @Size(max = 300) String baseArtifactName) implements Mirrors<DeploymentSettings> {
+            @Size(max = 200) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String appName,
+            @Size(max = 300) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String artifactName,
+            @Size(max = 300) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE)
+            String baseArtifactName) implements Mirrors<DeploymentSettings> {
     }
 
     public record ToolCommandDto(
@@ -130,7 +133,7 @@ public record ServiceDto(
             @Size(max = 500) String directory,
             @Size(max = 500) String mavenHome,
             @Size(max = 30)
-            List<@Pattern(regexp = "^[A-Za-z_][A-Za-z0-9_]*=.*$", message = "write each variable as NAME=value")
+            List<@Pattern(regexp = "^[A-Za-z_][A-Za-z0-9_+]*=.*$", message = "write each variable as NAME=value")
                     @Size(max = 500) String> environment) implements Mirrors<ToolCommand> {
     }
 
@@ -148,7 +151,7 @@ public record ServiceDto(
 
     public record UrbanCodeApplicationSettingsDto(
             @NotBlank @Size(max = 200) String applicationName,
-            @Min(1) @Max(999) Integer order,
+            Integer order,
             @Size(max = 20) List<@Pattern(regexp = "^[A-Za-z0-9_-]{1,20}$",
                     message = "environment names may contain letters, digits, '-' and '_'") String> environments,
             @Size(max = 200) String snapshotName,
@@ -167,25 +170,24 @@ public record ServiceDto(
     }
 
     public record SshTargetDto(
-            @Size(max = 255)
-            @Pattern(regexp = "^[A-Za-z0-9.-]*$", message = "must be a host name such as rdltaapps1.testbbh.com")
-            String host,
-            @Size(max = 100) String user,
-            @Size(max = 500) String deployDir,
-            @Size(max = 500) String deployScript,
-            @Size(max = 500) String versionFile) implements Mirrors<SshTarget> {
+            @Size(max = 255) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String host,
+            @Size(max = 100) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String user,
+            @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String deployDir,
+            @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String deployScript,
+            @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE)
+            String versionFile) implements Mirrors<SshTarget> {
     }
 
     public record OpenShiftTargetDto(
             @Size(max = 200) String projectBuild,
-            @Size(max = 500) String buildConfigPath,
-            @Size(max = 500) String dockerFilePath,
-            @Size(max = 500) String buildContext,
-            @Size(max = 500) String addFile,
-            @Size(max = 500) String dockerRepoPush,
+            @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String buildConfigPath,
+            @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String dockerFilePath,
+            @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String buildContext,
+            @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String addFile,
+            @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String dockerRepoPush,
             @Size(max = 500) String dockerRepoPull,
-            @Size(max = 500) String certDir,
-            @Size(max = 500) String nexusAuthFile,
+            @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String certDir,
+            @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String nexusAuthFile,
             @Size(max = 200) String projectDeployment,
             @Size(max = 500) String deployConfigPath,
             @Size(max = 500) String configPath,
@@ -255,7 +257,7 @@ public record ServiceDto(
             BitbucketType type,
             @Size(max = 200) String targetBranch,
             @Size(max = 1000)
-            @Pattern(regexp = "^(https?://\\S+|ssh://\\S+)?$", message = "must be an http, https or ssh URL")
+            @Pattern(regexp = "^(https?://\\S+|ssh://\\S+|git@\\S+)?$", message = "must be an http, https, ssh or git@ URL")
             String cloneUrl,
             @Size(max = 20)
             List<@Pattern(regexp = "^[^,\\s]{1,100}$", message = "one Bitbucket user name or account UUID per entry")
@@ -270,7 +272,7 @@ public record ServiceDto(
     public record GoldenFixPolicyDto(
             Boolean enabled,
             Boolean onlyDirectDependencies,
-            @Min(1) @Max(10) Integer minThreatLevel,
+            @Min(0) @Max(10) Integer minThreatLevel,
             @Size(max = 4)
             List<@Pattern(regexp = "^(maven|npm|pypi|pub)$", message = "must be maven, npm, pypi or pub") String> ecosystems,
             @Size(max = 10)
@@ -278,8 +280,8 @@ public record ServiceDto(
                     String> goldenVersionTypes,
             @Size(max = 30) List<@Size(min = 1, max = 200) String> excludeDirs,
             Boolean verifyEnabled,
-            @Min(1) @Max(10) Integer verifyMaxAttempts,
-            @Min(1) @Max(240) Integer verifyTimeoutMinutes,
+            @Min(1) Integer verifyMaxAttempts,
+            @Min(1) Integer verifyTimeoutMinutes,
             @Size(max = 500) String verifyMavenCommand,
             @Size(max = 500) String verifyGradleCommand,
             @Size(max = 500) String verifyNpmCommand,
@@ -294,9 +296,7 @@ public record ServiceDto(
 
     public record MetricsSettingsDto(
             Boolean enabled,
-            @Size(max = 200)
-            @Pattern(regexp = "^[A-Za-z0-9._-]*$", message = "may contain letters, digits, '.', '-' and '_'")
-            String influxProject,
+            @Size(max = 200) String influxProject,
             @Size(max = 50)
             @Pattern(regexp = "^[A-Za-z0-9._-]*$", message = "may contain letters, digits, '.', '-' and '_'")
             String influxEnv) implements Mirrors<MetricsSettings> {

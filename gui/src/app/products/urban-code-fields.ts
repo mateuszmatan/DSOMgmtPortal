@@ -33,7 +33,7 @@ const TEXTS: Field[] = [
 
 const APPLICATION: Field[] = [
   mono('applicationName', 'Application name', 'applicationName', 5),
-  count('order', 'Order', 'order', 2, { min: 1, max: 999 }),
+  count('order', 'Order', 'order', 2),
   mono('environments', 'Environments', 'environments', 5, {
     placeholder: 'DV, RD',
     hint: 'left empty: all of them',

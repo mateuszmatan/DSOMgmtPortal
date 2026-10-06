@@ -28,6 +28,8 @@ import java.util.Map;
 
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.HOST;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.HOST_MESSAGE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL_MESSAGE;
 
@@ -77,9 +79,10 @@ public record GlobalSettingsDto(
             @NotBlank @Size(max = 200) String urbanCodeDeployProcess,
             @NotBlank @Size(max = 255) @Pattern(regexp = HOST, message = HOST_MESSAGE) String rdHost,
             @NotBlank @Size(max = 255) @Pattern(regexp = HOST, message = HOST_MESSAGE) String qcHost,
-            @NotBlank @Size(max = 100) String sshUser,
-            @NotBlank @Size(max = 500) String deployScript,
-            @NotBlank @Size(max = 500) String versionFile) implements Mirrors<DeploymentDefaults> {
+            @NotBlank @Size(max = 100) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String sshUser,
+            @NotBlank @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String deployScript,
+            @NotBlank @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE)
+            String versionFile) implements Mirrors<DeploymentDefaults> {
     }
 
     public record SeverityLimitsDto(
@@ -116,6 +119,6 @@ public record GlobalSettingsDto(
             @NotNull BuildTool buildTool,
             @NotNull DeployTarget deployTarget,
             @Size(max = 500) String sourceDir,
-            @NotNull @Min(1) @Max(100) Integer testsMaxParallel) implements Mirrors<ServiceDefaults> {
+            @NotNull @Min(1) Integer testsMaxParallel) implements Mirrors<ServiceDefaults> {
     }
 }

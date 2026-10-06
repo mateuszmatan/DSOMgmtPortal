@@ -40,7 +40,6 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 @Entity
 @Table(name = "DSO_SERVICE")
@@ -125,18 +124,8 @@ public class ServiceEntity extends AuditedEntity {
         }
     }
 
-    boolean holdsOtherUniqueValuesThan(Service service) {
-        ServiceSettings wanted = service.settings();
-        return !Objects.equals(name, service.name())
-                || !Objects.equals(settings.sonar().projectKey(), wanted.sonar().projectKey())
-                || !Objects.equals(settings.metrics().influxProject(), wanted.metrics().influxProject())
-                || !Objects.equals(settings.metrics().influxEnv(), wanted.metrics().influxEnv());
-    }
-
-    void releaseUniqueValues() {
-        String placeholder = "~" + id;
-        name = placeholder;
-        settings = settings.withoutUniqueValues(placeholder);
+    void releaseName() {
+        name = "~" + id;
     }
 
     private static <T> void replace(List<T> current, List<T> replacement) {
@@ -174,11 +163,6 @@ public class ServiceEntity extends AuditedEntity {
             @EmbeddedColumnNaming("GOLDEN_FIX_%s") GoldenFixPolicyEmbeddable goldenFix,
             MetricsSettingsEmbeddable metrics,
             @EmbeddedColumnNaming("FLUTTER_%s") FlutterSettingsEmbeddable flutter) {
-
-        SettingsEmbeddable withoutUniqueValues(String placeholder) {
-            return new SettingsEmbeddable(build, unitTests, tests, deployment, delivery, urbanCode, appScan,
-                    sonar.withProjectKey(null), nexusIq, scm, goldenFix, metrics.withInfluxProject(placeholder), flutter);
-        }
     }
 
     @Embeddable
@@ -271,11 +255,6 @@ public class ServiceEntity extends AuditedEntity {
     public record SonarSettingsEmbeddable(String projectName, String projectKey, String installationName,
             String credentialsId, String authTokenCredentialsId, String badgeToken, Boolean addBadges,
             Boolean fullBadges, ToolCommandEmbeddable command) {
-
-        SonarSettingsEmbeddable withProjectKey(String key) {
-            return new SonarSettingsEmbeddable(projectName, key, installationName, credentialsId, authTokenCredentialsId,
-                    badgeToken, addBadges, fullBadges, command);
-        }
     }
 
     @Embeddable
@@ -327,10 +306,6 @@ public class ServiceEntity extends AuditedEntity {
     @Embeddable
     public record MetricsSettingsEmbeddable(@Column(name = "METRICS_ENABLED") Boolean enabled, String influxProject,
             String influxEnv) {
-
-        MetricsSettingsEmbeddable withInfluxProject(String project) {
-            return new MetricsSettingsEmbeddable(enabled, project, influxEnv);
-        }
     }
 
     @Embeddable

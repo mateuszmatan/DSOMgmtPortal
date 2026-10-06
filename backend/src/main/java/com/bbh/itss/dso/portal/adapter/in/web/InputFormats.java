@@ -6,6 +6,12 @@ final class InputFormats {
     static final String URL_MESSAGE = "must be an http or https URL";
     static final String HOST = "^[A-Za-z0-9.-]*$";
     static final String HOST_MESSAGE = "must be a host name";
+    static final String SHELL_SAFE = "^[A-Za-z0-9._/*+@:=,~-]*$";
+    static final String SHELL_SAFE_MESSAGE = "may contain letters, digits and . _ / * + @ : = , ~ - only:"
+            + " the library puts it unquoted into a shell command";
+    static final String JOB_PATH = "^((?!.*\\.\\.)[A-Za-z0-9._ /-]+)?$";
+    static final String JOB_PATH_MESSAGE = "must be a Jenkins job path such as DevSecOps/CertScanner-extended,"
+            + " with letters, digits, spaces and . _ / - but no '..'";
     static final String NO_WHITESPACE = "^\\S*$";
     static final String NO_WHITESPACE_MESSAGE = "must not contain whitespace";
 

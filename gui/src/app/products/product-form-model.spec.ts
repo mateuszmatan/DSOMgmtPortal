@@ -6,9 +6,7 @@ import {
   NO_COMMAND,
   OPENSHIFT_RD_REQUIRED,
   PRODUCT_WIDE_FIELD,
-  SAME_METRICS_TAG,
   SAME_NAME,
-  SAME_SONAR_KEY,
   applyProductProblems,
   REMOTE_JENKINS_MESSAGE,
   SERVICE_SECTIONS,
@@ -623,40 +621,28 @@ describe('values unique within a product', () => {
 
   it('flags a name another service already uses on the later service only', () => {
     const { form, first, second } = twoServices();
-    first.controls.metrics.controls.influxProject.setValue('');
     expect(form.valid).toBe(true);
 
-    second.controls.name.setValue('gui');
+    second.controls.name.setValue('GUI');
 
     expect(second.controls.name.errors).toEqual({ rule: SAME_NAME });
-    expect(second.controls.metrics.controls.influxProject.errors).toEqual({
-      rule: SAME_METRICS_TAG,
-    });
     expect(first.controls.name.valid).toBe(true);
 
     first.controls.name.setValue('web');
 
     expect(second.controls.name.valid).toBe(true);
-    expect(second.controls.metrics.controls.influxProject.valid).toBe(true);
     expect(form.valid).toBe(true);
   });
 
-  it('compares the metrics project, defaulting to code-name, together with the environment', () => {
+  it('lets services share a metrics tag and a SonarQube key', () => {
     const { form, first, second } = twoServices();
-    first.controls.metrics.controls.influxProject.setValue('');
-    const project = second.controls.metrics.controls.influxProject;
+    for (const each of [first, second]) {
+      each.controls.metrics.controls.influxProject.setValue('Cert Scanner');
+      each.controls.metrics.controls.influxEnv.setValue('test');
+      each.controls.sonar.controls.projectKey.setValue('cert-scanner');
+    }
 
-    project.setValue('cert-gui');
-    expect(project.errors).toEqual({ rule: SAME_METRICS_TAG });
-
-    second.controls.metrics.controls.influxEnv.setValue('prod');
-    expect(project.valid).toBe(true);
-
-    second.controls.metrics.controls.influxEnv.setValue('');
-    expect(project.hasError('rule')).toBe(true);
-
-    form.controls.code.setValue('PAY');
-    expect(project.valid).toBe(true);
+    expect(form.valid).toBe(true);
   });
 
   it('clears a product-wide problem of the API once anything in the product changes', () => {
@@ -677,8 +663,8 @@ describe('values unique within a product', () => {
 
     expect(second.controls.name.valid).toBe(true);
     expect(second.controls.build.controls.javaPath.errors).toEqual({ server: 'is not a JDK' });
-    expect(PRODUCT_WIDE_FIELD.test('services[3].metrics.influxProject')).toBe(true);
-    expect(PRODUCT_WIDE_FIELD.test('services[3].metrics.influxEnv')).toBe(false);
+    expect(PRODUCT_WIDE_FIELD.test('services[3].name')).toBe(true);
+    expect(PRODUCT_WIDE_FIELD.test('services[3].metrics.influxProject')).toBe(false);
   });
 });
 

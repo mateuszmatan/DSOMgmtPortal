@@ -13,12 +13,14 @@ import { createGlobalGoldenFixForm, toGlobalGoldenFixPolicy } from '../products/
 import {
   HOST_NAME,
   HTTP_URL,
+  INT_MAX,
   flag,
   integer,
   optional,
   requireWhile,
   requiredRule,
   sent,
+  shellSafe,
   text,
 } from '../shared/form-controls';
 
@@ -72,9 +74,9 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
       urbanCodeDeployProcess: text(d?.urbanCodeDeployProcess, required, max(200)),
       rdHost: host(d?.rdHost, required),
       qcHost: host(d?.qcHost, required),
-      sshUser: text(d?.sshUser, required, max(100)),
-      deployScript: text(d?.deployScript, required, max(500)),
-      versionFile: text(d?.versionFile, required, max(500)),
+      sshUser: shellSafe(d?.sshUser, 100, required),
+      deployScript: shellSafe(d?.deployScript, 500, required),
+      versionFile: shellSafe(d?.versionFile, 500, required),
     }),
     limits: new FormGroup({
       SAST: createLimitsForm(settings?.limits.SAST),
@@ -118,7 +120,7 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
         nonNullable: true,
       }),
       sourceDir: text(settings?.serviceDefaults.sourceDir ?? '.', max(500)),
-      testsMaxParallel: integer(settings?.serviceDefaults.testsMaxParallel, 1, 100, required),
+      testsMaxParallel: integer(settings?.serviceDefaults.testsMaxParallel, 1, INT_MAX, required),
     }),
     goldenFix: createGlobalGoldenFixForm(settings?.goldenFix),
   });

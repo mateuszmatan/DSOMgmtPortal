@@ -87,18 +87,18 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
         when:
         page.getByRole(AriaRole.OPTION, new Page.GetByRoleOptions().setName('Security')).click()
-        dialogInput('Jenkins agent labels').fill('linux-agent docker!')
+        dialogInput('Jenkins agent labels').fill('linux-agent, docker')
         dialogInput('Jenkins job').fill('DevSecOps/CERTSCANNER/gui-security')
-        dialogInput('Extended pipeline job').fill('DevSecOps/CERTSCANNER/gui-extended')
+        dialogInput('Extended pipeline job').fill('DevSecOps/../gui-extended')
         dialogInput('Description').fill('Nightly security scan')
         dialogButton('Add pipeline').click()
 
         then:
-        assertThat(dialogError('Jenkins agent labels')).hasText("Use letters, digits, '.', '-' or '_' in a Jenkins label: docker!")
+        assertThat(dialogError('Extended pipeline job')).hasText("A job path such as DevSecOps/CERT/backend-api-extended, without '..'")
         api.requests('POST', '/api/services/1/pipelines').isEmpty()
 
         when:
-        dialogInput('Jenkins agent labels').fill('linux-agent docker')
+        dialogInput('Extended pipeline job').fill('DevSecOps/CERTSCANNER/gui-extended')
         dialogButton('Add pipeline').click()
 
         then:

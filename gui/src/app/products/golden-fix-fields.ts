@@ -53,7 +53,7 @@ export class GoldenFixFields {
         { multiple: true, hint: this.global(g?.ecosystems) },
       ),
       count('minThreatLevel', 'Minimum threat level', 'minThreatLevel', 3, {
-        min: 1,
+        min: 0,
         max: 10,
         hint: this.global(g?.minThreatLevel),
       }),
@@ -109,12 +109,10 @@ export class GoldenFixFields {
           ),
       count('verifyMaxAttempts', 'Attempts', 'verify.maxAttempts', 4, {
         min: 1,
-        max: 10,
         hint: this.global(g?.verifyMaxAttempts),
       }),
       count('verifyTimeoutMinutes', 'Timeout (minutes)', 'verify.timeoutMinutes', 4, {
         min: 1,
-        max: 240,
         hint: this.global(g?.verifyTimeoutMinutes),
       }),
     ];

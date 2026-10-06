@@ -26,6 +26,7 @@ import spock.lang.Shared
 import spock.lang.Specification
 import tools.jackson.databind.json.JsonMapper
 
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE
 import static com.bbh.itss.dso.portal.domain.catalog.Region.QC
 import static com.bbh.itss.dso.portal.domain.catalog.Region.RD
 import static com.bbh.itss.dso.portal.support.ApiJson.APP_ID
@@ -110,12 +111,14 @@ class ServiceDtoSpec extends Specification {
 
         where:
         description                   | changes                                                       || property                                         | message
-        'a service name in capitals'  | [name: 'Gui']                                                 || 'name'                                           | "use lower case letters, digits, '.', '-' or '_', starting with a letter or digit"
+        'a service name with a space' | [name: 'Gui app']                                             || 'name'                                           | "use letters, digits, '.', '-' or '_', starting with a letter or digit"
         'a missing build tool'        | [build: [javaPath: '/jdk']]                                   || 'build.tool'                                     | 'must not be null'
         'more than 30 build tasks'    | [build: buildJson(command: [tasks: names(31)])]               || 'build.command.tasks'                            | 'size must be between 0 and 30'
         'a variable without a value'  | [build: buildJson(command: [environment: ['JAVA']])]          || 'build.command.environment[0].<list element>'    | 'write each variable as NAME=value'
-        'a test job running a day'    | [testJobs: [[stage: 'SMOKE', job: 'j', timeoutMinutes: 1441]]] || 'testJobs[0].timeoutMinutes'                    | 'must be less than or equal to 1440'
-        'an SSH host with a space'    | [sshTargets: [RD: [host: 'rd host']]]                         || 'sshTargets[RD].host'                            | 'must be a host name such as rdltaapps1.testbbh.com'
+        'a test job without time'     | [testJobs: [[stage: 'SMOKE', job: 'j', timeoutMinutes: 0]]]   || 'testJobs[0].timeoutMinutes'                    | 'must be greater than or equal to 1'
+        'an SSH host with a space'    | [sshTargets: [RD: [host: 'rd host']]]                         || 'sshTargets[RD].host'                            | SHELL_SAFE_MESSAGE
+        'a build path with a command' | [build: buildJson(buildPath: 'target/*.jar;rm')]              || 'build.buildPath'                                | SHELL_SAFE_MESSAGE
+        'a Dockerfile with a space'   | [openShiftTargets: [RD: [dockerFilePath: 'my Dockerfile']]]   || 'openShiftTargets[RD].dockerFilePath'            | SHELL_SAFE_MESSAGE
         'a component without a name'  | [urbanCodeApplications: [[applicationName: 'C', components: [[:]]]]] || 'urbanCodeApplications[0].components[0].componentName' | 'must not be blank'
         'a DAST URL without http'     | [appScan: [applicationId: APP_ID, dastTargetUrl: 'ftp://x']]  || 'appScan.dastTargetUrl'                          | 'must be an http or https URL'
         'a workspace with a space'    | [scm: [workspace: 'ta workspace']]                            || 'scm.workspace'                                  | 'must not contain whitespace'

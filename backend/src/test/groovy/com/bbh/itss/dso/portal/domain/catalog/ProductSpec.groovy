@@ -1,7 +1,6 @@
 package com.bbh.itss.dso.portal.domain.catalog
 
 import com.bbh.itss.dso.portal.domain.catalog.ProductDirectory.ProductIdentity
-import com.bbh.itss.dso.portal.domain.catalog.ProductDirectory.ServiceIdentity
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree
 import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
@@ -19,6 +18,7 @@ import static com.bbh.itss.dso.portal.support.Fixtures.settings
 class ProductSpec extends Specification {
 
     static final SonarSettings CERT_SONAR = SonarSettings.of(null, 'cert', ToolCommand.of(['sonarqube'], []))
+    static final MetricsSettings SHARED_METRICS = new MetricsSettings(true, 'CertScanner', 'test')
 
     def nobody = directory()
 
@@ -158,71 +158,34 @@ class ProductSpec extends Specification {
 
         then:
         def e = thrown(InvalidRequestException)
-        e.problems*.field == ['services[0].build.javaPath', 'services[1].name', 'services[1].metrics.influxProject',
-                              'services[2].id']
+        e.problems*.field == ['services[0].build.javaPath', 'services[1].name', 'services[2].id']
         e.problems*.message == ['set the JDK path or enable automatic build tool setup, the unit tests stage needs one of them',
                                 'another service of this product already uses this name',
-                                'another service of this product writes metrics under the same project and environment',
                                 'service 77 does not belong to this product']
     }
 
-    def "metrics tags used by a service of another product are refused"() {
-        given:
-        def gateway = new ServiceIdentity(50, 'Payments Hub', 'gateway')
-
+    def "services may share metrics tags and a SonarQube key, within the product and with other products"() {
         when:
-        Product.create(details(), account(), [draft()], directory(byMetrics: ['CERT-gui|test': [gateway]]))
+        def product = Product.create(details(), account(), [draft(name: 'gui', sonar: CERT_SONAR, metrics: SHARED_METRICS),
+                                                            draft(name: 'api', sonar: CERT_SONAR, metrics: SHARED_METRICS)],
+                nobody)
 
         then:
-        def e = thrown(InvalidRequestException)
-        e.problems*.field == ['services[0].metrics.influxProject']
-        e.message == 'metrics project CERT-gui (test) is already used by Payments Hub / gateway'
-        gateway.describe() == 'Payments Hub / gateway'
+        product.services()*.settings()*.sonar()*.projectKey() == ['cert', 'cert']
+        product.services()*.settings()*.metrics()*.influxProject() == ['CertScanner', 'CertScanner']
     }
 
-    def "a SonarQube key is unique within the product and across products"() {
-        given:
-        def gateway = new ServiceIdentity(50, 'Payments Hub', 'gateway')
-
-        when:
-        Product.create(details(), account(), [draft(name: 'gui', sonar: CERT_SONAR), draft(name: 'api', sonar: CERT_SONAR)],
-                directory(bySonarKey: [cert: [gateway]]))
-
-        then:
-        def e = thrown(InvalidRequestException)
-        e.problems*.field == ['services[0].sonar.projectKey', 'services[1].sonar.projectKey']
-        e.problems*.message == ['SonarQube project key is already used by Payments Hub / gateway',
-                                'another service of this product uses this key']
-    }
-
-    def "a product's own code, name and services do not clash with themselves on update"() {
+    def "a product's own code and name do not clash with themselves on update"() {
         given:
         def product = product(id: 5, services: [[name: 'gui', id: 10, sonar: CERT_SONAR]])
         def itself = new ProductIdentity(5, 'CertScanner')
-        def gui = new ServiceIdentity(10, 'CertScanner', 'gui')
 
         when:
         product.update(0L, details(), account(), [draft(id: 10, name: 'gui', sonar: CERT_SONAR)],
-                directory(byCode: [CERT: itself], byName: [CertScanner: itself], byMetrics: ['CERT-gui|test': [gui]],
-                        bySonarKey: [cert: [gui]]))
+                directory(byCode: [CERT: itself], byName: [CertScanner: itself]))
 
         then:
         noExceptionThrown()
-    }
-
-    def "a value used by one of the product's services and by a foreign one names the foreign one"() {
-        given:
-        def product = product(id: 5, services: [[name: 'gui', id: 10, sonar: CERT_SONAR]])
-        def own = new ServiceIdentity(10, 'CertScanner', 'gui')
-        def foreign = new ServiceIdentity(50, 'Payments Hub', 'gateway')
-
-        when:
-        product.update(0L, details(), account(), [draft(id: 10, name: 'gui', sonar: CERT_SONAR)],
-                directory(bySonarKey: [cert: [own, foreign]]))
-
-        then:
-        def e = thrown(InvalidRequestException)
-        e.message == 'SonarQube project key is already used by Payments Hub / gateway'
     }
 
     def "a product needs a code, a name, an AppScan key and named services"() {

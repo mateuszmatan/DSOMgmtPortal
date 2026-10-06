@@ -8,6 +8,7 @@ import {
   line,
   mono,
 } from '../shared/fields';
+import { SHELL_SAFE_ERROR } from '../shared/form-controls';
 import { SettingsSectionId } from './settings-form-model';
 
 export interface SettingsBlock {
@@ -142,9 +143,13 @@ export const SETTINGS_PAGE: SettingsSection[] = [
             hint: 'the higher test region',
             error: HOST_ERROR,
           }),
-          mono('sshUser', 'SSH user', 'deploy.vm.<region>.user', 4),
-          mono('deployScript', 'Deploy script', 'deploy.vm.<region>.deployScript', 8),
-          mono('versionFile', 'Version file', 'deploy.vm.<region>.versionFile', 12),
+          mono('sshUser', 'SSH user', 'deploy.vm.<region>.user', 4, { error: SHELL_SAFE_ERROR }),
+          mono('deployScript', 'Deploy script', 'deploy.vm.<region>.deployScript', 8, {
+            error: SHELL_SAFE_ERROR,
+          }),
+          mono('versionFile', 'Version file', 'deploy.vm.<region>.versionFile', 12, {
+            error: SHELL_SAFE_ERROR,
+          }),
         ],
       },
     ],
@@ -256,7 +261,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
       choice('buildTool', 'Build tool', GRADLE_MAVEN_FLUTTER, 'buildTool', 3),
       choice('deployTarget', 'Deployment target', VM_OPENSHIFT, 'deployTarget', 3),
       mono('sourceDir', 'Source folder', 'sourceDir', 3, { placeholder: '.' }),
-      count('testsMaxParallel', 'Parallel test jobs', 'tests.maxParallel', 3, { min: 1, max: 100 }),
+      count('testsMaxParallel', 'Parallel test jobs', 'tests.maxParallel', 3, { min: 1 }),
     ],
   },
   {

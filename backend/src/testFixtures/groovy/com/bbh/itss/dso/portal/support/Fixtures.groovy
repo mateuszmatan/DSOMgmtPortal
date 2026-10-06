@@ -210,16 +210,6 @@ final class Fixtures {
             Optional<ProductDirectory.ProductIdentity> findProductByName(String name) {
                 Optional.ofNullable((args.byName as Map)?.get(name) as ProductDirectory.ProductIdentity)
             }
-
-            @Override
-            List<ProductDirectory.ServiceIdentity> findServicesByMetricsTags(String influxProject, String influxEnv) {
-                ((args.byMetrics as Map)?.get("$influxProject|$influxEnv" as String) ?: []) as List<ProductDirectory.ServiceIdentity>
-            }
-
-            @Override
-            List<ProductDirectory.ServiceIdentity> findServicesBySonarProjectKey(String projectKey) {
-                ((args.bySonarKey as Map)?.get(projectKey) ?: []) as List<ProductDirectory.ServiceIdentity>
-            }
         }
     }
 

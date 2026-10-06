@@ -9,13 +9,17 @@ import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.JOB_PATH;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.JOB_PATH_MESSAGE;
+
 public record PipelineRequest(
         @NotNull PipelineType type,
         @NotEmpty(message = "add at least one Jenkins agent label") @Size(max = 20)
-        List<@Pattern(regexp = "^[A-Za-z0-9._-]{1,100}$", message = "agent labels may contain letters, digits, '.', '-' and '_'")
+        List<@Pattern(regexp = "^[^,\\p{Cntrl}]{1,100}$",
+                message = "must be a Jenkins label or label expression such as linux && docker, without commas")
                 String> agentLabels,
-        @Size(max = 500) String extendedPipelineJob,
-        @Size(max = 500) String securityPipelineJob,
+        @Size(max = 500) @Pattern(regexp = JOB_PATH, message = JOB_PATH_MESSAGE) String extendedPipelineJob,
+        @Size(max = 500) @Pattern(regexp = JOB_PATH, message = JOB_PATH_MESSAGE) String securityPipelineJob,
         @Size(max = 1000)
         @Pattern(regexp = "^(https?://\\S+|[^\\s:?#][^:?#]*)?$",
                 message = "must be a job path such as DevSecOps/CertScanner-gui or the job's http or https URL")

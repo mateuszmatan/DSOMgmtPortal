@@ -2,25 +2,33 @@ import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { REGIONS, Region } from '../core/models';
 import { Field, Fields, check, formRevision, mono } from '../shared/fields';
+import { SHELL_SAFE_ERROR } from '../shared/form-controls';
 import { OpenShiftTargetForm, ServiceForm } from './product-form-model';
+
+const SAFE = { error: SHELL_SAFE_ERROR };
 
 export const IMAGE_BUILD: Field[] = [
   mono('projectBuild', 'Build project', 'projectBuildR', 4),
   mono('buildConfigPath', 'BuildConfig file', 'buildConfigPath', 4, {
     placeholder: 'openshift/buildconfig.yaml',
+    ...SAFE,
   }),
   mono('dockerFilePath', 'Dockerfile', 'dockerFilePath', 4, {
     placeholder: 'openshift/Dockerfile',
+    ...SAFE,
   }),
-  mono('buildContext', 'Build context', 'buildContext', 6, { placeholder: 'target/docker' }),
-  mono('addFile', 'File added to the image', 'addFile', 6),
+  mono('buildContext', 'Build context', 'buildContext', 6, {
+    placeholder: 'target/docker',
+    ...SAFE,
+  }),
+  mono('addFile', 'File added to the image', 'addFile', 6, SAFE),
 ];
 
 const REGISTRY: Field[] = [
-  mono('dockerRepoPush', 'Image pushed to', 'qcDockerRepoPush', 6),
+  mono('dockerRepoPush', 'Image pushed to', 'qcDockerRepoPush', 6, SAFE),
   mono('dockerRepoPull', 'Image pulled from', 'qcDockerRepoPull', 6),
-  mono('certDir', 'OpenShift certificates folder', 'openshiftCertDir', 6),
-  mono('nexusAuthFile', 'Nexus auth file', 'nexus.authfile', 6),
+  mono('certDir', 'OpenShift certificates folder', 'openshiftCertDir', 6, SAFE),
+  mono('nexusAuthFile', 'Nexus auth file', 'nexus.authfile', 6, SAFE),
 ];
 
 const DEPLOYMENT: Field[] = [

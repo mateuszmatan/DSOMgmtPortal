@@ -17,6 +17,7 @@ import {
   line,
   mono,
 } from '../shared/fields';
+import { SHELL_SAFE_ERROR } from '../shared/form-controls';
 import { GoldenFixFields } from './golden-fix-fields';
 import { OpenShiftTargetFields } from './openshift-target-fields';
 import {
@@ -64,8 +65,8 @@ const NOTES: Record<ServiceSectionId, string> = {
 const GENERAL: Field[] = [
   line('name', 'Service name', '', 5, {
     placeholder: 'backend-api',
-    hint: 'Lower case, for example gui or backend-api',
-    error: "Use lower case letters, digits, '.', '-' or '_'",
+    hint: 'for example gui or backend-api',
+    error: "Use letters, digits, '.', '-' or '_'",
   }),
   line('description', 'Description', '', 7, { placeholder: 'REST API and certificate scanner' }),
 ];
@@ -181,7 +182,7 @@ const SCM: Field[] = [
   line('cloneUrl', 'Clone URL', 'scm.bitbucket.cloneUrl', 6, {
     placeholder: 'ssh://git@bitbucket.bbh.com/ta/cert.git',
     hint: 'left empty: the repository URL',
-    error: 'Must be an http, https or ssh URL',
+    error: 'Must be an http, https, ssh or git@ URL',
   }),
   mono('reviewers', 'Reviewers', 'scm.bitbucket.reviewers', 6, {
     placeholder: 'jsmith, akowalski',
@@ -366,6 +367,7 @@ export class ServiceFields {
           this.isVm() && maven
             ? 'the artifact the Nexus snapshot delivery uploads'
             : 'what the build produces',
+        error: SHELL_SAFE_ERROR,
       }),
     ];
   }
@@ -386,17 +388,20 @@ export class ServiceFields {
   protected deploymentFields(): Field[] {
     const openShift = this.isVm() ? '' : 'required for OpenShift';
     return [
-      line('appName', 'Application name', 'appName', 4, {
+      mono('appName', 'Application name', 'appName', 4, {
         placeholder: 'cert-scanner-api',
         hint: openShift,
+        error: SHELL_SAFE_ERROR,
       }),
-      line('artifactName', 'Artifact name', 'artifactName', 4, {
+      mono('artifactName', 'Artifact name', 'artifactName', 4, {
         placeholder: 'cert-scanner-api.jar',
         hint: openShift,
+        error: SHELL_SAFE_ERROR,
       }),
-      line('baseArtifactName', 'Built file name', 'baseArtifactName', 4, {
+      mono('baseArtifactName', 'Built file name', 'baseArtifactName', 4, {
         placeholder: 'app-1.0.0.jar',
         hint: 'renamed to the artifact name',
+        error: SHELL_SAFE_ERROR,
       }),
     ];
   }
@@ -408,22 +413,26 @@ export class ServiceFields {
       mono('host', 'Host', 'host', 4, {
         placeholder: host ?? '',
         hint: fallback(host),
-        error: 'Must be a host name such as rdltaapps1.testbbh.com',
+        error: SHELL_SAFE_ERROR,
       }),
       mono('user', 'User', 'user', 3, {
         placeholder: deployment?.sshUser ?? '',
         hint: fallback(deployment?.sshUser),
+        error: SHELL_SAFE_ERROR,
       }),
       mono('deployDir', 'Deployment folder', 'deployDir', 5, {
         placeholder: '/opt/ta/CertScanner/gui/deployment',
+        error: SHELL_SAFE_ERROR,
       }),
       mono('deployScript', 'Deployment script', 'deployScript', 6, {
         placeholder: deployment?.deployScript ?? '',
         hint: fallback(deployment?.deployScript),
+        error: SHELL_SAFE_ERROR,
       }),
       mono('versionFile', 'Version file', 'versionFile', 6, {
         placeholder: deployment?.versionFile ?? '',
         hint: fallback(deployment?.versionFile),
+        error: SHELL_SAFE_ERROR,
       }),
     ];
   }
@@ -433,7 +442,6 @@ export class ServiceFields {
     return [
       line('projectName', 'Project name', 'tools.sonar.projectName', 6),
       mono('projectKey', 'Project key', 'tools.sonar.projectKey', 6, {
-        hint: 'unique across BBH',
         error: "Letters, digits, '-', '_', '.' and ':' with at least one non-digit",
       }),
       line('installationName', 'Jenkins installation', 'tools.sonar.installationName', 4, {
@@ -471,15 +479,15 @@ export class ServiceFields {
 
   protected metricsFields(): Field[] {
     const project = `${this.productCode() || 'CODE'}-${this.form().controls.name.value || 'service'}`;
-    const tag = "Letters, digits, '.', '-' and '_'";
     return [
       check('enabled', 'Write pipeline metrics to InfluxDB', 'influx.enabled'),
-      mono('influxProject', 'Project tag', 'influx.project', 8, {
+      line('influxProject', 'Project tag', 'influx.project', 8, {
         placeholder: project,
-        hint: `left empty: ${project}`,
-        error: tag,
+        hint: `left empty: ${project}; services may share a tag`,
       }),
-      mono('influxEnv', 'Environment tag', 'influx.env', 4, { error: tag }),
+      mono('influxEnv', 'Environment tag', 'influx.env', 4, {
+        error: "Letters, digits, '.', '-' and '_'",
+      }),
     ];
   }
 

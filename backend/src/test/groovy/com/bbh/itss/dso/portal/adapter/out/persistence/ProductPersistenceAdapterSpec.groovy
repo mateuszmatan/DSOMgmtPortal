@@ -3,7 +3,6 @@ package com.bbh.itss.dso.portal.adapter.out.persistence
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.ProductDirectory.ProductIdentity
-import com.bbh.itss.dso.portal.domain.catalog.ProductDirectory.ServiceIdentity
 import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
 import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings
 import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
@@ -242,12 +241,12 @@ class ProductPersistenceAdapterSpec extends Specification {
         adapter.load(9999L) == Optional.empty()
     }
 
-    def "the directory finds products by code and name and services by their metrics tags and SonarQube key"() {
+    def "the directory finds products by code and name, and services may share metrics tags and a SonarQube key"() {
         given:
-        def stored = adapter.save(Product.create(details(), account(), [
-                draft('gui', null, settings(sonar: SonarSettings.of(null, 'cert-gui', command(['sonarqube'])))),
-                draft('api', null, settings(metrics: new MetricsSettings(true, 'Cert-API', 'QC')))], adapter))
-        def (gui, api) = stored.services()*.id()
+        def shared = settings(sonar: SonarSettings.of(null, 'cert', command(['sonarqube'])),
+                metrics: new MetricsSettings(true, 'Cert Scanner', 'test'))
+        def stored = adapter.save(Product.create(details(), account(), [draft('gui', null, shared),
+                                                                       draft('api', null, shared)], adapter))
         entities.clear()
 
         expect:
@@ -255,11 +254,8 @@ class ProductPersistenceAdapterSpec extends Specification {
         adapter.findProductByName('CERTSCANNER') == Optional.of(new ProductIdentity(stored.id(), 'CertScanner'))
         adapter.findProductByCode('PAY') == Optional.empty()
         adapter.findProductByName('Payments') == Optional.empty()
-        adapter.findServicesByMetricsTags('cert-api', 'qc') == [new ServiceIdentity(api, 'CertScanner', 'api')]
-        adapter.findServicesByMetricsTags('CERT-gui', 'test') == [new ServiceIdentity(gui, 'CertScanner', 'gui')]
-        adapter.findServicesByMetricsTags('cert-api', 'test') == []
-        adapter.findServicesBySonarProjectKey('cert-gui') == [new ServiceIdentity(gui, 'CertScanner', 'gui')]
-        adapter.findServicesBySonarProjectKey('CERT-GUI') == []
+        adapter.load(stored.id()).get().services()*.settings()*.metrics()*.influxProject() == ['Cert Scanner', 'Cert Scanner']
+        adapter.load(stored.id()).get().services()*.settings()*.sonar()*.projectKey() == ['cert', 'cert']
     }
 
     def "deleting a product removes its services and their rows"() {
