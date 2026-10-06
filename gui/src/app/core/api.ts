@@ -9,6 +9,7 @@ import {
   Pipeline,
   PipelineMonitoring,
   PipelineRequest,
+  PipelineType,
   Product,
   ProductMonitoring,
   ProductEvidence,
@@ -16,6 +17,10 @@ import {
   ProductSummary,
   ServicePipelines,
 } from './models';
+
+function typeParam(pipelineType?: PipelineType): HttpParams | undefined {
+  return pipelineType ? new HttpParams().set('pipelineType', pipelineType) : undefined;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ProductsApi {
@@ -30,12 +35,14 @@ export class ProductsApi {
     return this.http.get<Product>(`/api/products/${id}`);
   }
 
-  create(request: ProductRequest): Observable<Product> {
-    return this.http.post<Product>('/api/products', request);
+  create(request: ProductRequest, pipelineType?: PipelineType): Observable<Product> {
+    return this.http.post<Product>('/api/products', request, { params: typeParam(pipelineType) });
   }
 
-  update(id: number, request: ProductRequest): Observable<Product> {
-    return this.http.put<Product>(`/api/products/${id}`, request);
+  update(id: number, request: ProductRequest, pipelineType?: PipelineType): Observable<Product> {
+    return this.http.put<Product>(`/api/products/${id}`, request, {
+      params: typeParam(pipelineType),
+    });
   }
 
   delete(id: number): Observable<void> {

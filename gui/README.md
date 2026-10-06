@@ -18,7 +18,7 @@ Gradle downloads Node.js 24 into `gui/.gradle/nodejs`.
 | Folder        | Holds |
 |---------------|-------|
 | `core/`       | API clients, models mirroring the backend DTOs, error handling, the portal sections and the header menus |
-| `beadle/`     | Beadle: the overview page of the new features of the portal |
+| `beadle/`     | Beadle: the overview page of the new features and the Product Onboarding wizard, whose answers `onboarding-model.ts` turns into a product request with BBH defaults (build tasks, Nexus delivery, OpenShift project names) |
 | `products/`   | Product Management: product list, product editor, product page with pipelines and keys |
 | `monitoring/` | Pipeline Monitoring: overview, product pipelines, pipeline details with DORA and Grafana |
 | `evidence/`   | Change Evidence: builds, tests and scans of each pipeline for ServiceNow changes |

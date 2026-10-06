@@ -3,6 +3,7 @@ export interface PortalSection {
   label: string;
   heading: string;
   description: string;
+  exact?: boolean;
 }
 
 export const PRODUCTS: PortalSection = {
@@ -40,6 +41,14 @@ export const BEADLE: PortalSection = {
   label: 'Overview',
   heading: 'Beadle',
   description: 'New features of the BBH portal',
+  exact: true,
+};
+
+export const ONBOARDING: PortalSection = {
+  path: '/beadle/onboarding',
+  label: 'Product Onboarding',
+  heading: 'Product Onboarding',
+  description: 'Set up DevSecOps for your product, step by step',
 };
 
 export interface PortalMenu {
@@ -48,6 +57,6 @@ export interface PortalMenu {
 }
 
 export const MENUS: readonly PortalMenu[] = [
-  { label: 'Beadle', sections: [BEADLE] },
+  { label: 'Beadle', sections: [BEADLE, ONBOARDING] },
   { label: 'DevSecOps Management', sections: SECTIONS },
 ];
