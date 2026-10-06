@@ -18,7 +18,12 @@ import {
   line,
   mono,
 } from '../shared/fields';
-import { POWERSHELL_PATH_ERROR, SHELL_SAFE_ERROR, addItem } from '../shared/form-controls';
+import {
+  HTTP_URL_ERROR,
+  POWERSHELL_PATH_ERROR,
+  SHELL_SAFE_ERROR,
+  addItem,
+} from '../shared/form-controls';
 import { GoldenFixFields } from './golden-fix-fields';
 import { OpenShiftTargetFields } from './openshift-target-fields';
 import {
@@ -128,7 +133,7 @@ const DAST_ENABLED: Field[] = [
 const DAST: Field[] = [
   line('dastTargetUrl', 'DAST target URL', 'dast.targetUrl', 6, {
     placeholder: 'https://cert-scanner.testbbh.com',
-    error: 'Must be an http or https URL',
+    error: HTTP_URL_ERROR,
   }),
   line('dastScanName', 'DAST scan name', 'dast.scanName', 3),
   mono('dastPresenceId', 'Presence ID', 'dast.presenceId', 3, { hint: 'for internal hosts' }),
@@ -151,7 +156,7 @@ const NEXUS_IQ_APPLICATION: Field[] = [
 const SCM: Field[] = [
   line('repositoryUrl', 'Repository URL', 'scm.bitbucket.url', 8, {
     placeholder: 'https://bitbucket.bbh.com/projects/TA/repos/cert-scanner',
-    error: 'Must be an http or https URL',
+    error: HTTP_URL_ERROR,
   }),
   mono('credentialsId', 'Credentials ID', 'scm.bitbucket.credentialsId', 4, {
     placeholder: 'bitbucket-http-credentials',
@@ -197,7 +202,7 @@ const BITBUCKET_REPOSITORY: Field[] = [
   line('apiUrl', 'Bitbucket API URL', 'scm.bitbucket.apiUrl', 6, {
     placeholder: 'https://bitbucket.bbh.com',
     hint: 'Data Center base URL or Cloud API',
-    error: 'Must be an http or https URL',
+    error: HTTP_URL_ERROR,
   }),
   mono('workspace', 'Workspace', 'scm.bitbucket.workspace', 6, {
     placeholder: 'bbh-technology',
@@ -446,7 +451,7 @@ export class ServiceFields {
       line('serverUrl', 'Server URL', 'tools.sonar.serverUrl', 12, {
         placeholder: platform?.sonarServerUrl ?? '',
         hint: fallback(platform?.sonarServerUrl),
-        error: 'Must be an http or https URL',
+        error: HTTP_URL_ERROR,
       }),
       line('projectName', 'Project name', 'tools.sonar.projectName', 6),
       mono('projectKey', 'Project key', 'tools.sonar.projectKey', 6, {
@@ -473,7 +478,7 @@ export class ServiceFields {
       line('serverUrl', 'Server URL', 'tools.nexusIq.serverUrl', 5, {
         placeholder: platform?.nexusIqServerUrl ?? '',
         hint: fallback(platform?.nexusIqServerUrl),
-        error: 'Must be an http or https URL',
+        error: HTTP_URL_ERROR,
       }),
       mono('credentialsId', 'Credentials ID', 'tools.nexusIq.credentialsId', 3, {
         placeholder: platform?.nexusIqCredentialsId ?? '',
@@ -539,7 +544,7 @@ export class ServiceFields {
       line('influxUrl', 'InfluxDB write URL', 'influx.url', 8, {
         placeholder: platform?.influxWriteUrl ?? '',
         hint: fallback(platform?.influxWriteUrl),
-        error: 'Must be an http or https URL',
+        error: HTTP_URL_ERROR,
       }),
       mono('influxCredentialsId', 'Credentials ID', 'influx.credentialsId', 4, {
         placeholder: platform?.influxCredentialsId ?? '',

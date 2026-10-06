@@ -171,6 +171,11 @@ describe('createServiceForm', () => {
     dastTargetUrl.setValue('ftp://host');
     expect(dastTargetUrl.hasError('pattern')).toBe(true);
 
+    for (const unsafe of ['$(id)', '`id`', '"', '\\']) {
+      dastTargetUrl.setValue(`https://cert-uat.testbbh.com/${unsafe}`);
+      expect(dastTargetUrl.hasError('pattern')).toBe(true);
+    }
+
     dastTargetUrl.setValue('https://cert-uat.testbbh.com');
     expect(dastTargetUrl.valid).toBe(true);
   });

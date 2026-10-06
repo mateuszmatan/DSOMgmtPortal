@@ -29,6 +29,7 @@ import tools.jackson.databind.json.JsonMapper
 
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.POWERSHELL_PATH_MESSAGE
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL_MESSAGE
 import static com.bbh.itss.dso.portal.domain.catalog.Region.QC
 import static com.bbh.itss.dso.portal.domain.catalog.Region.RD
 import static com.bbh.itss.dso.portal.support.ApiJson.APP_ID
@@ -122,11 +123,15 @@ class ServiceDtoSpec extends Specification {
         'a build path with a command' | [build: buildJson(buildPath: 'target/*.jar;rm')]              || 'build.buildPath'                                | SHELL_SAFE_MESSAGE
         'a Dockerfile with a space'   | [openShiftTargets: [RD: [dockerFilePath: 'my Dockerfile']]]   || 'openShiftTargets[RD].dockerFilePath'            | SHELL_SAFE_MESSAGE
         'a component without a name'  | [urbanCodeApplications: [[applicationName: 'C', components: [[:]]]]] || 'urbanCodeApplications[0].components[0].componentName' | 'must not be blank'
-        'a DAST URL without http'     | [appScan: [applicationId: APP_ID, dastTargetUrl: 'ftp://x']]  || 'appScan.dastTargetUrl'                          | 'must be an http or https URL'
+        'a DAST URL without http'     | [appScan: [applicationId: APP_ID, dastTargetUrl: 'ftp://x']]  || 'appScan.dastTargetUrl'                          | URL_MESSAGE
         'a workspace with a space'    | [scm: [workspace: 'ta workspace']]                            || 'scm.workspace'                                  | 'must not contain whitespace'
         'an author email without @'   | [goldenFix: [commitAuthorEmail: 'goldenfix.bbh.com']]         || 'goldenFix.commitAuthorEmail'                    | 'must be a well-formed email address'
         'a build tag with a space'    | [openShiftTargets: [QC: [buildTag: '1.0 rc']]]                || 'openShiftTargets[QC].buildTag'                  | SHELL_SAFE_MESSAGE
-        'an InfluxDB URL without http'| [metrics: [influxUrl: 'influx:8086']]                         || 'metrics.influxUrl'                              | 'must be an http or https URL'
+        'an InfluxDB URL without http'| [metrics: [influxUrl: 'influx:8086']]                         || 'metrics.influxUrl'                              | URL_MESSAGE
+        'a URL with a command'        | [scm: [repositoryUrl: 'https://bitbucket/$(id)']]             || 'scm.repositoryUrl'                              | URL_MESSAGE
+        'a URL with a backtick'       | [metrics: [influxUrl: 'http://influx/`id`']]                  || 'metrics.influxUrl'                              | URL_MESSAGE
+        'a URL with a double quote'   | [testJobs: [[stage: 'SMOKE', job: 'j', remoteJenkinsUrl: 'https://j/"x']]] || 'testJobs[0].remoteJenkinsUrl'     | URL_MESSAGE
+        'a URL with a backslash'      | [appScan: [applicationId: APP_ID, dastTargetUrl: 'https://cert\\x']] || 'appScan.dastTargetUrl'                | URL_MESSAGE
         'a Nexus IQ app without name' | [nexusIqApplications: [[scanPatterns: ['**/*.jar']]]]         || 'nexusIqApplications[0].application'            | 'must not be blank'
         'a poll interval of zero'     | [tests: [smokePollIntervalSec: 0]]                            || 'tests.smokePollIntervalSec'                     | 'must be greater than or equal to 1'
         'a Maven home with a command' | [build: buildJson(command: [mavenHome: '/opt/maven;id'])]     || 'build.command.mavenHome'                        | SHELL_SAFE_MESSAGE

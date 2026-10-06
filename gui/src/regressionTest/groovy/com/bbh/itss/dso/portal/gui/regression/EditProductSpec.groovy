@@ -232,7 +232,7 @@ class EditProductSpec extends EditorSpecification {
 
         then:
         hasErrors(openService(), ['Workspace'      : 'No spaces or slashes', 'Repository slug': 'No spaces or slashes',
-                                  'Bitbucket API URL': 'Must be an http or https URL'])
+                                  'Bitbucket API URL': 'An http or https URL without spaces, double quotes, backslashes, \$ or backticks'])
 
         when:
         button('Save changes', true).click()
@@ -398,7 +398,7 @@ class EditProductSpec extends EditorSpecification {
         input(openService(), 'DAST scan name').click()
 
         then:
-        assertThat(errorOf(openService(), 'DAST target URL')).hasText('Must be an http or https URL')
+        assertThat(errorOf(openService(), 'DAST target URL')).hasText('An http or https URL without spaces, double quotes, backslashes, $ or backticks')
 
         when:
         checkbox(openService(), 'Run DAST against the deployed application').uncheck()

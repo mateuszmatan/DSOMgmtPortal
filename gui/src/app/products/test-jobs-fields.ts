@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { GlobalSettings, TEST_STAGES, TestStage } from '../core/models';
-import { addItem } from '../shared/form-controls';
+import { HTTP_URL_ERROR, addItem } from '../shared/form-controls';
 import {
   Field,
   Fields,
@@ -54,7 +54,7 @@ const REMOTE: Field[] = [
     span: 6,
     placeholder: 'https://perf-jenkins.bbh.com',
     code: 'remoteJenkinsUrl',
-    error: 'Must be an http or https URL',
+    error: HTTP_URL_ERROR,
   },
   { key: 'credentialsId', label: 'Credentials ID', span: 3, mono: true, code: 'credentialsId' },
   count('pollIntervalSec', 'Poll interval (seconds)', 'pollIntervalSec', 3, {
