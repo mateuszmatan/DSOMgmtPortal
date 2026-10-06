@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { EVIDENCE, MONITORING, PRODUCTS, SETTINGS } from './core/sections';
+import { BEADLE, EVIDENCE, MONITORING, PRODUCTS, SETTINGS } from './core/sections';
 import { unsavedChangesGuard } from './core/unsaved-changes';
 
 export const routes: Routes = [
@@ -54,6 +54,11 @@ export const routes: Routes = [
     title: SETTINGS.heading,
     canDeactivate: [unsavedChangesGuard],
     loadComponent: () => import('./settings/global-settings').then((m) => m.GlobalSettingsPage),
+  },
+  {
+    path: 'beadle',
+    title: BEADLE.heading,
+    loadComponent: () => import('./beadle/beadle-overview').then((m) => m.BeadleOverview),
   },
   { path: '**', redirectTo: 'products' },
 ];

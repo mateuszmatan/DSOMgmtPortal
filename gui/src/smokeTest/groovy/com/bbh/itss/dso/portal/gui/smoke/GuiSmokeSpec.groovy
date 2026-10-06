@@ -3,6 +3,7 @@ package com.bbh.itss.dso.portal.gui.smoke
 import com.bbh.itss.dso.portal.gui.support.GuiSpecification
 import com.bbh.itss.dso.portal.gui.support.StubApi
 import com.microsoft.playwright.Page
+import com.microsoft.playwright.options.AriaRole
 import spock.lang.IgnoreIf
 
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
@@ -17,20 +18,30 @@ class GuiSmokeSpec extends GuiSpecification {
             [label: 'Change Evidence', heading: 'DevSecOps Change Evidence', path: '/evidence',
              description: 'Builds, tests and scans for ServiceNow changes'],
             [label: 'Global Settings', heading: 'DevSecOps Global Settings', path: '/settings',
-             description: 'Tools, policy and defaults of every pipeline']]
+             description: 'Tools, policy and defaults of every pipeline'],
+            [label: 'Overview', heading: 'Beadle', path: '/beadle', description: 'New features of the BBH portal']]
 
     static final String REGENERATED_KEY = '3f9d2c4e-8a1b-4c7d-9e2f-5b6a7c8d1e04'
 
     static final String GENERATED_KEY = '9c4e1a7b-2d3f-4e5a-8b6c-7d8e9f0a1b2c'
 
-    def "the portal shows its title, the short main menu and the footer"() {
+    def "the portal shows its title, the Beadle and DevSecOps Management menus and the footer"() {
         when:
         open('/products')
 
         then:
         assertThat(page.locator('header .brand-name')).hasText('BBH DevSecOps Management Portal')
-        assertThat(page.locator('nav.menu a')).hasText(SECTIONS*.label as String[])
-        SECTIONS.every { section -> !page.locator('nav.menu').textContent().contains(section.description) }
+        assertThat(page.locator('nav.menu button')).hasText(MENUS.keySet() as String[])
+        assertThat(page.locator('nav.menu .menu-group.active')).hasText('DevSecOps Management')
+        MENUS.every { name, labels ->
+            menuButton(name).click()
+            def panel = page.locator('.mat-mdc-menu-panel')
+            assertThat(panel.getByRole(AriaRole.MENUITEM)).hasText(labels as String[])
+            assert SECTIONS.every { section -> !panel.textContent().contains(section.description) }
+            page.keyboard().press('Escape')
+            assertThat(panel).hasCount(0)
+            true
+        }
         assertThat(page.locator('footer')).containsText('BBH 2026')
         ownErrors().isEmpty()
     }
@@ -65,6 +76,7 @@ class GuiSmokeSpec extends GuiSpecification {
         '/evidence'     | 'DevSecOps Change Evidence'
         '/settings'     | 'DevSecOps Global Settings'
         '/products/new' | 'Add product'
+        '/beadle'       | 'Beadle'
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
@@ -95,7 +107,7 @@ class GuiSmokeSpec extends GuiSpecification {
 
         where:
         path << ['/products', '/products/1', '/monitoring', '/monitoring/products/1', '/monitoring/pipelines/1',
-                 '/evidence', '/settings']
+                 '/evidence', '/settings', '/beadle']
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })

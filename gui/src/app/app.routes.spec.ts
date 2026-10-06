@@ -13,6 +13,7 @@ import {
 import { Observable, firstValueFrom, of } from 'rxjs';
 import { appConfig } from './app.config';
 import { routes } from './app.routes';
+import { BeadleOverview } from './beadle/beadle-overview';
 import { PortalTitleStrategy } from './core/title-strategy';
 import { HasUnsavedChanges, unsavedChangesGuard } from './core/unsaved-changes';
 import { ChangeEvidencePage } from './evidence/change-evidence';
@@ -46,6 +47,7 @@ describe('routes', () => {
       'monitoring/pipelines/:id': PipelineMonitoringPage,
       evidence: ChangeEvidencePage,
       settings: GlobalSettingsPage,
+      beadle: BeadleOverview,
     });
   });
 
