@@ -67,11 +67,16 @@ export class ProductList {
         )
       : null,
   );
+  protected readonly empty = computed(() =>
+    (this.groups() ?? []).every((group) => group.products.length === 0),
+  );
   protected readonly total = computed(() => {
     const groups = this.groups() ?? [];
-    const products = groups.reduce((sum, group) => sum + group.products.length, 0);
-    const departments = groups.filter((group) => group.department).length;
-    return `${counted(products, 'product')} in ${counted(departments, 'department')}`;
+    const placed = groups.filter((group) => group.department);
+    const products = placed.reduce((sum, group) => sum + group.products.length, 0);
+    const unassigned = groups.find((group) => !group.department)?.products.length ?? 0;
+    const total = `${counted(products, 'product')} in ${counted(placed.length, 'department')}`;
+    return unassigned ? `${total} · ${unassigned} not in a department` : total;
   });
 
   protected readonly errorMessage = errorMessage;

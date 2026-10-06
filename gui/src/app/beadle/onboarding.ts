@@ -127,10 +127,16 @@ export class Onboarding implements HasUnsavedChanges {
   protected readonly products = computed(() =>
     this.catalogue.hasValue() ? this.catalogue.value() : [],
   );
+  protected readonly departmentsError = signal<string | null>(null);
   protected readonly departments = toSignal(
     inject(DepartmentsApi)
       .list()
-      .pipe(catchError(() => of([]))),
+      .pipe(
+        catchError((error) => {
+          this.departmentsError.set(errorMessage(error));
+          return of([]);
+        }),
+      ),
     { initialValue: [] },
   );
   protected readonly productGroups = computed(() =>

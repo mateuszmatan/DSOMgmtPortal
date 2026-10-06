@@ -68,7 +68,7 @@ class DepartmentSpec extends ProductPageSpecification {
 
         expect:
         assertThat(buttonIn(department('Fund Services'), 'Delete')).isDisabled()
-        assertThat(buttonIn(department('Fund Services'), 'Delete'))
+        assertThat(department('Fund Services').locator('.delete'))
                 .hasAttribute('title', 'Fund Services still has 1 product. Move them to another department first.')
 
         when:

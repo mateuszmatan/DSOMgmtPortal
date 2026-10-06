@@ -126,3 +126,28 @@ describe('Onboarding', () => {
     expect(text(page().querySelector('dl.rows dd'))).toBe('Corporate Technology');
   });
 });
+
+describe('Onboarding without departments', () => {
+  it('says why no department can be chosen', async () => {
+    TestBed.configureTestingModule({
+      imports: [Onboarding],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    });
+    const http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(Onboarding);
+    fixture.detectChanges();
+    http.expectOne('/api/products').flush([productSummary()]);
+    http
+      .expectOne('/api/departments')
+      .flush({ detail: 'Database unavailable' }, { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/settings').flush(globalSettings());
+    await fixture.whenStable();
+    fixture.componentInstance['pipeline'].set('SAST');
+    fixture.componentInstance['next']();
+    await fixture.whenStable();
+
+    const error = (fixture.nativeElement as HTMLElement).querySelector('.choice-error');
+    expect(text(error)).toContain('The departments could not be loaded');
+    http.verify();
+  });
+});

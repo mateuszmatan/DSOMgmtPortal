@@ -100,11 +100,11 @@ describe('ProductList', () => {
     expect(text(addProduct)).toBe('Add product');
     expect(addProduct.getAttribute('href')).toBe('/products/new?department=5');
     expect(button('Delete', card('Corporate Technology')).disabled).toBe(true);
-    expect(button('Delete', card('Corporate Technology')).title).toBe(
+    expect(card('Corporate Technology').querySelector('.delete')?.getAttribute('title')).toBe(
       'Corporate Technology still has 1 product. Move them to another department first.',
     );
     expect(button('Delete', card('Fund Services')).disabled).toBe(false);
-    expect(button('Delete', card('Fund Services')).hasAttribute('title')).toBe(false);
+    expect(card('Fund Services').querySelector('.delete')?.hasAttribute('title')).toBe(false);
   });
 
   it('gathers the products without a department in a last card summed from their rows', async () => {
@@ -131,13 +131,48 @@ describe('ProductList', () => {
     );
     expect(unassigned.querySelector('.department-actions')).toBeNull();
     expect(unassigned.querySelectorAll('tr.mat-mdc-row').length).toBe(2);
-    expect(text(page().querySelector('.count'))).toBe('3 products in 2 departments');
+    expect(text(page().querySelector('.count'))).toBe(
+      '1 product in 2 departments · 2 not in a department',
+    );
   });
 
-  it('invites to add the first product', async () => {
+  it('shows no partial tally for the products without a department while searching', async () => {
+    await load();
+    const input = page().querySelector<HTMLInputElement>('input[aria-label="Search products"]')!;
+    input.value = 'ledger';
+    input.dispatchEvent(new Event('input'));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    fixture.detectChanges();
+    http
+      .expectOne('/api/products?search=ledger')
+      .flush([productSummary({ id: 7, name: 'Ledger', departmentId: null, departmentName: null })]);
+    await fixture.whenStable();
+
+    expect(cards().map((section) => text(section.querySelector('h2')))).toEqual([
+      'Not in a department',
+    ]);
+    expect(cards()[0].querySelector('.tally')).toBeNull();
+    expect(text(page().querySelector('.count'))).toBe(
+      '0 products in 0 departments · 1 not in a department',
+    );
+  });
+
+  it('invites to add the first product above the departments waiting for one', async () => {
+    await load([]);
+
+    expect(text(page().querySelector('.empty-state h3'))).toBe('No products yet');
+    expect(page().querySelector('.empty-state a')?.getAttribute('href')).toBe('/products/new');
+    expect(cards().map((section) => text(section.querySelector('h2')))).toEqual([
+      'Corporate Technology',
+      'Fund Services',
+    ]);
+  });
+
+  it('invites to add the first product when there are no departments either', async () => {
     await load([], []);
 
     expect(text(page().querySelector('.empty-state h3'))).toBe('No products yet');
+    expect(cards().length).toBe(0);
   });
 
   it('shows why the products could not be loaded', async () => {

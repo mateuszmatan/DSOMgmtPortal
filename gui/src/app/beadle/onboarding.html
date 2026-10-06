@@ -56,6 +56,9 @@
           [value]="mode()"
           (valueChange)="chooseMode($event)"
         />
+        @if (departmentsError(); as error) {
+          <p class="choice-error">The departments could not be loaded: {{ error }}</p>
+        }
         <ng-template #departmentField>
           <mat-form-field>
             <mat-label>Department</mat-label>
