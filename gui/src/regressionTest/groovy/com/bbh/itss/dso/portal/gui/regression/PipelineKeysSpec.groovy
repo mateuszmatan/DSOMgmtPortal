@@ -19,7 +19,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
     def "keys show by their hint until shown, and are copied whole"() {
         given:
         recordClipboard()
-        open('/products/1')
+        open('/admin/products/1')
 
         expect:
         assertThat(keyOf('gui', 'Full')).hasText('7b62170e…299e')
@@ -46,7 +46,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
     def "the key history lists every key by its hint, with the reason of each invalidation"() {
         given:
-        open('/products/2')
+        open('/admin/products/2')
 
         when:
         pipelineAction('mobile-app', 'SAST scanning', 'Key history')
@@ -75,7 +75,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
                 influxProjectTag: 'CERTSCANNER-guisecurity')
         api.respond('POST', '/api/services/1/pipelines', StubResponse.problem(400, 'Bad Request', 'Some values are not valid',
                 [errors: [[field: 'jenkinsJob', message: 'another pipeline already runs in this Jenkins job']]]))
-        open('/products/1')
+        open('/admin/products/1')
 
         when:
         buttonIn(serviceCard('gui'), 'Add pipeline', false).click()
@@ -131,7 +131,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         def key = ApiData.activeKey(41, value)
         replaced += [activeKey: key, keys: [key, ApiData.revokedKey(replaced.activeKey as Map, 'Replaced by a new key', ApiData.ISSUED_AT)]]
         api.respond('POST', '/api/pipelines/1/keys', replaced)
-        open('/products/1')
+        open('/admin/products/1')
 
         when:
         pipelineAction('gui', 'Full', 'Replace key')
@@ -170,7 +170,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         api.respond('POST', '/api/pipelines/2/keys/revoke', revoked)
         api.respond('GET', '/api/pipelines/2', history)
         api.respond('POST', '/api/pipelines/2/keys', regenerated)
-        open('/products/1')
+        open('/admin/products/1')
 
         when:
         pipelineAction('gui', 'SAST scanning', 'Invalidate key')
@@ -228,7 +228,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         given:
         def regenerated = StubApi.fixture('pipeline-9-regenerated.json') as Map
         api.respond('POST', '/api/pipelines/9/keys', StubResponse.problem(503, 'Service Unavailable', 'The key store is being upgraded; try again in a minute'))
-        open('/products/2')
+        open('/admin/products/2')
         def regenerate = pipelineButton('mobile-app', 'SAST scanning', 'Regenerate key of the SAST scanning pipeline')
 
         expect:
@@ -274,7 +274,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         def updated = StubApi.fixture('pipeline-1.json') as Map
         updated += [agentLabels: ['linux-agent', 'docker'], description: 'Main branch delivery', keys: null]
         api.respond('PUT', '/api/pipelines/1', updated)
-        open('/products/1')
+        open('/admin/products/1')
 
         when:
         pipelineAction('gui', 'Full', 'Settings')
@@ -304,7 +304,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         given:
         api.respond('DELETE', '/api/pipelines/3', StubResponse.empty())
         api.respond('DELETE', '/api/products/1', StubResponse.empty())
-        open('/products/1')
+        open('/admin/products/1')
 
         when:
         pipelineAction('backend-api', 'Full', 'Delete pipeline')
@@ -330,7 +330,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
         when:
         dialogButton('Delete product').click()
-        page.waitForURL('**/products')
+        page.waitForURL('**/admin/products')
 
         then:
         awaitRequest('DELETE', '/api/products/1') != null

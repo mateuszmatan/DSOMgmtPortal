@@ -12,11 +12,11 @@ class EditProductSpec extends EditorSpecification {
         given:
         def loaded = StubApi.fixture("product-${id}.json") as Map
         ProductStore.recorded(api, id)
-        open("/products/$id/edit")
+        open("/admin/products/$id/edit")
 
         when:
         button('Save changes', true).click()
-        page.waitForURL("**/products/$id")
+        page.waitForURL("**/admin/products/$id")
 
         then:
         def body = awaitRequest('PUT', "/api/products/$id").json() as Map
@@ -34,7 +34,7 @@ class EditProductSpec extends EditorSpecification {
         given:
         def store = ProductStore.recorded(api, 1)
         store.product.departmentId = null
-        open('/products/1/edit')
+        open('/admin/products/1/edit')
 
         when:
         button('Save changes', true).click()
@@ -47,21 +47,21 @@ class EditProductSpec extends EditorSpecification {
         when:
         choose(productFields(), 'Department', 'Custody')
         button('Save changes', true).click()
-        page.waitForURL('**/products/1')
+        page.waitForURL('**/admin/products/1')
 
         then:
         awaitRequest('PUT', '/api/products/1').json().departmentId == 4
         assertThat(page.locator('.breadcrumb > :not(.sep)'))
-                .hasText(['DevSecOps Product Management', 'Custody', 'CertScanner'] as String[])
+                .hasText(['DevSecOps Admin', 'Products', 'Custody', 'CertScanner'] as String[])
         ownErrors().isEmpty()
     }
 
     def "leaving the editor with unsaved changes asks first, and only Discard leaves"() {
         given:
         ProductStore.recorded(api, 1)
-        open('/products/1')
+        open('/admin/products/1')
         link('Edit product', true).click()
-        page.waitForURL('**/products/1/edit')
+        page.waitForURL('**/admin/products/1/edit')
 
         when:
         input(productFields(), 'Name').fill('CertScanner Renamed')
@@ -76,7 +76,7 @@ class EditProductSpec extends EditorSpecification {
 
         then:
         assertThat(dialog()).hasCount(0)
-        page.url().endsWith('/products/1/edit')
+        page.url().endsWith('/admin/products/1/edit')
         assertThat(input(productFields(), 'Name')).hasValue('CertScanner Renamed')
         assertThat(page.locator('.save-bar')).containsText('Unsaved changes')
 
@@ -88,7 +88,7 @@ class EditProductSpec extends EditorSpecification {
 
         when:
         dialogButton('Discard').click()
-        page.waitForURL('**/products/1')
+        page.waitForURL('**/admin/products/1')
 
         then:
         assertThat(page.locator('h1')).hasText('CertScanner')
@@ -99,11 +99,11 @@ class EditProductSpec extends EditorSpecification {
     def "an unchanged or saved editor is left without a question"() {
         given:
         ProductStore.recorded(api, 1)
-        open('/products/1/edit')
+        open('/admin/products/1/edit')
 
         when:
         button('Cancel', true).click()
-        page.waitForURL('**/products/1')
+        page.waitForURL('**/admin/products/1')
 
         then:
         assertThat(dialog()).hasCount(0)
@@ -112,7 +112,7 @@ class EditProductSpec extends EditorSpecification {
         link('Edit product', true).click()
         input(productFields(), 'Owner team').fill('Platform Security')
         button('Save changes', true).click()
-        page.waitForURL('**/products/1')
+        page.waitForURL('**/admin/products/1')
         menuLink('Change Evidence').click()
         page.waitForURL('**/evidence')
 
@@ -126,7 +126,7 @@ class EditProductSpec extends EditorSpecification {
         given:
         def loaded = ApiData.withoutResponseFields(StubApi.fixture('product-2.json') as Map)
         def store = ProductStore.recorded(api, 2)
-        open('/products/2/edit')
+        open('/admin/products/2/edit')
 
         expect:
         assertThat(serviceNames()).hasText(['gateway', 'ledger', 'notifications', 'mobile-app'] as String[])
@@ -168,7 +168,7 @@ class EditProductSpec extends EditorSpecification {
 
         when:
         button('Save changes', true).click()
-        page.waitForURL('**/products/2')
+        page.waitForURL('**/admin/products/2')
 
         then:
         def body = awaitRequest('PUT', '/api/products/2').json() as Map
@@ -191,7 +191,7 @@ class EditProductSpec extends EditorSpecification {
     def "new services of an existing product get their pipeline keys, shown once after the save"() {
         given:
         def store = ProductStore.recorded(api, 1)
-        open('/products/1/edit')
+        open('/admin/products/1/edit')
 
         when:
         button('Add service', true).click()
@@ -203,7 +203,7 @@ class EditProductSpec extends EditorSpecification {
         expandService('gui')
         buttonIn(openService(), 'Duplicate').click()
         button('Save changes', true).click()
-        page.waitForURL('**/products/1')
+        page.waitForURL('**/admin/products/1')
 
         then:
         (awaitRequest('PUT', '/api/products/1').json().services as List<Map>).collect { [it.id, it.name] } ==
@@ -239,7 +239,7 @@ class EditProductSpec extends EditorSpecification {
         given:
         def store = ProductStore.recorded(api, 1)
         def loaded = ApiData.withoutResponseFields(StubApi.fixture('product-1.json') as Map)
-        open('/products/1/edit')
+        open('/admin/products/1/edit')
         expandService('gui')
         showSection('Bitbucket')
 
@@ -275,7 +275,7 @@ class EditProductSpec extends EditorSpecification {
         choose(openService(), 'Sign-in', 'HTTP access token')
         choose(openService(), 'Bitbucket', 'Cloud')
         button('Save changes', true).click()
-        page.waitForURL('**/products/1')
+        page.waitForURL('**/admin/products/1')
 
         then:
         def scm = [repositoryUrl: null, credentialsId: 'bitbucket-http-credentials', authType: 'BEARER', type: 'CLOUD',
@@ -315,7 +315,7 @@ class EditProductSpec extends EditorSpecification {
         assertThat(hintOf(openService(), 'Run GoldenFix')).hasText('goldenFix.enabled · Global default: on')
 
         when:
-        open('/products/2/edit')
+        open('/admin/products/2/edit')
         expandService('mobile-app')
         showSection('GoldenFix')
 
@@ -328,7 +328,7 @@ class EditProductSpec extends EditorSpecification {
         showSection('GoldenFix')
         choose(openService(), 'Run GoldenFix', 'On')
         button('Save changes', true).click()
-        page.waitForURL('**/products/2')
+        page.waitForURL('**/admin/products/2')
 
         then:
         (awaitRequest('PUT', '/api/products/2').json().services as List<Map>).collect { [it.name, it.goldenFix.enabled] } ==
@@ -339,7 +339,7 @@ class EditProductSpec extends EditorSpecification {
     def "test job parameters take one NAME=value per line and keep the text as typed"() {
         given:
         ProductStore.recorded(api, 1)
-        open('/products/1/edit')
+        open('/admin/products/1/edit')
         expandService('gui')
         showSection('Test jobs')
         def regression = holdingText(openService().locator('.list-item'), 'CERT-SCANNER-GUI - regression')
@@ -366,7 +366,7 @@ class EditProductSpec extends EditorSpecification {
         when:
         input(regression, 'Parameters').fill('ENV=rd\nSUITE=critical\nTAGS=smoke,api')
         button('Save changes', true).click()
-        page.waitForURL('**/products/1')
+        page.waitForURL('**/admin/products/1')
 
         then:
         def jobs = awaitRequest('PUT', '/api/products/1').json().services[0].testJobs as List<Map>
@@ -385,7 +385,7 @@ class EditProductSpec extends EditorSpecification {
     def "a name taken by another service is flagged until either service is renamed"() {
         given:
         ProductStore.recorded(api, 1)
-        open('/products/1/edit')
+        open('/admin/products/1/edit')
 
         when:
         expandService('backend-api')
@@ -405,7 +405,7 @@ class EditProductSpec extends EditorSpecification {
 
         when:
         button('Save changes', true).click()
-        page.waitForURL('**/products/1')
+        page.waitForURL('**/admin/products/1')
 
         then:
         (awaitRequest('PUT', '/api/products/1').json().services as List<Map>).collect { [it.id, it.name] } == [[1, 'web'], [2, 'gui']]
@@ -415,7 +415,7 @@ class EditProductSpec extends EditorSpecification {
     def "fields hidden by a switch never block the save"() {
         given:
         ProductStore.recorded(api, 1)
-        open('/products/1/edit')
+        open('/admin/products/1/edit')
         expandService('gui')
         showSection('AppScan SAST and DAST')
 
@@ -429,7 +429,7 @@ class EditProductSpec extends EditorSpecification {
         when:
         checkbox(openService(), 'Run DAST against the deployed application').uncheck()
         button('Save changes', true).click()
-        page.waitForURL('**/products/1')
+        page.waitForURL('**/admin/products/1')
 
         then:
         def appScan = awaitRequest('PUT', '/api/products/1').json().services[0].appScan as Map

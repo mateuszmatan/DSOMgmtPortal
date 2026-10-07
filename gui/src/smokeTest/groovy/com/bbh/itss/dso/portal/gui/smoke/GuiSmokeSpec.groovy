@@ -13,19 +13,23 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 class GuiSmokeSpec extends GuiSpecification {
 
     static final List<Map<String, String>> SECTIONS = [
-            [label: 'Product Management', heading: 'DevSecOps Product Management', path: '/products',
-             description: 'Products, services, pipelines and keys'],
-            [label: 'Pipeline Monitoring', heading: 'DevSecOps Pipeline Monitoring', path: '/monitoring',
-             description: 'Pipeline status and DORA metrics'],
-            [label: 'Change Evidence', heading: 'DevSecOps Change Evidence', path: '/evidence',
+            [menu       : 'DevSecOps Management', label: 'Self-service', heading: 'DevSecOps Self-service', path: '/self-service',
+             description: 'Set up or change the DevSecOps pipelines of your product, step by step'],
+            [menu       : 'DevSecOps Management', label: 'Pipeline Monitoring', heading: 'DevSecOps Pipeline Monitoring',
+             path       : '/monitoring', description: 'Pipeline status and DORA metrics'],
+            [menu       : 'DevSecOps Management', label: 'Change Evidence', heading: 'DevSecOps Change Evidence', path: '/evidence',
              description: 'Builds, tests and scans for ServiceNow changes'],
-            [label: 'Global Settings', heading: 'DevSecOps Global Settings', path: '/settings',
-             description: 'Tools, policy and defaults of every pipeline'],
-            [label: 'Overview', heading: 'Beadle', path: '/beadle', description: 'New features of the BBH portal'],
-            [label: 'Product Onboarding', heading: 'Product Onboarding', path: '/beadle/onboarding',
-             description: 'Set up DevSecOps for your product, step by step'],
-            [label: 'Production Change', heading: 'Production Change', path: '/beadle/changes',
-             description: 'Raise a ServiceNow change with its change tasks, written from Jira']]
+            [menu       : 'DevSecOps Management', label: 'Admin', heading: 'DevSecOps Admin', path: '/admin/products',
+             description: 'Departments, products, services and the DSOEnhanced library defaults'],
+            [menu: 'Beadle', label: 'Overview', heading: 'Beadle', path: '/beadle', description: 'New features of the BBH portal'],
+            [menu       : 'Beadle', label: 'Production Change', heading: 'Production Change', path: '/beadle/changes',
+             description: 'Raise a ServiceNow change with its change tasks, written from Jira'],
+            [menu       : 'Beadle', label: 'Admin', heading: 'Beadle Admin', path: '/beadle/admin/products',
+             description: 'Departments, products, services and the defaults of their ServiceNow changes']]
+
+    static final Map<String, Map<String, String>> ADMIN_TABS = [
+            'DevSecOps Admin': [Departments: '/admin/departments', Products: '/admin/products', 'Library defaults': '/admin/settings'],
+            'Beadle Admin'   : [Departments: '/beadle/admin/departments', Products: '/beadle/admin/products']]
 
     static final String REGENERATED_KEY = '3f9d2c4e-8a1b-4c7d-9e2f-5b6a7c8d1e04'
 
@@ -33,7 +37,7 @@ class GuiSmokeSpec extends GuiSpecification {
 
     def "the portal shows its title, the Beadle and DevSecOps Management menus and the footer"() {
         when:
-        open('/products')
+        open('/admin/products')
 
         then:
         assertThat(page.locator('header .brand-name')).hasText('BBH DevSecOps Management Portal')
@@ -54,7 +58,7 @@ class GuiSmokeSpec extends GuiSpecification {
 
     def "the product list groups the products by department with the tally of their pipelines"() {
         when:
-        open('/products')
+        open('/admin/products')
 
         then:
         assertThat(page.locator('section.department h2').first()).isVisible()
@@ -70,7 +74,7 @@ class GuiSmokeSpec extends GuiSpecification {
 
         expect:
         (SECTIONS.drop(2) + SECTIONS.take(2)).every { section ->
-            menuLink(section.label).click()
+            menuLink(section.menu, section.label).click()
             page.waitForURL("**${section.path}")
             assertThat(page.locator('h1')).hasText(section.heading)
             assertThat(page.locator('.page-header .page-description')).hasText(section.description)
@@ -89,7 +93,31 @@ class GuiSmokeSpec extends GuiSpecification {
 
         where:
         [path, heading] << SECTIONS.collect { [it.path, it.heading] } +
-                [['/products/new', 'Add product'], ['/beadle/changes/new', 'Raise a production change']]
+                ADMIN_TABS.collectMany { heading, tabs -> tabs.values().collect { [it, heading] } }.unique() +
+                [['/admin', 'DevSecOps Admin'], ['/admin/products/new', 'Add product'],
+                 ['/beadle/changes/new', 'Raise a production change']]
+    }
+
+    def "every tab of #heading opens its page with the tab marked"() {
+        given:
+        open(tabs.values().first())
+
+        expect:
+        assertThat(page.locator('nav.tab-bar a')).hasText(tabs.keySet() as String[])
+        tabs.every { label, path ->
+            tab(label).click()
+            page.waitForURL("**$path")
+            assertThat(page.locator('h1')).hasText(heading)
+            assertThat(page.locator('nav.tab-bar a.active')).hasText(label)
+            assertThat(tab(label)).hasAttribute('aria-current', 'page')
+            assertThat(page.locator('.page.admin > router-outlet + *')).hasCount(1)
+            true
+        }
+        ownErrors().isEmpty()
+
+        where:
+        heading << ADMIN_TABS.keySet()
+        tabs = ADMIN_TABS[heading]
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
@@ -102,13 +130,13 @@ class GuiSmokeSpec extends GuiSpecification {
         ownErrors().isEmpty()
 
         where:
-        path                      | heading
-        '/products/1'             | 'CertScanner'
-        '/products/2/edit'        | 'Edit Payments Hub'
-        '/monitoring/products/1'  | 'CertScanner'
-        '/monitoring/pipelines/1' | 'Full pipeline'
-        '/products/1/change'      | 'ServiceNow change template of CertScanner'
-        '/beadle/changes/1'       | 'CHG0031001'
+        path                       | heading
+        '/admin/products/1'        | 'CertScanner'
+        '/admin/products/2/edit'   | 'Edit Payments Hub'
+        '/monitoring/products/1'   | 'CertScanner'
+        '/monitoring/pipelines/1'  | 'Full pipeline'
+        '/beadle/admin/products/1' | 'ServiceNow change template of CertScanner'
+        '/beadle/changes/1'        | 'CHG0031001'
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
@@ -121,15 +149,16 @@ class GuiSmokeSpec extends GuiSpecification {
         ownErrors().isEmpty()
 
         where:
-        path << ['/products', '/products/1', '/monitoring', '/monitoring/products/1', '/monitoring/pipelines/1',
-                 '/evidence', '/settings', '/beadle', '/beadle/onboarding', '/beadle/changes', '/beadle/changes/new',
-                 '/beadle/changes/1', '/products/1/change']
+        path << ['/self-service', '/monitoring', '/monitoring/products/1', '/monitoring/pipelines/1', '/evidence',
+                 '/admin/departments', '/admin/products', '/admin/products/1', '/admin/settings', '/beadle',
+                 '/beadle/changes', '/beadle/changes/new', '/beadle/changes/1', '/beadle/admin/departments',
+                 '/beadle/admin/products', '/beadle/admin/products/1']
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
     def "the service editor keeps icons only in its vertical section menu"() {
         when:
-        open('/products/1/edit')
+        open('/admin/products/1/edit')
         page.locator('mat-expansion-panel-header').first().click()
 
         then:
@@ -151,9 +180,10 @@ class GuiSmokeSpec extends GuiSpecification {
         ownErrors().isEmpty()
 
         where:
-        [path, width] << [['/products', '/products/1', '/products/1/edit', '/monitoring', '/monitoring/products/1',
-                           '/evidence', '/settings', '/beadle/onboarding', '/beadle/changes', '/beadle/changes/new',
-                           '/beadle/changes/1', '/products/1/change'], [800, 600]].combinations()
+        [path, width] << [['/self-service', '/monitoring', '/monitoring/products/1', '/evidence', '/admin/departments',
+                           '/admin/products', '/admin/products/1', '/admin/products/1/edit', '/admin/settings',
+                           '/beadle/changes', '/beadle/changes/new', '/beadle/changes/1', '/beadle/admin/departments',
+                           '/beadle/admin/products', '/beadle/admin/products/1'], [800, 600]].combinations()
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
@@ -162,7 +192,7 @@ class GuiSmokeSpec extends GuiSpecification {
         api.respond('POST', '/api/pipelines/9/keys', StubApi.fixture('pipeline-9-regenerated.json'))
 
         when:
-        open('/products/2')
+        open('/admin/products/2')
         def regenerate = button('Regenerate key of the SAST scanning pipeline')
 
         then:
@@ -196,11 +226,11 @@ class GuiSmokeSpec extends GuiSpecification {
         }
 
         when:
-        open('/products/1/edit')
+        open('/admin/products/1/edit')
         page.locator('mat-expansion-panel-header').first().click()
         button('Duplicate').first().click()
         button('Save changes').click()
-        page.waitForURL('**/products/1')
+        page.waitForURL('**/admin/products/1')
 
         then:
         assertThat(page.locator('.generated')).containsText('Pipeline key generated for the new service gui-copy.')
@@ -209,13 +239,13 @@ class GuiSmokeSpec extends GuiSpecification {
         ownErrors().isEmpty()
     }
 
-    def "an unknown address falls back to the product list"() {
+    def "an unknown address falls back to pipeline monitoring"() {
         when:
         open('/no-such-page')
 
         then:
-        page.waitForURL('**/products')
-        assertThat(page.locator('h1')).hasText('DevSecOps Product Management')
+        page.waitForURL('**/monitoring')
+        assertThat(page.locator('h1')).hasText('DevSecOps Pipeline Monitoring')
     }
 
     boolean productSaved() {
