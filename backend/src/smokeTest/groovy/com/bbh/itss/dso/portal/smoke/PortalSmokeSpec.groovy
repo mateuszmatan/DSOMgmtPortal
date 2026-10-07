@@ -9,6 +9,8 @@ import spock.lang.Requires
 import spock.lang.Shared
 import spock.lang.Specification
 
+import java.time.LocalDate
+
 class PortalSmokeSpec extends Specification {
 
     @Shared
@@ -99,6 +101,26 @@ class PortalSmokeSpec extends Specification {
         (new Yaml().load(config.body) as Map).keySet() == ['platform', 'defaults'] as Set
     }
 
+    def "every product's ServiceNow change template and Jira epics can be read for a production change"() {
+        given:
+        def products = api.get('/api/products').json.take(5)
+        def range = "from=${LocalDate.now().minusDays(90)}&to=${LocalDate.now()}"
+
+        expect:
+        api.get('/api/changes').status == 200
+        api.get('/api/changes/integrations').json.keySet() == ['jiraConnected', 'serviceNowConnected'] as Set
+        products.every { product ->
+            def profile = api.get("/api/products/$product.id/change-profile")
+            assert profile.status == 200: profile
+            assert started == null || profile.json.version != null
+            if (profile.json.version != null) {
+                def epics = api.get("/api/products/$product.id/jira/epics?$range")
+                assert epics.status == 200: epics
+            }
+            true
+        }
+    }
+
     def "a pipeline key that was never issued is refused"() {
         expect:
         api.get('/api/dso/config/00000000-0000-4000-8000-000000000000').status == 404
@@ -119,7 +141,7 @@ class PortalSmokeSpec extends Specification {
     @Requires({ PortalSmokeSpec.uiExpected() })
     def "the web UI is served, also for links into the app"() {
         expect:
-        ['/', '/products', '/monitoring', '/evidence', '/settings'].every { path ->
+        ['/', '/products', '/monitoring', '/evidence', '/settings', '/beadle/changes/new'].every { path ->
             def page = api.get(path)
             assert page.status == 200: "$path: $page.status"
             assert page.header('Content-Type').startsWith('text/html')

@@ -39,7 +39,11 @@ describe('App', () => {
   });
 
   it.each([
-    ['Beadle', ['Overview', 'Product Onboarding'], ['/beadle', '/beadle/onboarding']],
+    [
+      'Beadle',
+      ['Overview', 'Product Onboarding', 'Production Change'],
+      ['/beadle', '/beadle/onboarding', '/beadle/changes'],
+    ],
     [
       'DevSecOps Management',
       ['Product Management', 'Pipeline Monitoring', 'Change Evidence', 'Global Settings'],

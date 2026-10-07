@@ -23,7 +23,9 @@ class GuiSmokeSpec extends GuiSpecification {
              description: 'Tools, policy and defaults of every pipeline'],
             [label: 'Overview', heading: 'Beadle', path: '/beadle', description: 'New features of the BBH portal'],
             [label: 'Product Onboarding', heading: 'Product Onboarding', path: '/beadle/onboarding',
-             description: 'Set up DevSecOps for your product, step by step']]
+             description: 'Set up DevSecOps for your product, step by step'],
+            [label: 'Production Change', heading: 'Production Change', path: '/beadle/changes',
+             description: 'Raise a ServiceNow change with its change tasks, written from Jira']]
 
     static final String REGENERATED_KEY = '3f9d2c4e-8a1b-4c7d-9e2f-5b6a7c8d1e04'
 
@@ -86,14 +88,16 @@ class GuiSmokeSpec extends GuiSpecification {
         ownErrors().isEmpty()
 
         where:
-        path                 | heading
-        '/products'          | 'DevSecOps Product Management'
-        '/monitoring'        | 'DevSecOps Pipeline Monitoring'
-        '/evidence'          | 'DevSecOps Change Evidence'
-        '/settings'          | 'DevSecOps Global Settings'
-        '/products/new'      | 'Add product'
-        '/beadle'            | 'Beadle'
-        '/beadle/onboarding' | 'Product Onboarding'
+        path                  | heading
+        '/products'           | 'DevSecOps Product Management'
+        '/monitoring'         | 'DevSecOps Pipeline Monitoring'
+        '/evidence'           | 'DevSecOps Change Evidence'
+        '/settings'           | 'DevSecOps Global Settings'
+        '/products/new'       | 'Add product'
+        '/beadle'             | 'Beadle'
+        '/beadle/onboarding'  | 'Product Onboarding'
+        '/beadle/changes'     | 'Production Change'
+        '/beadle/changes/new' | 'Raise a production change'
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
@@ -111,6 +115,8 @@ class GuiSmokeSpec extends GuiSpecification {
         '/products/2/edit'        | 'Edit Payments Hub'
         '/monitoring/products/1'  | 'CertScanner'
         '/monitoring/pipelines/1' | 'Full pipeline'
+        '/products/1/change'      | 'ServiceNow change template of CertScanner'
+        '/beadle/changes/1'       | 'CHG0031001'
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
@@ -124,7 +130,8 @@ class GuiSmokeSpec extends GuiSpecification {
 
         where:
         path << ['/products', '/products/1', '/monitoring', '/monitoring/products/1', '/monitoring/pipelines/1',
-                 '/evidence', '/settings', '/beadle', '/beadle/onboarding']
+                 '/evidence', '/settings', '/beadle', '/beadle/onboarding', '/beadle/changes', '/beadle/changes/new',
+                 '/beadle/changes/1', '/products/1/change']
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
@@ -153,7 +160,8 @@ class GuiSmokeSpec extends GuiSpecification {
 
         where:
         [path, width] << [['/products', '/products/1', '/products/1/edit', '/monitoring', '/monitoring/products/1',
-                           '/evidence', '/settings', '/beadle/onboarding'], [800, 600]].combinations()
+                           '/evidence', '/settings', '/beadle/onboarding', '/beadle/changes', '/beadle/changes/new',
+                           '/beadle/changes/1', '/products/1/change'], [800, 600]].combinations()
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
