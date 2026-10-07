@@ -208,6 +208,44 @@ describe('SelfService', () => {
     expect(wizard()['productId'].value).toBeNull();
   });
 
+  it('continues only with the product chosen last once it is loaded', async () => {
+    await chooseProduct(3);
+    wizard()['productId'].setValue(2);
+    const second = http.expectOne('/api/products/2');
+
+    await next();
+
+    expect(wizard()['step']()).toBe(0);
+    expect(wizard()['existing']()).toBeNull();
+    expect(text(page().querySelector('.choice-error'))).toBe('Wait until the product is loaded');
+
+    second.flush(product({ id: 2, name: 'Payments Hub', departmentId: null, services: [] }));
+    TestBed.tick();
+    http.expectOne('/api/products/2/pipelines').flush([]);
+    await next();
+
+    expect(wizard()['step']()).toBe(1);
+    expect(wizard()['productName']()).toBe('Payments Hub');
+  });
+
+  it('says why the chosen product could not be loaded and keeps to the products in the portal', async () => {
+    await chooseProduct(3);
+    wizard()['productId'].setValue(2);
+    http
+      .expectOne('/api/products/2')
+      .flush({ detail: 'Product 2 was not found' }, { status: 404, statusText: 'Not Found' });
+
+    await next();
+
+    expect(wizard()['step']()).toBe(0);
+    expect(wizard()['mode']()).toBe('existing');
+    expect(wizard()['existing']()).toBeNull();
+    expect(text(page().querySelector('.choice-error'))).toBe(
+      'The product could not be loaded: Product 2 was not found',
+    );
+    expect(fieldOf(page(), 'Product name')).toBeNull();
+  });
+
   it('shows the pipelines every service has today and how many services have each one', async () => {
     await chooseProduct(3, product({ services: [service(), anotherService()] }), [
       servicePipelines({ pipelines: [pipeline({ type: 'SAST' }), pipeline()] }),
@@ -257,8 +295,16 @@ describe('SelfService', () => {
     wizard()['pipeline'].set('SECURITY');
     await next();
     const rows = () => [...page().querySelectorAll<HTMLElement>('.service-list li')];
+    const names = () =>
+      [...page().querySelectorAll('.service-list button')].map((button) =>
+        button.getAttribute('aria-label'),
+      );
+
+    expect(names()).toEqual(['Change gui', 'Remove gui', 'Change api', 'Remove api']);
 
     await click(rows()[0], 'Remove');
+
+    expect(names()).toEqual(['Undo removing gui', 'Change api', 'Remove api']);
 
     expect(rows()[0].classList).toContain('removed');
     expect(text(rows()[0].querySelector('.tag'))).toBe('Removed');
@@ -353,6 +399,7 @@ describe('SelfService', () => {
     expect(text(page().querySelector('a[href="/admin/products/1"]'))).toBe(
       'Open in DevSecOps Admin',
     );
+    expect(buttonOf(page(), 'Copy the Jenkinsfile of gui')).toBeDefined();
   });
 
   it('asks where the services added for a static scan run once the pipeline deploys them', async () => {
@@ -424,6 +471,29 @@ describe('SelfService without departments', () => {
 
     expect(wizard['step']()).toBe(1);
     expect(wizard['departmentName']()).toBe('Corporate Technology');
+    http.verify();
+  });
+});
+
+describe('SelfService without products', () => {
+  it('says why no product in the portal can be chosen', async () => {
+    TestBed.configureTestingModule({
+      imports: [SelfService],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    });
+    const http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(SelfService);
+    fixture.detectChanges();
+    http
+      .expectOne('/api/products')
+      .flush({ detail: 'Database unavailable' }, { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/departments').flush([department()]);
+    http.expectOne('/api/settings').flush(globalSettings());
+    await fixture.whenStable();
+
+    expect(text((fixture.nativeElement as HTMLElement).querySelector('.choice-error'))).toBe(
+      'The products could not be loaded: Database unavailable',
+    );
     http.verify();
   });
 });

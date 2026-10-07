@@ -46,6 +46,9 @@
         @if (departmentsError(); as error) {
           <p class="choice-error">The departments could not be loaded: {{ error }}</p>
         }
+        @if (catalogue.error(); as error) {
+          <p class="choice-error">The products could not be loaded: {{ errorMessage(error) }}</p>
+        }
         <dso-choice-tiles
           label="Product"
           [options]="modes"
@@ -118,15 +121,19 @@
             </mat-form-field>
           </div>
           @if (productError(); as error) {
-            <p class="choice-error">{{ error }}</p>
-          }
-          @if (existing(); as product) {
+            <p class="choice-error">The product could not be loaded: {{ error }}</p>
+          } @else if (existing(); as product) {
             <dl class="rows">
               <dt>Owner team</dt>
               <dd>{{ product.ownerTeam ?? 'not set' }}</dd>
               <dt>Services</dt>
               <dd>{{ product.services.length }}</dd>
             </dl>
+          } @else if (productId.value !== null) {
+            <mat-progress-bar mode="indeterminate" />
+            @if (checked()) {
+              <p class="choice-error">Wait until the product is loaded</p>
+            }
           } @else if (checked()) {
             <p class="choice-error">Choose the product</p>
           }
@@ -210,10 +217,30 @@
                   }
                 </div>
                 @if (isRemoved(service)) {
-                  <button mat-button type="button" (click)="keepService(service)">Undo</button>
+                  <button
+                    mat-button
+                    type="button"
+                    [attr.aria-label]="'Undo removing ' + service.name"
+                    (click)="keepService(service)"
+                  >
+                    Undo
+                  </button>
                 } @else {
-                  <button mat-button type="button" (click)="openService(index)">Change</button>
-                  <button mat-button type="button" class="danger" (click)="removeService(index)">
+                  <button
+                    mat-button
+                    type="button"
+                    [attr.aria-label]="'Change ' + service.name"
+                    (click)="openService(index)"
+                  >
+                    Change
+                  </button>
+                  <button
+                    mat-button
+                    type="button"
+                    class="danger"
+                    [attr.aria-label]="'Remove ' + service.name"
+                    (click)="removeService(index)"
+                  >
                     Remove
                   </button>
                 }
@@ -320,6 +347,7 @@
                       <button
                         mat-button
                         type="button"
+                        [attr.aria-label]="'Copy the Jenkinsfile of ' + start.serviceName"
                         [cdkCopyToClipboard]="jenkinsfileOf(start)"
                         (cdkCopyToClipboardCopied)="copied()"
                       >

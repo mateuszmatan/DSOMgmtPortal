@@ -122,7 +122,7 @@ class SelfServiceSpec extends EditorSpecification {
         when:
         def store = created(api, 3)
         page.locator('.step-bar').getByRole(BUTTON).filter(new Locator.FilterOptions().setHasText('Services')).click()
-        button('Change', true).nth(1).click()
+        button('Change archive-gui', true).click()
         input(dialog(), 'AppScan application ID').fill(GUI_APPLICATION)
         dialogButton('Next').click()
         dialogButton('Save service').click()
@@ -159,7 +159,7 @@ class SelfServiceSpec extends EditorSpecification {
         assertThat(link('Open in DevSecOps Admin', true)).hasAttribute('href', '/admin/products/3')
 
         when:
-        button('Copy', true).first().click()
+        button('Copy the Jenkinsfile of archive-api', true).click()
 
         then:
         assertThat(snackBar()).containsText('Jenkinsfile copied to the clipboard')
@@ -212,10 +212,10 @@ class SelfServiceSpec extends EditorSpecification {
 
         then:
         assertThat(step().locator('.service-list .muted').first()).hasText('Gradle · runs on Virtual machines')
-        assertThat(button('Remove', true)).hasCount(2)
+        assertThat(button('Remove')).hasCount(2)
 
         when:
-        buttonIn(serviceRow('gui'), 'Change').click()
+        buttonIn(serviceRow('gui'), 'Change gui').click()
 
         then:
         assertThat(dialog().locator('h2')).hasText('Change gui')
@@ -236,7 +236,7 @@ class SelfServiceSpec extends EditorSpecification {
         then:
         assertThat(step().locator('.service-list strong')).hasText(['gui', 'backend-api', 'scanner'] as String[])
         assertThat(step().locator('.service-list .tag')).hasText(['Changed', 'New'] as String[])
-        assertThat(button('Remove', true)).hasCount(3)
+        assertThat(button('Remove')).hasCount(3)
 
         when:
         button('Continue', true).click()
@@ -343,7 +343,7 @@ class SelfServiceSpec extends EditorSpecification {
         openProduct('Corporate Technology', 'CertScanner (CERTSCANNER)')
         radio(step(), 'Full').click()
         button('Continue', true).click()
-        buttonIn(serviceRow('gui'), 'Change').click()
+        buttonIn(serviceRow('gui'), 'Change gui').click()
         dialogButton('Next').click()
 
         then:
@@ -401,16 +401,16 @@ class SelfServiceSpec extends EditorSpecification {
         openProduct('Corporate Technology', 'CertScanner (CERTSCANNER)')
         radio(step(), 'Security').click()
         button('Continue', true).click()
-        buttonIn(serviceRow('backend-api'), 'Remove').click()
+        buttonIn(serviceRow('backend-api'), 'Remove backend-api').click()
 
         then:
         assertThat(serviceRow('backend-api').locator('.tag')).hasText('Removed')
         assertThat(serviceRow('backend-api').locator('.removal')).hasText(
                 'Saving deletes backend-api, its pipelines (Full) and their keys. Jenkins jobs that use these keys stop working.')
-        assertThat(buttonIn(serviceRow('backend-api'), 'Change')).hasCount(0)
+        assertThat(buttonIn(serviceRow('backend-api'), 'Change backend-api')).hasCount(0)
 
         when:
-        buttonIn(serviceRow('gui'), 'Remove').click()
+        buttonIn(serviceRow('gui'), 'Remove gui').click()
         button('Continue', true).click()
 
         then:
@@ -418,7 +418,7 @@ class SelfServiceSpec extends EditorSpecification {
         assertThat(choiceError()).hasText('Keep at least one service')
 
         when:
-        buttonIn(serviceRow('gui'), 'Undo').click()
+        buttonIn(serviceRow('gui'), 'Undo removing gui').click()
         button('Continue', true).click()
 
         then:

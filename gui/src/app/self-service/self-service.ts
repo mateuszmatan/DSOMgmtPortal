@@ -256,7 +256,10 @@ export class SelfService implements HasUnsavedChanges {
       .subscribe((code) => this.code.set(code));
     this.productId.valueChanges
       .pipe(
-        tap(() => this.productError.set(null)),
+        tap(() => {
+          this.productError.set(null);
+          this.useProduct(null);
+        }),
         switchMap((id) =>
           id === null
             ? of(null)
@@ -386,7 +389,7 @@ export class SelfService implements HasUnsavedChanges {
       case 0:
         return this.mode() === 'new'
           ? this.productForm.valid
-          : this.existing() !== null &&
+          : this.existing()?.id === this.productId.value &&
               (this.productForm.controls.departmentId.valid ||
                 (this.departmentsError() !== null && !this.needsDepartment()));
       case 1:

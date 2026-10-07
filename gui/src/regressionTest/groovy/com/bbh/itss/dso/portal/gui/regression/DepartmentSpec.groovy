@@ -58,7 +58,7 @@ class DepartmentSpec extends GuiSpecification {
 
         when:
         api.respond('PUT', '/api/departments/6', problem(409, 'Conflict', 'A department named Custody already exists'))
-        buttonIn(row('Treasury'), 'Rename').click()
+        buttonIn(row('Treasury'), 'Rename Treasury').click()
         input(dialog(), 'Name').fill('custody')
         dialogButton('Save').click()
 
@@ -69,7 +69,7 @@ class DepartmentSpec extends GuiSpecification {
 
         when:
         dialogButton('Cancel').click()
-        buttonIn(row('Capital Partners'), 'Rename').click()
+        buttonIn(row('Capital Partners'), 'Rename Capital Partners').click()
 
         then:
         assertThat(input(dialog(), 'Name')).hasValue('Capital Partners')
@@ -92,12 +92,12 @@ class DepartmentSpec extends GuiSpecification {
         open('/admin/departments')
 
         expect:
-        assertThat(buttonIn(row('Fund Services'), 'Delete')).isDisabled()
+        assertThat(buttonIn(row('Fund Services'), 'Delete Fund Services')).isDisabled()
         assertThat(row('Fund Services').locator('.delete'))
                 .hasAttribute('title', 'Fund Services still has 1 product. Move them to another department first.')
 
         when:
-        buttonIn(row('Custody'), 'Delete').click()
+        buttonIn(row('Custody'), 'Delete Custody').click()
 
         then:
         assertThat(dialog().locator('h2')).hasText('Delete Custody?')
@@ -110,7 +110,7 @@ class DepartmentSpec extends GuiSpecification {
         api.requests('DELETE', '/api/departments/\\d+').isEmpty()
 
         when:
-        buttonIn(row('Custody'), 'Delete').click()
+        buttonIn(row('Custody'), 'Delete Custody').click()
         dialogButton('Delete department').click()
 
         then:
@@ -121,7 +121,7 @@ class DepartmentSpec extends GuiSpecification {
         when:
         api.respond('DELETE', '/api/departments/1', problem(409, 'Conflict',
                 'AI Lab still has 1 product(s). Move them to another department first.'))
-        buttonIn(row('AI Lab'), 'Delete').click()
+        buttonIn(row('AI Lab'), 'Delete AI Lab').click()
         dialogButton('Delete department').click()
 
         then:
@@ -135,7 +135,7 @@ class DepartmentSpec extends GuiSpecification {
         open('/admin/departments')
 
         when:
-        buttonIn(row('Fund Services'), 'Rename').click()
+        buttonIn(row('Fund Services'), 'Rename Fund Services').click()
         input(dialog(), 'Name').fill('Fund Administration')
         dialogButton('Save').click()
 
