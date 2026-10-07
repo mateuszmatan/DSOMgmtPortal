@@ -4,13 +4,14 @@ import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.Versions;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public final class Product {
 
@@ -59,13 +60,10 @@ public final class Product {
         Objects.requireNonNull(details, "a product needs its details");
         Objects.requireNonNull(drafts, "a product needs its list of services");
         new ProductRules(id, serviceIds(), directory).check(details, appScanAccount, drafts);
-        List<Service> placed = new ArrayList<>();
-        for (int order = 0; order < drafts.size(); order++) {
-            placed.add(drafts.get(order).place(order, details.code()));
-        }
         this.details = details;
         this.appScanAccount = appScanAccount;
-        this.services = placed.stream().sorted(DISPLAY_ORDER).toList();
+        this.services = IntStream.range(0, drafts.size()).mapToObj(order -> drafts.get(order).place(order,
+                details.code())).toList();
     }
 
     public Optional<Service> service(Long serviceId) {
@@ -73,9 +71,8 @@ public final class Product {
     }
 
     public Set<Long> serviceIds() {
-        Set<Long> ids = new LinkedHashSet<>();
-        services.stream().map(Service::id).filter(Objects::nonNull).forEach(ids::add);
-        return ids;
+        return services.stream().map(Service::id).filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     public void writeConfig(Service service, ConfigTree config) {

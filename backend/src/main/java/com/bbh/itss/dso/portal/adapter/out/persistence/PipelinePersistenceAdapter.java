@@ -6,7 +6,6 @@ import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
-import com.bbh.itss.dso.portal.domain.shared.ConflictException;
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 import org.springframework.stereotype.Component;
 
@@ -74,7 +73,8 @@ class PipelinePersistenceAdapter implements PipelineRepositoryPort, PipelineCoun
 
     @Override
     public Pipeline save(Pipeline pipeline) {
-        PipelineEntity entity = pipeline.id() == null ? created(pipeline) : existing(pipeline);
+        PipelineEntity entity = pipeline.id() == null ? created(pipeline)
+                : AuditedEntity.current(pipelines.findWithServiceById(pipeline.id()), pipeline.version());
         entity.apply(pipeline);
         if (pipeline.id() != null) {
             pipelines.flush();
@@ -108,13 +108,5 @@ class PipelinePersistenceAdapter implements PipelineRepositoryPort, PipelineCoun
         ServiceEntity service = services.findWithProductById(serviceId)
                 .orElseThrow(() -> NotFoundException.of("Service", serviceId));
         return new PipelineEntity(service, pipeline.type());
-    }
-
-    private PipelineEntity existing(Pipeline pipeline) {
-        PipelineEntity entity = pipelines.findWithServiceById(pipeline.id()).orElseThrow(ConflictException::staleVersion);
-        if (entity.getVersion() != pipeline.version()) {
-            throw ConflictException.staleVersion();
-        }
-        return entity;
     }
 }

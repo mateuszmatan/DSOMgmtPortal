@@ -11,7 +11,6 @@ class MetricsReadingSpec extends Specification {
         MetricsReading.of({ -> throw new MetricsUnavailableException('InfluxDB is down') }, []) ==
                 new MetricsReading([], 'InfluxDB is down')
         MetricsReading.of({ -> throw new MetricsUnavailableException('InfluxDB is down') }, []).failed()
-        MetricsReading.unavailable([], 'earlier failure') == new MetricsReading([], 'earlier failure')
     }
 
     def "other failures are not swallowed"() {

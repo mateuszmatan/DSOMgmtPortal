@@ -1,11 +1,10 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
-import com.bbh.itss.dso.portal.domain.shared.ConfigSection;
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.Text;
 
 public record MetricsSettings(Boolean enabled, String influxProject, String influxEnv, String influxUrl,
-                              String influxCredentialsId) implements ConfigSection {
+                              String influxCredentialsId) {
 
     public static final String DEFAULT_ENV = "test";
     public static final MetricsSettings DEFAULTS = new MetricsSettings(true, null, null, null, null);
@@ -27,7 +26,6 @@ public record MetricsSettings(Boolean enabled, String influxProject, String infl
                 : new MetricsSettings(enabled, productCode + "-" + serviceName, influxEnv, influxUrl, influxCredentialsId);
     }
 
-    @Override
     public void writeTo(ConfigTree config) {
         config.set("influx.enabled", enabled).set("influx.url", influxUrl)
                 .set("influx.credentialsId", influxCredentialsId).set("influx.project", influxProject)

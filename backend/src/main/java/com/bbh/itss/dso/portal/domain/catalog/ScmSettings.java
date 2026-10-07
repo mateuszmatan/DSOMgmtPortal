@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
-import com.bbh.itss.dso.portal.domain.shared.ConfigSection;
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.StoredList;
 import com.bbh.itss.dso.portal.domain.shared.Text;
@@ -12,7 +11,7 @@ import java.util.stream.Stream;
 
 public record ScmSettings(String repositoryUrl, String credentialsId, BitbucketAuthType authType, BitbucketType type,
                           String targetBranch, String cloneUrl, List<String> reviewers, String apiUrl, String workspace,
-                          String projectKey, String repoSlug) implements ConfigSection {
+                          String projectKey, String repoSlug) {
 
     public static final ScmSettings NONE = of(null, null);
 
@@ -34,7 +33,6 @@ public record ScmSettings(String repositoryUrl, String credentialsId, BitbucketA
                 null, null, null, null);
     }
 
-    @Override
     public void writeTo(ConfigTree config) {
         if (repositoryUrl == null) {
             return;
@@ -52,7 +50,6 @@ public record ScmSettings(String repositoryUrl, String credentialsId, BitbucketA
                 .set("scm.bitbucket.repoSlug", repoSlug);
     }
 
-    @Override
     public void validate(ValidationProblems problems) {
         if (repositoryUrl != null && credentialsId == null) {
             problems.add("credentialsId", "is required to push GoldenFix branches and open pull requests");

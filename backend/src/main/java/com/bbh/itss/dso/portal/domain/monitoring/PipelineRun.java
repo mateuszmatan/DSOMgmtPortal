@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.domain.monitoring;
 
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings;
+import com.bbh.itss.dso.portal.domain.shared.Text;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -19,6 +20,6 @@ public record PipelineRun(Instant time, RunResult result, String branch, Long bu
         }
         String recorded = PipelineSettings.jobUrl(job, jenkinsUrl);
         String jobUrl = recorded == null ? PipelineSettings.jobUrl(configuredJob, jenkinsUrl) : recorded;
-        return jobUrl == null ? null : jobUrl + build + "/";
+        return jobUrl == null ? null : Text.withoutTrailingSlash(jobUrl) + "/" + build + "/";
     }
 }

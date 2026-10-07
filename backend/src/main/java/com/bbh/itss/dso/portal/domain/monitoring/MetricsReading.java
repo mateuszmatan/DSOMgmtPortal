@@ -8,12 +8,8 @@ public record MetricsReading<T>(T value, String error) {
         try {
             return new MetricsReading<>(query.get(), null);
         } catch (MetricsUnavailableException e) {
-            return unavailable(fallback, e.getMessage());
+            return new MetricsReading<>(fallback, e.getMessage());
         }
-    }
-
-    public static <T> MetricsReading<T> unavailable(T fallback, String error) {
-        return new MetricsReading<>(fallback, error);
     }
 
     public boolean failed() {

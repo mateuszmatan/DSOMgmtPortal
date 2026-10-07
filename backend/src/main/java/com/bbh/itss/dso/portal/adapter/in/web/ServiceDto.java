@@ -46,8 +46,11 @@ import java.util.Map;
 
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.FOLDER;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.FOLDER_MESSAGE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.GIT_URL;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.IMAGE_TAG;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.IMAGE_TAG_MESSAGE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.MODULE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.MODULE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.NO_WHITESPACE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.NO_WHITESPACE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.POWERSHELL_PATH;
@@ -235,7 +238,7 @@ public record ServiceDto(
             @Size(max = 300) String routeHostname,
             @Size(max = 500) String deploymentPath,
             @Size(max = 1000)
-            @Pattern(regexp = "^(https?://\\S+|ssh://\\S+|git@\\S+)?$", message = "must be a Git repository URL")
+            @Pattern(regexp = GIT_URL, message = "must be a Git repository URL")
             String deploymentRepoUrl,
             @Size(max = 200) String deploymentRepoBranch,
             @Size(max = 200) String deploymentRepoCredentialsId,
@@ -306,7 +309,7 @@ public record ServiceDto(
             BitbucketType type,
             @Size(max = 200) String targetBranch,
             @Size(max = 1000)
-            @Pattern(regexp = "^(https?://\\S+|ssh://\\S+|git@\\S+)?$", message = "must be an http, https, ssh or git@ URL")
+            @Pattern(regexp = GIT_URL, message = "must be an http, https, ssh or git@ URL")
             String cloneUrl,
             @Size(max = 20)
             List<@Pattern(regexp = "^[^,\\s]{1,100}$", message = "one Bitbucket user name or account UUID per entry")
@@ -355,10 +358,10 @@ public record ServiceDto(
 
     public record FlutterSettingsDto(
             FlutterPlatform platform,
-            @Size(max = 30) List<@Pattern(regexp = "^[A-Za-z0-9._/-]{1,100}$", message = "must be a module folder name") String> modules,
-            @Size(max = 30) List<@Pattern(regexp = "^[A-Za-z0-9._/-]{1,100}$", message = "must be a module folder name") String> testModules,
-            @Size(max = 30) List<@Pattern(regexp = "^[A-Za-z0-9._/-]{1,100}$", message = "must be a module folder name") String> testSubmodules,
-            @Size(max = 30) List<@Pattern(regexp = "^[A-Za-z0-9._/-]{1,100}$", message = "must be a plugin folder name") String> testSubplugins,
+            @Size(max = 30) List<@Pattern(regexp = MODULE, message = MODULE_MESSAGE) String> modules,
+            @Size(max = 30) List<@Pattern(regexp = MODULE, message = MODULE_MESSAGE) String> testModules,
+            @Size(max = 30) List<@Pattern(regexp = MODULE, message = MODULE_MESSAGE) String> testSubmodules,
+            @Size(max = 30) List<@Pattern(regexp = MODULE, message = "must be a plugin folder name") String> testSubplugins,
             @Size(max = 200) String signingPasswordCredentialsId,
             @Size(max = 200) String prodLicenseCredentialsId,
             @Size(max = 200) String testLicenseCredentialsId,

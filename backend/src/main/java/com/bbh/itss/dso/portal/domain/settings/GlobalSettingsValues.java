@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.domain.settings;
 
+import com.bbh.itss.dso.portal.domain.catalog.BuildSettings;
 import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
 import com.bbh.itss.dso.portal.domain.catalog.DeployTarget;
 import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy;
@@ -52,7 +53,7 @@ public record GlobalSettingsValues(PlatformSettings platform, DeploymentDefaults
         ReleaseGateSettings releaseGate = new ReleaseGateSettings(List.of(Scanner.values()), true,
                 "release-gate.json");
         ServiceDefaults serviceDefaults = new ServiceDefaults(BuildTool.GRADLE,
-                DeployTarget.VM, ".", 20);
+                DeployTarget.VM, BuildSettings.DEFAULT_SOURCE_DIR, 20);
         GoldenFixPolicy goldenFix = new GoldenFixPolicy(true, true, 2, List.of("maven", "npm", "pypi"),
                 List.of("recommended-non-breaking-with-dependencies", "recommended-non-breaking"),
                 List.of(), true, 3, 20, null, null, null, null, null, "DevSecOps GoldenFix",

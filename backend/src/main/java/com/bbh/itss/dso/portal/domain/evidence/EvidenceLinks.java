@@ -10,11 +10,11 @@ public record EvidenceLinks(String buildUrl, String appScanUrl, String sonarUrl,
     public static EvidenceLinks of(String buildUrl, String asocUrl, String appScanApplicationId,
                                    String sonarServerUrl, String sonarProjectKey, String nexusIqServerUrl) {
         String appScan = Text.isBlank(asocUrl) || Text.isBlank(appScanApplicationId) ? null
-                : withoutSlash(asocUrl) + "/main/myapps/" + UriEncoding.pathSegment(appScanApplicationId.trim())
+                : Text.withoutTrailingSlash(asocUrl) + "/main/myapps/" + UriEncoding.pathSegment(appScanApplicationId.trim())
                         + "/scans";
         String sonar = Text.isBlank(sonarServerUrl) || Text.isBlank(sonarProjectKey) ? null
-                : withoutSlash(sonarServerUrl) + "/dashboard?id=" + UriEncoding.queryParam(sonarProjectKey);
-        String nexusIq = Text.isBlank(nexusIqServerUrl) ? null : withoutSlash(nexusIqServerUrl) + "/";
+                : Text.withoutTrailingSlash(sonarServerUrl) + "/dashboard?id=" + UriEncoding.queryParam(sonarProjectKey);
+        String nexusIq = Text.isBlank(nexusIqServerUrl) ? null : Text.withoutTrailingSlash(nexusIqServerUrl) + "/";
         return new EvidenceLinks(buildUrl, appScan, sonar, nexusIq);
     }
 
@@ -28,9 +28,5 @@ public record EvidenceLinks(String buildUrl, String appScanUrl, String sonarUrl,
 
     public String artifactsUrl() {
         return buildUrl == null ? null : buildUrl + "artifact/";
-    }
-
-    private static String withoutSlash(String url) {
-        return url.trim().replaceAll("/+$", "");
     }
 }

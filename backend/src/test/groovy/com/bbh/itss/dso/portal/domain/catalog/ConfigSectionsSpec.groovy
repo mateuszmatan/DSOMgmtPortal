@@ -345,7 +345,6 @@ class ConfigSectionsSpec extends Specification {
         new MetricsSettings(false, ' cert ', ' prod ', null, null) == new MetricsSettings(false, 'cert', 'prod', null, null)
         written(new MetricsSettings(null, 'CERT-gui', null, null, null)) == [influx: [enabled: true, project: 'CERT-gui', env: 'test']]
         written(new MetricsSettings(false, null, 'uat', null, null)) == [influx: [enabled: false, env: 'uat']]
-        problems(MetricsSettings.DEFAULTS) == []
         MetricsSettings.DEFAULTS.withDefaultProject('CERT', 'gui') == new MetricsSettings(true, 'CERT-gui', 'test', null, null)
         new MetricsSettings(false, null, 'uat', null, null).withDefaultProject('CERT', 'gui') == new MetricsSettings(false, 'CERT-gui', 'uat', null, null)
         new MetricsSettings(true, 'cert-scanner', 'uat', null, null).with { it.withDefaultProject('CERT', 'gui').is(it) }
@@ -370,7 +369,6 @@ class ConfigSectionsSpec extends Specification {
         written(new AppScanAccount(' bbh_key ', ' asoc-creds ')) == [asoc: [keyId: 'bbh_key', token: 'asoc-creds']]
         written(new AppScanAccount('bbh_key', ' ')) == [asoc: [keyId: 'bbh_key']]
         new AppScanAccount(' ', ' ') == new AppScanAccount(null, null)
-        problems(new AppScanAccount('bbh_key', null)) == []
     }
 
     private static AppScanSettings dast(String targetUrl) {

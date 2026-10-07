@@ -11,22 +11,25 @@ class GrafanaDashboardLinksAdapterSpec extends Specification {
 
     def tag = new MetricsTag('CERT gui', 'test')
 
-    def "the #type pipeline links #dashboard with its project and range, and nothing without the pipeline dashboard"() {
+    def "the #type pipeline links #dashboard with its project and range"() {
         given:
         def adapter = new GrafanaDashboardLinksAdapter(new GrafanaProperties(" $PIPELINE ", security))
 
         expect:
         adapter.url() == Optional.of(PIPELINE)
         adapter.dashboardUrl(tag, type, 90).orElseThrow() == link.toString()
-        [null, '  '].every { new GrafanaDashboardLinksAdapter(new GrafanaProperties(it, SECURITY)).dashboardUrl(tag, type, 30).isEmpty() }
+        [null, '  '].every {
+            new GrafanaDashboardLinksAdapter(new GrafanaProperties(it, SECURITY)).dashboardUrl(tag, type, 30)
+                    .isPresent() == securityAlone
+        }
         new GrafanaDashboardLinksAdapter(new GrafanaProperties(null, SECURITY)).url().isEmpty()
 
         where:
-        type                  | security || dashboard            | link
-        PipelineType.FULL     | SECURITY || 'the pipeline one'   | "$PIPELINE?var-project=CERT%20gui&from=now-90d&to=now"
-        PipelineType.EXTENDED | SECURITY || 'the pipeline one'   | "$PIPELINE?var-project=CERT%20gui&from=now-90d&to=now"
-        PipelineType.SECURITY | SECURITY || 'the security one'   | "$SECURITY&var-project=CERT%20gui&from=now-90d&to=now"
-        PipelineType.SAST     | SECURITY || 'the security one'   | "$SECURITY&var-project=CERT%20gui&from=now-90d&to=now"
-        PipelineType.SAST     | ' '      || 'the pipeline one'   | "$PIPELINE?var-project=CERT%20gui&from=now-90d&to=now"
+        type                  | security || dashboard          | securityAlone | link
+        PipelineType.FULL     | SECURITY || 'the pipeline one' | false         | "$PIPELINE?var-project=CERT%20gui&from=now-90d&to=now"
+        PipelineType.EXTENDED | SECURITY || 'the pipeline one' | false         | "$PIPELINE?var-project=CERT%20gui&from=now-90d&to=now"
+        PipelineType.SECURITY | SECURITY || 'the security one' | true          | "$SECURITY&var-project=CERT%20gui&from=now-90d&to=now"
+        PipelineType.SAST     | SECURITY || 'the security one' | true          | "$SECURITY&var-project=CERT%20gui&from=now-90d&to=now"
+        PipelineType.SAST     | ' '      || 'the pipeline one' | true          | "$PIPELINE?var-project=CERT%20gui&from=now-90d&to=now"
     }
 }

@@ -36,12 +36,10 @@ class RunEvidenceSpec extends Specification {
         points << point('release_gate', allowed: 'yes')
 
         then:
-        evidence.isEmpty()
         evidence.releaseGate() == null
         new RunEvidence([point('release_gate', allowed: 'yes')]).stages() == []
         new RunEvidence([point('stage_event', stage: 'Build')]).releaseGate() == null
-        RunEvidence.none().isEmpty()
-        !new RunEvidence([point('stage_event', stage: 'Build')]).isEmpty()
+        RunEvidence.none().stages() == []
         RunEvidence.MEASUREMENTS == ['security_findings', 'policy_status', 'code_coverage', 'test_execution',
                                    'release_gate', 'vulnerabilities', 'stage_event', 'build_evidence']
     }

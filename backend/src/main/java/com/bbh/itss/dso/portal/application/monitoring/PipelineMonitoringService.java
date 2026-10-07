@@ -108,14 +108,13 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
 
         MetricsReading<List<PipelineRun>> recent = attributable
                 ? MetricsReading.of(() -> runs.recentRuns(tag, job, days, RECENT_RUNS), List.of())
-                : MetricsReading.of(List::of, List.of());
-        MetricsReading<List<DoraPoint>> points = recent.failed()
-                ? MetricsReading.unavailable(List.of(), recent.error())
-                : MetricsReading.of(() -> attributable
-                        ? runs.doraPoints(List.of(tag), days).getOrDefault(tag, List.of()) : List.of(), List.of());
+                : new MetricsReading<>(List.of(), null);
+        MetricsReading<List<DoraPoint>> points = recent.failed() || !attributable
+                ? new MetricsReading<>(List.of(), recent.error())
+                : MetricsReading.of(() -> runs.doraPoints(List.of(tag), days).getOrDefault(tag, List.of()), List.of());
         List<PipelineRun> recentRuns = recent.value();
         PipelineRun last = recentRuns.isEmpty() ? null : recentRuns.getFirst();
-        if (last == null && attributable && !points.failed()) {
+        if (last == null && attributable && !recent.failed()) {
             last = latestRuns(monitored).value().of(tag, pipeline);
         }
         DoraSummary dora = DoraCalculator.summarize(points.value(), days, Instant.now(clock));

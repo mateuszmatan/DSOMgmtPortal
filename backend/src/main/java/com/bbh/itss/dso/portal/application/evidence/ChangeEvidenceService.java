@@ -11,8 +11,6 @@ import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringTargets;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.ReadMonitoringTargetsUseCase;
 import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
-import com.bbh.itss.dso.portal.domain.catalog.Product;
-import com.bbh.itss.dso.portal.domain.catalog.Service;
 import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings;
 import com.bbh.itss.dso.portal.domain.evidence.EvidenceLinks;
 import com.bbh.itss.dso.portal.domain.evidence.RunEvidence;
@@ -50,23 +48,24 @@ public class ChangeEvidenceService implements QueryEvidenceUseCase {
     @WithoutTransaction
     public ProductEvidence product(long productId) {
         MonitoringTargets monitored = targets.ofProduct(productId);
-        Product product = monitored.product();
-        PlatformSettings platform = monitored.platform();
-        Map<Long, List<Pipeline>> byService = monitored.pipelines().stream()
-                .collect(Collectors.groupingBy(view -> view.service().id(),
-                        Collectors.mapping(PipelineView::pipeline, Collectors.toList())));
         Readings readings = read(monitored);
-        List<ServiceEvidence> services = product.services().stream()
-                .map(service -> service(service, byService.getOrDefault(service.id(), List.of()), readings, platform))
+        Map<Long, List<PipelineEvidence>> byService = monitored.pipelines().stream()
+                .collect(Collectors.groupingBy(view -> view.service().id(), Collectors.mapping(view -> {
+                    PipelineRun run = readings.latest().of(view.metricsTag(), view.pipeline());
+                    return pipeline(view, run, run == null ? null : readings.evidence().get(run),
+                            monitored.platform());
+                }, Collectors.toList())));
+        List<ServiceEvidence> services = monitored.product().services().stream()
+                .map(service -> new ServiceEvidence(service, byService.getOrDefault(service.id(), List.of())))
                 .toList();
-        return new ProductEvidence(product, services, readings.error());
+        return new ProductEvidence(monitored.product(), services, readings.error());
     }
 
     private Readings read(MonitoringTargets monitored) {
         MetricsReading<LatestRuns> latest = MetricsReading.of(
                 () -> runs.latestRuns(monitored.tags(), monitored.sharedTags()), LatestRuns.none());
         if (latest.failed()) {
-            return new Readings(LatestRuns.none(), Map.of(), latest.error());
+            return new Readings(latest.value(), Map.of(), latest.error());
         }
         Map<MetricsTag, Set<PipelineRun>> attributed = new HashMap<>();
         for (PipelineView view : monitored.pipelines()) {
@@ -80,32 +79,21 @@ public class ChangeEvidenceService implements QueryEvidenceUseCase {
         return new Readings(latest.value(), recorded.value(), recorded.error());
     }
 
-    private static ServiceEvidence service(Service service, List<Pipeline> servicePipelines, Readings readings,
-                                           PlatformSettings platform) {
-        return new ServiceEvidence(service, servicePipelines.stream()
-                .map(pipeline -> {
-                    PipelineRun run = readings.latest().of(MetricsTag.of(service, pipeline), pipeline);
-                    return pipeline(service, pipeline, run, run == null ? null : readings.evidence().get(run),
-                            platform);
-                })
-                .toList());
-    }
-
-    static PipelineEvidence pipeline(Service service, Pipeline pipeline, PipelineRun run, RunEvidence recorded,
+    static PipelineEvidence pipeline(PipelineView view, PipelineRun run, RunEvidence recorded,
                                      PlatformSettings platform) {
-        String jobUrl = pipeline.settings().jenkinsJobUrl(platform.jenkinsUrl());
+        Pipeline pipeline = view.pipeline();
         RunResult status = RunResult.of(pipeline, run);
         if (run == null) {
-            return new PipelineEvidence(pipeline, jobUrl, status, null);
+            return new PipelineEvidence(pipeline, view.jenkinsJobUrl(), status, null);
         }
-        ServiceSettings settings = service.settings();
-        EvidenceLinks links = EvidenceLinks.of(run.buildUrl(platform.jenkinsUrl(), pipeline.settings().jenkinsJob()),
-                platform.asocUrl(),
+        ServiceSettings settings = view.service().settings();
+        EvidenceLinks links = EvidenceLinks.of(view.buildUrl(run), platform.asocUrl(),
                 settings.appScan().applicationId(),
                 Text.orDefault(settings.sonar().serverUrl(), platform.sonarServerUrl()), settings.sonar().projectKey(),
                 Text.orDefault(settings.nexusIq().serverUrl(), platform.nexusIqServerUrl()));
         RunEvidence points = recorded == null ? RunEvidence.none() : recorded;
-        return new PipelineEvidence(pipeline, jobUrl, status, points.report(run, service.name(), links));
+        return new PipelineEvidence(pipeline, view.jenkinsJobUrl(), status,
+                points.report(run, view.service().name(), links));
     }
 
     private record Readings(LatestRuns latest, Map<PipelineRun, RunEvidence> evidence, String error) {

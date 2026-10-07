@@ -10,12 +10,9 @@ import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPor
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.ProductCode;
-import com.bbh.itss.dso.portal.domain.catalog.Service;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,13 +55,13 @@ public class ProductCatalogService implements ProductsUseCase {
     @Override
     public Product create(ProductCommand command) {
         Product saved = products.save(Product.create(command.details(), command.appScan(), command.services(), products));
-        return withPipelines(saved, Collections.emptySet(), command.pipelineType());
+        return withPipelines(saved, Set.of(), command.pipelineType());
     }
 
     @Override
     public Product update(long id, ProductCommand command) {
         Product product = find(id);
-        Set<Long> known = new HashSet<>(serviceIds(product));
+        Set<Long> known = product.serviceIds();
         product.update(command.version(), command.details(), command.appScan(), command.services(), products);
         return withPipelines(products.save(product), known, command.pipelineType());
     }
@@ -82,14 +79,10 @@ public class ProductCatalogService implements ProductsUseCase {
     }
 
     private Product withPipelines(Product saved, Set<Long> known, PipelineType type) {
-        pipelines.createMissing(saved.id(), serviceIds(saved).stream()
+        pipelines.createMissing(saved.id(), saved.serviceIds().stream()
                 .filter(serviceId -> type != null || !known.contains(serviceId))
                 .toList(), type == null ? PipelineType.FULL : type);
         return saved;
-    }
-
-    private static List<Long> serviceIds(Product product) {
-        return product.services().stream().map(Service::id).toList();
     }
 
     private Product find(long id) {

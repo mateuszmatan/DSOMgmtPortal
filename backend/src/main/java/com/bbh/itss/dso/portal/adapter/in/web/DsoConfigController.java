@@ -7,16 +7,19 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.representer.Representer;
 
 import java.util.Map;
 
 @RestController
 public class DsoConfigController {
 
-    static final MediaType YAML = new MediaType("application", "yaml");
+    private static final MediaType YAML = new MediaType("application", "yaml");
+    private static final DumperOptions YAML_OPTIONS = yamlOptions();
 
     private final RenderConfigUseCase configs;
-    private final ConfigYaml yaml = new ConfigYaml();
 
     public DsoConfigController(RenderConfigUseCase configs) {
         this.configs = configs;
@@ -48,6 +51,17 @@ public class DsoConfigController {
         if ("json".equalsIgnoreCase(format)) {
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(config);
         }
-        return ResponseEntity.ok().contentType(YAML).body(yaml.render(config));
+        return ResponseEntity.ok().contentType(YAML)
+                .body(new Yaml(new Representer(YAML_OPTIONS), YAML_OPTIONS).dump(config));
+    }
+
+    private static DumperOptions yamlOptions() {
+        DumperOptions options = new DumperOptions();
+        options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+        options.setIndent(2);
+        options.setIndicatorIndent(0);
+        options.setPrettyFlow(true);
+        options.setWidth(160);
+        return options;
     }
 }

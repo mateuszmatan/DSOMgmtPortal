@@ -53,8 +53,7 @@ public final class DsoConfigBuilder {
 
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("pipeline", pipelineSection);
-        root.put("platform", global.platform().toConfig());
-        root.put("defaults", global.defaultsConfig());
+        root.putAll(globalConfig());
         root.put("projects", Map.of(service.name(), serviceTree.toMap(KEY_ORDER)));
         return root;
     }

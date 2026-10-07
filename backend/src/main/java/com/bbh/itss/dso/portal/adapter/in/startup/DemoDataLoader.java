@@ -212,8 +212,6 @@ public class DemoDataLoader implements ApplicationRunner {
 
     private static ServiceDraft certScannerGui() {
         String title = "CertScanner-GUI";
-        TestJob remote = new TestJob(TestStage.SMOKE, null, TestJobType.REMOTE, null, 15, null, null, null,
-                REMOTE_TOKEN, null, null, false, false, false, false, false, false);
         return new ServiceDraft(null, "gui", "Angular front end", new ServiceSettings(
                 new BuildSettings(BuildTool.GRADLE, ".", JDK_17, false, null,
                         ToolCommand.of(List.of("clean", "build", "bootJar"), List.of("--refresh-dependencies"))),
@@ -223,16 +221,18 @@ public class DemoDataLoader implements ApplicationRunner {
                 new TestSettings(null, 20, 5, null, true, true, true, null, null, null),
                 List.of(TestJob.of(TestStage.REGRESSION, title + " - regression", TestJobType.LOCAL,
                                 "cert-scanner/regression-tests", 60),
-                        withParameters(TestJob.of(TestStage.REGRESSION, title + " - regression (certificates)",
-                                TestJobType.LOCAL, "cert-scanner/regression-certificates", 60), "ENV=rd", null),
-                        remote(remote, title + " - login smoke", SMOKE_JENKINS + "cert-scanner-login"),
-                        remote(remote, title + " - certificate list smoke", SMOKE_JENKINS + "cert-scanner-list"),
-                        withParameters(remote(remote, title + " - notification smoke",
-                                "smoke/cert-scanner-notifications"), "ENV=rd", "jenkins-b"),
-                        withType(remote(remote, title + " - local smoke", "cert-scanner/smoke-tests"),
-                                TestJobType.LOCAL),
-                        remote(remote, null, "https://jenkins-c.bbh.com/job/smoke/job/cert-scanner-dashboard"),
-                        remote(remote, null, "https://jenkins-b.bbh.com/job/smoke/job/cert-scanner-expiry"),
+                        job(TestStage.REGRESSION, title + " - regression (certificates)", TestJobType.LOCAL,
+                                "cert-scanner/regression-certificates", 60, "ENV=rd", null, null),
+                        smoke(title + " - login smoke", TestJobType.REMOTE, SMOKE_JENKINS + "cert-scanner-login"),
+                        smoke(title + " - certificate list smoke", TestJobType.REMOTE,
+                                SMOKE_JENKINS + "cert-scanner-list"),
+                        job(TestStage.SMOKE, title + " - notification smoke", TestJobType.REMOTE,
+                                "smoke/cert-scanner-notifications", 15, "ENV=rd", "jenkins-b", REMOTE_TOKEN),
+                        smoke(title + " - local smoke", TestJobType.LOCAL, "cert-scanner/smoke-tests"),
+                        smoke(null, TestJobType.REMOTE,
+                                "https://jenkins-c.bbh.com/job/smoke/job/cert-scanner-dashboard"),
+                        smoke(null, TestJobType.REMOTE,
+                                "https://jenkins-b.bbh.com/job/smoke/job/cert-scanner-expiry"),
                         TestJob.of(TestStage.PERFORMANCE, title + " - performance", TestJobType.LOCAL,
                                 "cert-scanner/performance-tests", 120)),
                 new DeploymentSettings(DeployTarget.VM, null, null, null),
@@ -246,7 +246,8 @@ public class DemoDataLoader implements ApplicationRunner {
                         Region.QC, new SshTarget("qcltaapps1.testbbh.com", "taadmin", CERT_SCANNER_DEPLOY_DIR,
                                 DEPLOY_SCRIPT, VERSION_FILE)),
                 null,
-                certScannerAppScan("209f44ac-dd06-4ca0-884e-d944904f8020", "CertScanner-GUI",
+                appScan("209f44ac-dd06-4ca0-884e-d944904f8020", "CertScanner-GUI-SAST", "CertScanner-GUI-DAST",
+                        List.of(),
                         "http://rdltaapps1.testbbh.com"),
                 new SonarSettings("CertScanner-GUI", "cert-scanner-gui", "SonarQube", "sonarqube-token",
                         "sonarqube-token", SONAR_BADGE, true, true, ToolCommand.of(List.of("sonarqube"), List.of()),
@@ -273,23 +274,15 @@ public class DemoDataLoader implements ApplicationRunner {
                                 "cert-scanner/api-regression-tests", 60),
                         TestJob.of(TestStage.SMOKE, title + " - smoke", TestJobType.LOCAL,
                                 "cert-scanner/api-smoke-tests", 15),
-                        new TestJob(TestStage.SMOKE, title + " - contract smoke", null,
-                                SMOKE_JENKINS + "cert-scanner-api-contract", null, null, null, null, REMOTE_TOKEN,
-                                null, null, false, false, false, false, false, false),
+                        job(TestStage.SMOKE, title + " - contract smoke", null,
+                                SMOKE_JENKINS + "cert-scanner-api-contract", null, null, null, REMOTE_TOKEN),
                         TestJob.of(TestStage.PERFORMANCE, title + " - performance", TestJobType.LOCAL,
                                 "cert-scanner/api-performance-tests", 120)),
                 new DeploymentSettings(DeployTarget.OPENSHIFT, "certscanner-api", "certscanner-api.jar", null),
                 null, null, null, null,
-                Map.of(Region.RD, new OpenShiftTarget("ta-certscanner-build", "openshift/buildconfig.yaml",
-                                "openshift/Dockerfile", "target/docker", null, image, image, "/etc/pki/openshift",
-                                "/home/jenkins/.docker/nexus-auth.json", "ta-certscanner-rd",
-                                "openshift/deployment.yaml", "openshift/config-rd.yaml", false, "/actuator/health",
-                                "certscanner-api-rd.apps.ocp-rd.testbbh.com", null, null, null, null, null, null),
-                        Region.QC, new OpenShiftTarget(null, null, null, null, null, null, image, null, null,
-                                "ta-certscanner-qc", "openshift/deployment.yaml", "openshift/config-qc.yaml", false,
-                                "/actuator/health", "certscanner-api-qc.apps.ocp-qc.testbbh.com", null, null, null,
-                                null, null, null)),
-                certScannerAppScan("209f44ac-dd06-4ca0-884e-d944904f8021", "CertScanner-Backend",
+                openShiftTargets("ta-certscanner", image, "certscanner-api", "target/docker"),
+                appScan("209f44ac-dd06-4ca0-884e-d944904f8021", "CertScanner-Backend-SAST", "CertScanner-Backend-DAST",
+                        List.of(),
                         "http://rdltaapps1.testbbh.com:8080/api"),
                 new SonarSettings("CertScanner-Backend", "cert-scanner-backend", "SonarQube", null, "sonarqube-token",
                         SONAR_BADGE, true, false, ToolCommand.of(List.of("sonar:sonar"), List.of()), null),
@@ -301,24 +294,14 @@ public class DemoDataLoader implements ApplicationRunner {
                 null));
     }
 
-    private static AppScanSettings certScannerAppScan(String appScanId, String scanName, String dastTargetUrl) {
-        return new AppScanSettings(appScanId, scanName + "-SAST", List.of(), List.of(), true, false, false, false,
-                null, null, true, scanName + "-DAST", dastTargetUrl, null, null);
+    private static TestJob smoke(String name, TestJobType type, String job) {
+        return job(TestStage.SMOKE, name, type, job, 15, null, null, REMOTE_TOKEN);
     }
 
-    private static TestJob remote(TestJob defaults, String name, String job) {
-        return new TestJob(defaults.stage(), name, defaults.type(), job, defaults.timeoutMinutes(), null, null, null,
-                defaults.credentialsId(), null, null, false, false, false, false, false, false);
-    }
-
-    private static TestJob withParameters(TestJob job, String parameters, String remoteJenkins) {
-        return new TestJob(job.stage(), job.name(), job.type(), job.job(), job.timeoutMinutes(), parameters,
-                remoteJenkins, null, job.credentialsId(), null, null, false, false, false, false, false, false);
-    }
-
-    private static TestJob withType(TestJob job, TestJobType type) {
-        return new TestJob(job.stage(), job.name(), type, job.job(), job.timeoutMinutes(), job.parameters(), null,
-                null, job.credentialsId(), null, null, false, false, false, false, false, false);
+    private static TestJob job(TestStage stage, String name, TestJobType type, String job, Integer timeoutMinutes,
+                               String parameters, String remoteJenkins, String credentialsId) {
+        return new TestJob(stage, name, type, job, timeoutMinutes, parameters, remoteJenkins, null, credentialsId,
+                null, null, false, false, false, false, false, false);
     }
 
     private static ServiceSettings vm(String key, String repository) {
@@ -339,7 +322,8 @@ public class DemoDataLoader implements ApplicationRunner {
                 Map.of(Region.RD, new SshTarget(null, null, deployDir, DEPLOY_SCRIPT, null),
                         Region.QC, new SshTarget(null, null, deployDir, DEPLOY_SCRIPT, null)),
                 null,
-                appScan(key),
+                appScan(uuid(key), key + "-sast", key + "-dast", List.of("node_modules"),
+                        "http://rdltaapps1.testbbh.com"),
                 SonarSettings.of(title, key, ToolCommand.of(List.of("sonarqube"), List.of())),
                 null,
                 List.of(NexusIqApplication.of(key, List.of("**/build/libs/*.jar"))),
@@ -367,16 +351,9 @@ public class DemoDataLoader implements ApplicationRunner {
                 testJobs(title, key),
                 new DeploymentSettings(DeployTarget.OPENSHIFT, key, key + ".jar", null),
                 null, null, null, null,
-                Map.of(Region.RD, new OpenShiftTarget(namespace + "-build", "openshift/buildconfig.yaml",
-                                "openshift/Dockerfile", maven ? "target/docker" : "build/docker", null, image, image,
-                                "/etc/pki/openshift", "/home/jenkins/.docker/nexus-auth.json", namespace + "-rd",
-                                "openshift/deployment.yaml", "openshift/config-rd.yaml", false, "/actuator/health",
-                                key + "-rd.apps.ocp-rd.testbbh.com", null, null, null, null, null, null),
-                        Region.QC, new OpenShiftTarget(null, null, null, null, null, null, image, null, null,
-                                namespace + "-qc", "openshift/deployment.yaml", "openshift/config-qc.yaml", false,
-                                "/actuator/health", key + "-qc.apps.ocp-qc.testbbh.com", null, null, null, null,
-                                null, null)),
-                appScan(key),
+                openShiftTargets(namespace, image, key, maven ? "target/docker" : "build/docker"),
+                appScan(uuid(key), key + "-sast", key + "-dast", List.of("node_modules"),
+                        "http://rdltaapps1.testbbh.com"),
                 SonarSettings.of(title, key, ToolCommand.of(List.of(maven ? "sonar:sonar" : "sonarqube"), List.of())),
                 null,
                 List.of(NexusIqApplication.of(key, List.of(maven ? "**/target/*.jar" : "**/build/libs/*.jar"))),
@@ -384,6 +361,18 @@ public class DemoDataLoader implements ApplicationRunner {
                 GoldenFixPolicy.INHERITED,
                 MetricsSettings.of(true, null, "test"),
                 null);
+    }
+
+    private static Map<Region, OpenShiftTarget> openShiftTargets(String namespace, String image, String route,
+                                                                 String dockerDir) {
+        return Map.of(Region.RD, new OpenShiftTarget(namespace + "-build", "openshift/buildconfig.yaml",
+                        "openshift/Dockerfile", dockerDir, null, image, image, "/etc/pki/openshift",
+                        "/home/jenkins/.docker/nexus-auth.json", namespace + "-rd", "openshift/deployment.yaml",
+                        "openshift/config-rd.yaml", false, "/actuator/health", route + "-rd.apps.ocp-rd.testbbh.com",
+                        null, null, null, null, null, null),
+                Region.QC, new OpenShiftTarget(null, null, null, null, null, null, image, null, null, namespace + "-qc",
+                        "openshift/deployment.yaml", "openshift/config-qc.yaml", false, "/actuator/health",
+                        route + "-qc.apps.ocp-qc.testbbh.com", null, null, null, null, null, null));
     }
 
     private static ServiceSettings flutter(DemoProduct product, String key, String repository) {
@@ -407,18 +396,19 @@ public class DemoDataLoader implements ApplicationRunner {
                         null));
     }
 
-    private static AppScanSettings appScan(String key) {
-        return new AppScanSettings(uuid(key), key + "-sast", List.of(), List.of("node_modules"), true, false,
-                false, false, null, null, true, key + "-dast", "http://rdltaapps1.testbbh.com", null, null);
+    private static AppScanSettings appScan(String applicationId, String sastScan, String dastScan,
+                                           List<String> excludedDirs, String dastTargetUrl) {
+        return new AppScanSettings(applicationId, sastScan, List.of(), excludedDirs, true, false, false, false, null,
+                null, true, dastScan, dastTargetUrl, null, null);
     }
 
     private static List<TestJob> testJobs(String title, String repo) {
         return List.of(
                 TestJob.of(TestStage.SMOKE, title + " - smoke", TestJobType.LOCAL, repo + "/smoke-tests", 15),
-                new TestJob(TestStage.SMOKE, title + " - login smoke", null, SMOKE_JENKINS + repo + "-login", null,
-                        null, null, null, REMOTE_TOKEN, null, null, false, false, false, false, false, false),
-                withParameters(TestJob.of(TestStage.REGRESSION, title + " - regression", TestJobType.LOCAL,
-                        repo + "/regression-tests", 60), "ENV=rd", null),
+                job(TestStage.SMOKE, title + " - login smoke", null, SMOKE_JENKINS + repo + "-login", null, null,
+                        null, REMOTE_TOKEN),
+                job(TestStage.REGRESSION, title + " - regression", TestJobType.LOCAL, repo + "/regression-tests", 60,
+                        "ENV=rd", null, null),
                 TestJob.of(TestStage.PERFORMANCE, title + " - performance", TestJobType.LOCAL,
                         repo + "/performance-tests", 120));
     }

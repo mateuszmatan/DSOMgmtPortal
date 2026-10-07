@@ -113,7 +113,7 @@ class MonitoringRegressionSpec extends PortalSpecification {
         activity.metricsError == null
         activity.pipelines >= 3
         activity.dora.runs == 5
-        activity.dora.deployments == 1
+        activity.dora.deployments == 3
         activity.dora.daily.size() == 7
         activity.dora.daily*.runs.sum() == 5
     }

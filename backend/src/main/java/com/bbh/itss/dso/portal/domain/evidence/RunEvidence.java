@@ -50,10 +50,6 @@ public final class RunEvidence {
         return !at.isBefore(earliest) && !at.isAfter(windowEnd(run));
     }
 
-    public boolean isEmpty() {
-        return points.isEmpty();
-    }
-
     public RunEvidenceReport report(PipelineRun run, String module, EvidenceLinks links) {
         return new RunEvidenceReport(build(run, module, links), coverage(module), testSuites(module),
                 scans(module, links), releaseGate(), stages());
