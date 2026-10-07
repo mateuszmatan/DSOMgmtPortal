@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.adapter.out.influx;
 
-import com.bbh.itss.dso.portal.domain.monitoring.MetricsUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -8,10 +7,15 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+
+import static org.apache.commons.lang3.StringUtils.defaultString;
+import static org.apache.commons.lang3.StringUtils.truncate;
 
 @Component
 public class InfluxQueryClient {
@@ -48,7 +52,7 @@ public class InfluxQueryClient {
 
     void requireConfigured() {
         if (!configured()) {
-            throw new MetricsUnavailableException(NOT_CONFIGURED);
+            throw unavailable(NOT_CONFIGURED, null);
         }
     }
 
@@ -56,23 +60,18 @@ public class InfluxQueryClient {
         requireConfigured();
         try {
             return reading.get();
-        } catch (MetricsUnavailableException e) {
-            throw e;
         } catch (RuntimeException e) {
             log.warn("Reading from InfluxDB failed: {}", e.getMessage());
-            String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
-            throw new MetricsUnavailableException(UNREADABLE
-                    + (message.length() > MAX_REASON ? message.substring(0, MAX_REASON) : message));
+            throw unavailable(UNREADABLE
+                    + truncate(defaultString(e.getMessage(), e.getClass().getSimpleName()), MAX_REASON), e);
         }
     }
 
     public List<Map<String, String>> query(String flux) {
-        if (client == null) {
-            throw new IllegalStateException("InfluxDB is not configured");
-        }
+        requireConfigured();
         String csv = client.post()
                 .uri(uri -> uri.path("/api/v2/query").queryParam("org", properties.org()).build())
-                .header("Authorization", "Token " + (properties.token() == null ? "" : properties.token()))
+                .header("Authorization", "Token " + defaultString(properties.token()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.parseMediaType("application/csv"))
                 .body(Map.of("query", flux, "type", "flux",
@@ -80,5 +79,9 @@ public class InfluxQueryClient {
                 .retrieve()
                 .body(String.class);
         return FluxCsv.parse(csv);
+    }
+
+    private static UncheckedIOException unavailable(String reason, Throwable cause) {
+        return new UncheckedIOException(reason, new IOException(cause));
     }
 }

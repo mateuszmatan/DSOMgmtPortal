@@ -9,6 +9,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
 public record UrbanCodeApplicationSettings(String applicationName, Integer order, List<String> environments,
                                            String snapshotName, String siteName, String deployProcess,
                                            Boolean skipWait, Boolean deployWithSnapshot,
@@ -19,12 +21,12 @@ public record UrbanCodeApplicationSettings(String applicationName, Integer order
     public UrbanCodeApplicationSettings {
         applicationName = applicationName == null ? null : applicationName.trim();
         environments = Text.clean(environments);
-        snapshotName = Text.trimToNull(snapshotName);
-        siteName = Text.trimToNull(siteName);
-        deployProcess = Text.trimToNull(deployProcess);
-        deployDescription = Text.trimToNull(deployDescription);
-        description = Text.trimToNull(description);
-        requestProperties = Text.trimToNull(requestProperties);
+        snapshotName = trimToNull(snapshotName);
+        siteName = trimToNull(siteName);
+        deployProcess = trimToNull(deployProcess);
+        deployDescription = trimToNull(deployDescription);
+        description = trimToNull(description);
+        requestProperties = trimToNull(requestProperties);
         components = components == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(components));
     }
 

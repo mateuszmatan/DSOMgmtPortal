@@ -9,8 +9,6 @@ import com.bbh.itss.dso.portal.domain.pipeline.KeyStatus
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import com.bbh.itss.dso.portal.domain.pipeline.ServiceRef
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
@@ -246,9 +244,9 @@ class PipelinePersistenceAdapterSpec extends Specification {
 
         where:
         change                                | versionShift | deleted | service                      || failure            | message
-        'read at another version than stored' | 1            | false   | null                         || ConflictException  | 'changed by someone else'
-        'deleted in the meantime'             | 0            | true    | null                         || ConflictException  | 'changed by someone else'
-        'of a service that was never stored'  | 0            | false   | new ServiceRef(1L, 999_999L) || NotFoundException  | '999999'
+        'read at another version than stored' | 1            | false   | null                         || IllegalStateException  | 'changed by someone else'
+        'deleted in the meantime'             | 0            | true    | null                         || IllegalStateException  | 'changed by someone else'
+        'of a service that was never stored'  | 0            | false   | new ServiceRef(1L, 999_999L) || NoSuchElementException  | '999999'
     }
 
     def "deleting a pipeline removes its keys"() {

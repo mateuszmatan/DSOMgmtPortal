@@ -1,7 +1,5 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
-import com.bbh.itss.dso.portal.domain.shared.ConflictException;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.HashSet;
@@ -9,6 +7,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 final class ProductRules {
 
@@ -27,12 +27,12 @@ final class ProductRules {
         directory.findProductByCode(details.code())
                 .filter(other -> !isThisProduct(other.id()))
                 .ifPresent(other -> {
-                    throw new ConflictException("Product code " + details.code() + " is already used by " + other.name());
+                    throw new IllegalStateException("Product code " + details.code() + " is already used by " + other.name());
                 });
         directory.findProductByName(details.name())
                 .filter(other -> !isThisProduct(other.id()))
                 .ifPresent(other -> {
-                    throw new ConflictException("A product named " + other.name() + " already exists");
+                    throw new IllegalStateException("A product named " + other.name() + " already exists");
                 });
 
         ValidationProblems problems = new ValidationProblems();
@@ -53,10 +53,10 @@ final class ProductRules {
 
     private void requireIdentity(ProductDetails details, AppScanAccount appScanAccount, List<ServiceDraft> services) {
         ValidationProblems problems = new ValidationProblems();
-        if (Text.isBlank(details.code())) {
+        if (isBlank(details.code())) {
             problems.add("code", "must not be blank");
         }
-        if (Text.isBlank(details.name())) {
+        if (isBlank(details.name())) {
             problems.add("name", "must not be blank");
         }
         if (details.departmentId() == null) {
@@ -68,7 +68,7 @@ final class ProductRules {
             problems.add("appScan.keyId", "must not be blank");
         }
         for (int i = 0; i < services.size(); i++) {
-            if (Text.isBlank(services.get(i).name())) {
+            if (isBlank(services.get(i).name())) {
                 problems.add("services[" + i + "].name", "must not be blank");
             }
         }

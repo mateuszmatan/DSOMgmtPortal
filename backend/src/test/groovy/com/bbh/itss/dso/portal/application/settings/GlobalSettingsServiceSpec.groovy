@@ -3,8 +3,6 @@ package com.bbh.itss.dso.portal.application.settings
 import com.bbh.itss.dso.portal.application.settings.port.out.GlobalSettingsRepositoryPort
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettings
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues
-import com.bbh.itss.dso.portal.domain.settings.MissingGlobalSettingsException
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import spock.lang.Specification
 
 import java.time.Instant
@@ -40,7 +38,8 @@ class GlobalSettingsServiceSpec extends Specification {
         service.current()
 
         then:
-        thrown(MissingGlobalSettingsException)
+        def e = thrown(IllegalStateException)
+        e.message == 'The global settings are missing; the portal creates them at start-up'
     }
 
     def "a change is checked against the stored settings and saved"() {
@@ -71,7 +70,7 @@ class GlobalSettingsServiceSpec extends Specification {
         service.update(2L, bbh)
 
         then:
-        thrown(ConflictException)
+        thrown(IllegalStateException)
         0 * repository.save(_)
     }
 }

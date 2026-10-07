@@ -11,6 +11,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.stripEnd;
+import static org.apache.commons.lang3.StringUtils.trim;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
 public record PipelineSettings(List<String> agentLabels, String extendedPipelineJob, String securityPipelineJob,
                                String jenkinsJob, String description) {
 
@@ -18,10 +23,10 @@ public record PipelineSettings(List<String> agentLabels, String extendedPipeline
 
     public PipelineSettings {
         agentLabels = Text.clean(agentLabels);
-        extendedPipelineJob = Text.trimToNull(extendedPipelineJob);
-        securityPipelineJob = Text.trimToNull(securityPipelineJob);
-        jenkinsJob = Text.trimToNull(jenkinsJob);
-        description = Text.trimToNull(description);
+        extendedPipelineJob = trimToNull(extendedPipelineJob);
+        securityPipelineJob = trimToNull(securityPipelineJob);
+        jenkinsJob = trimToNull(jenkinsJob);
+        description = trimToNull(description);
     }
 
     public static PipelineSettings forNewService() {
@@ -66,20 +71,20 @@ public record PipelineSettings(List<String> agentLabels, String extendedPipeline
     }
 
     public static String jobUrl(String job, String jenkinsUrl) {
-        if (Text.isBlank(job)) {
+        if (isBlank(job)) {
             return null;
         }
         String trimmed = job.trim();
         if (Text.isUrl(trimmed)) {
             return trimmed;
         }
-        if (Text.isBlank(jenkinsUrl)) {
+        if (isBlank(jenkinsUrl)) {
             return null;
         }
         String path = segments(trimmed)
                 .map(segment -> "job/" + UriEncoding.pathSegment(segment))
                 .collect(Collectors.joining("/"));
-        return Text.withoutTrailingSlash(jenkinsUrl) + "/" + path + "/";
+        return stripEnd(trim(jenkinsUrl), "/") + "/" + path + "/";
     }
 
     private static Stream<String> segments(String path) {

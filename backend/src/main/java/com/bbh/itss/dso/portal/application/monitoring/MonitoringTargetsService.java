@@ -11,12 +11,13 @@ import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettings
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.settings.PlatformSettings;
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
 
 @UseCase
 public class MonitoringTargetsService implements ReadMonitoringTargetsUseCase {
@@ -47,7 +48,7 @@ public class MonitoringTargetsService implements ReadMonitoringTargetsUseCase {
     @Override
     @ReadOnly
     public MonitoringTargets ofPipeline(long pipelineId) {
-        Pipeline pipeline = pipelines.load(pipelineId).orElseThrow(() -> NotFoundException.of("Pipeline", pipelineId));
+        Pipeline pipeline = pipelines.load(pipelineId).orElseThrow(() -> notFound("Pipeline", pipelineId));
         return targets(List.of(product(pipeline.service().productId())), List.of(pipeline));
     }
 
@@ -63,6 +64,6 @@ public class MonitoringTargetsService implements ReadMonitoringTargetsUseCase {
     }
 
     private Product product(long productId) {
-        return products.load(productId).orElseThrow(() -> NotFoundException.of("Product", productId));
+        return products.load(productId).orElseThrow(() -> notFound("Product", productId));
     }
 }

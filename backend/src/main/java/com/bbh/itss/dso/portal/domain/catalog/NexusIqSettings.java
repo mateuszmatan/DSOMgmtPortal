@@ -1,7 +1,6 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.HashSet;
@@ -10,14 +9,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
 public record NexusIqSettings(String serverUrl, String credentialsId, String scaScanName) {
 
     public static final NexusIqSettings NONE = new NexusIqSettings(null, null, null);
 
     public NexusIqSettings {
-        serverUrl = Text.trimToNull(serverUrl);
-        credentialsId = Text.trimToNull(credentialsId);
-        scaScanName = Text.trimToNull(scaScanName);
+        serverUrl = trimToNull(serverUrl);
+        credentialsId = trimToNull(credentialsId);
+        scaScanName = trimToNull(scaScanName);
     }
 
     public void validate(ValidationProblems problems, List<NexusIqApplication> applications) {

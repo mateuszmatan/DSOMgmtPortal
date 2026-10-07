@@ -11,14 +11,13 @@ import com.bbh.itss.dso.portal.domain.catalog.Service
 import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
 import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
 
 import java.time.Instant
 
+import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.Fixtures.account
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.command
@@ -108,7 +107,7 @@ class ProductCatalogServiceSpec extends Specification {
         action(catalog)
 
         then:
-        def e = thrown(NotFoundException)
+        def e = thrown(NoSuchElementException)
         e.message == 'Product 5 does not exist'
         0 * products.save(_)
         0 * products.delete(_)
@@ -183,7 +182,7 @@ class ProductCatalogServiceSpec extends Specification {
 
         then:
         def e = thrown(InvalidRequestException)
-        e.problems*.field == ['services[0].build.javaPath', 'services[1].name', 'services[2].id']
+        e.problems()*.field == ['services[0].build.javaPath', 'services[1].name', 'services[2].id']
         0 * products.save(_)
     }
 
@@ -214,14 +213,14 @@ class ProductCatalogServiceSpec extends Specification {
         action(catalog)
 
         then:
-        def e = thrown(ConflictException)
+        def e = thrown(IllegalStateException)
         e.message == message
         0 * products.save(_)
 
         where:
         refusal                       | action                                    || message
         'a product code in use'       | { it.create(command()) }                  || 'Product code CERT is already used by Certificates'
-        'an update of an old version' | { it.update(1L, command(version: 3L)) }   || ConflictException.STALE_VERSION
+        'an update of an old version' | { it.update(1L, command(version: 3L)) }   || STALE_VERSION
     }
 
     private static ProductSummary summary(long id, String code, String name, String ownerTeam, String description,

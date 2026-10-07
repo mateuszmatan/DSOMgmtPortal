@@ -1,17 +1,18 @@
 package com.bbh.itss.dso.portal.domain.settings;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.Comparator;
 import java.util.List;
 
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
 public record ReleaseGateSettings(List<Scanner> scanners, Boolean requireCoverage, String stateFile) {
 
     public ReleaseGateSettings {
         scanners = normalize(scanners);
-        stateFile = Text.trimToNull(stateFile);
+        stateFile = trimToNull(stateFile);
     }
 
     public static List<Scanner> normalize(List<Scanner> scanners) {

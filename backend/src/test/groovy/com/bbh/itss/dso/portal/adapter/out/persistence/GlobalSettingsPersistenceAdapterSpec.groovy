@@ -3,7 +3,6 @@ package com.bbh.itss.dso.portal.adapter.out.persistence
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettings
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues
 import com.bbh.itss.dso.portal.domain.settings.SeverityLimits
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
@@ -16,6 +15,7 @@ import static com.bbh.itss.dso.portal.domain.settings.Scanner.DAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SCA
+import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.Fixtures.copy
 
 @DataJpaTest(properties = [
@@ -80,8 +80,8 @@ class GlobalSettingsPersistenceAdapterSpec extends Specification {
         adapter.save(stale)
 
         then:
-        def e = thrown(ConflictException)
-        e.message == ConflictException.STALE_VERSION
+        def e = thrown(IllegalStateException)
+        e.message == STALE_VERSION
         adapter.load().get().jenkinsUrl() == null
     }
 }

@@ -7,6 +7,8 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
 public record TestJob(TestStage stage, String name, TestJobType type, String job, Integer timeoutMinutes,
                       String parameters, String remoteJenkins, String remoteJenkinsUrl, String credentialsId,
                       Integer pollIntervalSec, String tokenCredentialsId, Boolean abortTriggeredJob,
@@ -16,13 +18,13 @@ public record TestJob(TestStage stage, String name, TestJobType type, String job
     private static final Pattern PARAMETER = Pattern.compile("^[A-Za-z_][A-Za-z0-9_.-]*=.*$");
 
     public TestJob {
-        name = Text.trimToNull(name);
+        name = trimToNull(name);
         job = job == null ? null : job.trim();
-        parameters = Text.trimToNull(parameters);
-        remoteJenkins = Text.trimToNull(remoteJenkins);
-        remoteJenkinsUrl = Text.trimToNull(remoteJenkinsUrl);
-        credentialsId = Text.trimToNull(credentialsId);
-        tokenCredentialsId = Text.trimToNull(tokenCredentialsId);
+        parameters = trimToNull(parameters);
+        remoteJenkins = trimToNull(remoteJenkins);
+        remoteJenkinsUrl = trimToNull(remoteJenkinsUrl);
+        credentialsId = trimToNull(credentialsId);
+        tokenCredentialsId = trimToNull(tokenCredentialsId);
         abortTriggeredJob = Boolean.TRUE.equals(abortTriggeredJob);
         overrideTrustAllCertificates = Boolean.TRUE.equals(overrideTrustAllCertificates);
         preventRemoteBuildQueue = Boolean.TRUE.equals(preventRemoteBuildQueue);

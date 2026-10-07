@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
 public record ScmSettings(String repositoryUrl, String credentialsId, BitbucketAuthType authType, BitbucketType type,
                           String targetBranch, String cloneUrl, List<String> reviewers, String apiUrl, String workspace,
                           String projectKey, String repoSlug) {
@@ -16,16 +18,16 @@ public record ScmSettings(String repositoryUrl, String credentialsId, BitbucketA
     public static final ScmSettings NONE = of(null, null);
 
     public ScmSettings {
-        repositoryUrl = Text.trimToNull(repositoryUrl);
-        credentialsId = Text.trimToNull(credentialsId);
+        repositoryUrl = trimToNull(repositoryUrl);
+        credentialsId = trimToNull(credentialsId);
         authType = authType == null ? BitbucketAuthType.BASIC : authType;
-        targetBranch = Text.trimToNull(targetBranch);
-        cloneUrl = Text.trimToNull(cloneUrl);
+        targetBranch = trimToNull(targetBranch);
+        cloneUrl = trimToNull(cloneUrl);
         reviewers = Text.clean(reviewers);
-        apiUrl = Text.trimToNull(apiUrl);
-        workspace = Text.trimToNull(workspace);
-        projectKey = Text.trimToNull(projectKey);
-        repoSlug = Text.trimToNull(repoSlug);
+        apiUrl = trimToNull(apiUrl);
+        workspace = trimToNull(workspace);
+        projectKey = trimToNull(projectKey);
+        repoSlug = trimToNull(repoSlug);
     }
 
     public static ScmSettings of(String repositoryUrl, String credentialsId) {

@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 public class ConfigTree {
 
     private final Map<String, Object> root = new LinkedHashMap<>();
@@ -67,7 +69,7 @@ public class ConfigTree {
     }
 
     private static boolean isEmpty(Object value) {
-        return value == null || (value instanceof String text && Text.isBlank(text))
+        return value == null || (value instanceof String text && isBlank(text))
                 || (value instanceof Collection<?> collection && collection.isEmpty())
                 || (value instanceof Map<?, ?> map && map.isEmpty());
     }

@@ -6,12 +6,9 @@ import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettings
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey
 import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator
-import com.bbh.itss.dso.portal.domain.pipeline.KeyRevokedException
 import com.bbh.itss.dso.portal.domain.pipeline.KeyStatus
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
 
@@ -73,7 +70,7 @@ class PipelineServiceSpec extends Specification {
         call(service)
 
         then:
-        def e = thrown(NotFoundException)
+        def e = thrown(NoSuchElementException)
         e.message == "$missing does not exist"
         0 * pipelines.save(_)
         0 * pipelines.delete(_)
@@ -162,7 +159,7 @@ class PipelineServiceSpec extends Specification {
         action(service)
 
         then:
-        def e = thrown(ConflictException)
+        def e = thrown(IllegalStateException)
         e.message == message
         0 * pipelines.save(_)
 
@@ -245,7 +242,7 @@ class PipelineServiceSpec extends Specification {
         service.authorizeKey(revoked.value())
 
         then:
-        def e = thrown(KeyRevokedException)
+        def e = thrown(SecurityException)
         e.message == "The DevSecOps pipeline key was invalidated on ${revoked.revokedAt()}: Service retired"
         0 * pipelines.recordKeyUse(*_)
     }
@@ -262,8 +259,8 @@ class PipelineServiceSpec extends Specification {
 
         where:
         outcome       | reread                                                                     || failure             | message
-        'invalidated' | Optional.of(new IssuedKey(100L, revokedKey(value: KEY, reason: 'Leaked'))) || KeyRevokedException | ': Leaked'
-        'deleted'     | Optional.empty()                                                           || NotFoundException   | 'Unknown DevSecOps pipeline key'
+        'invalidated' | Optional.of(new IssuedKey(100L, revokedKey(value: KEY, reason: 'Leaked'))) || SecurityException | ': Leaked'
+        'deleted'     | Optional.empty()                                                           || NoSuchElementException   | 'Unknown DevSecOps pipeline key'
     }
 
     def "a key that is still active after a use that was not recorded authorizes its pipeline"() {
@@ -281,7 +278,7 @@ class PipelineServiceSpec extends Specification {
         service.authorizeKey(value)
 
         then:
-        def e = thrown(NotFoundException)
+        def e = thrown(NoSuchElementException)
         e.message == 'Unknown DevSecOps pipeline key'
         0 * pipelines.recordKeyUse(*_)
 

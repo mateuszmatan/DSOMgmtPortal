@@ -1,8 +1,9 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public record UnitTestSettings(ToolCommand command, String resultPattern, String rootDir, String reportOutDir,
                                Boolean allowEmptyResults, String coverageReportPath) {
@@ -11,11 +12,11 @@ public record UnitTestSettings(ToolCommand command, String resultPattern, String
 
     public UnitTestSettings {
         command = command == null ? ToolCommand.NONE : command;
-        resultPattern = Text.trimToNull(resultPattern);
-        rootDir = Text.trimToNull(rootDir);
-        reportOutDir = Text.trimToNull(reportOutDir);
+        resultPattern = trimToNull(resultPattern);
+        rootDir = trimToNull(rootDir);
+        reportOutDir = trimToNull(reportOutDir);
         allowEmptyResults = Boolean.TRUE.equals(allowEmptyResults);
-        coverageReportPath = Text.trimToNull(coverageReportPath);
+        coverageReportPath = trimToNull(coverageReportPath);
     }
 
     public void writeTo(ConfigTree config, BuildTool tool) {

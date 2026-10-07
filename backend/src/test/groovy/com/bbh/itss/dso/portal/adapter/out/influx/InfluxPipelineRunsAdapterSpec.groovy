@@ -3,7 +3,6 @@ package com.bbh.itss.dso.portal.adapter.out.influx
 import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint
 import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
-import com.bbh.itss.dso.portal.domain.monitoring.MetricsUnavailableException
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult
 import org.springframework.web.client.RestClient
 import spock.lang.Specification
@@ -34,7 +33,7 @@ class InfluxPipelineRunsAdapterSpec extends Specification {
 
         then:
         1 * influx.query(_) >> { throw new IllegalStateException('Connection refused') }
-        def e = thrown(MetricsUnavailableException)
+        def e = thrown(UncheckedIOException)
         e.message == 'InfluxDB could not be read: Connection refused'
     }
 
@@ -193,7 +192,7 @@ class InfluxPipelineRunsAdapterSpec extends Specification {
 
         then:
         0 * client.query(_)
-        def e = thrown(MetricsUnavailableException)
+        def e = thrown(UncheckedIOException)
         e.message == 'InfluxDB is not configured for the portal'
 
         where:

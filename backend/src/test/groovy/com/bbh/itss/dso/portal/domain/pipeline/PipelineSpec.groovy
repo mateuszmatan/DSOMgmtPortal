@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.domain.pipeline
 
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import spock.lang.Specification
 
@@ -88,8 +87,12 @@ class PipelineSpec extends Specification {
         given:
         def revoked = revokedKey(reason: null)
 
-        expect:
-        new KeyRevokedException(revoked).message == "The DevSecOps pipeline key was invalidated on ${revoked.revokedAt()}"
+        when:
+        revoked.requireActive()
+
+        then:
+        def e = thrown(SecurityException)
+        e.message == "The DevSecOps pipeline key was invalidated on ${revoked.revokedAt()}"
     }
 
     def "#refusal is refused"() {
@@ -102,10 +105,10 @@ class PipelineSpec extends Specification {
 
         where:
         refusal                         | action                                                             || failure                       | message
-        'revoking without an active key' | { pipeline(keys: [revokedKey()]).revokeActiveKey('again', LATER) } || ConflictException             | 'The pipeline has no active key to invalidate'
+        'revoking without an active key' | { pipeline(keys: [revokedKey()]).revokeActiveKey('again', LATER) } || IllegalStateException             | 'The pipeline has no active key to invalidate'
         'a second active key'           | { pipeline(keys: [activeKey(), activeKey(id: 101, value: 'x')]) }  || IllegalArgumentException      | 'a pipeline has at most one active key'
         'changing the key history'      | { pipeline().keys().clear() }                                      || UnsupportedOperationException | null
-        'changing the type'             | { pipeline().reconfigure(PipelineType.SAST, pipelineSettings()) }  || ConflictException             | 'The type of a pipeline cannot change; add a new pipeline instead'
+        'changing the type'             | { pipeline().reconfigure(PipelineType.SAST, pipelineSettings()) }  || IllegalStateException             | 'The type of a pipeline cannot change; add a new pipeline instead'
     }
 
     def "only the security pipeline keeps the extended pipeline job and only the extended one the security job"() {
@@ -151,14 +154,14 @@ class PipelineSpec extends Specification {
 
         then:
         def created = thrown(InvalidRequestException)
-        created.problems*.field() == ['agentLabels']
+        created.problems()*.field() == ['agentLabels']
 
         when:
         existing.reconfigure(existing.type(), tooMany)
 
         then:
         def reconfigured = thrown(InvalidRequestException)
-        reconfigured.problems*.message() == ['is too long: all entries together may take at most 1000 bytes']
+        reconfigured.problems()*.message() == ['is too long: all entries together may take at most 1000 bytes']
         existing.settings() != tooMany
     }
 

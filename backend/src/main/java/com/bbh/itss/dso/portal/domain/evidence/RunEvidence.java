@@ -18,7 +18,10 @@ import java.util.function.Predicate;
 import static com.bbh.itss.dso.portal.domain.monitoring.MetricsRow.decimal;
 import static com.bbh.itss.dso.portal.domain.monitoring.MetricsRow.number;
 import static com.bbh.itss.dso.portal.domain.monitoring.MetricsRow.positive;
-import static com.bbh.itss.dso.portal.domain.shared.Text.trimToNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.trim;
 
 public final class RunEvidence {
 
@@ -161,7 +164,7 @@ public final class RunEvidence {
     }
 
     private static String link(EvidencePoint recorded, String report, String fallback) {
-        return Text.orDefault(recorded.value(report + "_report_url"), fallback);
+        return defaultIfBlank(trim(recorded.value(report + "_report_url")), fallback);
     }
 
     private static CheckStatus gateStatus(String qualityGate) {
@@ -189,7 +192,7 @@ public final class RunEvidence {
     private Optional<EvidencePoint> forModule(String measurement, String module, Predicate<EvidencePoint> filter) {
         List<EvidencePoint> candidates = points(measurement).stream().filter(filter).toList();
         return candidates.stream().filter(point -> Objects.equals(module, point.value("module"))).findFirst()
-                .or(() -> candidates.size() == 1 && Text.isBlank(candidates.getFirst().value("module"))
+                .or(() -> candidates.size() == 1 && isBlank(candidates.getFirst().value("module"))
                         ? Optional.of(candidates.getFirst()) : Optional.empty());
     }
 

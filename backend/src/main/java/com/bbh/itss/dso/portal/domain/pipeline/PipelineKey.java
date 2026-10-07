@@ -1,10 +1,10 @@
 package com.bbh.itss.dso.portal.domain.pipeline;
 
-import com.bbh.itss.dso.portal.domain.shared.Text;
-
 import java.time.Instant;
 import java.util.Locale;
 import java.util.Objects;
+
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public record PipelineKey(Long id, String value, KeyStatus status, Instant issuedAt, Instant revokedAt,
                           String revokeReason, Instant lastUsedAt) {
@@ -27,7 +27,7 @@ public record PipelineKey(Long id, String value, KeyStatus status, Instant issue
     }
 
     public static String normalize(String value) {
-        return Text.isBlank(value) ? "" : value.trim().toLowerCase(Locale.ROOT);
+        return isBlank(value) ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 
     public String hint() {
@@ -42,7 +42,8 @@ public record PipelineKey(Long id, String value, KeyStatus status, Instant issue
 
     public void requireActive() {
         if (!isActive()) {
-            throw new KeyRevokedException(this);
+            throw new SecurityException("The DevSecOps pipeline key was invalidated on " + revokedAt
+                    + (revokeReason == null ? "" : ": " + revokeReason));
         }
     }
 

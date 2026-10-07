@@ -7,6 +7,8 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.List;
 
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
 public record GoldenFixPolicy(Boolean enabled, Boolean onlyDirectDependencies, Integer minThreatLevel,
                               List<String> ecosystems, List<String> goldenVersionTypes, List<String> excludeDirs,
                               Boolean verifyEnabled, Integer verifyMaxAttempts, Integer verifyTimeoutMinutes,
@@ -20,14 +22,14 @@ public record GoldenFixPolicy(Boolean enabled, Boolean onlyDirectDependencies, I
         ecosystems = Text.clean(ecosystems);
         goldenVersionTypes = Text.clean(goldenVersionTypes);
         excludeDirs = Text.clean(excludeDirs);
-        verifyMavenCommand = Text.trimToNull(verifyMavenCommand);
-        verifyGradleCommand = Text.trimToNull(verifyGradleCommand);
-        verifyNpmCommand = Text.trimToNull(verifyNpmCommand);
-        verifyPipCommand = Text.trimToNull(verifyPipCommand);
-        verifyPubCommand = Text.trimToNull(verifyPubCommand);
-        commitAuthorName = Text.trimToNull(commitAuthorName);
-        commitAuthorEmail = Text.trimToNull(commitAuthorEmail);
-        timeZone = Text.trimToNull(timeZone);
+        verifyMavenCommand = trimToNull(verifyMavenCommand);
+        verifyGradleCommand = trimToNull(verifyGradleCommand);
+        verifyNpmCommand = trimToNull(verifyNpmCommand);
+        verifyPipCommand = trimToNull(verifyPipCommand);
+        verifyPubCommand = trimToNull(verifyPubCommand);
+        commitAuthorName = trimToNull(commitAuthorName);
+        commitAuthorEmail = trimToNull(commitAuthorEmail);
+        timeZone = trimToNull(timeZone);
     }
 
     public static GoldenFixPolicy inherit(Boolean enabled) {

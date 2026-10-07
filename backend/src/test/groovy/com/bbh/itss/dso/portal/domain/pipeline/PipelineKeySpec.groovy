@@ -73,7 +73,7 @@ class PipelineKeySpec extends Specification {
         revoked.requireActive()
 
         then:
-        def e = thrown(KeyRevokedException)
+        def e = thrown(SecurityException)
         e.message == "The DevSecOps pipeline key was invalidated on $REVOKED: leaked"
     }
 }

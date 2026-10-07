@@ -8,6 +8,8 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 import java.util.List;
 import java.util.Locale;
 
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
 public record AppScanSettings(String applicationId, String sastScanName, List<String> includedDirs,
                               List<String> excludedDirs, Boolean compile, Boolean sourceCodeOnly, Boolean useConfigFile,
                               Boolean insecureTls, String clientPath, ToolCommand compileCommand, Boolean dastEnabled,
@@ -16,20 +18,20 @@ public record AppScanSettings(String applicationId, String sastScanName, List<St
 
     public AppScanSettings {
         applicationId = applicationId == null ? null : applicationId.trim().toLowerCase(Locale.ROOT);
-        sastScanName = Text.trimToNull(sastScanName);
+        sastScanName = trimToNull(sastScanName);
         includedDirs = Text.clean(includedDirs);
         excludedDirs = Text.clean(excludedDirs);
         compile = !Boolean.FALSE.equals(compile);
         sourceCodeOnly = Boolean.TRUE.equals(sourceCodeOnly);
         useConfigFile = Boolean.TRUE.equals(useConfigFile);
         insecureTls = Boolean.TRUE.equals(insecureTls);
-        clientPath = Text.trimToNull(clientPath);
+        clientPath = trimToNull(clientPath);
         compileCommand = compileCommand == null ? ToolCommand.NONE : compileCommand;
         dastEnabled = Boolean.TRUE.equals(dastEnabled);
-        dastScanName = Text.trimToNull(dastScanName);
-        dastTargetUrl = Text.trimToNull(dastTargetUrl);
-        dastPresenceId = Text.trimToNull(dastPresenceId);
-        secretCredentialsId = Text.trimToNull(secretCredentialsId);
+        dastScanName = trimToNull(dastScanName);
+        dastTargetUrl = trimToNull(dastTargetUrl);
+        dastPresenceId = trimToNull(dastPresenceId);
+        secretCredentialsId = trimToNull(secretCredentialsId);
     }
 
     public static AppScanSettings of(String applicationId) {

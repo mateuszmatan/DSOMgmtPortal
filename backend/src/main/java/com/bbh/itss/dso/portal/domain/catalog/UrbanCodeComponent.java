@@ -1,10 +1,11 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.Map;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public record UrbanCodeComponent(String componentName, String baseDir, String fileIncludePatterns,
                                  String fileExcludePatterns, String versionPrefix, String version,
@@ -13,17 +14,17 @@ public record UrbanCodeComponent(String componentName, String baseDir, String fi
 
     public UrbanCodeComponent {
         componentName = componentName == null ? null : componentName.trim();
-        baseDir = Text.trimToNull(baseDir);
-        fileIncludePatterns = Text.trimToNull(fileIncludePatterns);
-        fileExcludePatterns = Text.trimToNull(fileExcludePatterns);
-        versionPrefix = Text.trimToNull(versionPrefix);
-        version = Text.trimToNull(version);
+        baseDir = trimToNull(baseDir);
+        fileIncludePatterns = trimToNull(fileIncludePatterns);
+        fileExcludePatterns = trimToNull(fileExcludePatterns);
+        versionPrefix = trimToNull(versionPrefix);
+        version = trimToNull(version);
         incrementalVersion = !Boolean.FALSE.equals(incrementalVersion);
-        extensions = Text.trimToNull(extensions);
-        charset = Text.trimToNull(charset);
-        pushDescription = Text.trimToNull(pushDescription);
-        versionProperties = Text.trimToNull(versionProperties);
-        versionDescription = Text.trimToNull(versionDescription);
+        extensions = trimToNull(extensions);
+        charset = trimToNull(charset);
+        pushDescription = trimToNull(pushDescription);
+        versionProperties = trimToNull(versionProperties);
+        versionDescription = trimToNull(versionDescription);
     }
 
     public static UrbanCodeComponent of(String componentName, String baseDir, String fileIncludePatterns) {

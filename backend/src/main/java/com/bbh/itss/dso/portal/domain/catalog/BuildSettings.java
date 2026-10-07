@@ -1,8 +1,11 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+
+import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
+import static org.apache.commons.lang3.StringUtils.trim;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public record BuildSettings(BuildTool tool, String sourceDir, String javaPath, Boolean autoSetup, String buildPath,
                             ToolCommand command) {
@@ -10,10 +13,10 @@ public record BuildSettings(BuildTool tool, String sourceDir, String javaPath, B
     public static final String DEFAULT_SOURCE_DIR = ".";
 
     public BuildSettings {
-        sourceDir = Text.orDefault(sourceDir, DEFAULT_SOURCE_DIR);
-        javaPath = Text.trimToNull(javaPath);
+        sourceDir = defaultIfBlank(trim(sourceDir), DEFAULT_SOURCE_DIR);
+        javaPath = trimToNull(javaPath);
         autoSetup = Boolean.TRUE.equals(autoSetup);
-        buildPath = Text.trimToNull(buildPath);
+        buildPath = trimToNull(buildPath);
         command = command == null ? ToolCommand.NONE : command;
     }
 

@@ -4,13 +4,11 @@ import com.bbh.itss.dso.portal.support.ApiJson
 import com.bbh.itss.dso.portal.support.PortalSpecification
 import org.yaml.snakeyaml.Yaml
 
-
 import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 
 class GlobalSettingsRegressionSpec extends PortalSpecification {
-
 
     Map original
 

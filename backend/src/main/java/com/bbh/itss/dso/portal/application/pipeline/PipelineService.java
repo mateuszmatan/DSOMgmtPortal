@@ -17,15 +17,16 @@ import com.bbh.itss.dso.portal.domain.pipeline.PipelineKey;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import com.bbh.itss.dso.portal.domain.pipeline.ServiceRef;
-import com.bbh.itss.dso.portal.domain.shared.ConflictException;
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 import com.bbh.itss.dso.portal.domain.shared.Timestamps;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
+
+import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
 
 @UseCase
 public class PipelineService implements PipelinesUseCase {
@@ -48,7 +49,7 @@ public class PipelineService implements PipelinesUseCase {
     @Override
     @ReadOnly
     public List<ServicePipelinesView> listForProduct(long productId) {
-        Product product = products.load(productId).orElseThrow(() -> NotFoundException.of("Product", productId));
+        Product product = products.load(productId).orElseThrow(() -> notFound("Product", productId));
         String jenkinsUrl = jenkinsUrl();
         Map<Long, List<PipelineView>> byService = pipelines.findByProductId(productId).stream()
                 .map(pipeline -> PipelineView.of(product, pipeline, jenkinsUrl))
@@ -67,10 +68,10 @@ public class PipelineService implements PipelinesUseCase {
     @Override
     public PipelineView create(long serviceId, PipelineType type, PipelineSettings settings) {
         Product product = products.findByServiceId(serviceId)
-                .orElseThrow(() -> NotFoundException.of("Service", serviceId));
-        Service service = product.service(serviceId).orElseThrow(() -> NotFoundException.of("Service", serviceId));
+                .orElseThrow(() -> notFound("Service", serviceId));
+        Service service = product.service(serviceId).orElseThrow(() -> notFound("Service", serviceId));
         if (pipelines.existsForService(serviceId, type)) {
-            throw new ConflictException("Service " + service.name() + " already has a " + type.variant() + " pipeline");
+            throw new IllegalStateException("Service " + service.name() + " already has a " + type.variant() + " pipeline");
         }
         return PipelineView.of(product, create(product, serviceId, type, settings), jenkinsUrl());
     }
@@ -80,11 +81,11 @@ public class PipelineService implements PipelinesUseCase {
         if (serviceIds.isEmpty()) {
             return List.of();
         }
-        Product product = products.load(productId).orElseThrow(() -> NotFoundException.of("Product", productId));
+        Product product = products.load(productId).orElseThrow(() -> notFound("Product", productId));
         String jenkinsUrl = jenkinsUrl();
         return serviceIds.stream()
                 .map(serviceId -> product.service(serviceId)
-                        .orElseThrow(() -> NotFoundException.of("Service", serviceId)))
+                        .orElseThrow(() -> notFound("Service", serviceId)))
                 .filter(service -> !pipelines.existsForService(service.id(), type))
                 .map(service -> PipelineView.of(product, create(product, service.id(), type,
                         PipelineSettings.forNewService()), jenkinsUrl))
@@ -134,21 +135,21 @@ public class PipelineService implements PipelinesUseCase {
     }
 
     private IssuedKey issuedKey(String value) {
-        return pipelines.findKey(value).orElseThrow(() -> new NotFoundException(Pipeline.UNKNOWN_KEY));
+        return pipelines.findKey(value).orElseThrow(() -> new NoSuchElementException(Pipeline.UNKNOWN_KEY));
     }
 
     private PipelineView view(Pipeline pipeline) {
         Product product = products.load(pipeline.service().productId())
-                .orElseThrow(() -> NotFoundException.of("Product", pipeline.service().productId()));
+                .orElseThrow(() -> notFound("Product", pipeline.service().productId()));
         return PipelineView.of(product, pipeline, jenkinsUrl());
     }
 
     private Pipeline find(long id) {
-        return pipelines.load(id).orElseThrow(() -> NotFoundException.of("Pipeline", id));
+        return pipelines.load(id).orElseThrow(() -> notFound("Pipeline", id));
     }
 
     private Pipeline lock(long id) {
-        return pipelines.loadForUpdate(id).orElseThrow(() -> NotFoundException.of("Pipeline", id));
+        return pipelines.loadForUpdate(id).orElseThrow(() -> notFound("Pipeline", id));
     }
 
     private String jenkinsUrl() {

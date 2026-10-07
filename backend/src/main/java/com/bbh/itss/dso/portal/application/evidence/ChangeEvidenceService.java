@@ -21,7 +21,6 @@ import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.settings.PlatformSettings;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -29,6 +28,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
+import static org.apache.commons.lang3.StringUtils.trim;
 
 @UseCase
 public class ChangeEvidenceService implements QueryEvidenceUseCase {
@@ -89,8 +91,8 @@ public class ChangeEvidenceService implements QueryEvidenceUseCase {
         ServiceSettings settings = view.service().settings();
         EvidenceLinks links = EvidenceLinks.of(view.buildUrl(run), platform.asocUrl(),
                 settings.appScan().applicationId(),
-                Text.orDefault(settings.sonar().serverUrl(), platform.sonarServerUrl()), settings.sonar().projectKey(),
-                Text.orDefault(settings.nexusIq().serverUrl(), platform.nexusIqServerUrl()));
+                defaultIfBlank(trim(settings.sonar().serverUrl()), platform.sonarServerUrl()), settings.sonar().projectKey(),
+                defaultIfBlank(trim(settings.nexusIq().serverUrl()), platform.nexusIqServerUrl()));
         RunEvidence points = recorded == null ? RunEvidence.none() : recorded;
         return new PipelineEvidence(pipeline, view.jenkinsJobUrl(), status,
                 points.report(run, view.service().name(), links));

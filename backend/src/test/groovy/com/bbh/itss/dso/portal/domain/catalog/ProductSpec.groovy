@@ -2,10 +2,10 @@ package com.bbh.itss.dso.portal.domain.catalog
 
 import com.bbh.itss.dso.portal.domain.catalog.ProductDirectory.ProductIdentity
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.Fixtures.DEPARTMENT_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.account
 import static com.bbh.itss.dso.portal.support.Fixtures.build
@@ -131,8 +131,8 @@ class ProductSpec extends Specification {
         product.update(3L, details(name: 'Other'), account(), [], nobody)
 
         then:
-        def e = thrown(ConflictException)
-        e.message == ConflictException.STALE_VERSION
+        def e = thrown(IllegalStateException)
+        e.message == STALE_VERSION
         product.name() == 'CertScanner'
         product.services()*.name() == ['gui']
     }
@@ -142,7 +142,7 @@ class ProductSpec extends Specification {
         Product.create(details(), account(), [draft()], directory(lookup))
 
         then:
-        def e = thrown(ConflictException)
+        def e = thrown(IllegalStateException)
         e.message == message
 
         where:
@@ -160,8 +160,8 @@ class ProductSpec extends Specification {
 
         then:
         def e = thrown(InvalidRequestException)
-        e.problems*.field == ['services[0].build.javaPath', 'services[1].name', 'services[2].id']
-        e.problems*.message == ['set the JDK path or enable automatic build tool setup, the unit tests stage needs one of them',
+        e.problems()*.field == ['services[0].build.javaPath', 'services[1].name', 'services[2].id']
+        e.problems()*.message == ['set the JDK path or enable automatic build tool setup, the unit tests stage needs one of them',
                                 'another service of this product already uses this name',
                                 'service 77 does not belong to this product']
     }
@@ -197,15 +197,15 @@ class ProductSpec extends Specification {
 
         then:
         def e = thrown(InvalidRequestException)
-        e.problems*.field == ['code', 'name', 'departmentId', 'appScan.keyId', 'services[0].name']
-        e.problems*.message.unique() == ['must not be blank', "choose the product's department"]
+        e.problems()*.field == ['code', 'name', 'departmentId', 'appScan.keyId', 'services[0].name']
+        e.problems()*.message.unique() == ['must not be blank', "choose the product's department"]
 
         when:
         Product.create(details(), null, [], nobody)
 
         then:
         def missing = thrown(InvalidRequestException)
-        missing.problems*.field == ['appScan.keyId']
+        missing.problems()*.field == ['appScan.keyId']
     }
 
     def "a product without a department or in one that does not exist is refused, also when an older product is edited: #departmentId"() {
@@ -217,15 +217,15 @@ class ProductSpec extends Specification {
 
         then:
         def created = thrown(InvalidRequestException)
-        created.problems*.field == ['departmentId']
-        created.problems*.message == [message]
+        created.problems()*.field == ['departmentId']
+        created.problems()*.message == [message]
 
         when:
         older.update(0L, details(departmentId: departmentId), account(), [draft(id: 10, name: 'gui')], nobody)
 
         then:
         def updated = thrown(InvalidRequestException)
-        updated.problems == created.problems
+        updated.problems() == created.problems
         older.departmentId() == null
 
         when:

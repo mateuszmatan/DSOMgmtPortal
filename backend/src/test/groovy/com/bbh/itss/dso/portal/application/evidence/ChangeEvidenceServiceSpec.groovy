@@ -19,13 +19,11 @@ import com.bbh.itss.dso.portal.domain.evidence.RunEvidence
 import com.bbh.itss.dso.portal.domain.evidence.StageEvidence
 import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
-import com.bbh.itss.dso.portal.domain.monitoring.MetricsUnavailableException
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
 
@@ -131,7 +129,7 @@ class ChangeEvidenceServiceSpec extends Specification {
         def result = evidenceService.product(1L)
 
         then:
-        1 * runs.latestRuns(*_) >> { throw new MetricsUnavailableException(NOT_CONFIGURED) }
+        1 * runs.latestRuns(*_) >> { throw new UncheckedIOException(NOT_CONFIGURED, new IOException()) }
         0 * evidence.evidenceOf(_)
         result.metricsError() == NOT_CONFIGURED
         result.services().collect { it.pipelines()*.pipeline()*.id() } == [[100L, 101L], [102L], []]
@@ -166,7 +164,7 @@ class ChangeEvidenceServiceSpec extends Specification {
 
         then:
         1 * evidence.evidenceOf(_) >> {
-            throw new MetricsUnavailableException("InfluxDB could not be read: Text 'yesterday' could not be parsed")
+            throw new UncheckedIOException("InfluxDB could not be read: Text 'yesterday' could not be parsed", new IOException())
         }
         result.metricsError() == "InfluxDB could not be read: Text 'yesterday' could not be parsed"
         result.services()[0].pipelines()[0].status() == RunResult.SUCCESS
@@ -235,7 +233,7 @@ class ChangeEvidenceServiceSpec extends Specification {
         evidenceService.product(9L)
 
         then:
-        def missing = thrown(NotFoundException)
+        def missing = thrown(NoSuchElementException)
         missing.message == 'Product 9 does not exist'
         0 * runs._
     }

@@ -11,11 +11,12 @@ import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.ProductCode;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
 
 @UseCase
 public class ProductCatalogService implements ProductsUseCase {
@@ -86,6 +87,6 @@ public class ProductCatalogService implements ProductsUseCase {
     }
 
     private Product find(long id) {
-        return products.load(id).orElseThrow(() -> NotFoundException.of("Product", id));
+        return products.load(id).orElseThrow(() -> notFound("Product", id));
     }
 }

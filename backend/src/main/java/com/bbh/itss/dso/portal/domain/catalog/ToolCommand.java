@@ -9,6 +9,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
 public record ToolCommand(List<String> tasks, List<String> flags, String directory, String mavenHome,
                           List<String> environment, String label, Boolean returnStdout) {
 
@@ -17,10 +19,10 @@ public record ToolCommand(List<String> tasks, List<String> flags, String directo
     public ToolCommand {
         tasks = Text.trimmed(tasks);
         flags = Text.trimmed(flags);
-        directory = Text.trimToNull(directory);
-        mavenHome = Text.trimToNull(mavenHome);
+        directory = trimToNull(directory);
+        mavenHome = trimToNull(mavenHome);
         environment = Text.trimmed(environment);
-        label = Text.trimToNull(label);
+        label = trimToNull(label);
         returnStdout = Boolean.TRUE.equals(returnStdout);
     }
 

@@ -1,14 +1,14 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
-import com.bbh.itss.dso.portal.domain.shared.Text;
-
 import java.util.Objects;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public record Service(Long id, String name, String description, int displayOrder, ServiceSettings settings) {
 
     public Service {
         name = name == null ? null : name.trim();
-        description = Text.trimToNull(description);
+        description = trimToNull(description);
         Objects.requireNonNull(settings, "a service needs its settings");
     }
 

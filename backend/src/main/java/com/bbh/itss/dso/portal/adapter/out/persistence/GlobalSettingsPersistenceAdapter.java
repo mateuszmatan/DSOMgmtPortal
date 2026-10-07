@@ -2,10 +2,11 @@ package com.bbh.itss.dso.portal.adapter.out.persistence;
 
 import com.bbh.itss.dso.portal.application.settings.port.out.GlobalSettingsRepositoryPort;
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettings;
-import com.bbh.itss.dso.portal.domain.shared.ConflictException;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
+
+import static com.bbh.itss.dso.portal.domain.shared.Failures.staleVersion;
 
 @Component
 class GlobalSettingsPersistenceAdapter implements GlobalSettingsRepositoryPort {
@@ -24,7 +25,7 @@ class GlobalSettingsPersistenceAdapter implements GlobalSettingsRepositoryPort {
     public GlobalSettings save(GlobalSettings settings) {
         GlobalSettingsEntity entity = repository.findById(GlobalSettingsEntity.ID).orElseGet(GlobalSettingsEntity::new);
         if (!entity.isNew() && entity.getVersion() != settings.version()) {
-            throw ConflictException.staleVersion();
+            throw staleVersion();
         }
         entity.apply(settings.values());
         return repository.saveAndFlush(entity).toDomain();

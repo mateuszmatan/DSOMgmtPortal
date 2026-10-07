@@ -7,6 +7,8 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.List;
 
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
 public record FlutterSettings(FlutterPlatform platform, List<String> modules, List<String> testModules,
                               List<String> testSubmodules, List<String> testSubplugins,
                               String signingPasswordCredentialsId, String prodLicenseCredentialsId,
@@ -22,17 +24,17 @@ public record FlutterSettings(FlutterPlatform platform, List<String> modules, Li
         testModules = Text.clean(testModules);
         testSubmodules = Text.clean(testSubmodules);
         testSubplugins = Text.clean(testSubplugins);
-        signingPasswordCredentialsId = Text.trimToNull(signingPasswordCredentialsId);
-        prodLicenseCredentialsId = Text.trimToNull(prodLicenseCredentialsId);
-        testLicenseCredentialsId = Text.trimToNull(testLicenseCredentialsId);
-        deliveryGroup = Text.trimToNull(deliveryGroup);
-        deliveryArtifact = Text.trimToNull(deliveryArtifact);
-        deliveryPlugin = Text.trimToNull(deliveryPlugin);
-        sonarSources = Text.trimToNull(sonarSources);
-        sonarTests = Text.trimToNull(sonarTests);
+        signingPasswordCredentialsId = trimToNull(signingPasswordCredentialsId);
+        prodLicenseCredentialsId = trimToNull(prodLicenseCredentialsId);
+        testLicenseCredentialsId = trimToNull(testLicenseCredentialsId);
+        deliveryGroup = trimToNull(deliveryGroup);
+        deliveryArtifact = trimToNull(deliveryArtifact);
+        deliveryPlugin = trimToNull(deliveryPlugin);
+        sonarSources = trimToNull(sonarSources);
+        sonarTests = trimToNull(sonarTests);
         sonarFlutterPlugin = Boolean.TRUE.equals(sonarFlutterPlugin);
-        dartAnalyzeCommand = Text.trimToNull(dartAnalyzeCommand);
-        sonarScannerVersion = Text.trimToNull(sonarScannerVersion);
+        dartAnalyzeCommand = trimToNull(dartAnalyzeCommand);
+        sonarScannerVersion = trimToNull(sonarScannerVersion);
     }
 
     public void writeTo(ConfigTree config) {

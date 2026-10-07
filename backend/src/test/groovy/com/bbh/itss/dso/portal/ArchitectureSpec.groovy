@@ -40,6 +40,7 @@ class ArchitectureSpec extends Specification {
     static final String CONFIG = 'com.bbh.itss.dso.portal.config..'
     static final String[] FRAMEWORKS = ['jakarta..', 'org.springframework..', 'org.hibernate..', 'tools.jackson..',
                                         'com.fasterxml..', 'org.slf4j..']
+    static final String[] HELPERS = ['org.apache.commons.lang3..', 'org.apache.commons.collections4..', 'lombok..']
 
     @Shared
     JavaClasses portal = new ClassFileImporter()
@@ -62,9 +63,9 @@ class ArchitectureSpec extends Specification {
                         .should().resideInAnyPackage(DOMAIN, APPLICATION, ADAPTER, CONFIG),
                 classes().that().resideInAPackage('com.bbh.itss.dso.portal').should().haveFullyQualifiedName(DsoPortalApplication.name),
                 classes().should().resideInAPackage('com.bbh.itss.dso..'),
-                classes().that().resideInAPackage(DOMAIN).should().onlyDependOnClassesThat().resideInAnyPackage('java..', DOMAIN),
+                classes().that().resideInAPackage(DOMAIN).should().onlyDependOnClassesThat().resideInAnyPackage('java..', DOMAIN, *HELPERS),
                 classes().that().resideInAPackage(APPLICATION)
-                        .should().onlyDependOnClassesThat().resideInAnyPackage('java..', DOMAIN, APPLICATION),
+                        .should().onlyDependOnClassesThat().resideInAnyPackage('java..', DOMAIN, APPLICATION, *HELPERS),
                 noClasses().that().resideInAnyPackage(DOMAIN, APPLICATION).should().dependOnClassesThat().resideInAnyPackage(FRAMEWORKS),
                 noClasses().that().resideInAPackage(ADAPTER_IN).should().dependOnClassesThat().resideInAPackage(ADAPTER_OUT),
                 noClasses().that().resideInAPackage(ADAPTER_OUT).should().dependOnClassesThat().resideInAPackage(ADAPTER_IN),

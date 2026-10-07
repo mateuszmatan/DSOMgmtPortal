@@ -1,9 +1,10 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 
 import java.util.List;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public record UrbanCodeSettings(String siteName, String deployProcess, Boolean skipWait, Boolean deployWithSnapshot,
                                 Boolean updateSnapshotComponents, Boolean includeOnlyDeployVersions,
@@ -13,15 +14,15 @@ public record UrbanCodeSettings(String siteName, String deployProcess, Boolean s
             null, null);
 
     public UrbanCodeSettings {
-        siteName = Text.trimToNull(siteName);
-        deployProcess = Text.trimToNull(deployProcess);
+        siteName = trimToNull(siteName);
+        deployProcess = trimToNull(deployProcess);
         skipWait = Boolean.TRUE.equals(skipWait);
         deployWithSnapshot = !Boolean.FALSE.equals(deployWithSnapshot);
         updateSnapshotComponents = Boolean.TRUE.equals(updateSnapshotComponents);
         includeOnlyDeployVersions = !Boolean.FALSE.equals(includeOnlyDeployVersions);
         deployOnlyChanged = Boolean.TRUE.equals(deployOnlyChanged);
-        deployDescription = Text.trimToNull(deployDescription);
-        requestProperties = Text.trimToNull(requestProperties);
+        deployDescription = trimToNull(deployDescription);
+        requestProperties = trimToNull(requestProperties);
     }
 
     public void writeTo(ConfigTree config, List<UrbanCodeApplicationSettings> applications) {

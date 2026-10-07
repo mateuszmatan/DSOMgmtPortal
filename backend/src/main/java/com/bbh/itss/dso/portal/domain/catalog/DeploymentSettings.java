@@ -1,16 +1,17 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public record DeploymentSettings(DeployTarget target, String appName, String artifactName,
                                  String baseArtifactName) {
 
     public DeploymentSettings {
-        appName = Text.trimToNull(appName);
-        artifactName = Text.trimToNull(artifactName);
-        baseArtifactName = Text.trimToNull(baseArtifactName);
+        appName = trimToNull(appName);
+        artifactName = trimToNull(artifactName);
+        baseArtifactName = trimToNull(baseArtifactName);
     }
 
     public void writeTo(ConfigTree config) {

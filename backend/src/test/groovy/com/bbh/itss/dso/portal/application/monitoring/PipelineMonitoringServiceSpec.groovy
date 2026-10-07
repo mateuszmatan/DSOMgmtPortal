@@ -11,13 +11,11 @@ import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint
 import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
-import com.bbh.itss.dso.portal.domain.monitoring.MetricsUnavailableException
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
 
@@ -66,7 +64,7 @@ class PipelineMonitoringServiceSpec extends Specification {
     def "the status says whether InfluxDB answers and where Grafana is"() {
         given:
         runs.configured() >> configured
-        runs.ping() >> { if (failure) { throw new MetricsUnavailableException(failure) } }
+        runs.ping() >> { if (failure) { throw new UncheckedIOException(failure, new IOException()) } }
         dashboards.url() >> Optional.ofNullable(grafana)
 
         expect:
@@ -120,7 +118,7 @@ class PipelineMonitoringServiceSpec extends Specification {
 
         then:
         1 * runs.latestRuns([tag(guiFull), tag(guiSast), tag(apiFull)] as Set, _) >> {
-            throw new MetricsUnavailableException(NOT_CONFIGURED)
+            throw new UncheckedIOException(NOT_CONFIGURED, new IOException())
         }
         overview.metricsError() == NOT_CONFIGURED
         overview.products()[0].statusCounts() == [(NO_DATA): 2, (DISABLED): 1]
@@ -141,7 +139,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         where:
         failure                                             || error
         null                                                || null
-        new MetricsUnavailableException(NOT_CONFIGURED)     || NOT_CONFIGURED
+        new UncheckedIOException(NOT_CONFIGURED, new IOException())     || NOT_CONFIGURED
     }
 
     def "a product shows the status and last run of each pipeline"() {
@@ -168,7 +166,7 @@ class PipelineMonitoringServiceSpec extends Specification {
     def "a product whose runs cannot be read reports why and an unknown product is not found"() {
         given:
         pipelines.findByProductId(1L) >> [guiFull]
-        runs.latestRuns(*_) >> { throw new MetricsUnavailableException('InfluxDB could not be read: timeout') }
+        runs.latestRuns(*_) >> { throw new UncheckedIOException('InfluxDB could not be read: timeout', new IOException()) }
 
         when:
         def product = monitoring.product(1L)
@@ -182,7 +180,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         monitoring.product(9L)
 
         then:
-        thrown(NotFoundException)
+        thrown(NoSuchElementException)
     }
 
     def "a pipeline's details show its runs, DORA metrics and Grafana dashboard"() {
@@ -232,7 +230,7 @@ class PipelineMonitoringServiceSpec extends Specification {
     def "when the runs cannot be read the DORA query is skipped and the Grafana dashboard is still shown"() {
         given:
         pipelines.load(101L) >> Optional.of(guiSast)
-        runs.recentRuns(*_) >> { throw new MetricsUnavailableException(NOT_CONFIGURED) }
+        runs.recentRuns(*_) >> { throw new UncheckedIOException(NOT_CONFIGURED, new IOException()) }
         dashboards.dashboardUrl(_, _, 90) >> Optional.of('https://grafana/d/x')
 
         when:
@@ -253,7 +251,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         def newest = run('2026-10-04T09:00:00Z', SUCCESS)
         pipelines.load(100L) >> Optional.of(guiFull)
         runs.recentRuns(*_) >> [newest]
-        runs.doraPoints(*_) >> { throw new MetricsUnavailableException('InfluxDB could not be read: dora') }
+        runs.doraPoints(*_) >> { throw new UncheckedIOException('InfluxDB could not be read: dora', new IOException()) }
 
         when:
         def details = monitoring.pipeline(100L, '30d')
@@ -273,7 +271,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         monitoring.pipeline(id, '30d')
 
         then:
-        def e = thrown(NotFoundException)
+        def e = thrown(NoSuchElementException)
         e.message == message
 
         where:
@@ -354,7 +352,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         given:
         products.findAll() >> [certScanner]
         pipelines.findAll() >> [guiFull]
-        runs.doraPoints(*_) >> { throw new MetricsUnavailableException(NOT_CONFIGURED) }
+        runs.doraPoints(*_) >> { throw new UncheckedIOException(NOT_CONFIGURED, new IOException()) }
 
         when:
         def activity = monitoring.activity('30d')

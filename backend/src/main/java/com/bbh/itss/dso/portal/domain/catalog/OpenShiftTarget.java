@@ -1,10 +1,11 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.Map;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public record OpenShiftTarget(String projectBuild, String buildConfigPath, String dockerFilePath, String buildContext,
                               String addFile, String dockerRepoPush, String dockerRepoPull, String certDir,
@@ -14,27 +15,27 @@ public record OpenShiftTarget(String projectBuild, String buildConfigPath, Strin
                               String deploymentRepoCredentialsId, String buildTag, String internalDockerUrl) {
 
     public OpenShiftTarget {
-        projectBuild = Text.trimToNull(projectBuild);
-        buildConfigPath = Text.trimToNull(buildConfigPath);
-        dockerFilePath = Text.trimToNull(dockerFilePath);
-        buildContext = Text.trimToNull(buildContext);
-        addFile = Text.trimToNull(addFile);
-        dockerRepoPush = Text.trimToNull(dockerRepoPush);
-        dockerRepoPull = Text.trimToNull(dockerRepoPull);
-        certDir = Text.trimToNull(certDir);
-        nexusAuthFile = Text.trimToNull(nexusAuthFile);
-        projectDeployment = Text.trimToNull(projectDeployment);
-        deployConfigPath = Text.trimToNull(deployConfigPath);
-        configPath = Text.trimToNull(configPath);
+        projectBuild = trimToNull(projectBuild);
+        buildConfigPath = trimToNull(buildConfigPath);
+        dockerFilePath = trimToNull(dockerFilePath);
+        buildContext = trimToNull(buildContext);
+        addFile = trimToNull(addFile);
+        dockerRepoPush = trimToNull(dockerRepoPush);
+        dockerRepoPull = trimToNull(dockerRepoPull);
+        certDir = trimToNull(certDir);
+        nexusAuthFile = trimToNull(nexusAuthFile);
+        projectDeployment = trimToNull(projectDeployment);
+        deployConfigPath = trimToNull(deployConfigPath);
+        configPath = trimToNull(configPath);
         skipConfigDeploy = Boolean.TRUE.equals(skipConfigDeploy);
-        healthCheckUrl = Text.trimToNull(healthCheckUrl);
-        routeHostname = Text.trimToNull(routeHostname);
-        deploymentPath = Text.trimToNull(deploymentPath);
-        deploymentRepoUrl = Text.trimToNull(deploymentRepoUrl);
-        deploymentRepoBranch = Text.trimToNull(deploymentRepoBranch);
-        deploymentRepoCredentialsId = Text.trimToNull(deploymentRepoCredentialsId);
-        buildTag = Text.trimToNull(buildTag);
-        internalDockerUrl = Text.trimToNull(internalDockerUrl);
+        healthCheckUrl = trimToNull(healthCheckUrl);
+        routeHostname = trimToNull(routeHostname);
+        deploymentPath = trimToNull(deploymentPath);
+        deploymentRepoUrl = trimToNull(deploymentRepoUrl);
+        deploymentRepoBranch = trimToNull(deploymentRepoBranch);
+        deploymentRepoCredentialsId = trimToNull(deploymentRepoCredentialsId);
+        buildTag = trimToNull(buildTag);
+        internalDockerUrl = trimToNull(internalDockerUrl);
     }
 
     public static final OpenShiftTarget NONE = new OpenShiftTarget(null, null, null, null, null, null, null, null, null,

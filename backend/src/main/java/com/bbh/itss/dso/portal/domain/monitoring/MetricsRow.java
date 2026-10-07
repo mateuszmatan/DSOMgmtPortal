@@ -1,9 +1,10 @@
 package com.bbh.itss.dso.portal.domain.monitoring;
 
-import com.bbh.itss.dso.portal.domain.shared.Text;
-
 import java.time.Instant;
 import java.util.Map;
+
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public final class MetricsRow {
 
@@ -16,8 +17,8 @@ public final class MetricsRow {
 
     public static PipelineRun run(Map<String, String> row) {
         return new PipelineRun(Instant.parse(row.get("_time")), RunResult.fromTag(row.get("result")),
-                Text.trimToNull(row.get("branch")), number(row.get("build")), number(row.get("duration_s")),
-                Text.trimToNull(row.get("commit")), Text.trimToNull(row.get("job")), number(row.get("stages_total")),
+                trimToNull(row.get("branch")), number(row.get("build")), number(row.get("duration_s")),
+                trimToNull(row.get("commit")), trimToNull(row.get("job")), number(row.get("stages_total")),
                 number(row.get("passed")), number(row.get("warned")), number(row.get("failed")),
                 number(row.get("blocked")), number(row.get("skipped")));
     }
@@ -37,7 +38,7 @@ public final class MetricsRow {
     }
 
     public static Double decimal(String value) {
-        if (Text.isBlank(value)) {
+        if (isBlank(value)) {
             return null;
         }
         try {

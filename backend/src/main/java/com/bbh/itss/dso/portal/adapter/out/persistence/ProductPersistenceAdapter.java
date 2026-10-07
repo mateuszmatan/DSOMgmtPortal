@@ -104,7 +104,6 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
         return departments.existsById(id);
     }
 
-
     private static ProductIdentity identity(ProductEntity product) {
         return new ProductIdentity(product.getId(), product.name());
     }

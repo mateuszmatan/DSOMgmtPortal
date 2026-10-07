@@ -1,11 +1,12 @@
 package com.bbh.itss.dso.portal.domain.settings;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.net.URI;
 import java.util.Map;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public record PlatformSettings(String jenkinsUrl, String jenkinsLibrary, String asocUrl, String appScanClientLinuxUrl,
                                String appScanClientWindowsUrl, String proxyHost, Integer proxyPort, String proxyUser,
@@ -15,23 +16,23 @@ public record PlatformSettings(String jenkinsUrl, String jenkinsLibrary, String 
                                String iosBuildAgent) {
 
     public PlatformSettings {
-        jenkinsUrl = Text.trimToNull(jenkinsUrl);
-        jenkinsLibrary = Text.trimToNull(jenkinsLibrary);
-        asocUrl = Text.trimToNull(asocUrl);
-        appScanClientLinuxUrl = Text.trimToNull(appScanClientLinuxUrl);
-        appScanClientWindowsUrl = Text.trimToNull(appScanClientWindowsUrl);
-        proxyHost = Text.trimToNull(proxyHost);
-        proxyUser = Text.trimToNull(proxyUser);
-        oisHost = Text.trimToNull(oisHost);
-        sonarServerUrl = Text.trimToNull(sonarServerUrl);
-        sonarInstallationName = Text.trimToNull(sonarInstallationName);
-        nexusIqServerUrl = Text.trimToNull(nexusIqServerUrl);
-        nexusIqCredentialsId = Text.trimToNull(nexusIqCredentialsId);
-        nexusSnapshotRepositoryUrl = Text.trimToNull(nexusSnapshotRepositoryUrl);
-        nexusSnapshotRepositoryId = Text.trimToNull(nexusSnapshotRepositoryId);
-        influxWriteUrl = Text.trimToNull(influxWriteUrl);
-        influxCredentialsId = Text.trimToNull(influxCredentialsId);
-        iosBuildAgent = Text.trimToNull(iosBuildAgent);
+        jenkinsUrl = trimToNull(jenkinsUrl);
+        jenkinsLibrary = trimToNull(jenkinsLibrary);
+        asocUrl = trimToNull(asocUrl);
+        appScanClientLinuxUrl = trimToNull(appScanClientLinuxUrl);
+        appScanClientWindowsUrl = trimToNull(appScanClientWindowsUrl);
+        proxyHost = trimToNull(proxyHost);
+        proxyUser = trimToNull(proxyUser);
+        oisHost = trimToNull(oisHost);
+        sonarServerUrl = trimToNull(sonarServerUrl);
+        sonarInstallationName = trimToNull(sonarInstallationName);
+        nexusIqServerUrl = trimToNull(nexusIqServerUrl);
+        nexusIqCredentialsId = trimToNull(nexusIqCredentialsId);
+        nexusSnapshotRepositoryUrl = trimToNull(nexusSnapshotRepositoryUrl);
+        nexusSnapshotRepositoryId = trimToNull(nexusSnapshotRepositoryId);
+        influxWriteUrl = trimToNull(influxWriteUrl);
+        influxCredentialsId = trimToNull(influxCredentialsId);
+        iosBuildAgent = trimToNull(iosBuildAgent);
     }
 
     public PlatformSettings withJenkinsUrl(String url) {

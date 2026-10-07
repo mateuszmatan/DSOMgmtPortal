@@ -5,7 +5,6 @@ import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringTargets
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
 import spock.lang.Subject
@@ -90,7 +89,7 @@ class MonitoringTargetsServiceSpec extends Specification {
         read(targets)
 
         then:
-        def e = thrown(NotFoundException)
+        def e = thrown(NoSuchElementException)
         e.message == message
 
         where:

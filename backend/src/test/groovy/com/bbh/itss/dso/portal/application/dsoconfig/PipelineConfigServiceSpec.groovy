@@ -5,9 +5,7 @@ import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.domain.catalog.Product
-import com.bbh.itss.dso.portal.domain.pipeline.KeyRevokedException
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.support.Fixtures.UPDATED
@@ -54,8 +52,8 @@ class PipelineConfigServiceSpec extends Specification {
         0 * pipelines.get(_)
 
         where:
-        failure << [new KeyRevokedException(pipeline().revokeActiveKey('Service retired', UPDATED)),
-                    new NotFoundException('Unknown DevSecOps pipeline key')]
+        failure << [new SecurityException('The DevSecOps pipeline key was invalidated'),
+                    new NoSuchElementException('Unknown DevSecOps pipeline key')]
     }
 
     def "the portal previews a pipeline's, a product's and the settings' configuration"() {

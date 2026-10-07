@@ -5,7 +5,6 @@ import com.bbh.itss.dso.portal.domain.evidence.CoverageEvidence
 import com.bbh.itss.dso.portal.domain.evidence.EvidenceLinks
 import com.bbh.itss.dso.portal.domain.evidence.ReleaseGateEvidence
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
-import com.bbh.itss.dso.portal.domain.monitoring.MetricsUnavailableException
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult
 import org.springframework.web.client.RestClient
@@ -136,7 +135,7 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
 
         then:
         0 * client.query(_)
-        def e = thrown(MetricsUnavailableException)
+        def e = thrown(UncheckedIOException)
         e.message == 'InfluxDB is not configured for the portal'
     }
 
@@ -148,7 +147,7 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
         adapter.evidenceOf([(gui): [run(FINISHED, 600)] as Set])
 
         then:
-        def e = thrown(MetricsUnavailableException)
+        def e = thrown(UncheckedIOException)
         e.message == "InfluxDB could not be read: Text 'yesterday' could not be parsed at index 0"
     }
 

@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.domain.pipeline;
 
-import com.bbh.itss.dso.portal.domain.shared.ConflictException;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.time.Instant;
@@ -52,7 +51,7 @@ public final class Pipeline {
 
     public void reconfigure(PipelineType requestedType, PipelineSettings requestedSettings) {
         if (requestedType != type) {
-            throw new ConflictException("The type of a pipeline cannot change; add a new pipeline instead");
+            throw new IllegalStateException("The type of a pipeline cannot change; add a new pipeline instead");
         }
         this.settings = valid(Objects.requireNonNull(requestedSettings, "a pipeline needs its settings")).forType(type);
     }
@@ -77,7 +76,7 @@ public final class Pipeline {
 
     public PipelineKey revokeActiveKey(String reason, Instant now) {
         PipelineKey active = activeKey()
-                .orElseThrow(() -> new ConflictException("The pipeline has no active key to invalidate"));
+                .orElseThrow(() -> new IllegalStateException("The pipeline has no active key to invalidate"));
         PipelineKey revoked = active.revoke(reason, now);
         keys = keys.stream().map(key -> key == active ? revoked : key).toList();
         return revoked;

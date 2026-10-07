@@ -6,7 +6,6 @@ import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -15,6 +14,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
 
 @Component
 class PipelinePersistenceAdapter implements PipelineRepositoryPort, PipelineCountsPort {
@@ -106,7 +107,7 @@ class PipelinePersistenceAdapter implements PipelineRepositoryPort, PipelineCoun
     private PipelineEntity created(Pipeline pipeline) {
         long serviceId = pipeline.service().serviceId();
         ServiceEntity service = services.findWithProductById(serviceId)
-                .orElseThrow(() -> NotFoundException.of("Service", serviceId));
+                .orElseThrow(() -> notFound("Service", serviceId));
         return new PipelineEntity(service, pipeline.type());
     }
 }

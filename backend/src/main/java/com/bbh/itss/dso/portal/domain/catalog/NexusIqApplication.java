@@ -6,15 +6,19 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.List;
 
+import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
+import static org.apache.commons.lang3.StringUtils.trim;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
 public record NexusIqApplication(String application, List<String> scanPatterns, String stage,
                                  Boolean failOnNetworkError) {
 
     public static final String DEFAULT_STAGE = "build";
 
     public NexusIqApplication {
-        application = Text.trimToNull(application);
+        application = trimToNull(application);
         scanPatterns = Text.clean(scanPatterns);
-        stage = Text.orDefault(stage, DEFAULT_STAGE);
+        stage = defaultIfBlank(trim(stage), DEFAULT_STAGE);
         failOnNetworkError = Boolean.TRUE.equals(failOnNetworkError);
     }
 

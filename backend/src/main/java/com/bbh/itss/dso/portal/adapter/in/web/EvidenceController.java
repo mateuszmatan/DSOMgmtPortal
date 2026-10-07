@@ -12,13 +12,14 @@ import com.bbh.itss.dso.portal.domain.evidence.RunEvidenceReport;
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 @RestController
 @RequestMapping("/api/evidence")
@@ -54,7 +55,7 @@ public class EvidenceController {
             return new ServiceEvidenceResponse(service.id(), service.name(), service.description(),
                     settings.scm().repositoryUrl(), settings.deployment().artifactName(),
                     settings.appScan().applicationId(), settings.sonar().projectKey(),
-                    Text.trimToNull(String.join(", ",
+                    trimToNull(String.join(", ",
                             settings.nexusIqApplications().stream().map(NexusIqApplication::application).toList())),
                     evidence.pipelines().stream().map(PipelineEvidenceResponse::of).toList());
         }
