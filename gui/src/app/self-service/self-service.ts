@@ -57,6 +57,7 @@ import {
   fromService,
   jobName,
   pipelineChoices,
+  pipelineReach,
   pipelineLabel,
   pipelineNames,
   preparation,
@@ -214,6 +215,13 @@ export class SelfService implements HasUnsavedChanges {
       'not set'
     );
   });
+  protected readonly reach = computed(() =>
+    pipelineReach(
+      this.pipeline()!,
+      this.kept(),
+      this.current.hasValue() ? this.current.value() : null,
+    ),
+  );
   protected readonly review = computed(() =>
     reviewGroups(
       this.pipeline()!,

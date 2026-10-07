@@ -251,7 +251,7 @@
             <dd>{{ productForm.controls.contactEmail.value || 'not set' }}</dd>
           }
           <dt>Pipeline</dt>
-          <dd>{{ pipelineLabel() }}</dd>
+          <dd>{{ reach() }}</dd>
           @for (group of review(); track group.label) {
             <dt>{{ group.label }}</dt>
             <dd>

@@ -121,6 +121,30 @@ function coverage(services: readonly ServicePipelines[], type: PipelineType): st
     : `${count} of ${services.length} services ${count === 1 ? 'has' : 'have'} it`;
 }
 
+export function pipelineReach(
+  pipeline: WizardPipeline,
+  services: readonly WizardService[],
+  current: readonly ServicePipelines[] | null,
+): string {
+  const has = (service: WizardService) =>
+    current?.some(
+      (stored) =>
+        stored.serviceId === service.id &&
+        stored.pipelines.some((candidate) => candidate.type === pipeline),
+    ) ?? false;
+  const gaining = services.filter((service) => !has(service)).map((service) => service.name);
+  if (!gaining.length) {
+    return `${pipelineLabel(pipeline)} · every service has it already`;
+  }
+  return gaining.length === services.length
+    ? `${pipelineLabel(pipeline)} · added to every service`
+    : `${pipelineLabel(pipeline)} · added to ${listed(gaining)}`;
+}
+
+function listed(names: readonly string[]): string {
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0];
+}
+
 export function pipelineChoices(
   services: readonly ServicePipelines[] | null,
 ): readonly Choice<WizardPipeline>[] {

@@ -6,6 +6,7 @@ import {
   jobName,
   pipelineChoices,
   pipelineNames,
+  pipelineReach,
   preparation,
   problemText,
   productRequest,
@@ -384,6 +385,23 @@ describe('self-service model', () => {
       'No service has it yet',
     ]);
     expect(pipelineChoices(null).every((choice) => choice.note === undefined)).toBe(true);
+  });
+
+  it('names the services the chosen pipeline is added to', () => {
+    const stored = [
+      servicePipelines({ serviceId: 1, pipelines: [pipeline({ type: 'SAST' })] }),
+      servicePipelines({ serviceId: 2, pipelines: [pipeline()] }),
+    ];
+    const gui = added({ id: 1, name: 'gui' });
+    const api = added({ id: 2, name: 'api' });
+    const batch = added({ name: 'batch' });
+
+    expect(pipelineReach('SAST', [gui, api, batch], stored)).toBe(
+      'Static scan · added to api and batch',
+    );
+    expect(pipelineReach('FULL', [api], stored)).toBe('Full · every service has it already');
+    expect(pipelineReach('SECURITY', [gui, api], stored)).toBe('Security · added to every service');
+    expect(pipelineReach('FULL', [batch], null)).toBe('Full · added to every service');
   });
 
   it('finds the pipeline of the chosen type for every service', () => {

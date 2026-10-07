@@ -472,7 +472,7 @@ class SelfServiceSpec extends EditorSpecification {
 
         then:
         assertThat(step().locator('dl.rows dt')).hasText(['Product', 'Department', 'Pipeline', 'Unchanged'] as String[])
-        assertThat(review('Pipeline')).hasText('Security')
+        assertThat(review('Pipeline')).hasText('Security · added to ledger, notifications and mobile-app')
         assertThat(review('Unchanged').locator('li')).hasCount(4)
 
         when:
