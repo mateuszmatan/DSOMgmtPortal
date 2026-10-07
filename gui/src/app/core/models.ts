@@ -564,6 +564,7 @@ export interface ProductHealth {
   code: string;
   name: string;
   ownerTeam: string | null;
+  departmentId: number | null;
   serviceCount: number;
   pipelineCount: number;
   overall: RunResult;
@@ -573,6 +574,12 @@ export interface ProductHealth {
 
 export interface MonitoringOverview {
   products: ProductHealth[];
+  metricsError: string | null;
+}
+
+export interface PortfolioActivity {
+  pipelines: number;
+  dora: DoraSummary;
   metricsError: string | null;
 }
 

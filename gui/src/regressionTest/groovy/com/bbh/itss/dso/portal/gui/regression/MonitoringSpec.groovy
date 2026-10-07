@@ -20,6 +20,7 @@ class MonitoringSpec extends GuiSpecification {
         assertThat(stat('Succeeded')).hasText('6')
         assertThat(stat('Failing or unstable')).hasText('2')
         assertThat(stat('Keys invalidated')).hasText('1')
+        assertThat(page.locator('section.department h2')).hasText(['Corporate Technology', 'Fund Services'] as String[])
         assertThat(productCards()).hasText(['CertScanner', 'Payments Hub'] as String[])
 
         when:
@@ -48,6 +49,22 @@ class MonitoringSpec extends GuiSpecification {
 
         then:
         assertThat(page.locator('h1')).hasText('Payments Hub')
+        ownErrors().isEmpty()
+    }
+
+    def "the overview charts the DORA metrics, the daily runs and the status of every department"() {
+        when:
+        open('/monitoring')
+
+        then:
+        assertThat(page.locator('dso-dora-tiles .tile-value')).hasText(['1.4 / day', '41h 33m', '29.0%', '13h 24m'] as String[])
+        assertThat(page.locator('.portfolio .card-header .muted')).hasText('62 runs in the last 30 days')
+        assertThat(page.locator('.portfolio svg rect.success').first()).isVisible()
+        assertThat(page.locator('.by-department .track')).hasCount(5)
+        page.locator('.by-department .track').evaluateAll('tracks => tracks.map(track => track.getAttribute("aria-label"))') == [
+                'AI Lab: none', 'Capital Partners: none', 'Corporate Technology: 3 success', 'Custody: none',
+                'Fund Services: 2 unstable, 3 success, 1 key invalidated']
+        api.lastRequest('GET', '/api/monitoring/activity').params() == [range: '30d']
         ownErrors().isEmpty()
     }
 
@@ -180,6 +197,8 @@ class MonitoringSpec extends GuiSpecification {
         def overview = StubApi.fixture('monitoring-products.json') as Map
         overview.products.each { product -> product.overall = 'NO_DATA'; product.statusCounts = [NO_DATA: product.pipelineCount]; product.lastRunAt = null }
         api.respond('GET', '/api/monitoring/products', overview)
+        def activity = StubApi.fixture('monitoring-activity.json') as Map
+        api.respond('GET', '/api/monitoring/activity', activity + [dora: (activity.dora as Map) + [runs: 0, deployments: 0, daily: []]])
         def pipeline = StubApi.fixture('monitoring-pipeline-1.json') as Map
         pipeline += [status: 'NO_DATA', lastRun: null, recentRuns: [], grafana: null,
                      dora  : (pipeline.dora as Map) + [runs: 0, deployments: 0, daily: []]]
@@ -193,6 +212,8 @@ class MonitoringSpec extends GuiSpecification {
         assertThat(stat('Pipelines')).hasText('9')
         assertThat(stat('Succeeded')).hasText('0')
         assertThat(page.locator('.product-foot .muted')).hasText(['No runs yet', 'No runs yet'] as String[])
+        assertThat(page.locator('dso-dora-tiles')).hasCount(0)
+        assertThat(page.locator('.portfolio')).hasCount(0)
 
         when:
         open('/monitoring/pipelines/1')

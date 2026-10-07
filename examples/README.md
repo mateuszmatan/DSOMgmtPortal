@@ -116,5 +116,6 @@ you run.
 
 ## Screenshots
 
-`screenshots/v1` to `screenshots/v8` hold screenshots of the GUI, one folder per version: v7 shows the departments,
-v8 the demo integrations and charts.
+`screenshots/v1` to `screenshots/v9` hold screenshots of the GUI, one folder per version: v7 shows the departments,
+v8 the ten demo integrations with the charts of Product Management and Pipeline Monitoring, and v9 the ServiceNow
+production change raised from Beadle.

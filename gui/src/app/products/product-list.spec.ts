@@ -89,6 +89,29 @@ describe('ProductList', () => {
     expect(page().querySelector('.hint')).toBeNull();
   });
 
+  it('charts the active and invalidated pipelines of each department until a search starts', async () => {
+    await load();
+    const chart = () => page().querySelector('section.chart');
+
+    expect(
+      [...chart()!.querySelectorAll('.track')].map((track) => track.getAttribute('aria-label')),
+    ).toEqual(['Corporate Technology: 2 active, 1 invalidated', 'Fund Services: none']);
+    expect([...chart()!.querySelectorAll('.note')].map((note) => text(note))).toEqual([
+      '3 pipelines · 1 product',
+      '0 pipelines · 0 products',
+    ]);
+
+    const input = page().querySelector<HTMLInputElement>('input[aria-label="Search products"]')!;
+    input.value = 'cert';
+    input.dispatchEvent(new Event('input'));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    fixture.detectChanges();
+    http.expectOne('/api/products?search=cert').flush([summary]);
+    await fixture.whenStable();
+
+    expect(chart()).toBeNull();
+  });
+
   it('adds a product to a department and deletes only a department without products', async () => {
     await load();
     const addProduct = card('Fund Services').querySelector<HTMLAnchorElement>('a')!;

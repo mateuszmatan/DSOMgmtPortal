@@ -31,7 +31,7 @@ class LargeCatalogue {
             def overall = ['FAILURE', 'UNSTABLE', 'SUCCESS'].find { it in counts }
             summaries << facts + [id          : id, departmentId: department.id, departmentName: department.name, serviceCount: SERVICES,
                                   pipelineCount: PIPELINES, activePipelineCount: all.count { it.enabled }, updatedAt: product.updatedAt]
-            overview << facts + [productId: id, serviceCount: SERVICES, pipelineCount: PIPELINES, overall: overall,
+            overview << facts + [productId: id, departmentId: department.id, serviceCount: SERVICES, pipelineCount: PIPELINES, overall: overall,
                                  statusCounts: counts, lastRunAt: lastRun.time]
             store("/api/products/$id", product + facts + [id: id, departmentId: department.id, services: services])
             store("/api/products/$id/pipelines", [services, pipelines].transpose().collect { Map service, List<Map> own -> ApiData.servicePipelines(service, own) })
