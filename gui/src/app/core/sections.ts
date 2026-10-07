@@ -51,12 +51,19 @@ export const ONBOARDING: PortalSection = {
   description: 'Set up DevSecOps for your product, step by step',
 };
 
+export const CHANGES: PortalSection = {
+  path: '/beadle/changes',
+  label: 'Production Change',
+  heading: 'Production Change',
+  description: 'Raise a ServiceNow change with its change tasks, written from Jira',
+};
+
 export interface PortalMenu {
   label: string;
   sections: readonly PortalSection[];
 }
 
 export const MENUS: readonly PortalMenu[] = [
-  { label: 'Beadle', sections: [BEADLE, ONBOARDING] },
+  { label: 'Beadle', sections: [BEADLE, ONBOARDING, CHANGES] },
   { label: 'DevSecOps Management', sections: SECTIONS },
 ];

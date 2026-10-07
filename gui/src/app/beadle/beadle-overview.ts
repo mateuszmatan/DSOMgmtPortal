@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
-import { BEADLE, ONBOARDING } from '../core/sections';
+import { BEADLE, CHANGES, ONBOARDING } from '../core/sections';
 
 @Component({
   selector: 'dso-beadle-overview',
@@ -24,11 +24,21 @@ import { BEADLE, ONBOARDING } from '../core/sections';
         </p>
         <a mat-flat-button [routerLink]="onboarding.path">Start</a>
       </div>
+      <div class="card feature">
+        <h3>{{ changes.heading }}</h3>
+        <p>
+          Raise a ServiceNow change for a production release: choose the department, the product
+          and its services, the Jira epics and stories and the change window. The portal writes the
+          change and one change task per service.
+        </p>
+        <a mat-flat-button [routerLink]="changes.path">Open</a>
+      </div>
     </div>
   `,
   styles: `
     .feature {
       max-width: 560px;
+      margin-bottom: 12px;
       padding: 14px 16px;
 
       h3 {
@@ -46,4 +56,5 @@ import { BEADLE, ONBOARDING } from '../core/sections';
 export class BeadleOverview {
   protected readonly section = BEADLE;
   protected readonly onboarding = ONBOARDING;
+  protected readonly changes = CHANGES;
 }
