@@ -18,15 +18,15 @@ class AddProductSpec extends EditorSpecification {
 
     def "a new product starts from its department and name, and its code follows the name until the code is typed"() {
         when:
-        open('/products/new')
+        open('/admin/products/new')
         dialogButton('Cancel').click()
-        page.waitForURL('**/products')
+        page.waitForURL('**/admin/products')
 
         then:
-        assertThat(page.locator('h1')).hasText('DevSecOps Product Management')
+        assertThat(page.locator('h1')).hasText('DevSecOps Admin')
 
         when:
-        open('/products/new')
+        open('/admin/products/new')
         dialogButton('Continue').click()
 
         then:
@@ -63,12 +63,12 @@ class AddProductSpec extends EditorSpecification {
 
     def "Add product of a department starts the new product in that department"() {
         when:
-        open('/products')
+        open('/admin/products')
         holding(page.locator('section.department'), "h2:text-is('Custody')")
                 .getByRole(AriaRole.LINK, new Locator.GetByRoleOptions().setName('Add product').setExact(true)).click()
 
         then:
-        assertThat(page).hasURL(Pattern.compile('/products/new\\?department=4$'))
+        assertThat(page).hasURL(Pattern.compile('/admin/products/new\\?department=4$'))
         assertThat(select(dialog(), 'Department')).hasText('Custody')
 
         when:
@@ -182,7 +182,7 @@ class AddProductSpec extends EditorSpecification {
 
         when:
         button('Add product', true).click()
-        page.waitForURL('**/products/3')
+        page.waitForURL('**/admin/products/3')
 
         then:
         api.requests('POST', '/api/products').size() == 2

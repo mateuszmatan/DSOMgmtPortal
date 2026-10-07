@@ -13,7 +13,7 @@ class ConfigPreviewSpec extends ProductPageSpecification {
         given:
         recordClipboard()
         def yaml = StubApi.fixtureText('pipeline-1-config.yaml')
-        open('/products/1')
+        open('/admin/products/1')
 
         when:
         pipelineButton('gui', 'Full', 'Config').click()
@@ -49,7 +49,7 @@ class ConfigPreviewSpec extends ProductPageSpecification {
     def "the product's config.yaml holds every service of the product"() {
         given:
         def yaml = StubApi.fixtureText('product-1-config.yaml')
-        open('/products/1')
+        open('/admin/products/1')
 
         when:
         button('config.yaml', true).click()
@@ -71,7 +71,7 @@ class ConfigPreviewSpec extends ProductPageSpecification {
         def settings = StubApi.fixture('settings.json') as Map
         settings.platform.jenkinsLibrary = 'BbhDevSecOps@2.4'
         api.respond('GET', '/api/settings', settings)
-        open('/products/1')
+        open('/admin/products/1')
 
         when:
         pipelineAction('gui', 'SAST scanning', 'Jenkinsfile')
@@ -86,7 +86,7 @@ class ConfigPreviewSpec extends ProductPageSpecification {
     def "a failed #what preview shows the problem detail the API sends"() {
         given:
         api.respond('GET', path, StubResponse.problem(status, title, detail))
-        open('/products/1')
+        open('/admin/products/1')
 
         when:
         action.call(this)

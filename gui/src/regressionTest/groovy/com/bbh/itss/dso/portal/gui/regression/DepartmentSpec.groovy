@@ -1,14 +1,39 @@
 package com.bbh.itss.dso.portal.gui.regression
 
-import com.bbh.itss.dso.portal.gui.support.StubResponse
+import com.bbh.itss.dso.portal.gui.support.GuiSpecification
+import com.microsoft.playwright.Locator
 
+import static com.bbh.itss.dso.portal.gui.regression.ProductPageSpecification.DEPARTMENTS
+import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 
-class DepartmentSpec extends ProductPageSpecification {
+class DepartmentSpec extends GuiSpecification {
+
+    def "the departments are listed with their products, services and pipelines, and charted by their pipelines"() {
+        when:
+        open('/admin/departments')
+
+        then:
+        assertThat(names()).hasText(DEPARTMENTS as String[])
+        assertThat(page.locator('th.mat-mdc-header-cell')).hasText(['Department', 'Products', 'Services', 'DevSecOps pipelines', ''] as String[])
+        assertThat(page.locator('.toolbar .count')).hasText('5 departments · 2 products · 6 services')
+        assertThat(cells('Fund Services')).hasText(['Fund Services', '1', '4', '6 · 5 active · 1 invalidated'] as String[])
+        assertThat(cells('Corporate Technology')).hasText(['Corporate Technology', '1', '2', '3 · 3 active'] as String[])
+        assertThat(cells('AI Lab')).hasText(['AI Lab', '0', '0', 'None yet'] as String[])
+        assertThat(page.locator('section.chart h2')).hasText('DevSecOps pipelines by department')
+        assertThat(page.locator('section.chart .note')).hasText(['0 pipelines · 0 products', '0 pipelines · 0 products',
+                                                                 '3 pipelines · 1 product', '0 pipelines · 0 products',
+                                                                 '6 pipelines · 1 product'] as String[])
+        page.locator('section.chart .track').evaluateAll('tracks => tracks.map(track => track.ariaLabel)') ==
+                ['AI Lab: none', 'Capital Partners: none', 'Corporate Technology: 3 active', 'Custody: none',
+                 'Fund Services: 5 active, 1 invalidated']
+        api.requests('GET', '/api/departments').size() == 1
+        ownErrors().isEmpty()
+    }
 
     def "departments are added and renamed, and a name already in use is refused with the portal's message"() {
         given:
-        open('/products')
+        open('/admin/departments')
 
         when:
         button('Add department', true).click()
@@ -27,13 +52,13 @@ class DepartmentSpec extends ProductPageSpecification {
         assertThat(dialog()).hasCount(0)
         assertThat(snackBar()).containsText('Treasury added')
         awaitRequest('POST', '/api/departments').json() == [name: 'Treasury']
-        assertThat(departmentNames()).hasText((DEPARTMENTS + 'Treasury') as String[])
-        assertThat(department('Treasury').locator('.tally')).hasText('0 DevSecOps pipelines for 0 products')
-        assertThat(page.locator('.toolbar .count')).hasText('2 products in 6 departments')
+        assertThat(names()).hasText((DEPARTMENTS + 'Treasury') as String[])
+        assertThat(cells('Treasury')).hasText(['Treasury', '0', '0', 'None yet'] as String[])
+        assertThat(page.locator('.toolbar .count')).hasText('6 departments · 2 products · 6 services')
 
         when:
-        api.respond('PUT', '/api/departments/6', StubResponse.problem(409, 'Conflict', 'A department named Custody already exists'))
-        buttonIn(department('Treasury'), 'Rename').click()
+        api.respond('PUT', '/api/departments/6', problem(409, 'Conflict', 'A department named Custody already exists'))
+        buttonIn(row('Treasury'), 'Rename').click()
         input(dialog(), 'Name').fill('custody')
         dialogButton('Save').click()
 
@@ -44,7 +69,7 @@ class DepartmentSpec extends ProductPageSpecification {
 
         when:
         dialogButton('Cancel').click()
-        buttonIn(department('Capital Partners'), 'Rename').click()
+        buttonIn(row('Capital Partners'), 'Rename').click()
 
         then:
         assertThat(input(dialog(), 'Name')).hasValue('Capital Partners')
@@ -57,22 +82,22 @@ class DepartmentSpec extends ProductPageSpecification {
         assertThat(dialog()).hasCount(0)
         assertThat(snackBar()).containsText('Capital Partners renamed to Capital Partners Group')
         awaitRequest('PUT', '/api/departments/2').json() == [name: 'Capital Partners Group', version: 0]
-        assertThat(departmentNames()).hasText(['AI Lab', 'Capital Partners Group', 'Corporate Technology', 'Custody',
-                                               'Fund Services', 'Treasury'] as String[])
+        assertThat(names()).hasText(['AI Lab', 'Capital Partners Group', 'Corporate Technology', 'Custody',
+                                     'Fund Services', 'Treasury'] as String[])
         ownErrors().findAll { !it.contains('409') }.isEmpty()
     }
 
     def "only a department without products is deleted, once confirmed"() {
         given:
-        open('/products')
+        open('/admin/departments')
 
         expect:
-        assertThat(buttonIn(department('Fund Services'), 'Delete')).isDisabled()
-        assertThat(department('Fund Services').locator('.delete'))
+        assertThat(buttonIn(row('Fund Services'), 'Delete')).isDisabled()
+        assertThat(row('Fund Services').locator('.delete'))
                 .hasAttribute('title', 'Fund Services still has 1 product. Move them to another department first.')
 
         when:
-        buttonIn(department('Custody'), 'Delete').click()
+        buttonIn(row('Custody'), 'Delete').click()
 
         then:
         assertThat(dialog().locator('h2')).hasText('Delete Custody?')
@@ -85,23 +110,57 @@ class DepartmentSpec extends ProductPageSpecification {
         api.requests('DELETE', '/api/departments/\\d+').isEmpty()
 
         when:
-        buttonIn(department('Custody'), 'Delete').click()
+        buttonIn(row('Custody'), 'Delete').click()
         dialogButton('Delete department').click()
 
         then:
         assertThat(snackBar()).containsText('Custody deleted')
-        assertThat(departmentNames()).hasText((DEPARTMENTS - 'Custody') as String[])
+        assertThat(names()).hasText((DEPARTMENTS - 'Custody') as String[])
         awaitRequest('DELETE', '/api/departments/4')
 
         when:
-        api.respond('DELETE', '/api/departments/1', StubResponse.problem(409, 'Conflict',
+        api.respond('DELETE', '/api/departments/1', problem(409, 'Conflict',
                 'AI Lab still has 1 product(s). Move them to another department first.'))
-        buttonIn(department('AI Lab'), 'Delete').click()
+        buttonIn(row('AI Lab'), 'Delete').click()
         dialogButton('Delete department').click()
 
         then:
         assertThat(snackBar()).containsText('AI Lab still has 1 product(s). Move them to another department first.')
-        assertThat(departmentNames()).hasCount(4)
+        assertThat(names()).hasCount(4)
         ownErrors().findAll { !it.contains('409') }.isEmpty()
+    }
+
+    def "a department renamed here is shown under its new name in the product list"() {
+        given:
+        open('/admin/departments')
+
+        when:
+        buttonIn(row('Fund Services'), 'Rename').click()
+        input(dialog(), 'Name').fill('Fund Administration')
+        dialogButton('Save').click()
+
+        then:
+        assertThat(row('Fund Administration')).hasCount(1)
+
+        when:
+        tab('Products').click()
+        page.waitForURL('**/admin/products')
+
+        then:
+        assertThat(page.locator('section.department h2')).hasText(['AI Lab', 'Capital Partners', 'Corporate Technology', 'Custody',
+                                                                   'Fund Administration'] as String[])
+        ownErrors().isEmpty()
+    }
+
+    Locator names() {
+        page.locator('tr.mat-mdc-row td.name')
+    }
+
+    Locator row(String name) {
+        holding(page.locator('tr.mat-mdc-row'), "td.name:text-is('${name}')")
+    }
+
+    Locator cells(String name) {
+        row(name).locator('td:not(.actions)')
     }
 }

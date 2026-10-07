@@ -59,14 +59,14 @@ class GuiPerformanceSpec extends GuiSpecification {
         ownErrors().isEmpty()
 
         where:
-        scenario                                   | limit | from                | menu                   | click                                                    | selector                                                    | count
-        'Product list, cold start'                 | 2500  | null                | null                   | null                                                     | 'tr.mat-mdc-row'                                            | LargeCatalogue.PRODUCTS
-        'Product page from the product list'       | 1500  | '/products'         | null                   | "a.name[href='/products/ID']"                            | 'section.service .pipeline'                                 | LargeCatalogue.PIPELINES
-        'Product editor from the product page'     | 2000  | '/products/ID'      | null                   | "a[href='/products/ID/edit']"                            | 'mat-expansion-panel-header .service-name'                  | LargeCatalogue.SERVICES
-        'A service expanded in the editor'         | 500   | '/products/ID/edit' | null                   | 'mat-expansion-panel-header >> nth=8'                    | 'mat-expansion-panel.mat-expanded dso-service-fields input' | 1
-        'Monitoring overview from the menu'        | 1000  | '/products'         | 'DevSecOps Management' | ".mat-mdc-menu-panel a[href='/monitoring']"              | 'a.card.product'                                            | LargeCatalogue.PRODUCTS
-        "A product's monitoring from the overview" | 1000  | '/monitoring'       | null                   | "a.card.product[href='/monitoring/products/ID']"         | 'a.pipeline-link'                                           | LargeCatalogue.PIPELINES
-        "A product's change evidence expanded"     | 1500  | '/evidence'         | null                   | "mat-expansion-panel-header:has(.code:text-is('CATID'))" | 'dso-pipeline-evidence-card'                                | LargeCatalogue.PIPELINES
+        scenario                                   | limit | from                      | menu                   | click                                                    | selector                                                    | count
+        'Product list, cold start'                 | 2500  | null                      | null                   | null                                                     | 'tr.mat-mdc-row'                                            | LargeCatalogue.PRODUCTS
+        'Product page from the product list'       | 1500  | '/admin/products'         | null                   | "a.name[href='/admin/products/ID']"                      | 'section.service .pipeline'                                 | LargeCatalogue.PIPELINES
+        'Product editor from the product page'     | 2000  | '/admin/products/ID'      | null                   | "a[href='/admin/products/ID/edit']"                      | 'mat-expansion-panel-header .service-name'                  | LargeCatalogue.SERVICES
+        'A service expanded in the editor'         | 500   | '/admin/products/ID/edit' | null                   | 'mat-expansion-panel-header >> nth=8'                    | 'mat-expansion-panel.mat-expanded dso-service-fields input' | 1
+        'Monitoring overview from the menu'        | 1000  | '/admin/products'         | 'DevSecOps Management' | ".mat-mdc-menu-panel a[href='/monitoring']"              | 'a.card.product'                                            | LargeCatalogue.PRODUCTS
+        "A product's monitoring from the overview" | 1000  | '/monitoring'             | null                   | "a.card.product[href='/monitoring/products/ID']"         | 'a.pipeline-link'                                           | LargeCatalogue.PIPELINES
+        "A product's change evidence expanded"     | 1500  | '/evidence'               | null                   | "mat-expansion-panel-header:has(.code:text-is('CATID'))" | 'dso-pipeline-evidence-card'                                | LargeCatalogue.PIPELINES
     }
 
     double measure(String from, String menu, String click, int product, Map ready) {
@@ -80,7 +80,7 @@ class GuiPerformanceSpec extends GuiSpecification {
             return (page.waitForFunction(READY, ready).jsonValue() as double) - start
         }
         newPage()
-        page.navigate(url('/products'), new Page.NavigateOptions().setWaitUntil(WaitUntilState.COMMIT))
+        page.navigate(url('/admin/products'), new Page.NavigateOptions().setWaitUntil(WaitUntilState.COMMIT))
         page.waitForFunction(READY, ready).jsonValue() as double
     }
 }

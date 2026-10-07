@@ -31,24 +31,24 @@ class GlobalSettingsSpec extends GuiSpecification {
     def "saving the settings unchanged sends back what was loaded with its version"() {
         given:
         def loaded = StubApi.fixture('settings.json') as Map
-        open('/settings')
+        open('/admin/settings')
 
         expect:
-        assertThat(page.locator('.page-header .meta')).containsText('Version 1')
+        assertThat(page.locator('.tab-header .meta')).containsText('Version 1')
 
         when:
         button('Save settings', true).click()
 
         then:
-        assertThat(snackBar()).containsText('DevSecOps Global Settings saved')
+        assertThat(snackBar()).containsText('The DSOEnhanced library defaults are saved')
         awaitRequest('PUT', '/api/settings').json() == loaded.findAll { it.key != 'updatedAt' }
-        assertThat(page.locator('.page-header .meta')).containsText('Version 2')
+        assertThat(page.locator('.tab-header .meta')).containsText('Version 2')
         ownErrors().isEmpty()
     }
 
     def "an edited setting is saved with the loaded version and the page shows the saved values"() {
         given:
-        open('/settings')
+        open('/admin/settings')
 
         when:
         field('Jenkins URL').fill('https://jenkins2.bbh.com/')
@@ -67,7 +67,7 @@ class GlobalSettingsSpec extends GuiSpecification {
         body.goldenFix.enabled == false
         body.findAll { !(it.key in ['platform', 'goldenFix']) } ==
                 (StubApi.fixture('settings.json') as Map).findAll { !(it.key in ['platform', 'goldenFix', 'updatedAt']) }
-        assertThat(page.locator('.page-header .meta')).containsText('Version 2')
+        assertThat(page.locator('.tab-header .meta')).containsText('Version 2')
         assertThat(page.locator('.save-bar')).not().containsText('Unsaved changes')
         assertThat(field('Jenkins URL')).hasValue('https://jenkins2.bbh.com/')
         ownErrors().isEmpty()
@@ -75,7 +75,7 @@ class GlobalSettingsSpec extends GuiSpecification {
 
     def "a save over someone else's newer settings is refused with a conflict message and recovered by reloading"() {
         given:
-        open('/settings')
+        open('/admin/settings')
         stored = stored + [version: 2, updatedAt: SAVED_AT, platform: (stored.platform as Map) + [oisHost: 'ois2.bbh.com']]
 
         when:
@@ -96,7 +96,7 @@ class GlobalSettingsSpec extends GuiSpecification {
         assertThat(page.locator('.banner.conflict')).hasCount(0)
         assertThat(field('OIS host')).hasValue('ois2.bbh.com')
         assertThat(field('Jenkins URL')).hasValue('https://jenkins.bbh.com')
-        assertThat(page.locator('.page-header .meta')).containsText('Version 2')
+        assertThat(page.locator('.tab-header .meta')).containsText('Version 2')
         assertThat(button('Save settings', true)).isEnabled()
 
         when:
@@ -104,7 +104,7 @@ class GlobalSettingsSpec extends GuiSpecification {
         button('Save settings', true).click()
 
         then:
-        assertThat(snackBar()).containsText('DevSecOps Global Settings saved')
+        assertThat(snackBar()).containsText('The DSOEnhanced library defaults are saved')
         awaitRequest('PUT', '/api/settings', 2).json().version == 2
         stored.version == 3
         ownErrors().findAll { !it.contains('409') }.isEmpty()
@@ -115,7 +115,7 @@ class GlobalSettingsSpec extends GuiSpecification {
         api.respond('PUT', '/api/settings', StubResponse.problem(400, 'Bad Request', 'Some values are not valid', [errors: [
                 [field: 'platform.sonarServerUrl', message: 'SonarQube does not answer at this address'],
                 [field: 'audit.retentionDays', message: 'must be at least 30']]]))
-        open('/settings')
+        open('/admin/settings')
 
         when:
         button('Save settings', true).click()
@@ -137,7 +137,7 @@ class GlobalSettingsSpec extends GuiSpecification {
 
     def "changes are discarded with the button or when leaving the page after confirming"() {
         given:
-        open('/settings')
+        open('/admin/settings')
 
         when:
         field('Jenkins URL').fill('https://jenkins2.bbh.com/')
@@ -149,14 +149,14 @@ class GlobalSettingsSpec extends GuiSpecification {
 
         when:
         field('Proxy host').fill('proxy2.bbh.com')
-        menuLink('Product Management').click()
+        menuLink('DevSecOps Management', 'Admin').click()
 
         then:
         assertThat(dialog().locator('h2')).hasText('Discard your changes?')
 
         when:
         dialogButton('Discard').click()
-        page.waitForURL('**/products')
+        page.waitForURL('**/admin/products')
 
         then:
         api.requests('PUT', '/api/settings').isEmpty()
@@ -165,7 +165,7 @@ class GlobalSettingsSpec extends GuiSpecification {
 
     def "the generated configuration is the saved global section, and a failure names its problem"() {
         given:
-        open('/settings')
+        open('/admin/settings')
 
         when:
         button('Generated configuration', true).click()
