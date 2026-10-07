@@ -15,6 +15,10 @@ import { appConfig } from './app.config';
 import { routes } from './app.routes';
 import { BeadleOverview } from './beadle/beadle-overview';
 import { Onboarding } from './beadle/onboarding';
+import { ChangeDetail } from './changes/change-detail';
+import { ChangeProfileEditor } from './changes/change-profile-editor';
+import { ChangeWizard } from './changes/change-wizard';
+import { ProductionChanges } from './changes/production-changes';
 import { PortalTitleStrategy } from './core/title-strategy';
 import { HasUnsavedChanges, unsavedChangesGuard } from './core/unsaved-changes';
 import { ChangeEvidencePage } from './evidence/change-evidence';
@@ -42,6 +46,7 @@ describe('routes', () => {
       products: ProductList,
       'products/new': ProductEditor,
       'products/:id': ProductDetail,
+      'products/:id/change': ChangeProfileEditor,
       'products/:id/edit': ProductEditor,
       monitoring: MonitoringOverview,
       'monitoring/products/:id': ProductMonitoringPage,
@@ -50,12 +55,22 @@ describe('routes', () => {
       settings: GlobalSettingsPage,
       beadle: BeadleOverview,
       'beadle/onboarding': Onboarding,
+      'beadle/changes': ProductionChanges,
+      'beadle/changes/new': ChangeWizard,
+      'beadle/changes/:id': ChangeDetail,
     });
   });
 
   it('guards the editors against leaving with unsaved changes', () => {
     const guarded = routes.filter((route) => route.canDeactivate).map((route) => route.path);
-    expect(guarded).toEqual(['products/new', 'products/:id/edit', 'settings', 'beadle/onboarding']);
+    expect(guarded).toEqual([
+      'products/new',
+      'products/:id/change',
+      'products/:id/edit',
+      'settings',
+      'beadle/onboarding',
+      'beadle/changes/new',
+    ]);
   });
 });
 

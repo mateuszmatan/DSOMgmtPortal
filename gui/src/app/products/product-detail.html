@@ -60,6 +60,7 @@
       </div>
       <div class="actions">
         <a mat-stroked-button [routerLink]="['/monitoring/products', p.id]">Monitoring</a>
+        <a mat-stroked-button [routerLink]="['/products', p.id, 'change']">ServiceNow change</a>
         <button mat-stroked-button (click)="showProductConfig(p)">config.yaml</button>
         <a mat-flat-button [routerLink]="['/products', p.id, 'edit']">Edit product</a>
         <button mat-button class="danger" (click)="deleteProduct(p)">Delete</button>

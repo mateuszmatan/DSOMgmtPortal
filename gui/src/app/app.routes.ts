@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { BEADLE, EVIDENCE, MONITORING, ONBOARDING, PRODUCTS, SETTINGS } from './core/sections';
+import { BEADLE, CHANGES, EVIDENCE, MONITORING, ONBOARDING, PRODUCTS, SETTINGS } from './core/sections';
 import { unsavedChangesGuard } from './core/unsaved-changes';
 
 export const routes: Routes = [
@@ -19,6 +19,13 @@ export const routes: Routes = [
     path: 'products/:id',
     title: 'Product',
     loadComponent: () => import('./products/product-detail').then((m) => m.ProductDetail),
+  },
+  {
+    path: 'products/:id/change',
+    title: 'ServiceNow change template',
+    canDeactivate: [unsavedChangesGuard],
+    loadComponent: () =>
+      import('./changes/change-profile-editor').then((m) => m.ChangeProfileEditor),
   },
   {
     path: 'products/:id/edit',
@@ -65,6 +72,22 @@ export const routes: Routes = [
     title: ONBOARDING.heading,
     canDeactivate: [unsavedChangesGuard],
     loadComponent: () => import('./beadle/onboarding').then((m) => m.Onboarding),
+  },
+  {
+    path: 'beadle/changes',
+    title: CHANGES.heading,
+    loadComponent: () => import('./changes/production-changes').then((m) => m.ProductionChanges),
+  },
+  {
+    path: 'beadle/changes/new',
+    title: 'Raise a production change',
+    canDeactivate: [unsavedChangesGuard],
+    loadComponent: () => import('./changes/change-wizard').then((m) => m.ChangeWizard),
+  },
+  {
+    path: 'beadle/changes/:id',
+    title: 'Production change',
+    loadComponent: () => import('./changes/change-detail').then((m) => m.ChangeDetail),
   },
   { path: '**', redirectTo: 'products' },
 ];
