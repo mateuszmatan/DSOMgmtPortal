@@ -35,7 +35,7 @@ Nothing else is in the file: no `config.yaml`, no credentials ID and no tool ser
 from the portal by the key, at `DSO_PORTAL_URL`, as described in
 [How the library reads its configuration](../README.md#how-the-library-reads-its-configuration). During the cutover,
 pin the portal-integrated version in the `@Library` line and in the Global Settings, for example
-`DevSecOpsJenkinsLibrary@DSOwithMgmtPortal`.
+`DevSecOpsJenkinsLibrary@main`.
 
 Save a file as `Jenkinsfile` in the top folder of the service's Bitbucket repository and point a Pipeline job (Pipeline
 script from SCM) at it. A service with pipelines of several types has one job per type, and the Jenkinsfile of each
