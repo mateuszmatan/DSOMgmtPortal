@@ -10,7 +10,7 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 abstract class EditorSpecification extends GuiSpecification {
 
     void startProduct(String name, String department = 'Corporate Technology') {
-        open('/products/new')
+        open('/admin/products/new')
         choose(dialog(), 'Department', department)
         input(dialog(), 'Product name').fill(name)
         dialogButton('Continue').click()
