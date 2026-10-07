@@ -138,5 +138,9 @@ export const routes: Routes = [
       },
     ],
   },
+  { path: 'products/:id/change', redirectTo: 'beadle/admin/products/:id' },
+  { path: 'products', redirectTo: 'admin/products' },
+  { path: 'settings', redirectTo: 'admin/settings' },
+  { path: 'beadle/onboarding', redirectTo: 'self-service' },
   { path: '**', redirectTo: 'monitoring' },
 ];

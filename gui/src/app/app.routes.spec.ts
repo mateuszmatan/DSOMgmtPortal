@@ -106,6 +106,31 @@ describe('routes', () => {
   });
 });
 
+describe('addresses of the former pages', () => {
+  it.each([
+    ['/products', '/admin/products'],
+    ['/products/new', '/admin/products/new'],
+    ['/products/5/edit', '/admin/products/5/edit'],
+    ['/products/5/change', '/beadle/admin/products/5'],
+    ['/settings', '/admin/settings'],
+    ['/beadle/onboarding', '/self-service'],
+  ])('send %s to %s', async (former, current) => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([
+          ...routes.filter((route) => route.redirectTo && route.path !== '**'),
+          { path: '**', component: Blank },
+        ]),
+      ],
+    });
+    const router = TestBed.inject(Router);
+
+    await router.navigateByUrl(former);
+
+    expect(router.url).toBe(current);
+  });
+});
+
 describe('PortalTitleStrategy', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({

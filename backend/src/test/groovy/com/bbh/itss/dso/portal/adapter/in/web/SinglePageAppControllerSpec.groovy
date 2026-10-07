@@ -19,7 +19,8 @@ class SinglePageAppControllerSpec extends Specification {
 
         where:
         path << ['/self-service', '/admin', '/admin/products/new', '/admin/products/12/edit', '/admin/settings',
-                 '/monitoring', '/monitoring/pipelines/7', '/beadle', '/beadle/admin/products/3']
+                 '/monitoring', '/monitoring/pipelines/7', '/beadle', '/beadle/admin/products/3', '/products',
+                 '/products/12/edit', '/settings']
     }
 
     def "other paths are left to the API and the static resources"() {
@@ -27,6 +28,6 @@ class SinglePageAppControllerSpec extends Specification {
         mvc.perform(get(path)).andReturn().response.status == 404
 
         where:
-        path << ['/api/unknown', '/favicon.ico', '/products', '/settings']
+        path << ['/api/unknown', '/favicon.ico', '/index.htm']
     }
 }
