@@ -61,12 +61,6 @@
   }
 }
 
-code {
-  font-size: 11px;
-  padding: 0 3px;
-  background: var(--dso-neutral-bg);
-}
-
 .block {
   margin-top: 12px;
 }
@@ -75,6 +69,10 @@ code {
   .service {
     grid-template-columns: minmax(0, 1fr);
     gap: 10px;
+  }
+
+  .rail {
+    border-right: none;
   }
 
   .rail-item {

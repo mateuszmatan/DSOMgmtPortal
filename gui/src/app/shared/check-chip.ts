@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { CheckStatus } from '../core/models';
 
-const LOOK: Record<CheckStatus, { label: string; tone: string }> = {
+export const CHECK_LOOK: Record<CheckStatus, { label: string; tone: string }> = {
   PASS: { label: 'Passed', tone: 'success' },
   WARN: { label: 'Warning', tone: 'warning' },
   FAIL: { label: 'Failed', tone: 'danger' },
@@ -18,5 +18,5 @@ const LOOK: Record<CheckStatus, { label: string; tone: string }> = {
 })
 export class CheckChip {
   readonly status = input.required<CheckStatus>();
-  protected readonly look = computed(() => LOOK[this.status()] ?? LOOK.NO_DATA);
+  protected readonly look = computed(() => CHECK_LOOK[this.status()] ?? CHECK_LOOK.NO_DATA);
 }

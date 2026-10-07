@@ -13,7 +13,7 @@ import {
   service,
   servicePipelines,
 } from '../testing/fixtures';
-import { inputOf } from '../testing/dom';
+import { buttonOf, inputOf } from '../testing/dom';
 import { GeneratedKeys } from './generated-keys';
 import { ProductEditor } from './product-editor';
 import { ProductNameDialog } from './product-name-dialog';
@@ -89,11 +89,6 @@ describe('ProductEditor', () => {
     [...page().querySelectorAll('mat-expansion-panel .service-name')].map((name) =>
       name.textContent?.trim(),
     );
-  const button = (label: string) =>
-    [...page().querySelectorAll<HTMLButtonElement>('button')].find(
-      (element) =>
-        element.getAttribute('aria-label') === label || element.textContent?.trim() === label,
-    )!;
   const confirming = (answer: boolean) =>
     vi
       .spyOn(TestBed.inject(MatDialog), 'open')
@@ -328,16 +323,16 @@ describe('ProductEditor', () => {
     editor()['panelToggled'](0, true);
     await fixture.whenStable();
 
-    button('Move gui down').click();
+    buttonOf(page(), 'Move gui down').click();
     await fixture.whenStable();
     expect(names()).toEqual(['api', 'gui']);
     expect(editor()['expanded']()).toBe(1);
 
-    button('Move gui up').click();
+    buttonOf(page(), 'Move gui up').click();
     await fixture.whenStable();
     expect(names()).toEqual(['gui', 'api']);
     expect(editor()['expanded']()).toBe(0);
-    expect(button('Move gui up').disabled).toBe(true);
+    expect(buttonOf(page(), 'Move gui up').disabled).toBe(true);
     expect(editor().hasUnsavedChanges()).toBe(true);
   });
 

@@ -41,7 +41,7 @@ class ConfigTreeSpec extends Specification {
     def "a default is filled only into a section that is there and never replaces the service's own value"() {
         given:
         tree.set('deploy.vm.rd.deployDir', '/opt/cert').set('deploy.vm.qc.host', 'own.host').set('appId', 'x')
-                .merge([tests: [smoke: [enabled: true]]])
+                .set('tests.smoke.enabled', true)
 
         when:
         tree.fillIn('deploy.vm.rd', 'host', 'rdltaapps1.testbbh.com').fillIn('deploy.vm.rd', 'user', 'dsoadm')
@@ -71,20 +71,6 @@ class ConfigTreeSpec extends Specification {
 
         then:
         tree.toMap() == [deploy: [vm: [rd: [host: 'own.host', user: 'taadmin'], qc: [host: 'qc.host']]]]
-    }
-
-    def "merging combines sections key by key, replaces other values and keeps immutable sections editable"() {
-        given:
-        tree.set('tests.smoke.enabled', true).set('appId', 'old')
-
-        when:
-        tree.merge([tests: [regression: [enabled: false]], appId: 'new', includedDirs: ['src']])
-                .merge(Map.of('tests', Map.of('smoke', Map.of('timeoutMin', 15)), 'build', Map.of('env', Map.of('CI', 'true'))))
-                .set('tests.smoke.retries', 1).set('build.env.HOME', '/opt')
-
-        then:
-        tree.toMap() == [tests : [smoke: [enabled: true, timeoutMin: 15, retries: 1], regression: [enabled: false]],
-                         appId : 'new', includedDirs: ['src'], build: [env: [CI: 'true', HOME: '/opt']]]
     }
 
     def "get follows the path and the map lists the given keys first and is a copy"() {

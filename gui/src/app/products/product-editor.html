@@ -132,9 +132,7 @@
                     @if (service.controls.id.value === null) {
                       <span class="tag new">New</span>
                     } @else if (pipelinesOf(service); as count) {
-                      <span class="tag"
-                        >{{ count }} {{ count === 1 ? 'pipeline' : 'pipelines' }}</span
-                      >
+                      <span class="tag">{{ count | counted: 'pipeline' }}</span>
                     }
                   </mat-panel-description>
                   <span class="panel-toggle" aria-hidden="true">{{

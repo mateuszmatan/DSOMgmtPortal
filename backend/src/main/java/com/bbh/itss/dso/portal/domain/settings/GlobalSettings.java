@@ -28,10 +28,6 @@ public record GlobalSettings(GlobalSettingsValues values, long version, Instant 
         return values.platform();
     }
 
-    public DeploymentDefaults deployment() {
-        return values.deployment();
-    }
-
     public String jenkinsUrl() {
         return values.platform().jenkinsUrl();
     }

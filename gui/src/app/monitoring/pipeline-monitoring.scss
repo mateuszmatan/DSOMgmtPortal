@@ -1,52 +1,5 @@
-.actions {
-  align-items: center;
-}
-
 .loading {
   margin: -8px 0 8px;
-}
-
-.dora {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.tile {
-  padding: 8px 12px;
-}
-
-.tile-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.tile-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--dso-muted);
-}
-
-.tile-value {
-  margin-top: 2px;
-  font-family: var(--dso-serif);
-  font-size: 22px;
-  font-weight: 500;
-  color: var(--dso-navy);
-}
-
-.tile-detail {
-  font-size: 11.5px;
-}
-
-.tile-alert {
-  margin-top: 4px;
-  color: var(--dso-danger);
-  font-size: 11.5px;
-  font-weight: 600;
 }
 
 .row {
@@ -65,32 +18,12 @@
   margin-bottom: 10px;
 }
 
-.card-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-  margin-bottom: 6px;
-  font-size: 11.5px;
-
-  h2 {
-    margin: 0;
-    font-size: 15px;
-    font-weight: 500;
-  }
-}
-
-.small {
-  margin-top: 2px;
-  font-size: 11.5px;
-}
-
 .stage-bar {
   display: flex;
   gap: 2px;
   height: 6px;
   overflow: hidden;
+  margin-bottom: 2px;
   background: var(--dso-neutral-bg);
 
   span {
@@ -114,19 +47,11 @@
   background: #fafbfc;
 }
 
-.banner code {
-  font-size: 11.5px;
-}
-
 td.mat-mdc-cell {
   white-space: nowrap;
 }
 
 @media (max-width: 1100px) {
-  .dora {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .row {
     grid-template-columns: minmax(0, 1fr);
   }

@@ -11,16 +11,16 @@ import {
 } from '../core/models';
 import { Notifier } from '../core/notifier';
 import { CheckChip } from '../shared/check-chip';
-import { DurationPipe, formatDuration } from '../shared/formatting';
+import { CountedPipe, DurationPipe, durationOrNull } from '../shared/formatting';
 import { StatusChip } from '../shared/status-chip';
 import {
-  CHECK_LABELS,
   SUITE_LABELS,
   evidenceText,
   formatPercent,
   formatUtc,
   hasFindings,
   scanRows,
+  stageDetails,
   suiteRows,
 } from './evidence-text';
 
@@ -31,6 +31,7 @@ import {
     MatButtonModule,
     MatTooltipModule,
     CheckChip,
+    CountedPipe,
     DurationPipe,
     StatusChip,
   ],
@@ -64,7 +65,7 @@ export class PipelineEvidenceCard {
           { label: 'Artifact version', value: build.artifactVersion, mono: true, title: '' },
           {
             label: 'Duration',
-            value: build.durationSeconds === null ? null : formatDuration(build.durationSeconds),
+            value: durationOrNull(build.durationSeconds),
             mono: false,
             title: '',
           },
@@ -96,13 +97,7 @@ export class PipelineEvidenceCard {
   }
 
   protected stageTip(stage: StageEvidence): string {
-    return [
-      CHECK_LABELS[stage.status] ?? stage.status,
-      stage.durationSeconds === null ? null : formatDuration(stage.durationSeconds),
-      stage.reason,
-    ]
-      .filter((part) => !!part)
-      .join(' · ');
+    return stageDetails(stage).join(' · ');
   }
 
   protected copied(success: boolean): void {

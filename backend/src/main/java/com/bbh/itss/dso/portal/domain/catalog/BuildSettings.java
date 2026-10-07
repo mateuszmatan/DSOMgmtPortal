@@ -1,12 +1,11 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
-import com.bbh.itss.dso.portal.domain.shared.ConfigSection;
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 public record BuildSettings(BuildTool tool, String sourceDir, String javaPath, Boolean autoSetup, String buildPath,
-                            ToolCommand command) implements ConfigSection {
+                            ToolCommand command) {
 
     public static final String DEFAULT_SOURCE_DIR = ".";
 
@@ -18,14 +17,12 @@ public record BuildSettings(BuildTool tool, String sourceDir, String javaPath, B
         command = command == null ? ToolCommand.NONE : command;
     }
 
-    @Override
     public void writeTo(ConfigTree config) {
         config.set("buildTool", tool).set("sourceDir", sourceDir).set("javaPath", javaPath)
                 .flag("buildToolAutoSetup", autoSetup).set("build.buildPath", buildPath);
         command.writeTo(config, "build", tool);
     }
 
-    @Override
     public void validate(ValidationProblems problems) {
         if (tool == BuildTool.FLUTTER) {
             validateFlutter(problems);

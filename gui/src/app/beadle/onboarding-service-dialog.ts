@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import {
   AbstractControl,
-  FormControl,
   FormGroup,
   ReactiveFormsModule,
   ValidationErrors,
@@ -13,6 +12,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { BuildTool, DeployTarget } from '../core/models';
 import { SERVICE_NAME, UUID } from '../products/product-form-model';
+import { filled, max, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { ChoiceTiles } from './choice-tiles';
 import {
@@ -57,7 +57,13 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
         @if (page() === 1) {
           <mat-form-field class="full-width">
             <mat-label>Service name</mat-label>
-            <input matInput formControlName="name" placeholder="backend-api" autocomplete="off" />
+            <input
+              matInput
+              formControlName="name"
+              placeholder="backend-api"
+              autocomplete="off"
+              required
+            />
             <mat-hint>A short name, for example gui or backend-api</mat-hint>
             <mat-error>{{ errorText(form.controls.name, nameHelp) }}</mat-error>
           </mat-form-field>
@@ -75,6 +81,7 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
               formControlName="appScanId"
               placeholder="109f44ac-cc06-4ca0-884e-d944904f7019"
               autocomplete="off"
+              required
             />
             <mat-hint>The Application Security team gives it to you</mat-hint>
             <mat-error>{{ errorText(form.controls.appScanId, appScanHelp) }}</mat-error>
@@ -157,9 +164,7 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
     }
 
     .choice-error {
-      margin: 2px 0 0;
-      color: var(--dso-danger);
-      font-size: 12px;
+      margin-top: 2px;
     }
   `,
 })
@@ -189,27 +194,16 @@ export class OnboardingServiceDialog {
   );
 
   protected readonly form = new FormGroup({
-    name: new FormControl(this.start?.name ?? '', {
-      nonNullable: true,
-      validators: [
-        Validators.required,
-        Validators.pattern(SERVICE_NAME),
-        Validators.maxLength(100),
-        (control: AbstractControl) => this.unique(control),
-      ],
-    }),
-    description: new FormControl(this.start?.description ?? '', {
-      nonNullable: true,
-      validators: [Validators.maxLength(2000)],
-    }),
-    appScanId: new FormControl(this.start?.appScanId ?? '', {
-      nonNullable: true,
-      validators: [Validators.required, Validators.pattern(UUID)],
-    }),
-    openShiftProject: new FormControl(this.start?.openShiftProject ?? '', {
-      nonNullable: true,
-      validators: [Validators.pattern(OPENSHIFT_PROJECT)],
-    }),
+    name: text(
+      this.start?.name,
+      filled,
+      Validators.pattern(SERVICE_NAME),
+      max(100),
+      (control: AbstractControl) => this.unique(control),
+    ),
+    description: text(this.start?.description, max(2000)),
+    appScanId: text(this.start?.appScanId, filled, Validators.pattern(UUID)),
+    openShiftProject: text(this.start?.openShiftProject, Validators.pattern(OPENSHIFT_PROJECT)),
   });
 
   protected next(): void {
@@ -251,8 +245,8 @@ export class OnboardingServiceDialog {
       description: value.description.trim(),
       appScanId: value.appScanId.trim().toLowerCase(),
       tool: this.tool()!,
-      target: this.target() ?? 'VM',
-      openShiftProject: this.needsProject() ? value.openShiftProject.trim() : '',
+      target: this.target(),
+      openShiftProject: this.target() === 'OPENSHIFT' ? value.openShiftProject.trim() : '',
     });
   }
 

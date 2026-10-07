@@ -39,10 +39,10 @@ class OnboardingSpec extends EditorSpecification {
         assertThat(choiceError()).hasText('Choose a pipeline to continue')
 
         when:
-        tile(step(), 'Security').click()
+        radio(step(), 'Security').click()
 
         then:
-        assertThat(tile(step(), 'Security')).hasAttribute('aria-checked', 'true')
+        assertThat(radio(step(), 'Security')).hasAttribute('aria-checked', 'true')
         assertThat(step().locator('.prepare li')).hasCount(4)
 
         when:
@@ -52,7 +52,7 @@ class OnboardingSpec extends EditorSpecification {
 
         then:
         assertThat(currentStep()).hasText('Product')
-        assertThat(tile(step(), 'A new product')).hasAttribute('aria-checked', 'true')
+        assertThat(radio(step(), 'A new product')).hasAttribute('aria-checked', 'true')
         assertThat(step().locator('.fields mat-label').first()).hasText('Department')
         hasErrors(step(), ['Department'        : 'Required',
                            'Product name'      : 'This product is already in the portal: choose "A product in the portal" above',
@@ -87,8 +87,8 @@ class OnboardingSpec extends EditorSpecification {
                 .hasText(['Choose Gradle or Maven', 'Choose where the service runs'] as String[])
 
         when:
-        tile(dialog(), 'Maven').click()
-        tile(dialog(), 'OpenShift').click()
+        radio(dialog(), 'Maven').click()
+        radio(dialog(), 'OpenShift').click()
         input(dialog(), 'OpenShift project').fill('cus-archive')
         dialogButton('Add service').click()
         addService('archive-gui', TAKEN_APPLICATION, 'Gradle', 'Virtual machines')
@@ -141,7 +141,7 @@ class OnboardingSpec extends EditorSpecification {
             services[1].openShiftTargets == [:]
         }
         store.services*.pipelines*.type == [['SECURITY'], ['SECURITY']]
-        assertThat(page.locator('.jenkinsfile .code')).hasText(store.services.collect { service ->
+        assertThat(page.locator('.jenkinsfile .code-block')).hasText(store.services.collect { service ->
             "@Library('DevSecOpsJenkinsLibrary') _ devSecOpsSecurityPipeline(pipelineKey: '${store.generatedKeys[service.serviceName]}')".toString()
         } as String[])
         assertThat(page.locator('.next-steps > li h3')).hasText(['Put the Jenkinsfile in each repository',
@@ -165,9 +165,9 @@ class OnboardingSpec extends EditorSpecification {
 
         when:
         open('/beadle/onboarding')
-        tile(step(), 'Static scan').click()
+        radio(step(), 'Static scan').click()
         button('Continue', true).click()
-        tile(step(), 'A product in the portal').click()
+        radio(step(), 'A product in the portal').click()
         button('Continue', true).click()
 
         then:
@@ -212,7 +212,7 @@ class OnboardingSpec extends EditorSpecification {
         assertThat(dialog().getByRole(AriaRole.RADIOGROUP)).hasCount(1)
 
         when:
-        tile(dialog(), 'Maven').click()
+        radio(dialog(), 'Maven').click()
         dialogButton('Add service').click()
 
         then:
@@ -245,7 +245,7 @@ class OnboardingSpec extends EditorSpecification {
         }
         store.services*.pipelines*.type == [['FULL', 'SAST'], ['FULL', 'SAST'], ['SAST']]
         store.generatedKeys.keySet() == ['backend-api', 'scanner'] as Set
-        assertThat(page.locator('.jenkinsfile .code')).containsText([SAST_KEY_OF_GUI, store.generatedKeys['backend-api'],
+        assertThat(page.locator('.jenkinsfile .code-block')).containsText([SAST_KEY_OF_GUI, store.generatedKeys['backend-api'],
                                                                     store.generatedKeys['scanner']] as String[])
         assertThat(page.locator('.next-steps > li')).hasCount(4)
         assertThat(page.locator('.next-steps code').last()).hasText('DevSecOps/CERTSCANNER/gui-sast')
@@ -268,9 +268,9 @@ class OnboardingSpec extends EditorSpecification {
 
         when:
         open('/beadle/onboarding')
-        tile(step(), 'Static scan').click()
+        radio(step(), 'Static scan').click()
         button('Continue', true).click()
-        tile(step(), 'A product in the portal').click()
+        radio(step(), 'A product in the portal').click()
         select(step(), 'Product').click()
 
         then:
@@ -311,7 +311,7 @@ class OnboardingSpec extends EditorSpecification {
     def "leaving the wizard with answers asks before they are lost"() {
         when:
         open('/beadle/onboarding')
-        tile(step(), 'Full').click()
+        radio(step(), 'Full').click()
         button('Continue', true).click()
         input(step(), 'Product name').fill('Trade Archive')
         menuLink('Overview').click()
@@ -341,8 +341,8 @@ class OnboardingSpec extends EditorSpecification {
         button('Add a service', true).click()
         fillIn(dialog(), ['Service name': name, 'AppScan application ID': applicationId])
         dialogButton('Next').click()
-        tile(dialog(), tool).click()
-        tile(dialog(), target).click()
+        radio(dialog(), tool).click()
+        radio(dialog(), target).click()
         dialogButton('Add service').click()
     }
 
@@ -360,9 +360,5 @@ class OnboardingSpec extends EditorSpecification {
 
     Locator review(String term) {
         step().locator("dl.rows dt:text-is('${term}') + dd")
-    }
-
-    Locator tile(Locator scope, String label) {
-        scope.getByRole(AriaRole.RADIO, new Locator.GetByRoleOptions().setName(label).setExact(true))
     }
 }

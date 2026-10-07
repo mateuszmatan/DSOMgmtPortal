@@ -36,7 +36,7 @@ final class ProductRules {
                 });
 
         ValidationProblems problems = new ValidationProblems();
-        UniqueValues names = new UniqueValues();
+        Set<String> names = new HashSet<>();
         for (int i = 0; i < services.size(); i++) {
             ServiceDraft service = services.get(i);
             ValidationProblems at = problems.at("services[" + i + "]");
@@ -44,7 +44,7 @@ final class ProductRules {
             if (service.id() != null && !ownServiceIds.contains(service.id())) {
                 at.add("id", "service " + service.id() + " does not belong to this product");
             }
-            if (!names.add(service.name())) {
+            if (!names.add(service.name().trim().toLowerCase(Locale.ROOT))) {
                 at.add("name", "another service of this product already uses this name");
             }
         }
@@ -77,14 +77,5 @@ final class ProductRules {
 
     private boolean isThisProduct(long otherId) {
         return productId != null && productId == otherId;
-    }
-
-    private static final class UniqueValues {
-
-        private final Set<String> values = new HashSet<>();
-
-        boolean add(String value) {
-            return values.add(value.trim().toLowerCase(Locale.ROOT));
-        }
     }
 }

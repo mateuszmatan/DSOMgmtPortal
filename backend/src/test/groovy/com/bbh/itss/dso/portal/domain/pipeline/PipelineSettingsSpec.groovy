@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.domain.pipeline
 
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
 class PipelineSettingsSpec extends Specification {
@@ -14,6 +15,23 @@ class PipelineSettingsSpec extends Specification {
         new PipelineSettings([' linux ', '', 'linux', 'docker'], ' ', '  ', ' DevSecOps/gui ', '\t') ==
                 new PipelineSettings(['linux', 'docker'], null, null, 'DevSecOps/gui', null)
         new PipelineSettings(null, null, null, null, null).agentLabels() == []
+    }
+
+    def "agent labels #labels are refused with #problem"() {
+        given:
+        def problems = new ValidationProblems()
+
+        when:
+        new PipelineSettings(labels, null, null, null, null).validate(problems)
+
+        then:
+        problems.list()*.message == problem
+
+        where:
+        labels           || problem
+        ['  ', null]     || ['add at least one Jenkins agent label']
+        null             || ['add at least one Jenkins agent label']
+        ['linux-agent']  || []
     }
 
     def "the job #job under Jenkins #jenkinsUrl is linked as #url"() {

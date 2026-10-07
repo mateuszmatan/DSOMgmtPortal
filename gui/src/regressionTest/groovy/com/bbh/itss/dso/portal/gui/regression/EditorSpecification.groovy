@@ -2,8 +2,6 @@ package com.bbh.itss.dso.portal.gui.regression
 
 import com.bbh.itss.dso.portal.gui.support.GuiSpecification
 import com.microsoft.playwright.Locator
-import com.microsoft.playwright.Page
-import com.microsoft.playwright.options.AriaRole
 
 import java.util.regex.Pattern
 
@@ -55,14 +53,6 @@ abstract class EditorSpecification extends GuiSpecification {
         assertThat(openService().locator('.pane-header h3')).hasText(label)
     }
 
-    Locator input(Locator scope, String label) {
-        scope.getByLabel(label, new Locator.GetByLabelOptions().setExact(true))
-    }
-
-    Locator formField(Locator scope, String label) {
-        holding(scope.locator('mat-form-field'), "mat-label:text-is('${label}')")
-    }
-
     void hasValues(Locator scope, Map<String, String> expected) {
         expected.each { label, value -> assertThat(input(scope, label)).hasValue(value) }
     }
@@ -75,25 +65,8 @@ abstract class EditorSpecification extends GuiSpecification {
         expected.each { label, message -> assertThat(errorOf(scope, label)).hasText(message) }
     }
 
-    Locator errorOf(Locator scope, String label) {
-        formField(scope, label).locator('mat-error')
-    }
-
     Locator hintOf(Locator scope, String label) {
         formField(scope, label).locator('mat-hint')
-    }
-
-    void choose(Locator scope, String label, String option) {
-        scope.getByRole(AriaRole.COMBOBOX, new Locator.GetByRoleOptions().setName(label).setExact(true)).click()
-        page.getByRole(AriaRole.OPTION, new Page.GetByRoleOptions().setName(option).setExact(true)).click()
-    }
-
-    Locator checkbox(Locator scope, String label) {
-        scope.getByRole(AriaRole.CHECKBOX, new Locator.GetByRoleOptions().setName(label))
-    }
-
-    Locator select(Locator scope, String label) {
-        scope.getByRole(AriaRole.COMBOBOX, new Locator.GetByRoleOptions().setName(label).setExact(true))
     }
 
     void toggle(Locator scope, String label) {

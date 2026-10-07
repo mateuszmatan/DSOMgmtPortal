@@ -35,42 +35,34 @@ public class MonitoringTargetsService implements ReadMonitoringTargetsUseCase {
     @Override
     @ReadOnly
     public MonitoringTargets everything() {
-        List<Product> all = products.findAll();
-        Map<Long, Product> byId = all.stream().collect(Collectors.toMap(Product::id, Function.identity()));
-        PlatformSettings platform = platform();
-        List<PipelineView> views = pipelines.findAll().stream()
-                .filter(pipeline -> byId.containsKey(pipeline.service().productId()))
-                .map(pipeline -> view(byId.get(pipeline.service().productId()), pipeline, platform))
-                .toList();
-        return new MonitoringTargets(all, views, platform, pipelines.sharedMetricsTags());
+        return targets(products.findAll(), pipelines.findAll());
     }
 
     @Override
     @ReadOnly
     public MonitoringTargets ofProduct(long productId) {
-        Product product = products.load(productId).orElseThrow(() -> NotFoundException.of("Product", productId));
-        PlatformSettings platform = platform();
-        return new MonitoringTargets(List.of(product), pipelines.findByProductId(productId).stream()
-                .map(pipeline -> view(product, pipeline, platform))
-                .toList(), platform, pipelines.sharedMetricsTags());
+        return targets(List.of(product(productId)), pipelines.findByProductId(productId));
     }
 
     @Override
     @ReadOnly
     public MonitoringTargets ofPipeline(long pipelineId) {
         Pipeline pipeline = pipelines.load(pipelineId).orElseThrow(() -> NotFoundException.of("Pipeline", pipelineId));
-        long productId = pipeline.service().productId();
-        Product product = products.load(productId).orElseThrow(() -> NotFoundException.of("Product", productId));
-        PlatformSettings platform = platform();
-        return new MonitoringTargets(List.of(product), List.of(view(product, pipeline, platform)), platform,
-                pipelines.sharedMetricsTags());
+        return targets(List.of(product(pipeline.service().productId())), List.of(pipeline));
     }
 
-    private PlatformSettings platform() {
-        return settings.current().platform();
+    private MonitoringTargets targets(List<Product> found, List<Pipeline> monitored) {
+        Map<Long, Product> byId = found.stream().collect(Collectors.toMap(Product::id, Function.identity()));
+        PlatformSettings platform = settings.current().platform();
+        List<PipelineView> views = monitored.stream()
+                .filter(pipeline -> byId.containsKey(pipeline.service().productId()))
+                .map(pipeline -> PipelineView.of(byId.get(pipeline.service().productId()), pipeline,
+                        platform.jenkinsUrl()))
+                .toList();
+        return new MonitoringTargets(found, views, platform, pipelines.sharedMetricsTags());
     }
 
-    private static PipelineView view(Product product, Pipeline pipeline, PlatformSettings platform) {
-        return PipelineView.of(product, pipeline, platform.jenkinsUrl());
+    private Product product(long productId) {
+        return products.load(productId).orElseThrow(() -> NotFoundException.of("Product", productId));
     }
 }

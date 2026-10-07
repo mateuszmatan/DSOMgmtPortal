@@ -5,6 +5,7 @@ import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { Pipeline, PipelineKey } from '../core/models';
 import { pipeline, revokedKey } from '../testing/fixtures';
 import { KeyHistoryDialog } from './key-history-dialog';
+import { buttonOf } from '../testing/dom';
 
 describe('KeyHistoryDialog', () => {
   let fixture: ComponentFixture<KeyHistoryDialog>;
@@ -42,10 +43,6 @@ describe('KeyHistoryDialog', () => {
   const page = () => fixture.nativeElement as HTMLElement;
   const cells = (column: string) =>
     [...page().querySelectorAll(`td.mat-column-${column}`)].map((cell) => cell.textContent?.trim());
-  const button = (label: string) =>
-    [...page().querySelectorAll<HTMLButtonElement>('button')].find(
-      (element) => element.textContent?.trim() === label,
-    );
 
   async function open(loaded: Pipeline) {
     fixture.detectChanges();
@@ -63,7 +60,7 @@ describe('KeyHistoryDialog', () => {
     expect(cells('lastUsedAt')[0]).toBe('');
     expect(cells('revoked')[0]).toBe('–');
     expect(cells('revoked')[1]).toContain('Leaked in a build log');
-    expect(button('Regenerate key')).toBeUndefined();
+    expect(buttonOf(page(), 'Regenerate key')).toBeUndefined();
   });
 
   it('shows why the history could not be read', async () => {
@@ -81,16 +78,16 @@ describe('KeyHistoryDialog', () => {
     await open(invalidated());
 
     expect(page().querySelector('.key-status')?.textContent).toContain('Key invalidated');
-    expect(button('Regenerate key')).toBeDefined();
+    expect(buttonOf(page(), 'Regenerate key')).toBeDefined();
     expect(page().querySelector('mat-icon')).toBeNull();
   });
 
   it('regenerates the key, shows the new one and keeps the old key in the history', async () => {
     await open(invalidated());
 
-    button('Regenerate key')!.click();
+    buttonOf(page(), 'Regenerate key')!.click();
     await fixture.whenStable();
-    expect(button('Regenerating…')?.disabled).toBe(true);
+    expect(buttonOf(page(), 'Regenerating…')?.disabled).toBe(true);
     const updated = pipeline({ activeKey: fresh, keys: [fresh, revoked] });
     http.expectOne({ method: 'POST', url: '/api/pipelines/100/keys' }).flush(updated);
     await fixture.whenStable();
@@ -98,14 +95,14 @@ describe('KeyHistoryDialog', () => {
     expect(page().querySelector('.key-status .key-value')?.textContent).toBe('d'.repeat(36));
     expect(cells('key')).toEqual(['dddddddd…dddd', '1a2b3c4d…eeff']);
     expect(cells('status')).toEqual(['Active', 'Invalidated']);
-    expect(button('Regenerate key')).toBeUndefined();
+    expect(buttonOf(page(), 'Regenerate key')).toBeUndefined();
     expect(issued).toEqual([updated]);
   });
 
   it('shows why the key could not be regenerated and lets it be tried again', async () => {
     await open(invalidated());
 
-    button('Regenerate key')!.click();
+    buttonOf(page(), 'Regenerate key')!.click();
     http
       .expectOne('/api/pipelines/100/keys')
       .flush(
@@ -115,7 +112,7 @@ describe('KeyHistoryDialog', () => {
     await fixture.whenStable();
 
     expect(page().querySelector('.banner')?.textContent).toBe('Pipeline 100 was not found');
-    expect(button('Regenerate key')?.disabled).toBe(false);
+    expect(buttonOf(page(), 'Regenerate key')?.disabled).toBe(false);
     expect(issued).toEqual([]);
   });
 });

@@ -79,10 +79,7 @@ class GuiPerformanceSpec extends GuiSpecification {
             def start = page.locator(click.replace('ID', "$product")).evaluate(CLICK) as double
             return (page.waitForFunction(READY, ready).jsonValue() as double) - start
         }
-        context.close()
-        context = newContext()
-        page = context.newPage()
-        watchErrors(page)
+        newPage()
         page.navigate(url('/products'), new Page.NavigateOptions().setWaitUntil(WaitUntilState.COMMIT))
         page.waitForFunction(READY, ready).jsonValue() as double
     }

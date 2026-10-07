@@ -12,6 +12,7 @@ import {
   PipelineMonitoring,
   PipelineRequest,
   PipelineType,
+  PortfolioActivity,
   Product,
   ProductMonitoring,
   ProductEvidence,
@@ -142,6 +143,10 @@ export class MonitoringApi {
     return this.http.get<PipelineMonitoring>(`/api/monitoring/pipelines/${id}`, {
       params: { range },
     });
+  }
+
+  activity(range: string): Observable<PortfolioActivity> {
+    return this.http.get<PortfolioActivity>('/api/monitoring/activity', { params: { range } });
   }
 }
 

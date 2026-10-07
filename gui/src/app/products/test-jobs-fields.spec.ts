@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GlobalSettings, TestJob } from '../core/models';
 import { applyFieldProblems } from '../shared/form-controls';
-import { checkboxOf, fieldOf, inputOf, text } from '../testing/dom';
+import { buttonOf, checkboxOf, fieldOf, inputOf, text } from '../testing/dom';
 import { globalSettings, service } from '../testing/fixtures';
 import { ServiceForm, createServiceForm } from './product-form-model';
 import { TestJobsFields } from './test-jobs-fields';
@@ -46,10 +46,6 @@ describe('TestJobsFields', () => {
     form.controls.testJobs.controls.map(
       (control) => control.controls.name.value || control.controls.job.value,
     );
-  const button = (root: ParentNode, label: string) =>
-    [...root.querySelectorAll<HTMLButtonElement>('button')].find(
-      (element) => element.textContent?.trim() === label,
-    )!;
 
   it('takes the parameters as one NAME=value per line in a text area', async () => {
     await render([job({ stage: 'REGRESSION', parameters: 'ENV=rd\nSUITE=critical' })]);
@@ -95,17 +91,17 @@ describe('TestJobsFields', () => {
       job({ stage: 'REGRESSION', name: 'second' }),
     ]);
 
-    button(sections()[1], 'Down').click();
+    buttonOf(sections()[1], 'Down').click();
     await fixture.whenStable();
     expect(names()).toEqual(['smoke', 'second', 'first']);
     expect(form.dirty).toBe(true);
 
-    button(sections()[1], 'Add regression job').click();
+    buttonOf(sections()[1], 'Add regression job').click();
     await fixture.whenStable();
     expect(form.controls.testJobs.length).toBe(4);
     expect(sections()[1].querySelectorAll('.list-item').length).toBe(3);
 
-    button(sections()[1], 'Remove').click();
+    buttonOf(sections()[1], 'Remove').click();
     await fixture.whenStable();
     expect(names()).toEqual(['smoke', 'first', '']);
   });

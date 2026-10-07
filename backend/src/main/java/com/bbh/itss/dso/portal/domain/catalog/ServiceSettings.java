@@ -39,11 +39,6 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
         flutter = flutter == null ? FlutterSettings.NONE : flutter;
     }
 
-    public static ServiceSettings of(BuildSettings build, DeploymentSettings deployment, AppScanSettings appScan) {
-        return new ServiceSettings(build, null, null, null, deployment, null, null, null, null, null, appScan, null,
-                null, null, null, null, null, null);
-    }
-
     public ServiceSettings withDefaultMetricsProject(String productCode, String serviceName) {
         MetricsSettings defaulted = metrics.withDefaultProject(productCode, serviceName);
         if (defaulted == metrics) {
@@ -96,7 +91,6 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
         nexusIq.validate(problems, nexusIqApplications);
         scm.validate(problems.at("scm"));
         goldenFix.validate(problems.at("goldenFix"));
-        metrics.validate(problems.at("metrics"));
         if (tool == BuildTool.FLUTTER) {
             flutter.validate(problems.at("flutter"), target);
         }

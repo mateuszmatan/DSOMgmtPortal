@@ -29,7 +29,6 @@ import {
   catchError,
   debounceTime,
   distinctUntilChanged,
-  filter,
   finalize,
   map,
   of,
@@ -44,6 +43,7 @@ import { ONBOARDING } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { byDepartment } from '../products/departments';
 import { jenkinsfile } from '../products/jenkinsfile';
+import { filled, max, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { ChoiceTiles } from './choice-tiles';
 import {
@@ -73,7 +73,7 @@ interface Onboarded {
   starts: ServiceStart[];
 }
 
-export const STEPS = ['Pipeline', 'Product', 'Services', 'Review', 'Next steps'];
+const STEPS = ['Pipeline', 'Product', 'Services', 'Review', 'Next steps'];
 
 @Component({
   selector: 'dso-onboarding',
@@ -106,15 +106,30 @@ export class Onboarding implements HasUnsavedChanges {
   protected readonly modes = PRODUCT_MODES;
   protected readonly errorText = errorText;
   protected readonly preparation = preparation;
-  protected readonly pipelineLabel = pipelineLabel;
   protected readonly jobName = jobName;
 
   protected readonly step = signal(0);
   protected readonly checked = signal(false);
   protected readonly changed = signal(false);
   protected readonly pipeline = signal<OnboardingPipeline | null>(null);
+  protected readonly pipelineLabel = computed(() => {
+    const pipeline = this.pipeline();
+    return pipeline ? pipelineLabel(pipeline) : '';
+  });
   protected readonly mode = signal<ProductMode>('new');
   protected readonly services = signal<OnboardingService[]>([]);
+  protected readonly unplaced = computed(() =>
+    this.pipeline() === 'SAST'
+      ? []
+      : this.services()
+          .filter(
+            (service) =>
+              service.id === null &&
+              (service.target === null ||
+                (service.target === 'OPENSHIFT' && !service.openShiftProject)),
+          )
+          .map((service) => service.name),
+  );
   protected readonly existing = signal<Product | null>(null);
   protected readonly productError = signal<string | null>(null);
   protected readonly code = signal('');
@@ -154,23 +169,10 @@ export class Onboarding implements HasUnsavedChanges {
 
   protected readonly productForm = new FormGroup({
     departmentId: new FormControl<number | null>(null, Validators.required),
-    name: new FormControl('', {
-      nonNullable: true,
-      validators: [
-        Validators.required,
-        Validators.maxLength(200),
-        (control: AbstractControl) => this.nameInUse(control),
-      ],
-    }),
-    ownerTeam: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(200)] }),
-    contactEmail: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.email, Validators.maxLength(320)],
-    }),
-    appScanKeyId: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.required, Validators.maxLength(200)],
-    }),
+    name: text('', filled, max(200), (control: AbstractControl) => this.nameInUse(control)),
+    ownerTeam: text('', max(200)),
+    contactEmail: text('', Validators.email, max(320)),
+    appScanKeyId: text('', filled, max(200)),
   });
   protected readonly productId = new FormControl<number | null>(null);
 
@@ -208,15 +210,16 @@ export class Onboarding implements HasUnsavedChanges {
       .subscribe((code) => this.code.set(code));
     this.productId.valueChanges
       .pipe(
-        filter((id): id is number => id !== null),
         tap(() => this.productError.set(null)),
         switchMap((id) =>
-          this.productsApi.get(id).pipe(
-            catchError((error) => {
-              this.productError.set(errorMessage(error));
-              return of(null);
-            }),
-          ),
+          id === null
+            ? of(null)
+            : this.productsApi.get(id).pipe(
+                catchError((error) => {
+                  this.productError.set(errorMessage(error));
+                  return of(null);
+                }),
+              ),
         ),
         takeUntilDestroyed(),
       )
@@ -259,20 +262,11 @@ export class Onboarding implements HasUnsavedChanges {
     this.step.update((step) => step + 1);
   }
 
-  protected chooseMode(mode: ProductMode | null): void {
-    this.mode.set(mode ?? 'new');
+  protected chooseMode(mode: ProductMode): void {
+    this.mode.set(mode);
     if (mode !== 'existing') {
-      this.productId.setValue(null, { emitEvent: false });
-      this.useProduct(null);
+      this.productId.setValue(null);
     }
-  }
-
-  protected addService(): void {
-    this.openService(null);
-  }
-
-  protected changeService(index: number): void {
-    this.openService(index);
   }
 
   protected removeService(index: number): void {
@@ -281,11 +275,12 @@ export class Onboarding implements HasUnsavedChanges {
   }
 
   protected serviceSummary(service: OnboardingService): string {
+    const target = deploysWith(this.pipeline()!, service);
     const parts = [choiceLabel(TOOLS, service.tool)];
-    if (this.pipeline() !== 'SAST' || service.id !== null) {
-      parts.push(`runs on ${choiceLabel(TARGETS, deploysWith(this.pipeline()!, service))}`);
+    if (target && (this.pipeline() !== 'SAST' || service.id !== null)) {
+      parts.push(`runs on ${choiceLabel(TARGETS, target)}`);
     }
-    if (service.openShiftProject) {
+    if (target === 'OPENSHIFT' && service.openShiftProject) {
       parts.push(`project ${service.openShiftProject}`);
     }
     return parts.join(' · ');
@@ -323,13 +318,13 @@ export class Onboarding implements HasUnsavedChanges {
           : this.existing() !== null &&
               (!this.needsDepartment() || this.productForm.controls.departmentId.valid);
       case 2:
-        return this.services().length > 0;
+        return this.services().length > 0 && this.unplaced().length === 0;
       default:
         return !this.saving();
     }
   }
 
-  private openService(index: number | null): void {
+  protected openService(index: number | null): void {
     const services = this.services();
     this.dialog
       .open<OnboardingServiceDialog, ServiceDialogData, OnboardingService>(

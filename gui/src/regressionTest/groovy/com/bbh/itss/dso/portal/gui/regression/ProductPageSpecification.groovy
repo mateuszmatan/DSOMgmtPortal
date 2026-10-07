@@ -48,18 +48,6 @@ abstract class ProductPageSpecification extends GuiSpecification {
         page.getByRole(AriaRole.MENUITEM, new Page.GetByRoleOptions().setName(name).setExact(true))
     }
 
-    Locator dialogSelect(String label) {
-        dialog().getByRole(AriaRole.COMBOBOX, new Locator.GetByRoleOptions().setName(label))
-    }
-
-    Locator dialogInput(String label) {
-        dialog().getByLabel(label, new Locator.GetByLabelOptions().setExact(true))
-    }
-
-    Locator dialogError(String label) {
-        holding(dialog().locator('mat-form-field'), "mat-label:text-is('${label}')").locator('mat-error')
-    }
-
     void keyRows(List<List<String>> expected) {
         expected.eachWithIndex { parts, index ->
             parts.each { assertThat(dialog().locator('tr.mat-mdc-row').nth(index)).containsText(it) }

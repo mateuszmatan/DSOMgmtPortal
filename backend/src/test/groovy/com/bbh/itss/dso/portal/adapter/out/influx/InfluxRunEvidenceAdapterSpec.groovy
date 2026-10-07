@@ -103,7 +103,8 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
         evidence[guiRun].releaseGate() == new ReleaseGateEvidence(true, null, null)
         evidence[guiRun].coverage('gui') == new CoverageEvidence(CheckStatus.WARN, null, null, null, null)
         evidence[uatRun].stages()*.name() == ['Deploy']
-        evidence[sastRun].isEmpty()
+        evidence[sastRun].stages() == []
+        evidence[sastRun].releaseGate() == null
     }
 
     def "the runs of services sharing a tag each get the points written during their own run"() {

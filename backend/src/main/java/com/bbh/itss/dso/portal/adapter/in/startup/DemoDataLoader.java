@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.adapter.in.startup;
 
 import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentsUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductCommand;
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductSummaryView;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
@@ -47,15 +48,71 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.EXTENDED;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY;
 
 @Component
 @ConditionalOnBooleanProperty("dso.demo-data")
 public class DemoDataLoader implements ApplicationRunner {
 
     static final String DEMO_JENKINS_URL = "https://jenkins.bbh.com";
+    static final String CERT_SCANNER = "CERTSCANNER";
+    static final List<DemoProduct> CATALOGUE = List.of(
+            new DemoProduct("DOCSENSE", "DocSense", "AI Lab", "AIL", "AI Lab Engineering",
+                    "Reads fund prospectuses and KYC documents and extracts their data with machine learning.",
+                    service("extraction-api", "Document extraction REST API", Stack.GRADLE_OPENSHIFT, SECURITY,
+                            EXTENDED),
+                    service("review-ui", "Review screen for analysts", Stack.GRADLE_VM, SAST)),
+            new DemoProduct("ADVISORAI", "Advisor Assistant", "AI Lab", "AIL", "AI Lab Engineering",
+                    "Drafts answers for relationship managers from approved BBH content with a language model.",
+                    service("assistant-api", "Conversation API", Stack.MAVEN_OPENSHIFT, SECURITY),
+                    service("content-indexer", "Indexes approved content", Stack.GRADLE_OPENSHIFT)),
+            new DemoProduct("DEALFLOW", "DealFlow", "Capital Partners", "CPD", "Private Equity Technology",
+                    "Private equity deal pipeline and investment committee workflow.",
+                    service("deals-web", "Deal team web client", Stack.GRADLE_VM),
+                    service("deals-api", "Deal and committee API", Stack.MAVEN_OPENSHIFT, SECURITY, EXTENDED)),
+            new DemoProduct("LPPORTAL", "LP Portal", "Capital Partners", "CPD", "Investor Reporting",
+                    "Reporting portal for limited partners: capital calls, distributions and statements.",
+                    service("portal-web", "Investor web portal", Stack.GRADLE_OPENSHIFT),
+                    service("statements", "Statement generation", Stack.MAVEN_OPENSHIFT, SAST),
+                    service("lp-mobile", "Investor mobile application", Stack.FLUTTER, SAST)),
+            new DemoProduct("ACCESSHUB", "Access Hub", "Corporate Technology", "CT", "Identity and Access",
+                    "Self-service access requests and quarterly entitlement reviews.",
+                    service("requests-ui", "Access request screens", Stack.GRADLE_VM),
+                    service("workflow", "Approval workflow engine", Stack.MAVEN_OPENSHIFT, SECURITY)),
+            new DemoProduct("SAFEKEEP", "Safekeeping Ledger", "Custody", "CUS", "Custody Platform",
+                    "Books and reconciles client positions held with sub-custodians.",
+                    service("positions-api", "Positions and holdings API", Stack.MAVEN_OPENSHIFT, SECURITY, EXTENDED),
+                    service("recon-batch", "Nightly reconciliation", Stack.GRADLE_VM, SAST)),
+            new DemoProduct("CORPACT", "Corporate Actions", "Custody", "CUS", "Asset Servicing",
+                    "Captures corporate action events and collects client elections.",
+                    service("events-api", "Event capture API", Stack.GRADLE_OPENSHIFT, SECURITY),
+                    service("elections-ui", "Client election screens", Stack.GRADLE_VM)),
+            new DemoProduct("PAYHUB", "Payments Hub", "Fund Services", "PAY", "Payments Engineering",
+                    "Payment orchestration platform: gateway, ledger, notifications and reporting.",
+                    service("gateway", "Public payment API", Stack.MAVEN_OPENSHIFT, SECURITY, EXTENDED),
+                    service("ledger", "Double-entry ledger", Stack.GRADLE_VM),
+                    service("notifications", "E-mail and push notifications", Stack.GRADLE_VM),
+                    service("mobile-app", "Flutter mobile application", Stack.FLUTTER, SAST)),
+            new DemoProduct("NAVCALC", "NAV Calculator", "Fund Services", "FS", "Fund Accounting",
+                    "Daily net asset value calculation and pricing for fund administration clients.",
+                    service("pricing-engine", "Security pricing engine", Stack.MAVEN_OPENSHIFT, SECURITY),
+                    service("nav-api", "NAV publication API", Stack.GRADLE_OPENSHIFT, EXTENDED)));
+    static final Map<String, String> RETIRED = Map.of(
+            "PAYHUB mobile-app SAST", "Mobile app moved to the new mobile platform pipeline",
+            "SAFEKEEP recon-batch SAST", "Reconciliation moved to the mainframe scheduler");
 
     private static final Logger log = LoggerFactory.getLogger(DemoDataLoader.class);
     private static final String JDK_17 = "/usr/lib/jvm/java-17-openjdk";
@@ -67,6 +124,7 @@ public class DemoDataLoader implements ApplicationRunner {
     private static final String SONAR_BADGE = "sqb_95b6b9cfb2fe8f3fa0e45261ece1856d3fb1ebc";
     private static final String CERT_SCANNER_REPOSITORY = "https://bitbucket.bbh.com/projects/TA/repos/cert-scanner";
     private static final String CERT_SCANNER_DEPLOY_DIR = "/opt/ta/CertScanner/gui/deployment";
+    private static final String BITBUCKET_CREDENTIALS = "bitbucket-http-credentials";
 
     private final ProductsUseCase products;
     private final DepartmentsUseCase departments;
@@ -83,51 +141,57 @@ public class DemoDataLoader implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (!products.list(null).isEmpty()) {
+        Set<String> present = products.list(null).stream().map(ProductSummaryView::code).collect(Collectors.toSet());
+        Set<String> demo = Stream.concat(Stream.of(CERT_SCANNER), CATALOGUE.stream().map(DemoProduct::code))
+                .collect(Collectors.toSet());
+        if (!demo.containsAll(present) || present.containsAll(demo)) {
             return;
         }
         GlobalSettingsValues global = settings.current().values();
         if (global.platform().jenkinsUrl() == null) {
             settings.update(null, global.withPlatform(global.platform().withJenkinsUrl(DEMO_JENKINS_URL)));
         }
+        if (!present.contains(CERT_SCANNER)) {
+            certScanner();
+        }
+        CATALOGUE.stream().filter(product -> !present.contains(product.code())).forEach(this::create);
+        log.info("Created the demo catalogue: {} products in {} departments", demo.size() - present.size(),
+                CATALOGUE.stream().map(DemoProduct::department).distinct().count());
+    }
 
-        Product certScanner = products.create(new ProductCommand(null, new ProductDetails("CERTSCANNER", "CertScanner",
+    private void certScanner() {
+        Product certScanner = products.create(new ProductCommand(null, new ProductDetails(CERT_SCANNER, "CertScanner",
                 "Monitors the validity of TLS certificates across BBH and alerts owners before they expire.",
                 "Technology Architecture", "ta-team@bbh.com", department("Corporate Technology")),
                 new AppScanAccount("bbh_b81fbc9f-39c1-8eb4-38b5-b702268969b9", null),
-                List.of(certScannerGui(), certScannerApi())));
-        Product payments = products.create(new ProductCommand(null, new ProductDetails("PAYHUB", "Payments Hub",
-                "Payment orchestration platform: gateway, ledger, notifications and reporting.",
-                "Payments Engineering", "payments-eng@bbh.com", department("Fund Services")),
-                new AppScanAccount("bbh_1c2d3e4f-0000-4abc-9def-123456789abc", "payhub-appscan-key-secret"), List.of(
-                mavenOpenShift("gateway", "Public payment API", "3a1b2c3d-1111-4a5b-8c9d-0e1f2a3b4c5d",
-                        "payhub-gateway", "payhub-gateway", "pay-payhub"),
-                gradleVm("ledger", "Double-entry ledger", "3a1b2c3d-2222-4a5b-8c9d-0e1f2a3b4c5d", "payhub-ledger",
-                        "payhub-ledger", "/opt/pay/PayHub/ledger/deployment"),
-                gradleVm("notifications", "E-mail and push notifications", "3a1b2c3d-3333-4a5b-8c9d-0e1f2a3b4c5d",
-                        "payhub-notifications", "payhub-notifications", "/opt/pay/PayHub/notifications/deployment"),
-                flutter("mobile-app", "Flutter mobile application", "3a1b2c3d-4444-4a5b-8c9d-0e1f2a3b4c5d",
-                        "payhub-mobile"))));
-
-        String certScannerJobs = "DevSecOps/CertScanner-";
+                List.of(certScannerGui(), certScannerApi()), null));
+        String jobs = "DevSecOps/CertScanner-";
         for (String service : List.of("gui", "backend-api")) {
-            pipeline(certScanner, service, PipelineType.FULL, List.of("linux-agent", "windows-agent"), null, null,
-                    certScannerJobs + "pipeline");
-            pipeline(certScanner, service, PipelineType.SECURITY, List.of("linux-agent"),
-                    service.equals("gui") ? certScannerJobs + "extended-pipeline" : null, null,
-                    certScannerJobs + "security-pipeline");
-            pipeline(certScanner, service, PipelineType.EXTENDED, List.of("linux-agent"), null,
-                    certScannerJobs + "security-pipeline", certScannerJobs + "extended-pipeline");
+            pipeline(certScanner, service, FULL, List.of("linux-agent", "windows-agent"), null, null,
+                    jobs + "pipeline");
+            pipeline(certScanner, service, SECURITY, List.of("linux-agent"),
+                    service.equals("gui") ? jobs + "extended-pipeline" : null, null, jobs + "security-pipeline");
+            pipeline(certScanner, service, EXTENDED, List.of("linux-agent"), null, jobs + "security-pipeline",
+                    jobs + "extended-pipeline");
         }
-        pipeline(certScanner, "gui", PipelineType.SAST);
-        pipeline(payments, "gateway", PipelineType.FULL);
-        pipeline(payments, "gateway", PipelineType.SECURITY);
-        pipeline(payments, "gateway", PipelineType.EXTENDED);
-        pipeline(payments, "ledger", PipelineType.FULL);
-        pipeline(payments, "notifications", PipelineType.FULL);
-        PipelineView retired = pipeline(payments, "mobile-app", PipelineType.SAST);
-        pipelines.revokeKey(retired.pipeline().id(), "Mobile app moved to the new mobile platform pipeline");
-        log.info("Created demo data: {} and {}", certScanner.name(), payments.name());
+        pipeline(certScanner, "gui", SAST, List.of());
+    }
+
+    private void create(DemoProduct demo) {
+        String team = demo.team().toLowerCase(Locale.ROOT).replaceAll("[^a-z]+", "-");
+        Product product = products.create(new ProductCommand(null, new ProductDetails(demo.code(), demo.name(),
+                demo.description(), demo.team(), team + "@bbh.com", department(demo.department())),
+                new AppScanAccount("bbh_" + uuid(demo.code()), demo.code().toLowerCase(Locale.ROOT) + "-appscan-key"),
+                demo.services().stream().map(service -> draft(demo, service)).toList(), null));
+        for (DemoService service : demo.services()) {
+            Stream.concat(Stream.of(FULL), service.types().stream()).forEach(type -> {
+                PipelineView created = pipeline(product, service.name(), type, service.types());
+                String retired = RETIRED.get(demo.code() + " " + service.name() + " " + type);
+                if (retired != null) {
+                    pipelines.revokeKey(created.pipeline().id(), retired);
+                }
+            });
+        }
     }
 
     private long department(String name) {
@@ -135,10 +199,19 @@ public class DemoDataLoader implements ApplicationRunner {
                 .findFirst().orElseGet(() -> departments.create(name)).id();
     }
 
+    private static ServiceDraft draft(DemoProduct product, DemoService service) {
+        String key = product.code().toLowerCase(Locale.ROOT) + "-" + service.name();
+        String repository = BITBUCKET.formatted(product.bitbucketProject(), key);
+        return new ServiceDraft(null, service.name(), service.description(), switch (service.stack()) {
+            case GRADLE_VM -> vm(key, repository);
+            case GRADLE_OPENSHIFT -> openShift(BuildTool.GRADLE, key, repository, product.bitbucketProject());
+            case MAVEN_OPENSHIFT -> openShift(BuildTool.MAVEN, key, repository, product.bitbucketProject());
+            case FLUTTER -> flutter(product, key, repository);
+        });
+    }
+
     private static ServiceDraft certScannerGui() {
         String title = "CertScanner-GUI";
-        TestJob remote = new TestJob(TestStage.SMOKE, null, TestJobType.REMOTE, null, 15, null, null, null,
-                REMOTE_TOKEN, null, null, false, false, false, false, false, false);
         return new ServiceDraft(null, "gui", "Angular front end", new ServiceSettings(
                 new BuildSettings(BuildTool.GRADLE, ".", JDK_17, false, null,
                         ToolCommand.of(List.of("clean", "build", "bootJar"), List.of("--refresh-dependencies"))),
@@ -148,16 +221,18 @@ public class DemoDataLoader implements ApplicationRunner {
                 new TestSettings(null, 20, 5, null, true, true, true, null, null, null),
                 List.of(TestJob.of(TestStage.REGRESSION, title + " - regression", TestJobType.LOCAL,
                                 "cert-scanner/regression-tests", 60),
-                        withParameters(TestJob.of(TestStage.REGRESSION, title + " - regression (certificates)",
-                                TestJobType.LOCAL, "cert-scanner/regression-certificates", 60), "ENV=rd", null),
-                        remote(remote, title + " - login smoke", SMOKE_JENKINS + "cert-scanner-login"),
-                        remote(remote, title + " - certificate list smoke", SMOKE_JENKINS + "cert-scanner-list"),
-                        withParameters(remote(remote, title + " - notification smoke",
-                                "smoke/cert-scanner-notifications"), "ENV=rd", "jenkins-b"),
-                        withType(remote(remote, title + " - local smoke", "cert-scanner/smoke-tests"),
-                                TestJobType.LOCAL),
-                        remote(remote, null, "https://jenkins-c.bbh.com/job/smoke/job/cert-scanner-dashboard"),
-                        remote(remote, null, "https://jenkins-b.bbh.com/job/smoke/job/cert-scanner-expiry"),
+                        job(TestStage.REGRESSION, title + " - regression (certificates)", TestJobType.LOCAL,
+                                "cert-scanner/regression-certificates", 60, "ENV=rd", null, null),
+                        smoke(title + " - login smoke", TestJobType.REMOTE, SMOKE_JENKINS + "cert-scanner-login"),
+                        smoke(title + " - certificate list smoke", TestJobType.REMOTE,
+                                SMOKE_JENKINS + "cert-scanner-list"),
+                        job(TestStage.SMOKE, title + " - notification smoke", TestJobType.REMOTE,
+                                "smoke/cert-scanner-notifications", 15, "ENV=rd", "jenkins-b", REMOTE_TOKEN),
+                        smoke(title + " - local smoke", TestJobType.LOCAL, "cert-scanner/smoke-tests"),
+                        smoke(null, TestJobType.REMOTE,
+                                "https://jenkins-c.bbh.com/job/smoke/job/cert-scanner-dashboard"),
+                        smoke(null, TestJobType.REMOTE,
+                                "https://jenkins-b.bbh.com/job/smoke/job/cert-scanner-expiry"),
                         TestJob.of(TestStage.PERFORMANCE, title + " - performance", TestJobType.LOCAL,
                                 "cert-scanner/performance-tests", 120)),
                 new DeploymentSettings(DeployTarget.VM, null, null, null),
@@ -171,7 +246,8 @@ public class DemoDataLoader implements ApplicationRunner {
                         Region.QC, new SshTarget("qcltaapps1.testbbh.com", "taadmin", CERT_SCANNER_DEPLOY_DIR,
                                 DEPLOY_SCRIPT, VERSION_FILE)),
                 null,
-                certScannerAppScan("209f44ac-dd06-4ca0-884e-d944904f8020", "CertScanner-GUI",
+                appScan("209f44ac-dd06-4ca0-884e-d944904f8020", "CertScanner-GUI-SAST", "CertScanner-GUI-DAST",
+                        List.of(),
                         "http://rdltaapps1.testbbh.com"),
                 new SonarSettings("CertScanner-GUI", "cert-scanner-gui", "SonarQube", "sonarqube-token",
                         "sonarqube-token", SONAR_BADGE, true, true, ToolCommand.of(List.of("sonarqube"), List.of()),
@@ -198,23 +274,15 @@ public class DemoDataLoader implements ApplicationRunner {
                                 "cert-scanner/api-regression-tests", 60),
                         TestJob.of(TestStage.SMOKE, title + " - smoke", TestJobType.LOCAL,
                                 "cert-scanner/api-smoke-tests", 15),
-                        new TestJob(TestStage.SMOKE, title + " - contract smoke", null,
-                                SMOKE_JENKINS + "cert-scanner-api-contract", null, null, null, null, REMOTE_TOKEN,
-                                null, null, false, false, false, false, false, false),
+                        job(TestStage.SMOKE, title + " - contract smoke", null,
+                                SMOKE_JENKINS + "cert-scanner-api-contract", null, null, null, REMOTE_TOKEN),
                         TestJob.of(TestStage.PERFORMANCE, title + " - performance", TestJobType.LOCAL,
                                 "cert-scanner/api-performance-tests", 120)),
                 new DeploymentSettings(DeployTarget.OPENSHIFT, "certscanner-api", "certscanner-api.jar", null),
                 null, null, null, null,
-                Map.of(Region.RD, new OpenShiftTarget("ta-certscanner-build", "openshift/buildconfig.yaml",
-                                "openshift/Dockerfile", "target/docker", null, image, image, "/etc/pki/openshift",
-                                "/home/jenkins/.docker/nexus-auth.json", "ta-certscanner-rd",
-                                "openshift/deployment.yaml", "openshift/config-rd.yaml", false, "/actuator/health",
-                                "certscanner-api-rd.apps.ocp-rd.testbbh.com", null, null, null, null, null, null),
-                        Region.QC, new OpenShiftTarget(null, null, null, null, null, null, image, null, null,
-                                "ta-certscanner-qc", "openshift/deployment.yaml", "openshift/config-qc.yaml", false,
-                                "/actuator/health", "certscanner-api-qc.apps.ocp-qc.testbbh.com", null, null, null,
-                                null, null, null)),
-                certScannerAppScan("209f44ac-dd06-4ca0-884e-d944904f8021", "CertScanner-Backend",
+                openShiftTargets("ta-certscanner", image, "certscanner-api", "target/docker"),
+                appScan("209f44ac-dd06-4ca0-884e-d944904f8021", "CertScanner-Backend-SAST", "CertScanner-Backend-DAST",
+                        List.of(),
                         "http://rdltaapps1.testbbh.com:8080/api"),
                 new SonarSettings("CertScanner-Backend", "cert-scanner-backend", "SonarQube", null, "sonarqube-token",
                         SONAR_BADGE, true, false, ToolCommand.of(List.of("sonar:sonar"), List.of()), null),
@@ -226,36 +294,26 @@ public class DemoDataLoader implements ApplicationRunner {
                 null));
     }
 
-    private static AppScanSettings certScannerAppScan(String appScanId, String scanName, String dastTargetUrl) {
-        return new AppScanSettings(appScanId, scanName + "-SAST", List.of(), List.of(), true, false, false, false,
-                null, null, true, scanName + "-DAST", dastTargetUrl, null, null);
+    private static TestJob smoke(String name, TestJobType type, String job) {
+        return job(TestStage.SMOKE, name, type, job, 15, null, null, REMOTE_TOKEN);
     }
 
-    private static TestJob remote(TestJob defaults, String name, String job) {
-        return new TestJob(defaults.stage(), name, defaults.type(), job, defaults.timeoutMinutes(), null, null, null,
-                defaults.credentialsId(), null, null, false, false, false, false, false, false);
+    private static TestJob job(TestStage stage, String name, TestJobType type, String job, Integer timeoutMinutes,
+                               String parameters, String remoteJenkins, String credentialsId) {
+        return new TestJob(stage, name, type, job, timeoutMinutes, parameters, remoteJenkins, null, credentialsId,
+                null, null, false, false, false, false, false, false);
     }
 
-    private static TestJob withParameters(TestJob job, String parameters, String remoteJenkins) {
-        return new TestJob(job.stage(), job.name(), job.type(), job.job(), job.timeoutMinutes(), parameters,
-                remoteJenkins, null, job.credentialsId(), null, null, false, false, false, false, false, false);
-    }
-
-    private static TestJob withType(TestJob job, TestJobType type) {
-        return new TestJob(job.stage(), job.name(), type, job.job(), job.timeoutMinutes(), job.parameters(), null,
-                null, job.credentialsId(), null, null, false, false, false, false, false, false);
-    }
-
-    private static ServiceDraft gradleVm(String name, String description, String appScanId, String sonarKey,
-                                         String repo, String deployDir) {
-        String title = sonarKey.toUpperCase();
-        return new ServiceDraft(null, name, description, new ServiceSettings(
+    private static ServiceSettings vm(String key, String repository) {
+        String title = key.toUpperCase(Locale.ROOT);
+        String deployDir = "/opt/" + key.replace('-', '/') + "/deployment";
+        return new ServiceSettings(
                 new BuildSettings(BuildTool.GRADLE, ".", JDK_17, false, "build/libs/*.jar",
                         ToolCommand.of(List.of("clean", "build", "bootJar"), List.of("--refresh-dependencies"))),
                 new UnitTestSettings(ToolCommand.of(List.of("test", "jacocoTestReport"), List.of()),
                         "build/test-results/test/*.xml", null, null, false, null),
                 new TestSettings(null, 10, 5, null, true, true, true, null, null, null),
-                testJobs(title, repo),
+                testJobs(title, key),
                 new DeploymentSettings(DeployTarget.VM, null, null, null),
                 null,
                 UrbanCodeSettings.DEFAULTS,
@@ -264,91 +322,112 @@ public class DemoDataLoader implements ApplicationRunner {
                 Map.of(Region.RD, new SshTarget(null, null, deployDir, DEPLOY_SCRIPT, null),
                         Region.QC, new SshTarget(null, null, deployDir, DEPLOY_SCRIPT, null)),
                 null,
-                appScan(appScanId, sonarKey),
-                SonarSettings.of(title, sonarKey, ToolCommand.of(List.of("sonarqube"), List.of())),
+                appScan(uuid(key), key + "-sast", key + "-dast", List.of("node_modules"),
+                        "http://rdltaapps1.testbbh.com"),
+                SonarSettings.of(title, key, ToolCommand.of(List.of("sonarqube"), List.of())),
                 null,
-                List.of(NexusIqApplication.of(sonarKey, List.of("**/build/libs/*.jar"))),
-                ScmSettings.of(BITBUCKET.formatted("PAY", repo), "bitbucket-http-credentials"),
+                List.of(NexusIqApplication.of(key, List.of("**/build/libs/*.jar"))),
+                ScmSettings.of(repository, BITBUCKET_CREDENTIALS),
                 GoldenFixPolicy.INHERITED,
                 MetricsSettings.of(true, null, "test"),
-                null));
+                null);
     }
 
-    private static ServiceDraft mavenOpenShift(String name, String description, String appScanId, String sonarKey,
-                                               String repo, String namespace) {
-        String title = sonarKey.toUpperCase();
-        String image = "docker-qc.tools.bbh.com/" + namespace + "/" + name;
-        return new ServiceDraft(null, name, description, new ServiceSettings(
-                new BuildSettings(BuildTool.MAVEN, ".", JDK_17, false, "target/*.jar",
-                        new ToolCommand(List.of("clean", "verify"), List.of("-B", "-U"), null, null,
-                                List.of("MAVEN_OPTS=-Xms512m -Xmx1g"), null, false)),
-                new UnitTestSettings(ToolCommand.of(List.of("test", "jacoco:report"), List.of()),
-                        "target/surefire-reports/*.xml", null, null, false, null),
+    private static ServiceSettings openShift(BuildTool tool, String key, String repository, String project) {
+        boolean maven = tool == BuildTool.MAVEN;
+        String title = key.toUpperCase(Locale.ROOT);
+        String namespace = project.toLowerCase(Locale.ROOT) + "-" + key;
+        String image = "docker-qc.tools.bbh.com/" + namespace + "/" + key;
+        return new ServiceSettings(
+                new BuildSettings(tool, ".", JDK_17, false, maven ? "target/*.jar" : "build/libs/*.jar", maven
+                        ? new ToolCommand(List.of("clean", "verify"), List.of("-B", "-U"), null, null,
+                        List.of("MAVEN_OPTS=-Xms512m -Xmx1g"), null, false)
+                        : ToolCommand.of(List.of("clean", "build", "bootJar"), List.of("--refresh-dependencies"))),
+                new UnitTestSettings(ToolCommand.of(maven ? List.of("test", "jacoco:report")
+                        : List.of("test", "jacocoTestReport"), List.of()),
+                        maven ? "target/surefire-reports/*.xml" : "build/test-results/test/*.xml", null, null, false,
+                        null),
                 null,
-                testJobs(title, repo),
-                new DeploymentSettings(DeployTarget.OPENSHIFT, sonarKey, sonarKey + ".jar", null),
+                testJobs(title, key),
+                new DeploymentSettings(DeployTarget.OPENSHIFT, key, key + ".jar", null),
                 null, null, null, null,
-                Map.of(Region.RD, new OpenShiftTarget(namespace + "-build", "openshift/buildconfig.yaml",
-                                "openshift/Dockerfile", "target/docker", null, image, image, "/etc/pki/openshift",
-                                "/home/jenkins/.docker/nexus-auth.json", namespace + "-rd", "openshift/deployment.yaml",
-                                "openshift/config-rd.yaml", false, "/actuator/health",
-                                sonarKey + "-rd.apps.ocp-rd.testbbh.com", null, null, null, null, null, null),
-                        Region.QC, new OpenShiftTarget(null, null, null, null, null, null, image, null, null,
-                                namespace + "-qc", "openshift/deployment.yaml", "openshift/config-qc.yaml", false,
-                                "/actuator/health", sonarKey + "-qc.apps.ocp-qc.testbbh.com", null, null, null, null,
-                                null, null)),
-                appScan(appScanId, sonarKey),
-                SonarSettings.of(title, sonarKey, ToolCommand.of(List.of("sonar:sonar"), List.of())),
+                openShiftTargets(namespace, image, key, maven ? "target/docker" : "build/docker"),
+                appScan(uuid(key), key + "-sast", key + "-dast", List.of("node_modules"),
+                        "http://rdltaapps1.testbbh.com"),
+                SonarSettings.of(title, key, ToolCommand.of(List.of(maven ? "sonar:sonar" : "sonarqube"), List.of())),
                 null,
-                List.of(NexusIqApplication.of(sonarKey, List.of("**/target/*.jar"))),
-                ScmSettings.of(BITBUCKET.formatted("PAY", repo), "bitbucket-http-credentials"),
+                List.of(NexusIqApplication.of(key, List.of(maven ? "**/target/*.jar" : "**/build/libs/*.jar"))),
+                ScmSettings.of(repository, BITBUCKET_CREDENTIALS),
                 GoldenFixPolicy.INHERITED,
                 MetricsSettings.of(true, null, "test"),
-                null));
+                null);
     }
 
-    private static ServiceDraft flutter(String name, String description, String appScanId, String repo) {
-        return new ServiceDraft(null, name, description, new ServiceSettings(
+    private static Map<Region, OpenShiftTarget> openShiftTargets(String namespace, String image, String route,
+                                                                 String dockerDir) {
+        return Map.of(Region.RD, new OpenShiftTarget(namespace + "-build", "openshift/buildconfig.yaml",
+                        "openshift/Dockerfile", dockerDir, null, image, image, "/etc/pki/openshift",
+                        "/home/jenkins/.docker/nexus-auth.json", namespace + "-rd", "openshift/deployment.yaml",
+                        "openshift/config-rd.yaml", false, "/actuator/health", route + "-rd.apps.ocp-rd.testbbh.com",
+                        null, null, null, null, null, null),
+                Region.QC, new OpenShiftTarget(null, null, null, null, null, null, image, null, null, namespace + "-qc",
+                        "openshift/deployment.yaml", "openshift/config-qc.yaml", false, "/actuator/health",
+                        route + "-qc.apps.ocp-qc.testbbh.com", null, null, null, null, null, null));
+    }
+
+    private static ServiceSettings flutter(DemoProduct product, String key, String repository) {
+        String code = product.code().toLowerCase(Locale.ROOT);
+        return new ServiceSettings(
                 new BuildSettings(BuildTool.FLUTTER, ".", JDK_17, false, null, null),
                 null, null, List.of(),
                 new DeploymentSettings(DeployTarget.VM, null, null, null),
                 null, null, null, null, null,
-                AppScanSettings.of(appScanId),
+                AppScanSettings.of(uuid(key)),
                 null,
                 null,
                 null,
-                ScmSettings.of(BITBUCKET.formatted("PAY", repo), "bitbucket-http-credentials"),
+                ScmSettings.of(repository, BITBUCKET_CREDENTIALS),
                 GoldenFixPolicy.inherit(false),
                 MetricsSettings.of(true, null, "test"),
-                new FlutterSettings(FlutterPlatform.APK, List.of("core", "payments"), List.of("core", "payments"),
-                        List.of("core", "payments"), List.of("secure_storage"), "payhub-mobile-signing-password",
-                        "payhub-mobile-prod-licence", "payhub-mobile-test-licence", "com.bbh.payhub", "payhub-mobile",
+                new FlutterSettings(FlutterPlatform.APK, List.of("core", code), List.of("core", code),
+                        List.of("core", code), List.of("secure_storage"), key + "-signing-password",
+                        key + "-prod-licence", key + "-test-licence", "com.bbh." + code, key,
                         "org.apache.maven.plugins:maven-deploy-plugin:3.1.2:deploy-file", "lib", "test", false, null,
-                        null)));
+                        null));
     }
 
-    private static AppScanSettings appScan(String appScanId, String scanName) {
-        return new AppScanSettings(appScanId, scanName + "-sast", List.of(), List.of("node_modules"), true, false,
-                false, false, null, null, true, scanName + "-dast", "http://rdltaapps1.testbbh.com", null, null);
+    private static AppScanSettings appScan(String applicationId, String sastScan, String dastScan,
+                                           List<String> excludedDirs, String dastTargetUrl) {
+        return new AppScanSettings(applicationId, sastScan, List.of(), excludedDirs, true, false, false, false, null,
+                null, true, dastScan, dastTargetUrl, null, null);
     }
 
     private static List<TestJob> testJobs(String title, String repo) {
         return List.of(
                 TestJob.of(TestStage.SMOKE, title + " - smoke", TestJobType.LOCAL, repo + "/smoke-tests", 15),
-                new TestJob(TestStage.SMOKE, title + " - login smoke", null, SMOKE_JENKINS + repo + "-login", null,
-                        null, null, null, REMOTE_TOKEN, null, null, false, false, false, false, false, false),
-                withParameters(TestJob.of(TestStage.REGRESSION, title + " - regression", TestJobType.LOCAL,
-                        repo + "/regression-tests", 60), "ENV=rd", null),
+                job(TestStage.SMOKE, title + " - login smoke", null, SMOKE_JENKINS + repo + "-login", null, null,
+                        null, REMOTE_TOKEN),
+                job(TestStage.REGRESSION, title + " - regression", TestJobType.LOCAL, repo + "/regression-tests", 60,
+                        "ENV=rd", null, null),
                 TestJob.of(TestStage.PERFORMANCE, title + " - performance", TestJobType.LOCAL,
                         repo + "/performance-tests", 120));
     }
 
-    private PipelineView pipeline(Product product, String serviceName, PipelineType type) {
-        String folder = "DevSecOps/" + product.code() + "/";
+    private static String uuid(String name) {
+        return UUID.nameUUIDFromBytes(name.getBytes(StandardCharsets.UTF_8)).toString();
+    }
+
+    private static DemoService service(String name, String description, Stack stack, PipelineType... types) {
+        return new DemoService(name, description, stack, List.of(types));
+    }
+
+    private PipelineView pipeline(Product product, String serviceName, PipelineType type,
+                                  List<PipelineType> siblings) {
+        String job = "DevSecOps/" + product.code() + "/" + serviceName + "-";
         return pipeline(product, serviceName, type, List.of(PipelineSettings.DEFAULT_AGENT_LABEL),
-                type == PipelineType.SECURITY ? folder + serviceName + "-extended" : null,
-                type == PipelineType.EXTENDED ? folder + serviceName + "-security" : null,
-                folder + serviceName + "-" + type.variant());
+                type == SECURITY && siblings.contains(EXTENDED) ? job + EXTENDED.variant() : null,
+                type == EXTENDED && siblings.contains(SECURITY) ? job + SECURITY.variant() : null,
+                job + type.variant());
     }
 
     private PipelineView pipeline(Product product, String serviceName, PipelineType type, List<String> agentLabels,
@@ -367,5 +446,21 @@ public class DemoDataLoader implements ApplicationRunner {
                 .flatMap(view -> view.pipelines().stream())
                 .filter(view -> view.pipeline().type() == type)
                 .findFirst();
+    }
+
+    enum Stack {
+        GRADLE_VM, GRADLE_OPENSHIFT, MAVEN_OPENSHIFT, FLUTTER
+    }
+
+    record DemoService(String name, String description, Stack stack, List<PipelineType> types) {
+    }
+
+    record DemoProduct(String code, String name, String department, String bitbucketProject, String team,
+                       String description, List<DemoService> services) {
+
+        DemoProduct(String code, String name, String department, String bitbucketProject, String team,
+                    String description, DemoService... services) {
+            this(code, name, department, bitbucketProject, team, description, List.of(services));
+        }
     }
 }

@@ -46,7 +46,7 @@ public record TestJob(TestStage stage, String name, TestJobType type, String job
     }
 
     public boolean isUrl() {
-        return job != null && (job.startsWith("http://") || job.startsWith("https://"));
+        return Text.isUrl(job);
     }
 
     public boolean needsRemoteJenkins() {

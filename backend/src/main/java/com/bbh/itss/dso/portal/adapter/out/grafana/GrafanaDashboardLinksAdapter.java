@@ -26,12 +26,10 @@ class GrafanaDashboardLinksAdapter implements DashboardLinksPort {
     @Override
     public Optional<String> dashboardUrl(MetricsTag tag, PipelineType type, int rangeDays) {
         boolean security = type == PipelineType.SECURITY || type == PipelineType.SAST;
-        return url().map(pipelineDashboard -> {
-            String link = security && grafana.securityDashboardUrl() != null ? grafana.securityDashboardUrl()
-                    : pipelineDashboard;
-            return link + (link.contains("?") ? "&" : "?") + "var-project="
-                    + UriUtils.encodeQueryParam(tag.project(), StandardCharsets.UTF_8)
-                    + "&from=now-" + rangeDays + "d&to=now";
-        });
+        String dashboard = security && grafana.securityDashboardUrl() != null ? grafana.securityDashboardUrl()
+                : grafana.dashboardUrl();
+        return Optional.ofNullable(dashboard).map(link -> link + (link.contains("?") ? "&" : "?") + "var-project="
+                + UriUtils.encodeQueryParam(tag.project(), StandardCharsets.UTF_8) + "&from=now-" + rangeDays
+                + "d&to=now");
     }
 }

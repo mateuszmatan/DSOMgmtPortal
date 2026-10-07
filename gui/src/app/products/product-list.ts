@@ -14,6 +14,7 @@ import { errorMessage } from '../core/errors';
 import { Department, ProductSummary } from '../core/models';
 import { Notifier } from '../core/notifier';
 import { PRODUCTS } from '../core/sections';
+import { BarChart, BarRow } from '../shared/bar-chart';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
 import { RelativeTimePipe, counted } from '../shared/formatting';
 import { DepartmentDialog } from './department-dialog';
@@ -29,6 +30,7 @@ import { byDepartment, tally } from './departments';
     MatInputModule,
     MatProgressBarModule,
     MatTableModule,
+    BarChart,
     RelativeTimePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -78,6 +80,27 @@ export class ProductList {
     const total = `${counted(products, 'product')} in ${counted(placed.length, 'department')}`;
     return unassigned ? `${total} · ${unassigned} not in a department` : total;
   });
+
+  protected readonly chart = computed<BarRow[]>(() =>
+    this.departments.hasValue()
+      ? this.departments.value().map((department) => ({
+          label: department.name,
+          note: `${counted(department.pipelineCount, 'pipeline')} · ${counted(department.productCount, 'product')}`,
+          segments: [
+            {
+              swatch: 'active',
+              label: 'active',
+              count: department.activePipelineCount,
+            },
+            {
+              swatch: 'disabled',
+              label: 'invalidated',
+              count: department.pipelineCount - department.activePipelineCount,
+            },
+          ],
+        }))
+      : [],
+  );
 
   protected readonly errorMessage = errorMessage;
   protected readonly tally = tally;

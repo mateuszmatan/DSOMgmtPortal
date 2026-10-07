@@ -5,7 +5,6 @@ import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPor
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductSummary;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
-import com.bbh.itss.dso.portal.domain.shared.ConflictException;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -55,7 +54,8 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
 
     @Override
     public Product save(Product product) {
-        ProductEntity entity = product.id() == null ? new ProductEntity() : existing(product);
+        ProductEntity entity = product.id() == null ? new ProductEntity()
+                : AuditedEntity.current(products.findById(product.id()), product.version());
         entity.apply(product);
         if (product.id() != null) {
             entity.touch();
@@ -104,13 +104,6 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
         return departments.existsById(id);
     }
 
-    private ProductEntity existing(Product product) {
-        ProductEntity entity = products.findById(product.id()).orElseThrow(ConflictException::staleVersion);
-        if (entity.getVersion() != product.version()) {
-            throw ConflictException.staleVersion();
-        }
-        return entity;
-    }
 
     private static ProductIdentity identity(ProductEntity product) {
         return new ProductIdentity(product.getId(), product.name());

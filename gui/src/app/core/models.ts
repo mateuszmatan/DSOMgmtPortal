@@ -10,7 +10,16 @@ export type TestJobType = 'LOCAL' | 'REMOTE';
 export type Region = 'RD' | 'QC';
 export type BitbucketAuthType = 'BASIC' | 'BEARER';
 export type BitbucketType = 'SERVER' | 'CLOUD';
-export type FlutterPlatform = 'APK' | 'APPBUNDLE' | 'IOS' | 'MACOS' | 'LINUX' | 'WINDOWS' | 'WEB';
+export const FLUTTER_PLATFORMS = [
+  'APK',
+  'APPBUNDLE',
+  'IOS',
+  'MACOS',
+  'LINUX',
+  'WINDOWS',
+  'WEB',
+] as const;
+export type FlutterPlatform = (typeof FLUTTER_PLATFORMS)[number];
 export type Scanner = 'SAST' | 'SCA' | 'NEXUS_IQ' | 'DAST';
 export type CheckStatus =
   'PASS' | 'WARN' | 'FAIL' | 'BLOCKED' | 'NOT_REQUIRED' | 'SKIP' | 'NO_DATA';
@@ -555,6 +564,7 @@ export interface ProductHealth {
   code: string;
   name: string;
   ownerTeam: string | null;
+  departmentId: number | null;
   serviceCount: number;
   pipelineCount: number;
   overall: RunResult;
@@ -564,6 +574,12 @@ export interface ProductHealth {
 
 export interface MonitoringOverview {
   products: ProductHealth[];
+  metricsError: string | null;
+}
+
+export interface PortfolioActivity {
+  pipelines: number;
+  dora: DoraSummary;
   metricsError: string | null;
 }
 

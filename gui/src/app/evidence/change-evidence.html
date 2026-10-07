@@ -42,10 +42,8 @@
               <mat-panel-description>
                 <span>{{ product.ownerTeam ?? '' }}</span>
                 <span class="counts"
-                  >{{ product.serviceCount }}
-                  {{ product.serviceCount === 1 ? 'service' : 'services' }} ·
-                  {{ product.pipelineCount }}
-                  {{ product.pipelineCount === 1 ? 'pipeline' : 'pipelines' }}</span
+                  >{{ product.serviceCount | counted: 'service' }} ·
+                  {{ product.pipelineCount | counted: 'pipeline' }}</span
                 >
               </mat-panel-description>
               <span class="panel-toggle" aria-hidden="true">{{
@@ -64,22 +62,26 @@
                   </div>
                 }
                 <dl class="pairs product-facts">
-                  <dt>Owner team</dt>
-                  <dd>
-                    @if (e.ownerTeam) {
-                      {{ e.ownerTeam }}
-                    } @else {
-                      <span class="not-recorded">Not recorded</span>
-                    }
-                  </dd>
-                  <dt>Contact</dt>
-                  <dd>
-                    @if (e.contactEmail) {
-                      <a [href]="'mailto:' + e.contactEmail">{{ e.contactEmail }}</a>
-                    } @else {
-                      <span class="not-recorded">Not recorded</span>
-                    }
-                  </dd>
+                  <div>
+                    <dt>Owner team</dt>
+                    <dd>
+                      @if (e.ownerTeam) {
+                        {{ e.ownerTeam }}
+                      } @else {
+                        <span class="not-recorded">Not recorded</span>
+                      }
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Contact</dt>
+                    <dd>
+                      @if (e.contactEmail) {
+                        <a [href]="'mailto:' + e.contactEmail">{{ e.contactEmail }}</a>
+                      } @else {
+                        <span class="not-recorded">Not recorded</span>
+                      }
+                    </dd>
+                  </div>
                 </dl>
                 @for (service of e.services; track service.serviceId) {
                   <section class="service">

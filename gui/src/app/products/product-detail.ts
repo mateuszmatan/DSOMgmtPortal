@@ -23,7 +23,8 @@ import { Notifier } from '../core/notifier';
 import { bitbucketRepositoryUrl } from '../shared/bitbucket';
 import { CodeDialog, CodeDialogData } from '../shared/code-dialog';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
-import { RelativeTimePipe } from '../shared/formatting';
+import { TARGET_LABELS, TOOL_LABELS } from '../shared/fields';
+import { RelativeTimePipe, counted } from '../shared/formatting';
 import { GeneratedKeys } from './generated-keys';
 import { jenkinsfile } from './jenkinsfile';
 import { KeyHistoryDialog } from './key-history-dialog';
@@ -119,6 +120,8 @@ export class ProductDetail {
   protected readonly errorMessage = errorMessage;
 
   protected readonly typeLabel = pipelineTypeLabel;
+  protected readonly toolLabels = TOOL_LABELS;
+  protected readonly targetLabels = TARGET_LABELS;
 
   protected typeName(type: PipelineType): string {
     const label = this.typeLabel(type);
@@ -134,11 +137,7 @@ export class ProductDetail {
   }
 
   protected toggleKey(pipeline: Pipeline): void {
-    const revealed = new Set(this.revealed());
-    if (!revealed.delete(pipeline.id)) {
-      revealed.add(pipeline.id);
-    }
-    this.revealed.set(revealed);
+    this.revealed.update((ids) => withId(ids, pipeline.id, !ids.has(pipeline.id)));
   }
 
   protected dismissGenerated(): void {
@@ -244,16 +243,10 @@ export class ProductDetail {
   }
 
   protected regenerateKey(pipeline: Pipeline): void {
-    this.regenerating.set(new Set([...this.regenerating(), pipeline.id]));
+    this.regenerating.update((ids) => withId(ids, pipeline.id));
     this.pipelines
       .issueKey(pipeline.id)
-      .pipe(
-        finalize(() =>
-          this.regenerating.set(
-            new Set([...this.regenerating()].filter((id) => id !== pipeline.id)),
-          ),
-        ),
-      )
+      .pipe(finalize(() => this.regenerating.update((ids) => withId(ids, pipeline.id, false))))
       .subscribe({
         next: (updated) => {
           this.keyIssued(updated);
@@ -303,7 +296,7 @@ export class ProductDetail {
     this.confirm({
       title: `Delete ${product.name}?`,
       message:
-        `The product, its ${product.services.length} services and ${pipelines} pipelines with their keys are deleted. ` +
+        `The product, its ${counted(product.services.length, 'service')} and ${counted(pipelines, 'pipeline')} with their keys are deleted. ` +
         'Jenkins jobs using those keys stop working. This cannot be undone.',
       confirmLabel: 'Delete product',
       danger: true,
@@ -334,7 +327,7 @@ export class ProductDetail {
 
   private keyIssued(pipeline: Pipeline): void {
     this.replacePipeline(pipeline);
-    this.revealed.set(new Set([...this.revealed(), pipeline.id]));
+    this.revealed.update((ids) => withId(ids, pipeline.id));
   }
 
   private showGeneratedKeys(services: ServicePipelines[], newServices: readonly string[]): void {
@@ -393,4 +386,14 @@ export class ProductDetail {
       .afterClosed()
       .pipe(filter((confirmed) => confirmed === true));
   }
+}
+
+function withId(ids: ReadonlySet<number>, id: number, member = true): ReadonlySet<number> {
+  const next = new Set(ids);
+  if (member) {
+    next.add(id);
+  } else {
+    next.delete(id);
+  }
+  return next;
 }

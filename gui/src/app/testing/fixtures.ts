@@ -10,6 +10,7 @@ import {
   PipelineKey,
   PipelineMonitoring,
   PipelineRun,
+  PortfolioActivity,
   ProductHealth,
   ProductMonitoring,
   Product,
@@ -708,6 +709,7 @@ export function productHealth(overrides: Partial<ProductHealth> = {}): ProductHe
     code: 'CERT',
     name: 'CertScanner',
     ownerTeam: 'Technology Architecture',
+    departmentId: 3,
     serviceCount: 2,
     pipelineCount: 3,
     overall: 'SUCCESS',
@@ -721,6 +723,10 @@ export function monitoringOverview(
   overrides: Partial<MonitoringOverview> = {},
 ): MonitoringOverview {
   return { products: [productHealth()], metricsError: null, ...overrides };
+}
+
+export function portfolioActivity(overrides: Partial<PortfolioActivity> = {}): PortfolioActivity {
+  return { pipelines: 3, dora: doraSummary(), metricsError: null, ...overrides };
 }
 
 export function monitoringStatus(overrides: Partial<MonitoringStatus> = {}): MonitoringStatus {

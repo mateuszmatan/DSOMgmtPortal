@@ -101,6 +101,7 @@ describe('onboarding model', () => {
 
     expect(request.deployment.target).toBe('VM');
     expect(request.openShiftTargets).toEqual({});
+    expect(serviceRequest(added({ target: null }), 'SAST').deployment.target).toBe('VM');
   });
 
   it('changes only the name, description and AppScan application of a service in the portal', () => {

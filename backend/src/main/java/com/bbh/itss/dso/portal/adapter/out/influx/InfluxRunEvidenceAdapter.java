@@ -3,11 +3,11 @@ package com.bbh.itss.dso.portal.adapter.out.influx;
 import com.bbh.itss.dso.portal.application.evidence.port.out.RunEvidencePort;
 import com.bbh.itss.dso.portal.domain.evidence.EvidencePoint;
 import com.bbh.itss.dso.portal.domain.evidence.RunEvidence;
+import com.bbh.itss.dso.portal.domain.monitoring.MetricsRow;
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import org.springframework.stereotype.Component;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -21,7 +21,6 @@ import java.util.stream.IntStream;
 @Component
 class InfluxRunEvidenceAdapter implements RunEvidencePort {
 
-    private static final Duration TOLERANCE = Duration.ofSeconds(2);
     private static final String MEASUREMENT = "_measurement";
     private static final String TABLE = "run";
 
@@ -47,7 +46,7 @@ class InfluxRunEvidenceAdapter implements RunEvidencePort {
             Map<PipelineRun, List<EvidencePoint>> points = new HashMap<>();
             ordered.forEach(tagged -> points.put(tagged.run(), new ArrayList<>()));
             for (Map<String, String> row : influx.query(flux)) {
-                MetricsTag tag = InfluxRows.tag(row);
+                MetricsTag tag = MetricsRow.tag(row);
                 for (PipelineRun run : runs.getOrDefault(tag, Set.of())) {
                     if (belongsTo(row, run)) {
                         points.get(run).add(new EvidencePoint(row.get(MEASUREMENT), row));
@@ -80,8 +79,8 @@ class InfluxRunEvidenceAdapter implements RunEvidencePort {
                   |> filter(fn: (r) => %s)
                   |> filter(fn: (r) => not (r._measurement == "release_gate" and r._field == "allowed"))
                   |> last()
-                """.formatted(TABLE, index, influx.bucket(), Flux.string(startOf(run).toString()),
-                Flux.string(run.time().plus(TOLERANCE).toString()), Flux.string(tag.project()),
+                """.formatted(TABLE, index, influx.bucket(), Flux.string(RunEvidence.windowStart(run).toString()),
+                Flux.string(RunEvidence.windowEnd(run).toString()), Flux.string(tag.project()),
                 Flux.string(tag.env()), measurements());
     }
 
@@ -92,18 +91,8 @@ class InfluxRunEvidenceAdapter implements RunEvidencePort {
 
     static boolean belongsTo(Map<String, String> row, PipelineRun run) {
         String time = row.get("_time");
-        if (time == null || row.get(MEASUREMENT) == null) {
-            return false;
-        }
-        Instant at = Instant.parse(time);
-        Instant latest = run.time().plus(TOLERANCE);
-        Instant earliest = "stage_event".equals(row.get(MEASUREMENT)) ? startOf(run) : run.time().minus(TOLERANCE);
-        return !at.isBefore(earliest) && !at.isAfter(latest);
-    }
-
-    static Instant startOf(PipelineRun run) {
-        long seconds = run.durationSeconds() == null ? 0 : run.durationSeconds();
-        return run.time().minusSeconds(seconds).minus(TOLERANCE).minus(TOLERANCE);
+        return time != null && row.get(MEASUREMENT) != null
+                && RunEvidence.recordedDuring(run, row.get(MEASUREMENT), Instant.parse(time));
     }
 
     private record TaggedRun(MetricsTag tag, PipelineRun run) {

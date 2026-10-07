@@ -11,13 +11,13 @@ import {
 import { SHELL_SAFE_ERROR, SHELL_SAFE_URL_ERROR } from '../shared/form-controls';
 import { SettingsSectionId } from './settings-form-model';
 
-export interface SettingsBlock {
+interface SettingsBlock {
   heading: string;
   note: string;
   fields: Field[];
 }
 
-export interface SettingsSection {
+interface SettingsSection {
   id: SettingsSectionId;
   label: string;
   note: string;

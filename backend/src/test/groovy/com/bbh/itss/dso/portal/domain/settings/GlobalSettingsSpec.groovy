@@ -24,7 +24,7 @@ class GlobalSettingsSpec extends Specification {
         expect:
         GlobalSettings.bbhDefaults() == new GlobalSettings(BBH, 0, null)
         stored.platform() == BBH.platform()
-        stored.deployment() == BBH.deployment()
+        stored.values().deployment() == BBH.deployment()
         stored.jenkinsUrl() == null
         withJenkins.jenkinsUrl() == 'https://jenkins.bbh.com'
         new MissingGlobalSettingsException().message == 'The global settings are missing; the portal creates them at start-up'

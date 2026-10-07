@@ -29,6 +29,7 @@ public record PipelineSettings(List<String> agentLabels, String extendedPipeline
     }
 
     public void validate(ValidationProblems problems) {
+        problems.require("agentLabels", agentLabels, "add at least one Jenkins agent label");
         StoredList.COMMAS_1000.check(problems, "agentLabels", agentLabels);
     }
 
@@ -51,7 +52,7 @@ public record PipelineSettings(List<String> agentLabels, String extendedPipeline
         if (jenkinsJob == null) {
             return null;
         }
-        if (!isUrl(jenkinsJob)) {
+        if (!Text.isUrl(jenkinsJob)) {
             return segments(jenkinsJob).collect(Collectors.joining("/"));
         }
         String[] parts = jenkinsJob.replaceFirst("^https?://[^/]*", "").replaceFirst("[?#].*$", "").split("/");
@@ -69,7 +70,7 @@ public record PipelineSettings(List<String> agentLabels, String extendedPipeline
             return null;
         }
         String trimmed = job.trim();
-        if (isUrl(trimmed)) {
+        if (Text.isUrl(trimmed)) {
             return trimmed;
         }
         if (Text.isBlank(jenkinsUrl)) {
@@ -78,11 +79,7 @@ public record PipelineSettings(List<String> agentLabels, String extendedPipeline
         String path = segments(trimmed)
                 .map(segment -> "job/" + UriEncoding.pathSegment(segment))
                 .collect(Collectors.joining("/"));
-        return jenkinsUrl.replaceAll("/+$", "") + "/" + path + "/";
-    }
-
-    private static boolean isUrl(String job) {
-        return job.startsWith("http://") || job.startsWith("https://");
+        return Text.withoutTrailingSlash(jenkinsUrl) + "/" + path + "/";
     }
 
     private static Stream<String> segments(String path) {

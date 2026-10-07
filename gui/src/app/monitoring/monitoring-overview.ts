@@ -8,14 +8,20 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { map } from 'rxjs';
-import { MonitoringApi } from '../core/api';
+import { DepartmentsApi, MonitoringApi } from '../core/api';
 import { errorMessage } from '../core/errors';
-import { RunResult } from '../core/models';
+import { ProductHealth, RunResult } from '../core/models';
 import { MONITORING } from '../core/sections';
-import { RelativeTimePipe } from '../shared/formatting';
+import { byDepartment } from '../products/departments';
+import { BarChart, BarRow } from '../shared/bar-chart';
+import { CountedPipe, RelativeTimePipe, counted } from '../shared/formatting';
 import { StatusChip } from '../shared/status-chip';
+import { ActivityChart } from './activity-chart';
+import { DoraTiles } from './dora-tiles';
 import { MetricsBanner } from './metrics-banner';
 import { STATUS_ORDER, StatusBar } from './status-bar';
+
+const ACTIVITY_RANGE = '30d';
 
 @Component({
   selector: 'dso-monitoring-overview',
@@ -27,6 +33,10 @@ import { STATUS_ORDER, StatusBar } from './status-bar';
     MatInputModule,
     MatProgressBarModule,
     MatTooltipModule,
+    ActivityChart,
+    BarChart,
+    CountedPipe,
+    DoraTiles,
     MetricsBanner,
     RelativeTimePipe,
     StatusBar,
@@ -38,10 +48,13 @@ import { STATUS_ORDER, StatusBar } from './status-bar';
 })
 export class MonitoringOverview {
   private readonly api = inject(MonitoringApi);
+  private readonly departmentsApi = inject(DepartmentsApi);
 
   protected readonly section = MONITORING;
   protected readonly status = rxResource({ stream: () => this.api.status() });
   protected readonly overview = rxResource({ stream: () => this.api.overview() });
+  protected readonly departments = rxResource({ stream: () => this.departmentsApi.list() });
+  protected readonly activity = rxResource({ stream: () => this.api.activity(ACTIVITY_RANGE) });
 
   protected readonly search = new FormControl('', { nonNullable: true });
   private readonly query = toSignal(
@@ -67,26 +80,35 @@ export class MonitoringOverview {
       );
   });
 
-  protected readonly totals = computed(() => {
-    const totals: Partial<Record<RunResult, number>> = {};
-    if (this.overview.hasValue()) {
-      for (const product of this.overview.value().products) {
-        for (const [status, count] of Object.entries(product.statusCounts) as [
-          RunResult,
-          number,
-        ][]) {
-          totals[status] = (totals[status] ?? 0) + count;
-        }
-      }
-    }
-    return totals;
-  });
+  protected readonly groups = computed(() =>
+    this.departments.hasValue()
+      ? byDepartment(this.departments.value(), this.products()).filter(
+          (group) => group.products.length,
+        )
+      : [],
+  );
+
+  protected readonly departmentStatus = computed<BarRow[]>(() =>
+    this.overview.hasValue() && this.departments.hasValue()
+      ? byDepartment(this.departments.value(), this.overview.value().products).map((group) => {
+          const counts = statusTotals(group.products);
+          return {
+            label: group.name,
+            note: `${counted(pipelineCount(counts), 'pipeline')} · ${counted(group.products.length, 'product')}`,
+            segments: STATUS_ORDER.map((entry) => ({
+              swatch: entry.status.toLowerCase(),
+              label: entry.label.toLowerCase(),
+              count: counts[entry.status] ?? 0,
+            })),
+          };
+        })
+      : [],
+  );
 
   protected readonly tiles = computed(() => {
-    const totals = this.totals();
-    const pipelines = Object.values(totals).reduce((sum, count) => sum + (count ?? 0), 0);
+    const totals = statusTotals(this.overview.hasValue() ? this.overview.value().products : []);
     return [
-      { label: 'Pipelines', value: pipelines, tone: 'info' },
+      { label: 'Pipelines', value: pipelineCount(totals), tone: 'info' },
       { label: 'Succeeded', value: totals.SUCCESS ?? 0, tone: 'success' },
       {
         label: 'Failing or unstable',
@@ -103,5 +125,20 @@ export class MonitoringOverview {
   protected refresh(): void {
     this.status.reload();
     this.overview.reload();
+    this.activity.reload();
   }
+}
+
+function statusTotals(products: readonly ProductHealth[]): Partial<Record<RunResult, number>> {
+  const totals: Partial<Record<RunResult, number>> = {};
+  for (const product of products) {
+    for (const [status, count] of Object.entries(product.statusCounts) as [RunResult, number][]) {
+      totals[status] = (totals[status] ?? 0) + count;
+    }
+  }
+  return totals;
+}
+
+function pipelineCount(counts: Partial<Record<RunResult, number>>): number {
+  return Object.values(counts).reduce((sum, count) => sum + (count ?? 0), 0);
 }

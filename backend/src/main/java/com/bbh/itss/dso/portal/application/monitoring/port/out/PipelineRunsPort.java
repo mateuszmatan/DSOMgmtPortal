@@ -7,6 +7,7 @@ import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public interface PipelineRunsPort {
@@ -19,5 +20,5 @@ public interface PipelineRunsPort {
 
     List<PipelineRun> recentRuns(MetricsTag tag, String job, int days, int limit);
 
-    List<DoraPoint> doraPoints(MetricsTag tag, int days);
+    Map<MetricsTag, List<DoraPoint>> doraPoints(Collection<MetricsTag> tags, int days);
 }

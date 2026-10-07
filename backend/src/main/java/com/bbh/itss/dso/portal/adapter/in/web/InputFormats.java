@@ -24,6 +24,9 @@ final class InputFormats {
     static final String JOB_PATH = "^((?!.*\\.\\.)[A-Za-z0-9._ /-]+)?$";
     static final String JOB_PATH_MESSAGE = "must be a Jenkins job path such as DevSecOps/CertScanner-extended,"
             + " with letters, digits, spaces and . _ / - but no '..'";
+    static final String GIT_URL = "^(https?://\\S+|ssh://\\S+|git@\\S+)?$";
+    static final String MODULE = "^[A-Za-z0-9._/-]{1,100}$";
+    static final String MODULE_MESSAGE = "must be a module folder name";
     static final String NO_WHITESPACE = "^\\S*$";
     static final String NO_WHITESPACE_MESSAGE = "must not contain whitespace";
 

@@ -4,12 +4,12 @@ import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPor
 import com.bbh.itss.dso.portal.application.evidence.port.out.RunEvidencePort
 import com.bbh.itss.dso.portal.application.monitoring.MonitoringTargetsService
 import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort
+import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication
 import com.bbh.itss.dso.portal.domain.catalog.Product
-import com.bbh.itss.dso.portal.domain.catalog.Service
 import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
 import com.bbh.itss.dso.portal.domain.evidence.BuildEvidence
 import com.bbh.itss.dso.portal.domain.evidence.CheckStatus
@@ -64,7 +64,6 @@ class ChangeEvidenceServiceSpec extends Specification {
              nexusIqApplications: [NexusIqApplication.of('cert-gui', ['**/build/libs/*.war'])]],
             [name: 'backend-api', id: 11L],
             [name: 'batch', id: 12L]])
-    Service gui = certScanner.services()[0]
     Pipeline guiFull = pipeline(id: 100L, serviceId: 10L, jenkinsJob: 'DevSecOps/CERT/gui-full')
     Pipeline guiSast = pipeline(id: 101L, serviceId: 10L, type: PipelineType.SAST, keys: [revokedKey(reason: 'retired')])
     Pipeline apiFull = pipeline(id: 102L, serviceId: 11L)
@@ -249,7 +248,7 @@ class ChangeEvidenceServiceSpec extends Specification {
         def platform = GlobalSettingsValues.bbhDefaults().platform().withJenkinsUrl(jenkinsUrl)
 
         when:
-        def found = ChangeEvidenceService.pipeline(gui, linked, run, null, platform)
+        def found = ChangeEvidenceService.pipeline(PipelineView.of(certScanner, linked, jenkinsUrl), run, null, platform)
 
         then:
         found.jenkinsJobUrl() == jobUrl
@@ -275,7 +274,8 @@ class ChangeEvidenceServiceSpec extends Specification {
         def platform = GlobalSettingsValues.bbhDefaults().platform().withJenkinsUrl('https://jenkins.test')
 
         when:
-        def found = ChangeEvidenceService.pipeline(gui, guiFull, run, RunEvidence.none(), platform)
+        def found = ChangeEvidenceService.pipeline(PipelineView.of(certScanner, guiFull, 'https://jenkins.test'), run,
+                RunEvidence.none(), platform)
 
         then:
         found.status() == RunResult.FAILURE

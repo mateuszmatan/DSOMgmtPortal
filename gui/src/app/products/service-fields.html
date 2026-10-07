@@ -129,7 +129,7 @@
         @let scan = f.controls.appScan;
         <div class="form-fields">
           <dso-fields [group]="scan" [fields]="appScan" />
-          <dso-fields [group]="scan" [fields]="appScanSecretField()" />
+          <dso-fields [group]="scan" [fields]="appScanSecret" />
           <h4 class="sub-heading span-12">Static scan (SAST)</h4>
           <dso-fields [group]="scan" [fields]="appScanStatic" />
           <span class="span-6"></span>
@@ -256,7 +256,7 @@
       @case ('flutter') {
         @let flutterGroup = f.controls.flutter;
         <div class="form-fields">
-          <dso-fields [group]="flutterGroup" [fields]="flutterPlatformField()" />
+          <dso-fields [group]="flutterGroup" [fields]="flutterPlatform" />
           <dso-fields [group]="flutterGroup" [fields]="flutterModules" />
           <h4 class="sub-heading span-12">Credentials <code>build.credentialsId</code></h4>
           <dso-fields [group]="flutterGroup" [fields]="flutterCredentials" />

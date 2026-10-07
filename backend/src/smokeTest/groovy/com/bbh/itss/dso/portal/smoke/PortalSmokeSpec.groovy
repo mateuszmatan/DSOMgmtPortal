@@ -64,8 +64,9 @@ class PortalSmokeSpec extends Specification {
         then:
         departments.status == 200
         departments.json instanceof List
-        started == null || tallies.subMap(['AI Lab', 'Corporate Technology', 'Fund Services']) ==
-                ['AI Lab': [0, 0, 0, 0], 'Corporate Technology': [1, 2, 7, 7], 'Fund Services': [1, 4, 7, 6]]
+        started == null || tallies == ['AI Lab'              : [2, 4, 8, 8], 'Capital Partners': [2, 5, 9, 9],
+                                       'Corporate Technology': [2, 4, 10, 10], 'Custody': [2, 4, 8, 7],
+                                       'Fund Services'       : [2, 6, 11, 10]]
     }
 
     def "every product's services, pipelines, configuration and change evidence can be read"() {
@@ -130,12 +131,16 @@ class PortalSmokeSpec extends Specification {
         when:
         def status = api.get('/api/monitoring/status')
         def overview = api.get('/api/monitoring/products')
+        def activity = api.get('/api/monitoring/activity?range=30d')
 
         then:
         status.status == 200
         status.json.containsKey('influxConfigured')
         overview.status == 200
         overview.json.products instanceof List
+        activity.status == 200
+        activity.json.dora.daily.size() == 30
+        started == null || overview.json.products.every { it.lastRunAt } && activity.json.dora.runs > 0
     }
 
     @Requires({ PortalSmokeSpec.uiExpected() })

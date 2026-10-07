@@ -21,7 +21,7 @@ class ConfigPreviewSpec extends ProductPageSpecification {
         then:
         assertThat(dialog().locator('h2')).hasText('Configuration of the gui full pipeline')
         assertThat(dialog().locator('.subtitle')).containsText('Showing it here does not count as a use of the key.')
-        dialog().locator('pre.code').textContent() == yaml
+        dialog().locator('pre.code-block').textContent() == yaml
         api.requests('GET', '/api/pipelines/1/config').size() == 1
 
         when:
@@ -56,7 +56,7 @@ class ConfigPreviewSpec extends ProductPageSpecification {
 
         then:
         assertThat(dialog().locator('h2')).hasText('config.yaml of CertScanner')
-        dialog().locator('pre.code').textContent() == yaml
+        dialog().locator('pre.code-block').textContent() == yaml
 
         when:
         def download = page.waitForDownload { dialogButton('Download').click() }
@@ -78,7 +78,7 @@ class ConfigPreviewSpec extends ProductPageSpecification {
 
         then:
         assertThat(dialog().locator('h2')).hasText('Jenkinsfile')
-        dialog().locator('pre.code').textContent() ==
+        dialog().locator('pre.code-block').textContent() ==
                 "@Library('BbhDevSecOps@2.4') _\n\ndevSecOpsSASTScanningPipeline(pipelineKey: '2c0ca4f4-a1a6-472a-9685-0c75f22fe713')\n"
         ownErrors().isEmpty()
     }

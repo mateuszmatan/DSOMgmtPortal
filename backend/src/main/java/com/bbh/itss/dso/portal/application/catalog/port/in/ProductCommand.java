@@ -13,8 +13,4 @@ public record ProductCommand(Long version, ProductDetails details, AppScanAccoun
     public ProductCommand {
         services = services == null ? List.of() : List.copyOf(services);
     }
-
-    public ProductCommand(Long version, ProductDetails details, AppScanAccount appScan, List<ServiceDraft> services) {
-        this(version, details, appScan, services, null);
-    }
 }

@@ -1,5 +1,5 @@
 import { doraSummary } from '../testing/fixtures';
-import { doraTiles } from './pipeline-monitoring';
+import { doraTiles } from './dora-tiles';
 
 describe('doraTiles', () => {
   it('shows the four DORA metrics and that they are measured over deployments', () => {

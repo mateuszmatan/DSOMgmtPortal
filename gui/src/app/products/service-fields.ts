@@ -3,7 +3,7 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
-import { FlutterPlatform, GlobalSettings, REGIONS, Region } from '../core/models';
+import { FLUTTER_PLATFORMS, GlobalSettings, REGIONS, Region } from '../core/models';
 import {
   Field,
   Fields,
@@ -13,16 +13,18 @@ import {
   chips,
   choice,
   count,
-  fallback,
+  defaulted,
   formRevision,
   line,
   mono,
+  tristate,
 } from '../shared/fields';
 import {
   HTTP_URL_ERROR,
   POWERSHELL_PATH_ERROR,
   SHELL_SAFE_ERROR,
   addItem,
+  removeItem,
 } from '../shared/form-controls';
 import { GoldenFixFields } from './golden-fix-fields';
 import { OpenShiftTargetFields } from './openshift-target-fields';
@@ -99,6 +101,12 @@ const APP_SCAN: Field[] = [
   }),
   line('sastScanName', 'SAST scan name', 'sast.scanName', 6, {
     hint: 'left empty: the service name',
+  }),
+];
+
+const APP_SCAN_SECRET: Field[] = [
+  mono('secretCredentialsId', 'Secret text credentials ID', 'asoc.token', 6, {
+    hint: "the AppScan API key secret; left empty: the product's",
   }),
 ];
 
@@ -250,14 +258,17 @@ const FLUTTER_SONAR: Field[] = [
   check('sonarFlutterPlugin', 'Flutter plugin', 'tools.sonar.flutterPlugin', 4),
 ];
 
-const FLUTTER_PLATFORMS: FlutterPlatform[] = [
-  'APK',
-  'APPBUNDLE',
-  'IOS',
-  'MACOS',
-  'LINUX',
-  'WINDOWS',
-  'WEB',
+const FLUTTER_PLATFORM: Field[] = [
+  choice(
+    'platform',
+    'Platform',
+    [
+      { value: null, label: 'Library default' },
+      ...FLUTTER_PLATFORMS.map((platform) => ({ value: platform, label: platform.toLowerCase() })),
+    ],
+    'flutter.platform',
+    4,
+  ),
 ];
 
 @Component({
@@ -291,6 +302,7 @@ export class ServiceFields {
   protected readonly regionNames = REGION_NAMES;
   protected readonly general = GENERAL;
   protected readonly appScan = APP_SCAN;
+  protected readonly appScanSecret = APP_SCAN_SECRET;
   protected readonly appScanStatic = APP_SCAN_STATIC;
   protected readonly appScanFlags = APP_SCAN_FLAGS;
   protected readonly dastEnabled = DAST_ENABLED;
@@ -301,6 +313,7 @@ export class ServiceFields {
   protected readonly flutterModules = FLUTTER_MODULES;
   protected readonly flutterCredentials = FLUTTER_CREDENTIALS;
   protected readonly flutterSonar = FLUTTER_SONAR;
+  protected readonly flutterPlatform = FLUTTER_PLATFORM;
 
   protected readonly sections = computed(() => {
     this.changes();
@@ -311,12 +324,12 @@ export class ServiceFields {
     }));
   });
 
-  protected current(): ServiceSectionId {
+  protected readonly current = computed<ServiceSectionId>(() => {
     const id = this.selected();
-    return visibleSections(this.form()).some((section) => section.id === id) ? id : 'general';
-  }
+    return this.sections().some((section) => section.id === id) ? id : 'general';
+  });
 
-  protected pane(): { label: string; note: string } {
+  protected readonly pane = computed(() => {
     const id = this.current();
     const section = this.sections().find((candidate) => candidate.id === id);
     const coverage = this.defaults()?.scans.coverageMinLine;
@@ -327,7 +340,7 @@ export class ServiceFields {
         : ' Its environments are set under OpenShift targets.',
     };
     return { label: section?.label ?? '', note: chips(NOTES[id] + (extra[id] ?? '')) };
-  }
+  });
 
   protected select(id: ServiceSectionId): void {
     this.selected.set(id);
@@ -417,14 +430,9 @@ export class ServiceFields {
     const deployment = this.defaults()?.deployment;
     const host = region === 'RD' ? deployment?.rdHost : deployment?.qcHost;
     return [
-      mono('host', 'Host', 'host', 4, {
-        placeholder: host ?? '',
-        hint: fallback(host),
-        error: SHELL_SAFE_ERROR,
-      }),
+      mono('host', 'Host', 'host', 4, { ...defaulted(host), error: SHELL_SAFE_ERROR }),
       mono('user', 'User', 'user', 3, {
-        placeholder: deployment?.sshUser ?? '',
-        hint: fallback(deployment?.sshUser),
+        ...defaulted(deployment?.sshUser),
         error: SHELL_SAFE_ERROR,
       }),
       mono('deployDir', 'Deployment folder', 'deployDir', 5, {
@@ -432,13 +440,11 @@ export class ServiceFields {
         error: SHELL_SAFE_ERROR,
       }),
       mono('deployScript', 'Deployment script', 'deployScript', 6, {
-        placeholder: deployment?.deployScript ?? '',
-        hint: fallback(deployment?.deployScript),
+        ...defaulted(deployment?.deployScript),
         error: SHELL_SAFE_ERROR,
       }),
       mono('versionFile', 'Version file', 'versionFile', 6, {
-        placeholder: deployment?.versionFile ?? '',
-        hint: fallback(deployment?.versionFile),
+        ...defaulted(deployment?.versionFile),
         error: SHELL_SAFE_ERROR,
       }),
     ];
@@ -446,21 +452,22 @@ export class ServiceFields {
 
   protected sonarFields(): Field[] {
     const platform = this.defaults()?.platform;
-    const installation = platform?.sonarInstallationName;
     return [
       line('serverUrl', 'Server URL', 'tools.sonar.serverUrl', 12, {
-        placeholder: platform?.sonarServerUrl ?? '',
-        hint: fallback(platform?.sonarServerUrl),
+        ...defaulted(platform?.sonarServerUrl),
         error: HTTP_URL_ERROR,
       }),
       line('projectName', 'Project name', 'tools.sonar.projectName', 6),
       mono('projectKey', 'Project key', 'tools.sonar.projectKey', 6, {
         error: "Letters, digits, '-', '_', '.' and ':' with at least one non-digit",
       }),
-      line('installationName', 'Jenkins installation', 'tools.sonar.installationName', 4, {
-        placeholder: installation ?? '',
-        hint: fallback(installation),
-      }),
+      line(
+        'installationName',
+        'Jenkins installation',
+        'tools.sonar.installationName',
+        4,
+        defaulted(platform?.sonarInstallationName),
+      ),
       mono('credentialsId', 'Credentials ID', 'tools.sonar.credentialsId', 4),
       mono('authTokenCredentialsId', 'Token credentials ID', 'tools.sonar.authToken', 4),
       mono('badgeToken', 'Badge token', 'tools.sonar.badgeToken', 4, {
@@ -476,14 +483,16 @@ export class ServiceFields {
     const platform = this.defaults()?.platform;
     return [
       line('serverUrl', 'Server URL', 'tools.nexusIq.serverUrl', 5, {
-        placeholder: platform?.nexusIqServerUrl ?? '',
-        hint: fallback(platform?.nexusIqServerUrl),
+        ...defaulted(platform?.nexusIqServerUrl),
         error: HTTP_URL_ERROR,
       }),
-      mono('credentialsId', 'Credentials ID', 'tools.nexusIq.credentialsId', 3, {
-        placeholder: platform?.nexusIqCredentialsId ?? '',
-        hint: fallback(platform?.nexusIqCredentialsId),
-      }),
+      mono(
+        'credentialsId',
+        'Credentials ID',
+        'tools.nexusIq.credentialsId',
+        3,
+        defaulted(platform?.nexusIqCredentialsId),
+      ),
       line('scaScanName', 'SCA scan name', 'sca.scanName', 4),
     ];
   }
@@ -495,20 +504,10 @@ export class ServiceFields {
 
   protected addNexusIqApplication(): void {
     addItem(this.form().controls.nexusIqApplications, createNexusIqApplicationForm());
-    this.form().markAsDirty();
   }
 
   protected removeNexusIqApplication(index: number): void {
-    this.form().controls.nexusIqApplications.removeAt(index);
-    this.form().markAsDirty();
-  }
-
-  protected appScanSecretField(): Field[] {
-    return [
-      mono('secretCredentialsId', 'Secret text credentials ID', 'asoc.token', 6, {
-        hint: "the AppScan API key secret; left empty: the product's",
-      }),
-    ];
+    removeItem(this.form().controls.nexusIqApplications, index);
   }
 
   protected goldenFixField(): Field[] {
@@ -517,11 +516,7 @@ export class ServiceFields {
       choice(
         'enabled',
         'Run GoldenFix',
-        [
-          { value: null, label: 'Global default' },
-          { value: true, label: 'On' },
-          { value: false, label: 'Off' },
-        ],
+        tristate('Global default', 'On', 'Off'),
         'goldenFix.enabled',
         4,
         { hint: enabled === undefined ? '' : `Global default: ${enabled ? 'on' : 'off'}` },
@@ -542,23 +537,17 @@ export class ServiceFields {
         error: "Letters, digits, '.', '-' and '_'",
       }),
       line('influxUrl', 'InfluxDB write URL', 'influx.url', 8, {
-        placeholder: platform?.influxWriteUrl ?? '',
-        hint: fallback(platform?.influxWriteUrl),
+        ...defaulted(platform?.influxWriteUrl),
         error: HTTP_URL_ERROR,
       }),
-      mono('influxCredentialsId', 'Credentials ID', 'influx.credentialsId', 4, {
-        placeholder: platform?.influxCredentialsId ?? '',
-        hint: fallback(platform?.influxCredentialsId),
-      }),
+      mono(
+        'influxCredentialsId',
+        'Credentials ID',
+        'influx.credentialsId',
+        4,
+        defaulted(platform?.influxCredentialsId),
+      ),
     ];
-  }
-
-  protected flutterPlatformField(): Field[] {
-    const options = [
-      { value: null, label: 'Library default' },
-      ...FLUTTER_PLATFORMS.map((platform) => ({ value: platform, label: platform.toLowerCase() })),
-    ];
-    return [choice('platform', 'Platform', options, 'flutter.platform', 4)];
   }
 
   protected flutterDelivery(): Field[] {

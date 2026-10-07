@@ -82,14 +82,14 @@ export const PRODUCT_MODES: readonly Choice<ProductMode>[] = [
 ];
 
 export const OPENSHIFT_PROJECT = /^[a-z0-9]([-a-z0-9]{0,48}[a-z0-9])?$/;
-export const BUILD_TASKS: Record<BuildTool, string> = {
+const BUILD_TASKS: Record<BuildTool, string> = {
   GRADLE: 'clean build',
   MAVEN: 'clean verify',
   FLUTTER: '',
 };
-export const MAVEN_ARTIFACT = 'target/*.jar';
-export const MAVEN_DELIVERY = 'deploy:deploy-file';
-export const IMAGE_REGISTRY = 'docker-qc.tools.bbh.com';
+const MAVEN_ARTIFACT = 'target/*.jar';
+const MAVEN_DELIVERY = 'deploy:deploy-file';
+const IMAGE_REGISTRY = 'docker-qc.tools.bbh.com';
 
 export function pipelineLabel(pipeline: OnboardingPipeline): string {
   return PIPELINES.find((option) => option.value === pipeline)!.label;
@@ -116,7 +116,7 @@ export interface OnboardingService {
   description: string;
   appScanId: string;
   tool: BuildTool;
-  target: DeployTarget;
+  target: DeployTarget | null;
   openShiftProject: string;
 }
 
@@ -135,7 +135,7 @@ export function fromService(service: Service): OnboardingService {
 export function deploysWith(
   pipeline: OnboardingPipeline,
   service: OnboardingService,
-): DeployTarget {
+): DeployTarget | null {
   return pipeline === 'SAST' && service.id === null ? 'VM' : service.target;
 }
 
@@ -181,7 +181,7 @@ export function serviceRequest(
     appScan: { applicationId: service.appScanId },
   });
   if (!existing) {
-    const target = deploysWith(pipeline, service);
+    const target = deploysWith(pipeline, service) ?? 'VM';
     const openShift = target === 'OPENSHIFT';
     form.patchValue({
       build: {

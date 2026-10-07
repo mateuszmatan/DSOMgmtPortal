@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,8 +22,13 @@ public final class DoraCalculator {
     private DoraCalculator() {
     }
 
-    public static DoraSummary summarize(List<DoraPoint> unsorted, int rangeDays, Instant now) {
-        List<DoraPoint> points = unsorted.stream().sorted(Comparator.comparing(DoraPoint::time)).toList();
+    public static DoraSummary summarize(List<DoraPoint> points, int rangeDays, Instant now) {
+        return summarizeAll(List.of(points), rangeDays, now);
+    }
+
+    public static DoraSummary summarizeAll(Collection<List<DoraPoint>> series, int rangeDays, Instant now) {
+        List<DoraPoint> points = series.stream().flatMap(List::stream).sorted(Comparator.comparing(DoraPoint::time))
+                .toList();
         int runs = points.size();
         int deployments = (int) points.stream().filter(DoraPoint::deployment).count();
         Double perWeek = rangeDays > 0 ? deployments * 7.0 / rangeDays : null;
@@ -36,14 +42,10 @@ public final class DoraCalculator {
 
         List<Long> restoreTimes = new ArrayList<>();
         Instant failingSince = null;
-        for (DoraPoint point : deployed) {
-            if (point.changeFailure()) {
-                if (failingSince == null) {
-                    failingSince = point.time();
-                }
-            } else if (failingSince != null) {
-                restoreTimes.add(point.time().getEpochSecond() - failingSince.getEpochSecond());
-                failingSince = null;
+        for (List<DoraPoint> one : series) {
+            Instant failing = restores(one, restoreTimes);
+            if (failing != null && (failingSince == null || failing.isBefore(failingSince))) {
+                failingSince = failing;
             }
         }
         Long mttr = restoreTimes.isEmpty() ? null
@@ -58,6 +60,22 @@ public final class DoraCalculator {
                 cfr, cfr == null ? null : changeFailureRateLevel(cfr),
                 mttr, mttr == null ? null : timeToRestoreLevel(mttr),
                 restoreTimes.size(), failingSince, averageDuration, daily(points, rangeDays, now));
+    }
+
+    private static Instant restores(List<DoraPoint> points, List<Long> restoreTimes) {
+        Instant failingSince = null;
+        for (DoraPoint point : points.stream().filter(DoraPoint::deployment)
+                .sorted(Comparator.comparing(DoraPoint::time)).toList()) {
+            if (point.changeFailure()) {
+                if (failingSince == null) {
+                    failingSince = point.time();
+                }
+            } else if (failingSince != null) {
+                restoreTimes.add(point.time().getEpochSecond() - failingSince.getEpochSecond());
+                failingSince = null;
+            }
+        }
+        return failingSince;
     }
 
     static DoraLevel deploymentFrequencyLevel(double perWeek) {

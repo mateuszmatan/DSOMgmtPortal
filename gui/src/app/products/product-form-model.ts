@@ -33,7 +33,6 @@ import {
   UrbanCodeComponent,
 } from '../core/models';
 import {
-  HTTP_URL,
   IMAGE_TAG,
   INT_MAX,
   INT_MIN,
@@ -41,12 +40,14 @@ import {
   Sent,
   applyFieldProblems,
   eachItem,
+  filled,
   fitsColumn,
   flag,
   integer,
   joinLines,
   joinWords,
   lines,
+  max,
   maxLines,
   maxWords,
   optional,
@@ -59,10 +60,9 @@ import {
   setEnabled,
   shellSafe,
   text,
+  url,
   words,
 } from '../shared/form-controls';
-
-export { HTTP_URL, applyFieldProblems, controlAt } from '../shared/form-controls';
 
 export const PRODUCT_CODE = /^[A-Z][A-Z0-9_-]{1,49}$/;
 export const SERVICE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
@@ -113,7 +113,7 @@ export function createToolCommandForm(command?: Partial<ToolCommand> | null) {
       eachItem(tokenLines, upTo(300), 'At most 300 characters per flag'),
       fitsColumn(tokenLines, '\n', 2000),
     ),
-    directory: text(command?.directory, Validators.maxLength(500)),
+    directory: text(command?.directory, max(500)),
     mavenHome: shellSafe(command?.mavenHome, 500),
     environment: text(
       joinLines(command?.environment),
@@ -122,7 +122,7 @@ export function createToolCommandForm(command?: Partial<ToolCommand> | null) {
       eachItem(tokenLines, upTo(500), 'At most 500 characters per variable'),
       fitsColumn(tokenLines, '\n', 4000),
     ),
-    label: text(command?.label, Validators.maxLength(200)),
+    label: text(command?.label, max(200)),
     returnStdout: flag(command?.returnStdout),
   });
 }
@@ -169,32 +169,28 @@ const REMOTE_ONLY = Object.keys(LOCAL_JOB) as (keyof typeof LOCAL_JOB)[];
 export function createTestJobForm(job?: Partial<TestJob> | null) {
   const form = new FormGroup({
     stage: new FormControl<TestStage>(job?.stage ?? 'SMOKE', { nonNullable: true }),
-    name: text(job?.name, Validators.maxLength(200)),
+    name: text(job?.name, max(200)),
     type: new FormControl<TestJobType | null>(job?.type ?? null),
-    job: text(job?.job, Validators.required, Validators.maxLength(1000)),
+    job: text(job?.job, filled, max(1000)),
     timeoutMinutes: integer(job?.timeoutMinutes, 1, INT_MAX),
     parameters: text(
       job?.parameters,
-      Validators.maxLength(2000),
+      max(2000),
       eachItem(parameterLines, JOB_PARAMETER, 'Write each parameter as NAME=value'),
     ),
     remoteJenkins: text(
       job?.remoteJenkins,
-      Validators.maxLength(200),
+      max(200),
       requiredWhen(
         (j) =>
           j['type'] === 'REMOTE' && !isJobUrl(j['job']) && !optional(String(j['remoteJenkinsUrl'])),
         REMOTE_JENKINS_MESSAGE,
       ),
     ),
-    remoteJenkinsUrl: text(
-      job?.remoteJenkinsUrl,
-      Validators.pattern(HTTP_URL),
-      Validators.maxLength(1000),
-    ),
-    credentialsId: text(job?.credentialsId, Validators.maxLength(200)),
+    remoteJenkinsUrl: url(job?.remoteJenkinsUrl),
+    credentialsId: text(job?.credentialsId, max(200)),
     pollIntervalSec: integer(job?.pollIntervalSec, 1, INT_MAX),
-    tokenCredentialsId: text(job?.tokenCredentialsId, Validators.maxLength(200)),
+    tokenCredentialsId: text(job?.tokenCredentialsId, max(200)),
     abortTriggeredJob: flag(job?.abortTriggeredJob),
     overrideTrustAllCertificates: flag(job?.overrideTrustAllCertificates),
     preventRemoteBuildQueue: flag(job?.preventRemoteBuildQueue),
@@ -203,9 +199,9 @@ export function createTestJobForm(job?: Partial<TestJob> | null) {
     useJobInfoCache: flag(job?.useJobInfoCache),
   });
   const { type, remoteJenkins, remoteJenkinsUrl } = form.controls;
-  revalidateOnChange(type, remoteJenkins);
-  revalidateOnChange(form.controls.job, remoteJenkins);
-  revalidateOnChange(remoteJenkinsUrl, remoteJenkins);
+  [type, form.controls.job, remoteJenkinsUrl].forEach((source) =>
+    revalidateOnChange(source, remoteJenkins),
+  );
   const syncRemote = () =>
     REMOTE_ONLY.forEach((key) => setEnabled(form.controls[key], isRemoteJob(form)));
   type.valueChanges.subscribe(syncRemote);
@@ -229,26 +225,20 @@ export function toTestJob(form: TestJobForm): TestJob {
 
 export function createUrbanCodeComponentForm(component?: Partial<UrbanCodeComponent> | null) {
   return new FormGroup({
-    componentName: text(component?.componentName, Validators.required, Validators.maxLength(200)),
-    baseDir: text(component?.baseDir, Validators.required, Validators.maxLength(500)),
-    fileIncludePatterns: text(
-      component?.fileIncludePatterns,
-      Validators.required,
-      Validators.maxLength(500),
-    ),
-    fileExcludePatterns: text(component?.fileExcludePatterns, Validators.maxLength(500)),
-    versionPrefix: text(component?.versionPrefix, Validators.maxLength(200)),
-    version: text(component?.version, Validators.maxLength(200)),
+    componentName: text(component?.componentName, filled, max(200)),
+    baseDir: text(component?.baseDir, filled, max(500)),
+    fileIncludePatterns: text(component?.fileIncludePatterns, filled, max(500)),
+    fileExcludePatterns: text(component?.fileExcludePatterns, max(500)),
+    versionPrefix: text(component?.versionPrefix, max(200)),
+    version: text(component?.version, max(200)),
     incrementalVersion: flag(component?.incrementalVersion, true),
-    extensions: text(component?.extensions, Validators.maxLength(200)),
-    charset: text(component?.charset, Validators.maxLength(50)),
-    pushDescription: text(component?.pushDescription, Validators.maxLength(1000)),
-    versionProperties: text(component?.versionProperties, Validators.maxLength(2000)),
-    versionDescription: text(component?.versionDescription, Validators.maxLength(1000)),
+    extensions: text(component?.extensions, max(200)),
+    charset: text(component?.charset, max(50)),
+    pushDescription: text(component?.pushDescription, max(1000)),
+    versionProperties: text(component?.versionProperties, max(2000)),
+    versionDescription: text(component?.versionDescription, max(1000)),
   });
 }
-
-export type UrbanCodeComponentForm = ReturnType<typeof createUrbanCodeComponentForm>;
 
 export function createUrbanCodeApplicationForm(
   application?: Partial<UrbanCodeApplicationSettings> | null,
@@ -257,28 +247,24 @@ export function createUrbanCodeApplicationForm(
   const threeState = (value: boolean | null | undefined) =>
     new FormControl<boolean | null>(value ?? null);
   return new FormGroup({
-    applicationName: text(
-      application?.applicationName,
-      Validators.required,
-      Validators.maxLength(200),
-    ),
+    applicationName: text(application?.applicationName, filled, max(200)),
     order: integer(application?.order, INT_MIN, INT_MAX),
     environments: text(
       joinWords(application?.environments, ', '),
       maxWords(20),
       eachItem(words, UCD_ENVIRONMENT, "Use letters, digits, '-' and '_', at most 20 characters"),
     ),
-    snapshotName: text(application?.snapshotName, Validators.maxLength(200)),
-    siteName: text(application?.siteName, Validators.maxLength(200)),
-    deployProcess: text(application?.deployProcess, Validators.maxLength(200)),
+    snapshotName: text(application?.snapshotName, max(200)),
+    siteName: text(application?.siteName, max(200)),
+    deployProcess: text(application?.deployProcess, max(200)),
     skipWait: threeState(application?.skipWait),
     deployWithSnapshot: threeState(application?.deployWithSnapshot),
     updateSnapshotComponents: threeState(application?.updateSnapshotComponents),
     includeOnlyDeployVersions: threeState(application?.includeOnlyDeployVersions),
     deployOnlyChanged: threeState(application?.deployOnlyChanged),
-    deployDescription: text(application?.deployDescription, Validators.maxLength(1000)),
-    description: text(application?.description, Validators.maxLength(1000)),
-    requestProperties: text(application?.requestProperties, Validators.maxLength(2000)),
+    deployDescription: text(application?.deployDescription, max(1000)),
+    description: text(application?.description, max(1000)),
+    requestProperties: text(application?.requestProperties, max(2000)),
     components: new FormArray(
       components.map(createUrbanCodeComponentForm),
       requiredRule('Add at least one component'),
@@ -299,24 +285,23 @@ function toUrbanCodeApplication(form: UrbanCodeApplicationForm): UrbanCodeApplic
 
 export function createNexusIqApplicationForm(application?: Partial<NexusIqApplication> | null) {
   return new FormGroup({
-    application: text(application?.application, Validators.required, Validators.maxLength(200)),
+    application: text(
+      application?.application,
+      filled,
+      max(200),
+      unique('application', SAME_APPLICATION),
+    ),
     scanPatterns: text(
       joinLines(application?.scanPatterns),
-      Validators.required,
+      filled,
       maxLines(20),
       eachItem(lines, upTo(300), 'At most 300 characters per pattern'),
       fitsColumn(lines, '\n', 2000),
     ),
-    stage: text(
-      application?.stage ?? 'build',
-      Validators.pattern(NEXUS_STAGE),
-      Validators.maxLength(50),
-    ),
+    stage: text(application?.stage ?? 'build', Validators.pattern(NEXUS_STAGE), max(50)),
     failOnNetworkError: flag(application?.failOnNetworkError),
   });
 }
-
-export type NexusIqApplicationForm = ReturnType<typeof createNexusIqApplicationForm>;
 
 export function createSshTargetForm(target?: Partial<SshTarget> | null) {
   return new FormGroup({
@@ -328,8 +313,6 @@ export function createSshTargetForm(target?: Partial<SshTarget> | null) {
   });
 }
 
-export type SshTargetForm = ReturnType<typeof createSshTargetForm>;
-
 export const OPENSHIFT_RD_REQUIRED: readonly (keyof OpenShiftTarget)[] = [
   'projectBuild',
   'buildConfigPath',
@@ -340,11 +323,9 @@ export const OPENSHIFT_RD_REQUIRED: readonly (keyof OpenShiftTarget)[] = [
 ];
 
 export function createOpenShiftTargetForm(
-  target?: Partial<OpenShiftTarget> | null,
+  t?: Partial<OpenShiftTarget> | null,
   required: readonly (keyof OpenShiftTarget)[] = [],
 ) {
-  const t = target;
-  const max = (length: number) => Validators.maxLength(length);
   const form = new FormGroup({
     projectBuild: text(t?.projectBuild, max(200)),
     buildConfigPath: shellSafe(t?.buildConfigPath, 500),
@@ -369,7 +350,7 @@ export function createOpenShiftTargetForm(
     internalDockerUrl: text(t?.internalDockerUrl, Validators.pattern(IMAGE_TAG), max(500)),
   });
   required.forEach((key) => {
-    form.controls[key].addValidators(Validators.required);
+    form.controls[key].addValidators(filled);
     form.controls[key].updateValueAndValidity();
   });
   return form;
@@ -378,8 +359,8 @@ export function createOpenShiftTargetForm(
 export type OpenShiftTargetForm = ReturnType<typeof createOpenShiftTargetForm>;
 
 export function goldenFixControls(policy?: Partial<GoldenFixPolicy> | null, complete = false) {
-  const required = complete ? [Validators.required] : [];
-  const command = (value: string | null | undefined) => text(value, Validators.maxLength(500));
+  const required = complete ? [filled] : [];
+  const command = (value: string | null | undefined) => text(value, max(500));
   return {
     onlyDirectDependencies: new FormControl<boolean | null>(
       policy?.onlyDirectDependencies ?? null,
@@ -411,14 +392,9 @@ export function goldenFixControls(policy?: Partial<GoldenFixPolicy> | null, comp
     verifyNpmCommand: command(policy?.verifyNpmCommand),
     verifyPipCommand: command(policy?.verifyPipCommand),
     verifyPubCommand: command(policy?.verifyPubCommand),
-    commitAuthorName: text(policy?.commitAuthorName, ...required, Validators.maxLength(200)),
-    commitAuthorEmail: text(
-      policy?.commitAuthorEmail,
-      ...required,
-      Validators.email,
-      Validators.maxLength(320),
-    ),
-    timeZone: text(policy?.timeZone, Validators.pattern(TIME_ZONE), Validators.maxLength(100)),
+    commitAuthorName: text(policy?.commitAuthorName, ...required, max(200)),
+    commitAuthorEmail: text(policy?.commitAuthorEmail, ...required, Validators.email, max(320)),
+    timeZone: text(policy?.timeZone, Validators.pattern(TIME_ZONE), max(100)),
   };
 }
 
@@ -488,12 +464,7 @@ export function toServiceGoldenFixPolicy(form: ServiceGoldenFixForm): GoldenFixP
   return { enabled, ...(inherit ? NO_GOLDEN_FIX_OVERRIDES : toGoldenFixOverrides(overrides)) };
 }
 
-export function createServiceForm(
-  service?: Partial<ServiceRequest>,
-  defaults?: ServiceDefaults | null,
-) {
-  const s = service;
-  const max = (length: number) => Validators.maxLength(length);
+export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: ServiceDefaults | null) {
   const folders = (values: string[] | undefined) =>
     text(
       joinLines(values),
@@ -510,12 +481,10 @@ export function createServiceForm(
       fitsColumn(lines, '\n', 1000),
     );
   const parallel = (value: number | null | undefined) => integer(value, 1, INT_MAX);
-  const url = (value: string | null | undefined) =>
-    text(value, Validators.pattern(HTTP_URL), max(1000));
 
   const form = new FormGroup({
     id: new FormControl<number | null>(s?.id ?? null),
-    name: text(s?.name, Validators.required, Validators.pattern(SERVICE_NAME), uniqueName),
+    name: text(s?.name, filled, Validators.pattern(SERVICE_NAME), unique('name', SAME_NAME)),
     description: text(s?.description, max(2000)),
     build: new FormGroup({
       tool: new FormControl<BuildTool>(s?.build?.tool ?? defaults?.buildTool ?? 'GRADLE', {
@@ -581,7 +550,7 @@ export function createServiceForm(
       QC: createOpenShiftTargetForm(s?.openShiftTargets?.QC),
     }),
     appScan: new FormGroup({
-      applicationId: text(s?.appScan?.applicationId, Validators.required, Validators.pattern(UUID)),
+      applicationId: text(s?.appScan?.applicationId, filled, Validators.pattern(UUID)),
       sastScanName: text(s?.appScan?.sastScanName, max(200)),
       includedDirs: folders(s?.appScan?.includedDirs),
       excludedDirs: folders(s?.appScan?.excludedDirs),
@@ -593,7 +562,7 @@ export function createServiceForm(
       compileCommand: createToolCommandForm(s?.appScan?.compileCommand),
       dastEnabled: flag(s?.appScan?.dastEnabled),
       dastScanName: text(s?.appScan?.dastScanName, max(200)),
-      dastTargetUrl: text(s?.appScan?.dastTargetUrl, Validators.pattern(HTTP_URL), max(1000)),
+      dastTargetUrl: url(s?.appScan?.dastTargetUrl),
       dastPresenceId: text(s?.appScan?.dastPresenceId, max(100)),
       secretCredentialsId: text(s?.appScan?.secretCredentialsId, max(200)),
     }),
@@ -618,7 +587,7 @@ export function createServiceForm(
       (s?.nexusIqApplications ?? []).map(createNexusIqApplicationForm),
     ),
     scm: new FormGroup({
-      repositoryUrl: text(s?.scm?.repositoryUrl, Validators.pattern(HTTP_URL), max(1000)),
+      repositoryUrl: url(s?.scm?.repositoryUrl),
       credentialsId: text(s?.scm?.credentialsId, max(200)),
       authType: new FormControl<BitbucketAuthType>(s?.scm?.authType ?? 'BASIC', {
         nonNullable: true,
@@ -632,7 +601,7 @@ export function createServiceForm(
         eachItem(words, upTo(100), 'At most 100 characters per reviewer'),
         fitsColumn(words, ',', 2000),
       ),
-      apiUrl: text(s?.scm?.apiUrl, Validators.pattern(HTTP_URL), max(1000)),
+      apiUrl: url(s?.scm?.apiUrl),
       workspace: text(s?.scm?.workspace, Validators.pattern(BITBUCKET_NAME), max(200)),
       projectKey: text(s?.scm?.projectKey, Validators.pattern(BITBUCKET_NAME), max(200)),
       repoSlug: text(s?.scm?.repoSlug, Validators.pattern(BITBUCKET_NAME), max(200)),
@@ -647,25 +616,17 @@ export function createServiceForm(
     }),
     flutter: new FormGroup({
       platform: new FormControl<FlutterPlatform | null>(s?.flutter?.platform ?? null),
-      modules: modules(s?.flutter?.modules, Validators.required),
-      testModules: modules(s?.flutter?.testModules, Validators.required),
+      modules: modules(s?.flutter?.modules, filled),
+      testModules: modules(s?.flutter?.testModules, filled),
       testSubmodules: modules(s?.flutter?.testSubmodules),
       testSubplugins: modules(s?.flutter?.testSubplugins),
       signingPasswordCredentialsId: text(
         s?.flutter?.signingPasswordCredentialsId,
-        Validators.required,
+        filled,
         max(200),
       ),
-      prodLicenseCredentialsId: text(
-        s?.flutter?.prodLicenseCredentialsId,
-        Validators.required,
-        max(200),
-      ),
-      testLicenseCredentialsId: text(
-        s?.flutter?.testLicenseCredentialsId,
-        Validators.required,
-        max(200),
-      ),
+      prodLicenseCredentialsId: text(s?.flutter?.prodLicenseCredentialsId, filled, max(200)),
+      testLicenseCredentialsId: text(s?.flutter?.testLicenseCredentialsId, filled, max(200)),
       deliveryGroup: shellSafe(s?.flutter?.deliveryGroup, 200),
       deliveryArtifact: shellSafe(s?.flutter?.deliveryArtifact, 200),
       deliveryPlugin: shellSafe(s?.flutter?.deliveryPlugin, 300),
@@ -686,8 +647,8 @@ export function createServiceForm(
   const target = deployment.controls.target;
   const openShift = () => target.value === 'OPENSHIFT';
   const vm = () => target.value === 'VM';
-  build.controls.command.controls.tasks.addValidators(Validators.required);
-  form.controls.delivery.controls.tasks.addValidators(Validators.required);
+  build.controls.command.controls.tasks.addValidators(filled);
+  form.controls.delivery.controls.tasks.addValidators(filled);
   requireWhile(
     build.controls.javaPath,
     () => tool.value === 'FLUTTER' || !build.controls.autoSetup.value,
@@ -802,38 +763,36 @@ function kept(control: FormControl<string>): string | null {
 }
 
 export const SAME_NAME = 'another service of this product already uses this name';
+export const SAME_APPLICATION = 'another application of this service already uses this name';
 export const PRODUCT_WIDE_FIELD = /^services\[\d+]\.name$/;
 
-const serviceName = (service: AbstractControl) =>
-  String(service.get('name')?.value ?? '')
+const valueAt = (item: AbstractControl, key: string) =>
+  String(item.get(key)?.value ?? '')
     .trim()
     .toLowerCase() || null;
 
-const uniqueName: ValidatorFn = (control) => {
-  const service = serviceAround(control);
-  const services = service?.parent;
-  if (!service || !(services instanceof FormArray)) {
-    return null;
-  }
-  const own = serviceName(service);
-  const earlier = services.controls.slice(0, services.controls.indexOf(service));
-  return own !== null && earlier.some((other) => serviceName(other) === own)
-    ? { rule: SAME_NAME }
-    : null;
-};
-
-function serviceAround(control: AbstractControl): AbstractControl | null {
-  let current = control.parent;
-  while (current?.parent && !(current.parent instanceof FormArray)) {
-    current = current.parent;
-  }
-  return current?.parent instanceof FormArray ? current : null;
+function unique(key: string, message: string): ValidatorFn {
+  return (control) => {
+    const item = control.parent;
+    const items = item?.parent;
+    if (!item || !(items instanceof FormArray)) {
+      return null;
+    }
+    const own = valueAt(item, key);
+    const earlier = items.controls.slice(0, items.controls.indexOf(item));
+    return own !== null && earlier.some((other) => valueAt(other, key) === own)
+      ? { rule: message }
+      : null;
+  };
 }
 
 function revalidateUniqueValues(form: ProductForm): void {
-  form.controls.services.controls.forEach((service) =>
-    service.controls.name.updateValueAndValidity({ emitEvent: false }),
-  );
+  form.controls.services.controls.forEach((service) => {
+    service.controls.name.updateValueAndValidity({ emitEvent: false });
+    service.controls.nexusIqApplications.controls.forEach((application) =>
+      application.controls.application.updateValueAndValidity({ emitEvent: false }),
+    );
+  });
 }
 
 export function applyProductProblems(form: ProductForm, problems: FieldProblem[]): FieldProblem[] {
@@ -844,15 +803,15 @@ export function applyProductProblems(form: ProductForm, problems: FieldProblem[]
 
 export function createProductForm() {
   const form = new FormGroup({
-    code: text('', Validators.required, Validators.pattern(PRODUCT_CODE)),
-    name: text('', Validators.required, Validators.maxLength(200)),
-    description: text('', Validators.maxLength(4000)),
-    ownerTeam: text('', Validators.maxLength(200)),
-    contactEmail: text('', Validators.email, Validators.maxLength(320)),
+    code: text('', filled, Validators.pattern(PRODUCT_CODE)),
+    name: text('', filled, max(200)),
+    description: text('', max(4000)),
+    ownerTeam: text('', max(200)),
+    contactEmail: text('', Validators.email, max(320)),
     departmentId: new FormControl<number | null>(null, Validators.required),
     appScan: new FormGroup({
-      keyId: text('', Validators.required, Validators.maxLength(200)),
-      secretCredentialsId: text('', Validators.maxLength(200)),
+      keyId: text('', filled, max(200)),
+      secretCredentialsId: text('', max(200)),
     }),
     services: new FormArray<ServiceForm>([]),
   });

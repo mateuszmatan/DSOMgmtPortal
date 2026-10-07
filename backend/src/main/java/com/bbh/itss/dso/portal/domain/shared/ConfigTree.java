@@ -40,11 +40,6 @@ public class ConfigTree {
         return this;
     }
 
-    public ConfigTree merge(Map<String, ?> values) {
-        merge(root, values);
-        return this;
-    }
-
     public Object get(String path) {
         Object node = root;
         for (String key : path.split("\\.")) {
@@ -85,16 +80,5 @@ public class ConfigTree {
         Map<String, Object> created = new LinkedHashMap<>();
         node.put(key, created);
         return created;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static void merge(Map<String, Object> base, Map<String, ?> override) {
-        for (Map.Entry<String, ?> entry : override.entrySet()) {
-            if (entry.getValue() instanceof Map<?, ?> overrideMap) {
-                merge(child(base, entry.getKey()), (Map<String, ?>) overrideMap);
-            } else {
-                base.put(entry.getKey(), entry.getValue());
-            }
-        }
     }
 }

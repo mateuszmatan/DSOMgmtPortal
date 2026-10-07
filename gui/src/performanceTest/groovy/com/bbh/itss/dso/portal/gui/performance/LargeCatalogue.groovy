@@ -8,13 +8,11 @@ class LargeCatalogue {
 
     static final int PRODUCTS = 25
     static final int SERVICES = 16
-    static final Map<String, String> TYPES = [FULL    : 'devSecOpsPipeline', SECURITY: 'devSecOpsSecurityPipeline',
-                                              EXTENDED: 'devSecOpsExtendedPipeline', SAST: 'devSecOpsSASTScanningPipeline']
+    static final Map<String, String> TYPES = ApiData.ENTRY_POINTS
     static final int PIPELINES = SERVICES * TYPES.size()
 
     private final Map product = StubApi.fixture('product-2.json') as Map
     private final List<Map> departments = StubApi.fixture('departments.json') as List<Map>
-    private final Map pipeline = (StubApi.fixture('product-2-pipelines.json') as List<Map>)[0].pipelines[0] as Map
     private final Map lastRun = (StubApi.fixture('monitoring-product-2.json') as Map).pipelines[0].lastRun as Map
     private final Map evidenceRun = (StubApi.fixture('evidence-product-1.json') as Map).services[0].pipelines[0].run as Map
     private final Map<String, StubResponse> responses = [:]
@@ -33,7 +31,7 @@ class LargeCatalogue {
             def overall = ['FAILURE', 'UNSTABLE', 'SUCCESS'].find { it in counts }
             summaries << facts + [id          : id, departmentId: department.id, departmentName: department.name, serviceCount: SERVICES,
                                   pipelineCount: PIPELINES, activePipelineCount: all.count { it.enabled }, updatedAt: product.updatedAt]
-            overview << facts + [productId: id, serviceCount: SERVICES, pipelineCount: PIPELINES, overall: overall,
+            overview << facts + [productId: id, departmentId: department.id, serviceCount: SERVICES, pipelineCount: PIPELINES, overall: overall,
                                  statusCounts: counts, lastRunAt: lastRun.time]
             store("/api/products/$id", product + facts + [id: id, departmentId: department.id, services: services])
             store("/api/products/$id/pipelines", [services, pipelines].transpose().collect { Map service, List<Map> own -> ApiData.servicePipelines(service, own) })
@@ -72,11 +70,12 @@ class LargeCatalogue {
     private Map pipelineOf(int productId, Map facts, Map service, String type, int index) {
         def id = ((service.id as int) - 1) * TYPES.size() + index + 1
         def job = "DevSecOps/${facts.code}/${service.name}-${type.toLowerCase()}".toString()
-        pipeline + [id                 : id, productId: productId, productCode: facts.code, productName: facts.name,
-                    serviceId          : service.id, serviceName: service.name, type: type, entryPoint: TYPES[type],
-                    securityPipelineJob: null, jenkinsJob: job, jenkinsJobUrl: "https://jenkins.bbh.com/job/${job.replace('/', '/job/')}/".toString(),
-                    enabled            : id % 11 != 0, activeKey: id % 11 ? ApiData.activeKey(id, ApiData.keyValue(id)) : null,
-                    influxProjectTag   : "${facts.code}-${service.name}-${type.toLowerCase()}".toString()]
+        def enabled = id % 11 != 0
+        def key = ApiData.activeKey(id, ApiData.keyValue(id))
+        ApiData.newPipeline(id, facts + [id: productId], service, key, type) +
+                [jenkinsJob      : job, jenkinsJobUrl: "https://jenkins.bbh.com/job/${job.replace('/', '/job/')}/".toString(),
+                 enabled         : enabled, activeKey: enabled ? key : null,
+                 influxProjectTag: "${facts.code}-${service.name}-${type.toLowerCase()}".toString()]
     }
 
     private static String status(Map pipeline) {

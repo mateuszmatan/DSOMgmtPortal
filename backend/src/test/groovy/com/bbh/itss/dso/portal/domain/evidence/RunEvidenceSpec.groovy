@@ -36,12 +36,10 @@ class RunEvidenceSpec extends Specification {
         points << point('release_gate', allowed: 'yes')
 
         then:
-        evidence.isEmpty()
         evidence.releaseGate() == null
         new RunEvidence([point('release_gate', allowed: 'yes')]).stages() == []
         new RunEvidence([point('stage_event', stage: 'Build')]).releaseGate() == null
-        RunEvidence.none().isEmpty()
-        !new RunEvidence([point('stage_event', stage: 'Build')]).isEmpty()
+        RunEvidence.none().stages() == []
         RunEvidence.MEASUREMENTS == ['security_findings', 'policy_status', 'code_coverage', 'test_execution',
                                    'release_gate', 'vulnerabilities', 'stage_event', 'build_evidence']
     }
@@ -312,24 +310,6 @@ class RunEvidenceSpec extends Specification {
                 new StageEvidence('Unit tests', PASS, 120L, null),
                 new StageEvidence('SAST', WARN, 300L, 'High findings above the limit'),
                 new StageEvidence('Cleanup', NO_DATA, null, null)]
-    }
-
-    def "the value #value reads as the number #number and the decimal #decimal"() {
-        expect:
-        RunEvidence.number(value) == number
-        RunEvidence.decimal(value) == decimal
-
-        where:
-        value   || number | decimal
-        null    || null   | null
-        ''      || null   | null
-        '   '   || null   | null
-        'abc'   || null   | null
-        '12'    || 12L    | 12.0d
-        ' 7 '   || 7L     | 7.0d
-        '12.9'  || 12L    | 12.9d
-        '-1.5'  || -2L    | -1.5d
-        '1e3'   || 1000L  | 1000.0d
     }
 
     def "the report of a run holds its build with links and every kind of evidence of the module"() {

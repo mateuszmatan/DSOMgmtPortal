@@ -28,16 +28,16 @@
 
   @if (loadError(); as error) {
     <div class="banner" role="alert">{{ error }}</div>
-    <button mat-stroked-button type="button" (click)="reload()">Try again</button>
+    <button mat-stroked-button type="button" (click)="load()">Try again</button>
   } @else if (settings()) {
     @if (conflict()) {
-      <div class="banner conflict" role="alert">
+      <div class="banner danger conflict" role="alert">
         <div class="banner-text">
           <strong>Someone else saved the settings after you opened this page.</strong>
           Your changes were not saved, so nothing was overwritten. Reload to get the current values,
           then make your changes again.
         </div>
-        <button mat-flat-button type="button" (click)="reload()">Reload</button>
+        <button mat-flat-button type="button" (click)="load()">Reload</button>
       </div>
     }
 

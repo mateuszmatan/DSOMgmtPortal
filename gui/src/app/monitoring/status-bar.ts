@@ -1,16 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RunResult } from '../core/models';
+import { RUN_LOOK } from '../shared/status-chip';
 
-export const STATUS_ORDER: { status: RunResult; label: string }[] = [
-  { status: 'FAILURE', label: 'Failed' },
-  { status: 'UNSTABLE', label: 'Unstable' },
-  { status: 'ABORTED', label: 'Aborted' },
-  { status: 'NOT_BUILT', label: 'Not built' },
-  { status: 'SUCCESS', label: 'Success' },
-  { status: 'NO_DATA', label: 'No runs yet' },
-  { status: 'DISABLED', label: 'Key invalidated' },
-];
+export const STATUS_ORDER = (
+  ['FAILURE', 'UNSTABLE', 'ABORTED', 'NOT_BUILT', 'SUCCESS', 'NO_DATA', 'DISABLED'] as RunResult[]
+).map((status) => ({ status, label: RUN_LOOK[status].label }));
 
 @Component({
   selector: 'dso-status-bar',

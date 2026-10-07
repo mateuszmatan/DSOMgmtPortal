@@ -12,30 +12,27 @@ import {
 import { createGlobalGoldenFixForm, toGlobalGoldenFixPolicy } from '../products/product-form-model';
 import {
   HOST_NAME,
-  HTTP_URL,
   INT_MAX,
   SHELL_SAFE_URL,
+  filled,
   flag,
   integer,
+  max,
   optional,
   requireWhile,
   requiredRule,
   sent,
   shellSafe,
   text,
+  url,
 } from '../shared/form-controls';
 
-export const STATE_FILE = /^[A-Za-z0-9._-]*$/;
-
-const required = Validators.required;
-const max = (length: number) => Validators.maxLength(length);
-const url = (value: string | null | undefined, length: number, ...validators: ValidatorFn[]) =>
-  text(value, ...validators, Validators.pattern(HTTP_URL), max(length));
+const STATE_FILE = /^[A-Za-z0-9._-]*$/;
 const host = (value: string | null | undefined, ...validators: ValidatorFn[]) =>
   text(value, ...validators, Validators.pattern(HOST_NAME), max(255));
 
 function createLimitsForm(limits?: SeverityLimits) {
-  const count = (value: number | undefined) => integer(value, 0, 100_000, required);
+  const count = (value: number | undefined) => integer(value, 0, 100_000, filled);
   return new FormGroup({
     maxCritical: count(limits?.maxCritical),
     maxHigh: count(limits?.maxHigh),
@@ -47,23 +44,23 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
   const p = settings?.platform;
   const d = settings?.deployment;
   const s = settings?.scans;
-  const minutes = (value: number | undefined) => integer(value, 1, 1440, required);
-  const seconds = (value: number | undefined) => integer(value, 1, 3600, required);
+  const minutes = (value: number | undefined) => integer(value, 1, 1440, filled);
+  const seconds = (value: number | undefined) => integer(value, 1, 3600, filled);
   const form = new FormGroup({
     platform: new FormGroup({
       jenkinsUrl: url(p?.jenkinsUrl, 500),
-      jenkinsLibrary: text(p?.jenkinsLibrary ?? DEFAULT_JENKINS_LIBRARY, required, max(200)),
-      asocUrl: url(p?.asocUrl, 500, required),
-      appScanClientLinuxUrl: url(p?.appScanClientLinuxUrl, 1000, required),
-      appScanClientWindowsUrl: url(p?.appScanClientWindowsUrl, 1000, required),
+      jenkinsLibrary: text(p?.jenkinsLibrary ?? DEFAULT_JENKINS_LIBRARY, filled, max(200)),
+      asocUrl: url(p?.asocUrl, 500, filled),
+      appScanClientLinuxUrl: url(p?.appScanClientLinuxUrl, 1000, filled),
+      appScanClientWindowsUrl: url(p?.appScanClientWindowsUrl, 1000, filled),
       proxyHost: host(p?.proxyHost),
       proxyPort: integer(p?.proxyPort, 1, 65535),
       proxyUser: text(p?.proxyUser, max(100)),
       oisHost: host(p?.oisHost),
-      sonarServerUrl: url(p?.sonarServerUrl, 500, required),
-      sonarInstallationName: text(p?.sonarInstallationName, required, max(200)),
-      nexusIqServerUrl: url(p?.nexusIqServerUrl, 500, required),
-      nexusIqCredentialsId: text(p?.nexusIqCredentialsId, required, max(200)),
+      sonarServerUrl: url(p?.sonarServerUrl, 500, filled),
+      sonarInstallationName: text(p?.sonarInstallationName, filled, max(200)),
+      nexusIqServerUrl: url(p?.nexusIqServerUrl, 500, filled),
+      nexusIqCredentialsId: text(p?.nexusIqCredentialsId, filled, max(200)),
       nexusSnapshotRepositoryUrl: text(
         p?.nexusSnapshotRepositoryUrl,
         Validators.pattern(SHELL_SAFE_URL),
@@ -75,13 +72,13 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
       iosBuildAgent: text(p?.iosBuildAgent, max(255)),
     }),
     deployment: new FormGroup({
-      urbanCodeSiteName: text(d?.urbanCodeSiteName, required, max(200)),
-      urbanCodeDeployProcess: text(d?.urbanCodeDeployProcess, required, max(200)),
-      rdHost: host(d?.rdHost, required),
-      qcHost: host(d?.qcHost, required),
-      sshUser: shellSafe(d?.sshUser, 100, required),
-      deployScript: shellSafe(d?.deployScript, 500, required),
-      versionFile: shellSafe(d?.versionFile, 500, required),
+      urbanCodeSiteName: text(d?.urbanCodeSiteName, filled, max(200)),
+      urbanCodeDeployProcess: text(d?.urbanCodeDeployProcess, filled, max(200)),
+      rdHost: host(d?.rdHost, filled),
+      qcHost: host(d?.qcHost, filled),
+      sshUser: shellSafe(d?.sshUser, 100, filled),
+      deployScript: shellSafe(d?.deployScript, 500, filled),
+      versionFile: shellSafe(d?.versionFile, 500, filled),
     }),
     limits: new FormGroup({
       SAST: createLimitsForm(settings?.limits.SAST),
@@ -90,7 +87,7 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
       DAST: createLimitsForm(settings?.limits.DAST),
     }),
     scans: new FormGroup({
-      coverageMinLine: integer(s?.coverageMinLine, 1, 100, required),
+      coverageMinLine: integer(s?.coverageMinLine, 1, 100, filled),
       sastPrepareTimeoutMinutes: minutes(s?.sastPrepareTimeoutMinutes),
       sastPollTimeoutMinutes: minutes(s?.sastPollTimeoutMinutes),
       sastPollIntervalSeconds: seconds(s?.sastPollIntervalSeconds),
@@ -112,7 +109,7 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
       requireCoverage: flag(settings?.releaseGate.requireCoverage, true),
       stateFile: text(
         settings?.releaseGate.stateFile ?? 'release-gate.json',
-        required,
+        filled,
         Validators.pattern(STATE_FILE),
         max(200),
       ),
@@ -125,7 +122,7 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
         nonNullable: true,
       }),
       sourceDir: text(settings?.serviceDefaults.sourceDir ?? '.', max(500)),
-      testsMaxParallel: integer(settings?.serviceDefaults.testsMaxParallel, 1, INT_MAX, required),
+      testsMaxParallel: integer(settings?.serviceDefaults.testsMaxParallel, 1, INT_MAX, filled),
     }),
     goldenFix: createGlobalGoldenFixForm(settings?.goldenFix),
   });
@@ -135,7 +132,7 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
   return form;
 }
 
-export type SettingsForm = ReturnType<typeof createSettingsForm>;
+type SettingsForm = ReturnType<typeof createSettingsForm>;
 export type SettingsSectionId = keyof SettingsForm['controls'];
 
 export function patchSettings(form: SettingsForm, settings: GlobalSettingsValues): void {

@@ -6,6 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { Department } from '../core/models';
+import { filled, max, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 
 export interface ProductNameDialogData {
@@ -48,7 +49,7 @@ export interface NamedProduct {
         </mat-form-field>
         <mat-form-field class="full-width">
           <mat-label>Product name</mat-label>
-          <input matInput formControlName="name" placeholder="CertScanner" />
+          <input matInput formControlName="name" placeholder="CertScanner" required />
           <mat-error>{{ errorText(name) }}</mat-error>
         </mat-form-field>
       </mat-dialog-content>
@@ -80,21 +81,18 @@ export class ProductNameDialog {
         null,
       Validators.required,
     ),
-    name: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.required, Validators.maxLength(200)],
-    }),
+    name: text('', filled, max(200)),
   });
   protected readonly name = this.form.controls.name;
   protected readonly errorText = errorText;
 
   protected next(): void {
     this.form.markAllAsTouched();
-    const name = this.name.value.trim();
-    if (!name) {
-      this.name.setErrors({ required: true });
-    } else if (this.form.valid) {
-      this.dialogRef.close({ name, departmentId: this.form.controls.departmentId.value! });
+    if (this.form.valid) {
+      this.dialogRef.close({
+        name: this.name.value.trim(),
+        departmentId: this.form.controls.departmentId.value!,
+      });
     }
   }
 }

@@ -23,7 +23,8 @@ class ServiceSettingsSpec extends Specification {
 
     def "sections left out take their defaults"() {
         expect:
-        ServiceSettings.of(build(), deployment(), appScan()) == new ServiceSettings(build(), UnitTestSettings.NONE,
+        new ServiceSettings(build(), null, null, null, deployment(), null, null, null, null, null, appScan(), null, null,
+                null, null, null, null, null) == new ServiceSettings(build(), UnitTestSettings.NONE,
                 TestSettings.DEFAULTS, [], deployment(), ToolCommand.NONE, UrbanCodeSettings.DEFAULTS, [], [:], [:],
                 appScan(), SonarSettings.NONE, NexusIqSettings.NONE, null, ScmSettings.NONE, GoldenFixPolicy.INHERITED,
                 MetricsSettings.DEFAULTS, FlutterSettings.NONE)

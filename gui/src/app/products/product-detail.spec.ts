@@ -22,6 +22,7 @@ import { KeyHistoryDialog } from './key-history-dialog';
 import { PipelineDialog } from './pipeline-dialog';
 import { ProductDetail } from './product-detail';
 import { RevokeKeyDialog } from './revoke-key-dialog';
+import { buttonOf } from '../testing/dom';
 
 describe('ProductDetail', () => {
   let fixture: ComponentFixture<ProductDetail>;
@@ -63,10 +64,6 @@ describe('ProductDetail', () => {
       },
     });
   const stats = () => [...page().querySelectorAll('.stat')].map((stat) => stat.textContent?.trim());
-  const textButton = (label: string) =>
-    [...page().querySelectorAll<HTMLButtonElement>('button.text-link')].find(
-      (element) => element.textContent?.trim() === label,
-    );
   const snackText = () =>
     [...document.querySelectorAll('mat-snack-bar-container')]
       .map((container) => container.textContent)
@@ -100,6 +97,14 @@ describe('ProductDetail', () => {
 
     expect(page().querySelector('.breadcrumb')?.textContent).not.toContain('Corporate');
     expect(page().querySelector('.meta')?.textContent).not.toContain('Department');
+  });
+
+  it('links the repository URL of the service', async () => {
+    await load();
+
+    expect(page().querySelector('.repository a')?.getAttribute('href')).toBe(
+      'https://bitbucket.bbh.com/projects/CERT/repos/gui',
+    );
   });
 
   it('builds the repository link from the Bitbucket fields when the service has no URL', async () => {
@@ -243,9 +248,9 @@ describe('ProductDetail', () => {
       await load(product(), [invalidated()]);
       const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
 
-      textButton('Regenerate key')!.click();
+      buttonOf(page(), 'Regenerate key')!.click();
       await fixture.whenStable();
-      expect(textButton('Regenerating…')?.disabled).toBe(true);
+      expect(buttonOf(page(), 'Regenerating…')?.disabled).toBe(true);
       const request = http.expectOne({ method: 'POST', url: '/api/pipelines/100/keys' });
       expect(request.request.body).toEqual({});
       request.flush(regenerated());
@@ -254,7 +259,7 @@ describe('ProductDetail', () => {
       expect(open).not.toHaveBeenCalled();
       expect(page().querySelector('.key-value')?.textContent?.trim()).toBe('c'.repeat(36));
       expect(page().querySelector('.key-state')?.textContent).toBe('Key active');
-      expect(textButton('Regenerate key')).toBeUndefined();
+      expect(buttonOf(page(), 'Regenerate key')).toBeUndefined();
       expect(stats()).toEqual(['1Services', '1Pipelines', '1Active keys', '0Invalidated keys']);
       expect(snackText()).toContain(
         'Full pipeline of gui has a new key: pass it in the Jenkinsfile',
@@ -279,28 +284,24 @@ describe('ProductDetail', () => {
       component: open.mock.calls[index][0],
       data: open.mock.calls[index][1]?.data as Record<string, unknown>,
     });
-    const button = (label: string, root: ParentNode = page()) =>
-      [...root.querySelectorAll<HTMLButtonElement>('button')].find(
-        (element) => element.textContent?.trim() === label,
-      )!;
     const snack = () =>
       [...document.querySelectorAll('mat-snack-bar-container')]
         .map((container) => container.textContent)
         .join(' ');
 
     async function menu(label: string) {
-      button('More').click();
+      buttonOf(page(), 'More').click();
       await fixture.whenStable();
-      button(label, document).click();
+      buttonOf(document, label).click();
       await fixture.whenStable();
     }
 
     it('opens the configuration of the product and of a pipeline', async () => {
       await load();
 
-      button('config.yaml').click();
+      buttonOf(page(), 'config.yaml').click();
       http.expectOne('/api/products/1/config').flush('projects: {}');
-      button('Config').click();
+      buttonOf(page(), 'Config').click();
       http.expectOne('/api/pipelines/100/config').flush('projects:\n  gui: {}');
 
       expect(opened(0)).toMatchObject({
@@ -407,7 +408,7 @@ describe('ProductDetail', () => {
       const sast = pipeline({ id: 101, type: 'SAST' });
       closingWith(sast, { ...sast, description: 'Nightly scan' });
 
-      button('Add pipeline').click();
+      buttonOf(page(), 'Add pipeline').click();
       await fixture.whenStable();
       expect(opened()).toMatchObject({ component: PipelineDialog });
       expect(
@@ -424,7 +425,7 @@ describe('ProductDetail', () => {
       await load();
       closingWith(true, true);
 
-      button('Delete').click();
+      buttonOf(page(), 'Delete').click();
       expect(opened().data['title']).toBe('Delete CertScanner?');
       http.expectOne({ method: 'DELETE', url: '/api/products/1' }).flush(null);
       await fixture.whenStable();
@@ -441,7 +442,7 @@ describe('ProductDetail', () => {
     it('copies the key and says so', async () => {
       await load();
 
-      button('Copy').click();
+      buttonOf(page(), 'Copy').click();
       await fixture.whenStable();
 
       expect(snack()).toContain('Key copied to the clipboard');
