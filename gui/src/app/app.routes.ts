@@ -116,7 +116,7 @@ export const routes: Routes = [
   },
   {
     path: 'beadle/admin/products/:id',
-    title: 'ServiceNow defaults',
+    title: `Product · ${BEADLE_ADMIN.heading}`,
     canDeactivate: [unsavedChangesGuard],
     loadComponent: () => import('./beadle/beadle-product').then((m) => m.BeadleProduct),
   },

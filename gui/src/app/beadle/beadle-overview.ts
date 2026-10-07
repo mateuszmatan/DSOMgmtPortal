@@ -18,8 +18,9 @@ import { BEADLE, BEADLE_ADMIN, CHANGES } from '../core/sections';
       <div class="card feature">
         <h3>{{ changes.heading }}</h3>
         <p>
-          Raise a ServiceNow change for a production release: choose the department, the product and
-          its services, the Jira epics and stories and the change window. The portal writes the
+          Raise a ServiceNow change for a production release: choose the product, the Jira
+          FixVersion with its epics and stories, the services and the installation date. The
+          ServiceNow defaults of the product are filled in and can be changed. The portal writes the
           change and one change task per service.
         </p>
         <a mat-flat-button [routerLink]="changes.path">Open</a>
