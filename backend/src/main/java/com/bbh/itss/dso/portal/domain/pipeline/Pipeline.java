@@ -1,13 +1,16 @@
 package com.bbh.itss.dso.portal.domain.pipeline;
 
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+import lombok.Getter;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
+import static java.util.Objects.requireNonNull;
+
+@Getter
 public final class Pipeline {
 
     public static final String REPLACED_REASON = "Replaced by a new key";
@@ -25,9 +28,9 @@ public final class Pipeline {
     private Pipeline(Long id, ServiceRef service, PipelineType type, PipelineSettings settings, List<PipelineKey> keys,
                      long version, Instant createdAt, Instant updatedAt) {
         this.id = id;
-        this.service = Objects.requireNonNull(service, "a pipeline belongs to a service");
-        this.type = Objects.requireNonNull(type, "a pipeline needs its type");
-        this.settings = Objects.requireNonNull(settings, "a pipeline needs its settings").forType(type);
+        this.service = requireNonNull(service, "a pipeline belongs to a service");
+        this.type = requireNonNull(type, "a pipeline needs its type");
+        this.settings = requireNonNull(settings, "a pipeline needs its settings").forType(type);
         this.keys = List.copyOf(keys);
         this.version = version;
         this.createdAt = createdAt;
@@ -53,7 +56,7 @@ public final class Pipeline {
         if (requestedType != type) {
             throw new IllegalStateException("The type of a pipeline cannot change; add a new pipeline instead");
         }
-        this.settings = valid(Objects.requireNonNull(requestedSettings, "a pipeline needs its settings")).forType(type);
+        this.settings = valid(requireNonNull(requestedSettings, "a pipeline needs its settings")).forType(type);
     }
 
     private static PipelineSettings valid(PipelineSettings settings) {
@@ -88,37 +91,5 @@ public final class Pipeline {
 
     public boolean isEnabled() {
         return activeKey().isPresent();
-    }
-
-    public Long id() {
-        return id;
-    }
-
-    public ServiceRef service() {
-        return service;
-    }
-
-    public PipelineType type() {
-        return type;
-    }
-
-    public PipelineSettings settings() {
-        return settings;
-    }
-
-    public List<PipelineKey> keys() {
-        return keys;
-    }
-
-    public long version() {
-        return version;
-    }
-
-    public Instant createdAt() {
-        return createdAt;
-    }
-
-    public Instant updatedAt() {
-        return updatedAt;
     }
 }

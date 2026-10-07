@@ -1,26 +1,28 @@
 package com.bbh.itss.dso.portal.domain.settings
 
-import com.bbh.itss.dso.portal.domain.catalog.BuildTool
-import com.bbh.itss.dso.portal.domain.catalog.DeployTarget
 import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException.FieldProblem
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
+import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM
+import static com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy.INHERITED
+import static com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues.bbhDefaults
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.DAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SCA
+import static com.bbh.itss.dso.portal.domain.settings.SeverityLimits.ZERO
 import static com.bbh.itss.dso.portal.support.Fixtures.copy
 
 class GlobalSettingsValuesSpec extends Specification {
 
-    static final GlobalSettingsValues BBH = GlobalSettingsValues.bbhDefaults()
+    static final GlobalSettingsValues BBH = bbhDefaults()
 
     def "the BBH defaults hold zero limits for every scanner and the DSOEnhanced policy"() {
         expect:
-        BBH.limits() == [(SAST): SeverityLimits.ZERO, (SCA): SeverityLimits.ZERO, (NEXUS_IQ): SeverityLimits.ZERO,
-                         (DAST): SeverityLimits.ZERO]
+        BBH.limits() == [(SAST): ZERO, (SCA): ZERO, (NEXUS_IQ): ZERO, (DAST): ZERO]
         BBH.platform().jenkinsUrl() == null
         BBH.platform().jenkinsLibrary() == 'DevSecOpsJenkinsLibrary'
         BBH.deployment() == new DeploymentDefaults('deploy.bbh.com', 'tomcat-app-process', 'rdltaapps1.testbbh.com',
@@ -28,10 +30,12 @@ class GlobalSettingsValuesSpec extends Specification {
                 'scripts/deployment/version.properties')
         BBH.scans() == new ScanSettings(60, 120, 50, 30, true, 40, 30, 60, 60, 30, 30, true, 5)
         BBH.releaseGate() == new ReleaseGateSettings([SAST, SCA, NEXUS_IQ, DAST], true, 'release-gate.json')
-        BBH.serviceDefaults() == new ServiceDefaults(BuildTool.GRADLE, DeployTarget.VM, '.', 20)
-        BBH.goldenFix() == new GoldenFixPolicy(true, true, 2, ['maven', 'npm', 'pypi'],
-                ['recommended-non-breaking-with-dependencies', 'recommended-non-breaking'], [], true, 3, 20, null, null,
-                null, null, null, 'DevSecOps GoldenFix', 'devsecops-goldenfix@noreply.local', null)
+        BBH.serviceDefaults() == new ServiceDefaults(GRADLE, VM, '.', 20)
+        BBH.goldenFix() == GoldenFixPolicy.builder().enabled(true).onlyDirectDependencies(true).minThreatLevel(2)
+                .ecosystems(['maven', 'npm', 'pypi'])
+                .goldenVersionTypes(['recommended-non-breaking-with-dependencies', 'recommended-non-breaking'])
+                .excludeDirs([]).verifyEnabled(true).verifyMaxAttempts(3).verifyTimeoutMinutes(20)
+                .commitAuthorName('DevSecOps GoldenFix').commitAuthorEmail('devsecops-goldenfix@noreply.local').build()
         problems(BBH) == []
     }
 
@@ -39,7 +43,7 @@ class GlobalSettingsValuesSpec extends Specification {
         given:
         def limits = new LinkedHashMap<Scanner, SeverityLimits>()
         limits.put(DAST, new SeverityLimits(1, 2, 3))
-        limits.put(null, SeverityLimits.ZERO)
+        limits.put(null, ZERO)
         limits.put(SCA, null)
         limits.put(SAST, new SeverityLimits(0, 5, 10))
 
@@ -52,7 +56,7 @@ class GlobalSettingsValuesSpec extends Specification {
         copy(BBH, limits: null).limits() == [:]
 
         when:
-        values.limits().put(SCA, SeverityLimits.ZERO)
+        values.limits().put(SCA, ZERO)
 
         then:
         thrown(UnsupportedOperationException)
@@ -69,7 +73,7 @@ class GlobalSettingsValuesSpec extends Specification {
     def "validation reports the proxy pair, every scanner without limits and an incomplete GoldenFix policy"() {
         given:
         def values = copy(BBH, platform: copy(BBH.platform(), proxyPort: null),
-                limits: [(SAST): SeverityLimits.ZERO, (SCA): SeverityLimits.ZERO], goldenFix: GoldenFixPolicy.inherit(true))
+                limits: [(SAST): ZERO, (SCA): ZERO], goldenFix: GoldenFixPolicy.inherit(true))
         def required = ['onlyDirectDependencies', 'minThreatLevel', 'verifyEnabled', 'verifyMaxAttempts',
                         'verifyTimeoutMinutes', 'commitAuthorName', 'commitAuthorEmail']
 
@@ -135,7 +139,7 @@ class GlobalSettingsValuesSpec extends Specification {
                 .defaultsConfig()
 
         expect:
-        copy(BBH, goldenFix: GoldenFixPolicy.INHERITED).goldenFix().enabled()
+        copy(BBH, goldenFix: INHERITED).goldenFix().enabled()
         !copy(BBH, goldenFix: GoldenFixPolicy.inherit(false)).goldenFix().enabled()
         defaults.tools.nexusIq == [maxCritical: 1, maxHigh: 4, maxMedium: 9]
         defaults.dast.subMap(['maxCritical', 'maxHigh', 'maxMedium']) == [maxCritical: 0, maxHigh: 2, maxMedium: 20]

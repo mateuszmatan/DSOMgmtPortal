@@ -2,16 +2,18 @@ package com.bbh.itss.dso.portal.application.settings
 
 import com.bbh.itss.dso.portal.application.settings.port.out.GlobalSettingsRepositoryPort
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettings
-import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues
 import spock.lang.Specification
 
 import java.time.Instant
+
+import static com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues.bbhDefaults
+import static java.time.Instant.EPOCH
 
 class GlobalSettingsServiceSpec extends Specification {
 
     GlobalSettingsRepositoryPort repository = Mock()
     def service = new GlobalSettingsService(repository)
-    def bbh = GlobalSettingsValues.bbhDefaults()
+    def bbh = bbhDefaults()
     def stored = new GlobalSettings(bbh, 3, Instant.parse('2026-10-04T12:00:00Z'))
 
     def "the BBH defaults are created only when the database has no settings"() {
@@ -24,7 +26,7 @@ class GlobalSettingsServiceSpec extends Specification {
         result.is(existing ?: stored)
 
         where:
-        existing << [null, new GlobalSettings(GlobalSettingsValues.bbhDefaults(), 3, Instant.EPOCH)]
+        existing << [null, new GlobalSettings(bbhDefaults(), 3, EPOCH)]
     }
 
     def "the current settings are read from the store, and missing ones are an error of the start-up"() {
@@ -38,14 +40,14 @@ class GlobalSettingsServiceSpec extends Specification {
         service.current()
 
         then:
-        def e = thrown(IllegalStateException)
+        def e = thrown(IllegalArgumentException)
         e.message == 'The global settings are missing; the portal creates them at start-up'
     }
 
     def "a change is checked against the stored settings and saved"() {
         given:
         def changed = bbh.withPlatform(bbh.platform().withJenkinsUrl('https://jenkins.bbh.com'))
-        def saved = new GlobalSettings(changed, 4, Instant.EPOCH)
+        def saved = new GlobalSettings(changed, 4, EPOCH)
 
         when:
         def result = service.update(version, changed)

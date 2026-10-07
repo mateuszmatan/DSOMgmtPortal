@@ -4,6 +4,9 @@ import spock.lang.Specification
 
 import java.time.Instant
 
+import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.ACTIVE
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineKey.normalize
+
 class PipelineKeySpec extends Specification {
 
     static final Instant ISSUED = Instant.parse('2026-10-01T08:00:00Z')
@@ -11,7 +14,7 @@ class PipelineKeySpec extends Specification {
 
     def "a key trims its revocation reason and is shown by its first eight and last four characters"() {
         expect:
-        new PipelineKey(1L, '0f8fad5b-d9cb-469f-a165-70867728950e', KeyStatus.ACTIVE, ISSUED, null, null, null).hint() ==
+        new PipelineKey(1L, '0f8fad5b-d9cb-469f-a165-70867728950e', ACTIVE, ISSUED, null, null, null).hint() ==
                 '0f8fad5b\u2026950e'
         new PipelineKey(1L, 'k', KeyStatus.REVOKED, ISSUED, REVOKED, '  retired  ', null).revokeReason() == 'retired'
         new PipelineKey(1L, 'k', KeyStatus.REVOKED, ISSUED, REVOKED, null, null).revokeReason() == null
@@ -27,7 +30,7 @@ class PipelineKeySpec extends Specification {
 
         where:
         status            | revokedAt
-        KeyStatus.ACTIVE  | REVOKED
+        ACTIVE            | REVOKED
         KeyStatus.REVOKED | null
     }
 
@@ -41,14 +44,14 @@ class PipelineKeySpec extends Specification {
 
         where:
         missing                     | factory
-        'its value'                 | { new PipelineKey(1L, null, KeyStatus.ACTIVE, ISSUED, null, null, null) }
+        'its value'                 | { new PipelineKey(1L, null, ACTIVE, ISSUED, null, null, null) }
         'its status'                | { new PipelineKey(1L, 'k', null, ISSUED, null, null, null) }
-        'the time it was issued'    | { new PipelineKey(1L, 'k', KeyStatus.ACTIVE, null, null, null, null) }
+        'the time it was issued'    | { new PipelineKey(1L, 'k', ACTIVE, null, null, null, null) }
     }
 
     def "a key value given by a pipeline is compared trimmed and in lower case: '#value'"() {
         expect:
-        PipelineKey.normalize(value) == normalized
+        normalize(value) == normalized
 
         where:
         value                                     || normalized
@@ -60,7 +63,7 @@ class PipelineKeySpec extends Specification {
 
     def "only an active key passes the check for an active key"() {
         given:
-        def active = new PipelineKey(1L, 'k', KeyStatus.ACTIVE, ISSUED, null, null, null)
+        def active = new PipelineKey(1L, 'k', ACTIVE, ISSUED, null, null, null)
         def revoked = new PipelineKey(2L, 'r', KeyStatus.REVOKED, ISSUED, REVOKED, 'leaked', null)
 
         when:

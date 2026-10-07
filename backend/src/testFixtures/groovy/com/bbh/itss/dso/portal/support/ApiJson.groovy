@@ -3,6 +3,9 @@ package com.bbh.itss.dso.portal.support
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 
+import static com.bbh.itss.dso.portal.support.Fixtures.DEPARTMENT_ID
+import static com.bbh.itss.dso.portal.support.Fixtures.JDK
+
 final class ApiJson {
 
     static final String APP_ID = Fixtures.APP_ID
@@ -13,7 +16,7 @@ final class ApiJson {
     static Map product(Map overrides = [:]) {
         [code        : 'CERT',
          name        : 'CertScanner',
-         departmentId: Fixtures.DEPARTMENT_ID,
+         departmentId: DEPARTMENT_ID,
          appScan     : [keyId: 'bbh_key-id', secretCredentialsId: 'hcl-app-scan-account'],
          services    : [service()]] + overrides
     }
@@ -26,7 +29,7 @@ final class ApiJson {
     }
 
     static Map build(Map overrides = [:]) {
-        [tool: 'GRADLE', javaPath: Fixtures.JDK, command: [tasks: ['clean', 'build']]] + overrides
+        [tool: 'GRADLE', javaPath: JDK, command: [tasks: ['clean', 'build']]] + overrides
     }
 
     static Map mavenService(Map overrides = [:]) {
@@ -37,7 +40,7 @@ final class ApiJson {
     static Map fullMavenService(Map overrides = [:]) {
         [name                 : 'ledger',
          description          : 'Ledger postings',
-         build                : [tool     : 'MAVEN', sourceDir: 'ledger', javaPath: Fixtures.JDK, autoSetup: false,
+         build                : [tool     : 'MAVEN', sourceDir: 'ledger', javaPath: JDK, autoSetup: false,
                                  buildPath: '/opt/maven/bin',
                                  command  : command(['clean', 'verify'], ['-B', '-DskipITs'], directory: 'ledger',
                                          mavenHome: '/opt/maven', environment: ['MAVEN_OPTS=-Xmx1g'],
@@ -113,7 +116,7 @@ final class ApiJson {
 
     static Map fullOpenShiftService(Map overrides = [:]) {
         [name            : 'ledger-api',
-         build           : [tool: 'GRADLE', sourceDir: 'api', javaPath: Fixtures.JDK, autoSetup: false, buildPath: null,
+         build           : [tool: 'GRADLE', sourceDir: 'api', javaPath: JDK, autoSetup: false, buildPath: null,
                             command: command(['clean', 'bootJar'], ['--no-daemon'])],
          deployment      : [target: 'OPENSHIFT', appName: 'ledger-api', artifactName: 'ledger-api.jar',
                             baseArtifactName: null],
@@ -123,7 +126,7 @@ final class ApiJson {
 
     static Map fullFlutterService(Map overrides = [:]) {
         [name      : 'ledger-mobile',
-         build     : [tool: 'FLUTTER', sourceDir: 'mobile', javaPath: Fixtures.JDK, autoSetup: false, buildPath: null,
+         build     : [tool: 'FLUTTER', sourceDir: 'mobile', javaPath: JDK, autoSetup: false, buildPath: null,
                       command: command([], [])],
          deployment: [target: 'VM', appName: null, artifactName: null, baseArtifactName: null],
          appScan   : [applicationId: APP_ID],

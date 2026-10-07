@@ -13,22 +13,26 @@ import com.bbh.itss.dso.portal.domain.catalog.Service;
 import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey;
 import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
-import com.bbh.itss.dso.portal.domain.pipeline.PipelineKey;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import com.bbh.itss.dso.portal.domain.pipeline.ServiceRef;
 import com.bbh.itss.dso.portal.domain.shared.Timestamps;
+import lombok.RequiredArgsConstructor;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.stream.Collectors;
 
+import static com.bbh.itss.dso.portal.domain.pipeline.Pipeline.UNKNOWN_KEY;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineKey.normalize;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.forNewService;
 import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
+import static java.util.stream.Collectors.groupingBy;
 
 @UseCase
+@RequiredArgsConstructor
 public class PipelineService implements PipelinesUseCase {
 
     private final PipelineRepositoryPort pipelines;
@@ -37,15 +41,6 @@ public class PipelineService implements PipelinesUseCase {
     private final KeyGenerator keys;
     private final Clock clock;
 
-    public PipelineService(PipelineRepositoryPort pipelines, ProductRepositoryPort products,
-                           ManageGlobalSettingsUseCase settings, KeyGenerator keys, Clock clock) {
-        this.pipelines = pipelines;
-        this.products = products;
-        this.settings = settings;
-        this.keys = keys;
-        this.clock = clock;
-    }
-
     @Override
     @ReadOnly
     public List<ServicePipelinesView> listForProduct(long productId) {
@@ -53,7 +48,7 @@ public class PipelineService implements PipelinesUseCase {
         String jenkinsUrl = jenkinsUrl();
         Map<Long, List<PipelineView>> byService = pipelines.findByProductId(productId).stream()
                 .map(pipeline -> PipelineView.of(product, pipeline, jenkinsUrl))
-                .collect(Collectors.groupingBy(view -> view.service().id()));
+                .collect(groupingBy(view -> view.service().id()));
         return product.services().stream()
                 .map(service -> new ServicePipelinesView(service, byService.getOrDefault(service.id(), List.of())))
                 .toList();
@@ -71,7 +66,8 @@ public class PipelineService implements PipelinesUseCase {
                 .orElseThrow(() -> notFound("Service", serviceId));
         Service service = product.service(serviceId).orElseThrow(() -> notFound("Service", serviceId));
         if (pipelines.existsForService(serviceId, type)) {
-            throw new IllegalStateException("Service " + service.name() + " already has a " + type.variant() + " pipeline");
+            throw new IllegalStateException("Service " + service.name() + " already has a " + type.variant()
+                    + " pipeline");
         }
         return PipelineView.of(product, create(product, serviceId, type, settings), jenkinsUrl());
     }
@@ -87,8 +83,8 @@ public class PipelineService implements PipelinesUseCase {
                 .map(serviceId -> product.service(serviceId)
                         .orElseThrow(() -> notFound("Service", serviceId)))
                 .filter(service -> !pipelines.existsForService(service.id(), type))
-                .map(service -> PipelineView.of(product, create(product, service.id(), type,
-                        PipelineSettings.forNewService()), jenkinsUrl))
+                .map(service -> PipelineView.of(product, create(product, service.id(), type, forNewService()),
+                        jenkinsUrl))
                 .toList();
     }
 
@@ -125,7 +121,7 @@ public class PipelineService implements PipelinesUseCase {
 
     @Override
     public long authorizeKey(String keyValue) {
-        String value = PipelineKey.normalize(keyValue);
+        String value = normalize(keyValue);
         IssuedKey issued = issuedKey(value);
         long pipelineId = issued.authorize();
         if (!pipelines.recordKeyUse(issued.key().id(), now())) {
@@ -135,7 +131,7 @@ public class PipelineService implements PipelinesUseCase {
     }
 
     private IssuedKey issuedKey(String value) {
-        return pipelines.findKey(value).orElseThrow(() -> new NoSuchElementException(Pipeline.UNKNOWN_KEY));
+        return pipelines.findKey(value).orElseThrow(() -> new NoSuchElementException(UNKNOWN_KEY));
     }
 
     private PipelineView view(Pipeline pipeline) {

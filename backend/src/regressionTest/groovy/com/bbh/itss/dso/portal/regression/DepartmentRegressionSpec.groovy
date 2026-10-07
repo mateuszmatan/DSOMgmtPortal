@@ -5,6 +5,7 @@ import com.bbh.itss.dso.portal.support.PortalSpecification
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 import static com.bbh.itss.dso.portal.support.Fixtures.DEPARTMENT_ID
+import static java.lang.String.CASE_INSENSITIVE_ORDER
 
 class DepartmentRegressionSpec extends PortalSpecification {
 
@@ -17,7 +18,7 @@ class DepartmentRegressionSpec extends PortalSpecification {
 
         then:
         departments*.name.containsAll(['AI Lab', 'Capital Partners', 'Corporate Technology', 'Custody', 'Fund Services'])
-        departments*.name == departments*.name.sort(false, String.CASE_INSENSITIVE_ORDER)
+        departments*.name == departments*.name.sort(false, CASE_INSENSITIVE_ORDER)
         departments.find { it.id == DEPARTMENT_ID }.name == 'Corporate Technology'
         departments.every {
             it.keySet() as List == ['id', 'name', 'version', 'productCount', 'serviceCount', 'pipelineCount',

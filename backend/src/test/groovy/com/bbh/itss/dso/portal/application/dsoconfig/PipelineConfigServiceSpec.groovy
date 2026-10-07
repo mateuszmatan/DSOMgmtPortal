@@ -8,7 +8,8 @@ import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import spock.lang.Specification
 
-import static com.bbh.itss.dso.portal.support.Fixtures.UPDATED
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
@@ -32,7 +33,7 @@ class PipelineConfigServiceSpec extends Specification {
 
         then:
         1 * pipelines.authorizeKey(KEY) >> 100L
-        1 * pipelines.get(100L) >> view(PipelineType.FULL)
+        1 * pipelines.get(100L) >> view(FULL)
         config.keySet() as List == ['pipeline', 'platform', 'defaults', 'projects']
         config.pipeline.product == 'CERT'
         config.pipeline.projectNames == 'gui'
@@ -62,7 +63,7 @@ class PipelineConfigServiceSpec extends Specification {
         def product = service.productConfig(1L)
 
         then:
-        1 * pipelines.get(100L) >> view(PipelineType.SECURITY)
+        1 * pipelines.get(100L) >> view(SECURITY)
         1 * products.get(1L) >> certScanner
         0 * pipelines.authorizeKey(_)
         pipeline.pipeline.type == 'security'

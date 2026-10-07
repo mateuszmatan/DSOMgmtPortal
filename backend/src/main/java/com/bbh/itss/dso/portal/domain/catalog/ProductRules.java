@@ -4,10 +4,10 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
 import java.util.Set;
 
+import static java.util.Locale.ROOT;
+import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 final class ProductRules {
@@ -19,7 +19,7 @@ final class ProductRules {
     ProductRules(Long productId, Set<Long> ownServiceIds, ProductDirectory directory) {
         this.productId = productId;
         this.ownServiceIds = Set.copyOf(ownServiceIds);
-        this.directory = Objects.requireNonNull(directory, "the product rules need the product directory");
+        this.directory = requireNonNull(directory, "the product rules need the product directory");
     }
 
     void check(ProductDetails details, AppScanAccount appScanAccount, List<ServiceDraft> services) {
@@ -44,7 +44,7 @@ final class ProductRules {
             if (service.id() != null && !ownServiceIds.contains(service.id())) {
                 at.add("id", "service " + service.id() + " does not belong to this product");
             }
-            if (!names.add(service.name().trim().toLowerCase(Locale.ROOT))) {
+            if (!names.add(service.name().trim().toLowerCase(ROOT))) {
                 at.add("name", "another service of this product already uses this name");
             }
         }

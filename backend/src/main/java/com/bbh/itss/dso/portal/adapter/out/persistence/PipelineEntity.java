@@ -6,50 +6,51 @@ import com.bbh.itss.dso.portal.domain.pipeline.PipelineKey;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import com.bbh.itss.dso.portal.domain.pipeline.ServiceRef;
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static jakarta.persistence.CascadeType.ALL;
+import static jakarta.persistence.EnumType.STRING;
+import static jakarta.persistence.FetchType.LAZY;
+import static jakarta.persistence.GenerationType.IDENTITY;
+import static lombok.AccessLevel.PROTECTED;
+
 @Entity
 @Table(name = "DSO_PIPELINE")
+@NoArgsConstructor(access = PROTECTED)
 public class PipelineEntity extends AuditedEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = LAZY, optional = false)
     @JoinColumn(name = "SERVICE_ID")
     private ServiceEntity service;
 
-    @Enumerated(EnumType.STRING)
+    @Enumerated(STRING)
     @Column(name = "PIPELINE_TYPE")
     private PipelineType type;
 
     private PipelineSettingsEmbeddable settings;
 
-    @OneToMany(mappedBy = "pipeline", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "pipeline", cascade = ALL, orphanRemoval = true)
     @OrderBy("issuedAt DESC, id DESC")
     private List<PipelineKeyEntity> keys = new ArrayList<>();
-
-    protected PipelineEntity() {
-    }
 
     PipelineEntity(ServiceEntity service, PipelineType type) {
         this.service = service;
@@ -57,15 +58,15 @@ public class PipelineEntity extends AuditedEntity {
     }
 
     Pipeline toDomain() {
-        ServiceRef ref = new ServiceRef(service.product().getId(), service.getId());
+        ServiceRef ref = new ServiceRef(service.product().id(), service.id());
         return Pipeline.restore(id, ref, type, RecordMapper.map(settings, PipelineSettings.class),
-                keys.stream().map(PipelineKeyEntity::toDomain).toList(), getVersion(), getCreatedAt(), getUpdatedAt());
+                keys.stream().map(PipelineKeyEntity::toDomain).toList(), version(), createdAt(), updatedAt());
     }
 
     void apply(Pipeline pipeline) {
         settings = RecordMapper.map(pipeline.settings(), PipelineSettingsEmbeddable.class);
         pipeline.keys().stream().filter(key -> key.id() != null)
-                .forEach(key -> keys.stream().filter(entity -> key.id().equals(entity.getId())).findFirst()
+                .forEach(key -> keys.stream().filter(entity -> key.id().equals(entity.id())).findFirst()
                         .orElseThrow().state(key.status(), key.revokedAt(), key.revokeReason()));
     }
 

@@ -1,15 +1,25 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.StoredList;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+import lombok.Builder;
 
 import java.util.List;
-import java.util.Locale;
 
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
+import static com.bbh.itss.dso.portal.domain.catalog.ToolCommand.NONE;
+import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_2000;
+import static com.bbh.itss.dso.portal.domain.shared.Text.clean;
+import static java.util.Locale.ROOT;
+import static org.apache.commons.lang3.BooleanUtils.isNotFalse;
+import static org.apache.commons.lang3.BooleanUtils.isTrue;
+import static org.apache.commons.lang3.ObjectUtils.getIfNull;
+import static org.apache.commons.lang3.StringUtils.lowerCase;
+import static org.apache.commons.lang3.StringUtils.trim;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
+@Builder
 public record AppScanSettings(String applicationId, String sastScanName, List<String> includedDirs,
                               List<String> excludedDirs, Boolean compile, Boolean sourceCodeOnly, Boolean useConfigFile,
                               Boolean insecureTls, String clientPath, ToolCommand compileCommand, Boolean dastEnabled,
@@ -17,17 +27,17 @@ public record AppScanSettings(String applicationId, String sastScanName, List<St
                               String secretCredentialsId) {
 
     public AppScanSettings {
-        applicationId = applicationId == null ? null : applicationId.trim().toLowerCase(Locale.ROOT);
+        applicationId = lowerCase(trim(applicationId), ROOT);
         sastScanName = trimToNull(sastScanName);
-        includedDirs = Text.clean(includedDirs);
-        excludedDirs = Text.clean(excludedDirs);
-        compile = !Boolean.FALSE.equals(compile);
-        sourceCodeOnly = Boolean.TRUE.equals(sourceCodeOnly);
-        useConfigFile = Boolean.TRUE.equals(useConfigFile);
-        insecureTls = Boolean.TRUE.equals(insecureTls);
+        includedDirs = clean(includedDirs);
+        excludedDirs = clean(excludedDirs);
+        compile = isNotFalse(compile);
+        sourceCodeOnly = isTrue(sourceCodeOnly);
+        useConfigFile = isTrue(useConfigFile);
+        insecureTls = isTrue(insecureTls);
         clientPath = trimToNull(clientPath);
-        compileCommand = compileCommand == null ? ToolCommand.NONE : compileCommand;
-        dastEnabled = Boolean.TRUE.equals(dastEnabled);
+        compileCommand = getIfNull(compileCommand, NONE);
+        dastEnabled = isTrue(dastEnabled);
         dastScanName = trimToNull(dastScanName);
         dastTargetUrl = trimToNull(dastTargetUrl);
         dastPresenceId = trimToNull(dastPresenceId);
@@ -35,8 +45,7 @@ public record AppScanSettings(String applicationId, String sastScanName, List<St
     }
 
     public static AppScanSettings of(String applicationId) {
-        return new AppScanSettings(applicationId, null, List.of(), List.of(), true, false, false, false, null, null,
-                false, null, null, null, null);
+        return builder().applicationId(applicationId).build();
     }
 
     public void writeTo(ConfigTree config, BuildTool tool) {
@@ -61,13 +70,13 @@ public record AppScanSettings(String applicationId, String sastScanName, List<St
         if (dastEnabled && dastTargetUrl == null) {
             problems.add("dastTargetUrl", "is required when DAST is enabled");
         }
-        if (compile && tool != BuildTool.FLUTTER && !compileCommand.isEmpty() && compileCommand.tasks().isEmpty()) {
-            problems.add("compileCommand.tasks", tool == BuildTool.MAVEN
+        if (compile && tool != FLUTTER && !compileCommand.isEmpty() && compileCommand.tasks().isEmpty()) {
+            problems.add("compileCommand.tasks", tool == MAVEN
                     ? "add the Maven goals that compile the code for the scan, or clear the command to use the build goals"
                     : "add the Gradle tasks that compile the code for the scan, or clear the command to use the build tasks");
         }
-        StoredList.LINES_2000.check(problems, "includedDirs", includedDirs);
-        StoredList.LINES_2000.check(problems, "excludedDirs", excludedDirs);
+        LINES_2000.check(problems, "includedDirs", includedDirs);
+        LINES_2000.check(problems, "excludedDirs", excludedDirs);
         compileCommand.validate(problems.at("compileCommand"));
     }
 }

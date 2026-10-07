@@ -5,6 +5,13 @@ import spock.lang.Specification
 
 import java.time.Instant
 
+import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.ACTIVE
+import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.REVOKED
+import static com.bbh.itss.dso.portal.domain.pipeline.Pipeline.REPLACED_REASON
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.EXTENDED
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
 import static com.bbh.itss.dso.portal.support.Fixtures.activeKey
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.pipelineSettings
@@ -21,17 +28,17 @@ class PipelineSpec extends Specification {
 
     def "a new pipeline of a service starts with one active key"() {
         when:
-        def created = Pipeline.create(GUI, PipelineType.FULL, pipelineSettings(), generator, NOW)
+        def created = Pipeline.create(GUI, FULL, pipelineSettings(), generator, NOW)
 
         then:
         created.id() == null
         created.service() == GUI
-        created.type() == PipelineType.FULL
+        created.type() == FULL
         created.version() == 0
         created.createdAt() == null
         created.updatedAt() == null
         created.enabled
-        created.keys() == [new PipelineKey(null, 'key-1', KeyStatus.ACTIVE, NOW, null, null, null)]
+        created.keys() == [PipelineKey.builder().value('key-1').status(ACTIVE).issuedAt(NOW).build()]
         created.activeKey().get().active
         pipeline(id: 20, productId: 3, serviceId: 30, version: 7).with { [id(), service(), version(), createdAt(), updatedAt()] } ==
                 [20L, new ServiceRef(3, 30), 7L, Instant.parse('2026-10-01T08:00:00Z'), Instant.parse('2026-10-02T09:30:00Z')]
@@ -39,17 +46,17 @@ class PipelineSpec extends Specification {
 
     def "issuing a key revokes the active one as replaced"() {
         given:
-        def pipeline = Pipeline.create(GUI, PipelineType.FULL, pipelineSettings(), generator, NOW)
+        def pipeline = Pipeline.create(GUI, FULL, pipelineSettings(), generator, NOW)
 
         when:
         def second = pipeline.issueKey(generator, LATER)
 
         then:
-        second == new PipelineKey(null, 'key-2', KeyStatus.ACTIVE, LATER, null, null, null)
+        second == PipelineKey.builder().value('key-2').status(ACTIVE).issuedAt(LATER).build()
         pipeline.activeKey().get() == second
         pipeline.keys()*.value() == ['key-2', 'key-1']
-        pipeline.keys()[1] == new PipelineKey(null, 'key-1', KeyStatus.REVOKED, NOW, LATER, Pipeline.REPLACED_REASON, null)
-        Pipeline.REPLACED_REASON == 'Replaced by a new key'
+        pipeline.keys()[1] == new PipelineKey(null, 'key-1', REVOKED, NOW, LATER, REPLACED_REASON, null)
+        REPLACED_REASON == 'Replaced by a new key'
     }
 
     def "revoking the key disables the pipeline and keeps the reason"() {
@@ -62,7 +69,7 @@ class PipelineSpec extends Specification {
         then:
         !pipeline.enabled
         pipeline.activeKey().isEmpty()
-        revoked.status() == KeyStatus.REVOKED
+        revoked.status() == REVOKED
         revoked.revokeReason() == 'Service retired'
         revoked.revokedAt() == LATER
         revoked.id() == 100L
@@ -78,7 +85,7 @@ class PipelineSpec extends Specification {
 
         then:
         pipeline.enabled
-        pipeline.keys()*.status() == [KeyStatus.ACTIVE, KeyStatus.REVOKED]
+        pipeline.keys()*.status() == [ACTIVE, REVOKED]
         pipeline.keys()[1].revokeReason() == 'paused'
         pipeline.keys()[1].revokedAt() == revokedKey().revokedAt()
     }
@@ -105,10 +112,10 @@ class PipelineSpec extends Specification {
 
         where:
         refusal                         | action                                                             || failure                       | message
-        'revoking without an active key' | { pipeline(keys: [revokedKey()]).revokeActiveKey('again', LATER) } || IllegalStateException             | 'The pipeline has no active key to invalidate'
+        'revoking without an active key' | { pipeline(keys: [revokedKey()]).revokeActiveKey('again', LATER) } || IllegalStateException         | 'The pipeline has no active key to invalidate'
         'a second active key'           | { pipeline(keys: [activeKey(), activeKey(id: 101, value: 'x')]) }  || IllegalArgumentException      | 'a pipeline has at most one active key'
         'changing the key history'      | { pipeline().keys().clear() }                                      || UnsupportedOperationException | null
-        'changing the type'             | { pipeline().reconfigure(PipelineType.SAST, pipelineSettings()) }  || IllegalStateException             | 'The type of a pipeline cannot change; add a new pipeline instead'
+        'changing the type'             | { pipeline().reconfigure(SAST, pipelineSettings()) }               || IllegalStateException         | 'The type of a pipeline cannot change; add a new pipeline instead'
     }
 
     def "only the security pipeline keeps the extended pipeline job and only the extended one the security job"() {
@@ -122,20 +129,20 @@ class PipelineSpec extends Specification {
         created.settings().agentLabels() == ['linux', 'docker']
 
         where:
-        type                  || extended            | security
-        PipelineType.SECURITY || 'CERT/gui-extended' | null
-        PipelineType.EXTENDED || null                | 'CERT/gui-security'
-        PipelineType.FULL     || null                | null
-        PipelineType.SAST     || null                | null
+        type     || extended            | security
+        SECURITY || 'CERT/gui-extended' | null
+        EXTENDED || null                | 'CERT/gui-security'
+        FULL     || null                | null
+        SAST     || null                | null
     }
 
     def "reconfiguring changes the settings but not the keys"() {
         given:
-        def pipeline = pipeline(type: PipelineType.SECURITY)
+        def pipeline = pipeline(type: SECURITY)
         def keys = pipeline.keys()
 
         when:
-        pipeline.reconfigure(PipelineType.SECURITY, new PipelineSettings(['windows'], ' CERT/ext ', 'CERT/sec', ' CERT/gui ',
+        pipeline.reconfigure(SECURITY, new PipelineSettings(['windows'], ' CERT/ext ', 'CERT/sec', ' CERT/gui ',
                 ' nightly '))
 
         then:
@@ -150,7 +157,7 @@ class PipelineSpec extends Specification {
         def existing = pipeline()
 
         when:
-        Pipeline.create(GUI, PipelineType.FULL, tooMany, generator, NOW)
+        Pipeline.create(GUI, FULL, tooMany, generator, NOW)
 
         then:
         def created = thrown(InvalidRequestException)
@@ -170,11 +177,11 @@ class PipelineSpec extends Specification {
         type.influxProjectTag('cert-gui') == tag
 
         where:
-        type                  || tag
-        PipelineType.FULL     || 'cert-gui'
-        PipelineType.SECURITY || 'cert-guisecurity'
-        PipelineType.EXTENDED || 'cert-guiextended'
-        PipelineType.SAST     || 'cert-guisast'
+        type     || tag
+        FULL     || 'cert-gui'
+        SECURITY || 'cert-guisecurity'
+        EXTENDED || 'cert-guiextended'
+        SAST     || 'cert-guisast'
     }
 
     def "each type names the library entry point it runs"() {

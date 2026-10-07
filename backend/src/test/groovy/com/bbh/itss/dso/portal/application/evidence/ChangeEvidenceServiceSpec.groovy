@@ -20,22 +20,28 @@ import com.bbh.itss.dso.portal.domain.evidence.StageEvidence
 import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun
-import com.bbh.itss.dso.portal.domain.monitoring.RunResult
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
-import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
-import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues
-import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
 
 import java.time.Instant
 
+import static com.bbh.itss.dso.portal.domain.evidence.CheckStatus.PASS
+import static com.bbh.itss.dso.portal.domain.evidence.CheckStatus.WARN
 import static com.bbh.itss.dso.portal.domain.evidence.RunEvidenceSpec.point
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.DISABLED
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.FAILURE
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.NO_DATA
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.SUCCESS
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.UNSTABLE
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
+import static com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues.bbhDefaults
 import static com.bbh.itss.dso.portal.support.Fixtures.APP_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.command
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.revokedKey
 import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
+import static org.spockframework.mock.EmptyOrDummyResponse.INSTANCE
 
 class ChangeEvidenceServiceSpec extends Specification {
 
@@ -44,8 +50,8 @@ class ChangeEvidenceServiceSpec extends Specification {
     static final String APPSCAN = "https://bbh.cloud.appscan.com/main/myapps/$APP_ID/scans"
     static final String NOT_CONFIGURED = 'InfluxDB is not configured for the portal'
 
-    ProductRepositoryPort products = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
-    PipelineRepositoryPort pipelines = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
+    ProductRepositoryPort products = Mock(defaultResponse: INSTANCE)
+    PipelineRepositoryPort pipelines = Mock(defaultResponse: INSTANCE)
     PipelineRunsPort runs = Mock()
     RunEvidencePort evidence = Mock()
     ManageGlobalSettingsUseCase settings = Stub() {
@@ -63,16 +69,16 @@ class ChangeEvidenceServiceSpec extends Specification {
             [name: 'backend-api', id: 11L],
             [name: 'batch', id: 12L]])
     Pipeline guiFull = pipeline(id: 100L, serviceId: 10L, jenkinsJob: 'DevSecOps/CERT/gui-full')
-    Pipeline guiSast = pipeline(id: 101L, serviceId: 10L, type: PipelineType.SAST, keys: [revokedKey(reason: 'retired')])
+    Pipeline guiSast = pipeline(id: 101L, serviceId: 10L, type: SAST, keys: [revokedKey(reason: 'retired')])
     Pipeline apiFull = pipeline(id: 102L, serviceId: 11L)
 
     def guiTag = new MetricsTag('CERT-gui', 'test')
     def guiSastTag = new MetricsTag('CERT-guisast', 'test')
     def apiTag = new MetricsTag('CERT-backend-api', 'test')
 
-    def guiRun = new PipelineRun(FINISHED, RunResult.SUCCESS, 'develop', 42L, 900L, 'a1b2c3d', 'DevSecOps/CERT/gui-full',
+    def guiRun = new PipelineRun(FINISHED, SUCCESS, 'develop', 42L, 900L, 'a1b2c3d', 'DevSecOps/CERT/gui-full',
             12L, 11L, 1L, 0L, 0L, 0L)
-    def apiRun = new PipelineRun(FINISHED.minusSeconds(3600), RunResult.UNSTABLE, 'feature/login', 7L, 300L, 'e4f5a6b',
+    def apiRun = new PipelineRun(FINISHED.minusSeconds(3600), UNSTABLE, 'feature/login', 7L, 300L, 'e4f5a6b',
             'DevSecOps/CERT/api-full', 10L, 9L, 1L, 0L, 0L, 0L)
     def guiEvidence = new RunEvidence([
             point('code_coverage', module: 'gui', measured: 'yes', line_pct: '82.5', required: '60', covered: '825',
@@ -106,21 +112,22 @@ class ChangeEvidenceServiceSpec extends Specification {
         result.services().collect { it.pipelines()*.pipeline() } == [[guiFull, guiSast], [apiFull], []]
         def guiFullEvidence = result.services()[0].pipelines()[0]
         guiFullEvidence.jenkinsJobUrl() == GUI_JOB
-        guiFullEvidence.status() == RunResult.SUCCESS
+        guiFullEvidence.status() == SUCCESS
         with(guiFullEvidence.run()) {
-            build() == new BuildEvidence(42L, FINISHED, RunResult.SUCCESS, 'develop', 'a1b2c3d', null, 900L,
-                    'DevSecOps/CERT/gui-full', GUI_JOB + '42/', GUI_JOB + '42/Pipeline_20Report/',
-                    GUI_JOB + '42/testReport/', GUI_JOB + '42/artifact/', null, null)
-            coverage() == new CoverageEvidence(CheckStatus.PASS, 82.5d, 60.0d, 825L, 1000L)
-            scans()*.status() == [CheckStatus.WARN, CheckStatus.NO_DATA, CheckStatus.PASS, CheckStatus.NO_DATA]
+            build() == BuildEvidence.builder().number(42L).finishedAt(FINISHED).result(SUCCESS).branch('develop')
+                    .commit('a1b2c3d').durationSeconds(900L).job('DevSecOps/CERT/gui-full').url(GUI_JOB + '42/')
+                    .reportUrl(GUI_JOB + '42/Pipeline_20Report/').testReportUrl(GUI_JOB + '42/testReport/')
+                    .artifactsUrl(GUI_JOB + '42/artifact/').build()
+            coverage() == new CoverageEvidence(PASS, 82.5d, 60.0d, 825L, 1000L)
+            scans()*.status() == [WARN, CheckStatus.NO_DATA, PASS, CheckStatus.NO_DATA]
             scans()*.link() == [APPSCAN, APPSCAN, 'https://tools.bbh.com/sonar/dashboard?id=cert-gui',
                                 'https://tools.bbh.com/IQ/']
             releaseGate() == new ReleaseGateEvidence(true, 0L, null)
-            stages() == [new StageEvidence('Build', CheckStatus.PASS, 120L, null)]
+            stages() == [new StageEvidence('Build', PASS, 120L, null)]
         }
         def guiSastEvidence = result.services()[0].pipelines()[1]
         guiSastEvidence.jenkinsJobUrl() == null
-        guiSastEvidence.status() == RunResult.DISABLED
+        guiSastEvidence.status() == DISABLED
         guiSastEvidence.run() == null
     }
 
@@ -133,8 +140,7 @@ class ChangeEvidenceServiceSpec extends Specification {
         0 * evidence.evidenceOf(_)
         result.metricsError() == NOT_CONFIGURED
         result.services().collect { it.pipelines()*.pipeline()*.id() } == [[100L, 101L], [102L], []]
-        result.services()*.pipelines().flatten()*.status() == [RunResult.NO_DATA, RunResult.DISABLED,
-                                                               RunResult.NO_DATA]
+        result.services()*.pipelines().flatten()*.status() == [NO_DATA, DISABLED, NO_DATA]
         result.services()*.pipelines().flatten()*.run() == [null, null, null]
         result.services()[0].pipelines()[0].jenkinsJobUrl() == GUI_JOB
     }
@@ -164,10 +170,11 @@ class ChangeEvidenceServiceSpec extends Specification {
 
         then:
         1 * evidence.evidenceOf(_) >> {
-            throw new UncheckedIOException("InfluxDB could not be read: Text 'yesterday' could not be parsed", new IOException())
+            throw new UncheckedIOException("InfluxDB could not be read: Text 'yesterday' could not be parsed",
+                    new IOException())
         }
         result.metricsError() == "InfluxDB could not be read: Text 'yesterday' could not be parsed"
-        result.services()[0].pipelines()[0].status() == RunResult.SUCCESS
+        result.services()[0].pipelines()[0].status() == SUCCESS
         with(result.services()[0].pipelines()[0].run()) {
             build().number() == 42L
             build().url() == GUI_JOB + '42/'
@@ -189,9 +196,9 @@ class ChangeEvidenceServiceSpec extends Specification {
                                           pipeline(id: 402L, productId: 4L, serviceId: 42L)]
         def tag = new MetricsTag('CertScanner', 'test')
         pipelines.sharedMetricsTags() >> ([tag] as Set)
-        def both = new PipelineRun(FINISHED, RunResult.SUCCESS, 'develop', 42L, 900L, 'a1b2c3d', together, null, null,
+        def both = new PipelineRun(FINISHED, SUCCESS, 'develop', 42L, 900L, 'a1b2c3d', together, null, null,
                 null, null, null, null)
-        def other = new PipelineRun(FINISHED.plusSeconds(60), RunResult.FAILURE, 'develop', 8L, 60L, 'f0f0f0f',
+        def other = new PipelineRun(FINISHED.plusSeconds(60), FAILURE, 'develop', 8L, 60L, 'f0f0f0f',
                 'DevSecOps/CertScanner-batch', null, null, null, null, null, null)
         def recorded = new RunEvidence([
                 point('build_evidence', module: 'backend-api', artifact_version: '2.0.1', sonar_quality_gate: 'ERROR'),
@@ -214,7 +221,7 @@ class ChangeEvidenceServiceSpec extends Specification {
         api.testSuites()[0].total() == null
         api.scans()[2].qualityGate() == 'ERROR'
         result.services()[2].pipelines()[0].run() == null
-        result.services()[2].pipelines()[0].status() == RunResult.NO_DATA
+        result.services()[2].pipelines()[0].status() == NO_DATA
     }
 
     def "a pipeline of a service the product no longer has is an inconsistency, and an unknown product is not found"() {
@@ -226,7 +233,7 @@ class ChangeEvidenceServiceSpec extends Specification {
         evidenceService.product(3L)
 
         then:
-        def e = thrown(IllegalStateException)
+        def e = thrown(IllegalArgumentException)
         e.message == 'pipeline 300 belongs to no service of product 3'
 
         when:
@@ -241,9 +248,9 @@ class ChangeEvidenceServiceSpec extends Specification {
     def "a pipeline with job #pipelineJob whose run reported #runJob under Jenkins #jenkinsUrl links #jobUrl and build #buildUrl"() {
         given:
         def linked = pipeline(id: 100L, serviceId: 10L, jenkinsJob: pipelineJob)
-        def run = new PipelineRun(FINISHED, RunResult.SUCCESS, 'main', 42L, 60L, null, runJob, null, null, null, null,
+        def run = new PipelineRun(FINISHED, SUCCESS, 'main', 42L, 60L, null, runJob, null, null, null, null,
                 null, null)
-        def platform = GlobalSettingsValues.bbhDefaults().platform().withJenkinsUrl(jenkinsUrl)
+        def platform = bbhDefaults().platform().withJenkinsUrl(jenkinsUrl)
 
         when:
         def found = ChangeEvidenceService.pipeline(PipelineView.of(certScanner, linked, jenkinsUrl), run, null, platform)
@@ -267,18 +274,17 @@ class ChangeEvidenceServiceSpec extends Specification {
 
     def "a run without a build number links no build"() {
         given:
-        def run = new PipelineRun(FINISHED, RunResult.FAILURE, null, null, null, null, null, null, null, null, null,
+        def run = new PipelineRun(FINISHED, FAILURE, null, null, null, null, null, null, null, null, null,
                 null, null)
-        def platform = GlobalSettingsValues.bbhDefaults().platform().withJenkinsUrl('https://jenkins.test')
+        def platform = bbhDefaults().platform().withJenkinsUrl('https://jenkins.test')
 
         when:
         def found = ChangeEvidenceService.pipeline(PipelineView.of(certScanner, guiFull, 'https://jenkins.test'), run,
                 RunEvidence.none(), platform)
 
         then:
-        found.status() == RunResult.FAILURE
+        found.status() == FAILURE
         found.jenkinsJobUrl() == GUI_JOB
-        found.run().build() == new BuildEvidence(null, FINISHED, RunResult.FAILURE, null, null, null, null, null, null,
-                null, null, null, null, null)
+        found.run().build() == BuildEvidence.builder().finishedAt(FINISHED).result(FAILURE).build()
     }
 }

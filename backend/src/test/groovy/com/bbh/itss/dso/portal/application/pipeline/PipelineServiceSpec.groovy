@@ -6,16 +6,16 @@ import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettings
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey
 import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator
-import com.bbh.itss.dso.portal.domain.pipeline.KeyStatus
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
-import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
-import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
 
-import java.time.Clock
 import java.time.Instant
-import java.time.ZoneOffset
 
+import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.ACTIVE
+import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.REVOKED
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
 import static com.bbh.itss.dso.portal.support.Fixtures.KEY
 import static com.bbh.itss.dso.portal.support.Fixtures.activeKey
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
@@ -23,6 +23,9 @@ import static com.bbh.itss.dso.portal.support.Fixtures.pipelineSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.revokedKey
 import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
+import static java.time.Clock.fixed
+import static java.time.ZoneOffset.UTC
+import static org.spockframework.mock.EmptyOrDummyResponse.INSTANCE
 
 class PipelineServiceSpec extends Specification {
 
@@ -30,20 +33,20 @@ class PipelineServiceSpec extends Specification {
     static final Instant NOW_MICROS = Instant.parse('2026-10-05T07:30:00.123456Z')
     static final String NEW_KEY = '9b2e2a52-2f0d-4f53-9b55-4f0b9a8f6c11'
 
-    PipelineRepositoryPort pipelines = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
-    ProductRepositoryPort products = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
+    PipelineRepositoryPort pipelines = Mock(defaultResponse: INSTANCE)
+    ProductRepositoryPort products = Mock(defaultResponse: INSTANCE)
     ManageGlobalSettingsUseCase settings = Stub() {
         current() >> storedSettings('https://jenkins.test')
     }
     KeyGenerator keys = { -> NEW_KEY } as KeyGenerator
-    def service = new PipelineService(pipelines, products, settings, keys, Clock.fixed(NOW, ZoneOffset.UTC))
+    def service = new PipelineService(pipelines, products, settings, keys, fixed(NOW, UTC))
 
     def certScanner = product(id: 1, services: [[name: 'gui', id: 10], [name: 'backend-api', id: 11]])
 
     def "each service of a product is listed with its pipelines, and one pipeline comes with its product and service"() {
         given:
         products.load(1L) >> Optional.of(certScanner)
-        pipelines.findByProductId(1L) >> [pipeline(id: 100), pipeline(id: 101, type: PipelineType.SAST)]
+        pipelines.findByProductId(1L) >> [pipeline(id: 100), pipeline(id: 101, type: SAST)]
         pipelines.load(100L) >> Optional.of(pipeline(id: 100, keys: [activeKey(), revokedKey()]))
 
         when:
@@ -80,10 +83,10 @@ class PipelineServiceSpec extends Specification {
         'listing'               | 'Product 2'    | { it.listForProduct(2L) }
         'reading'               | 'Pipeline 100' | { it.get(100L) }
         'reading'               | 'Product 2'    | { it.get(101L) }
-        'starting new services' | 'Service 12'   | { it.createMissing(1L, [12L], PipelineType.FULL) }
-        'starting new services' | 'Product 7'    | { it.createMissing(7L, [10L], PipelineType.FULL) }
-        'creating'              | 'Service 10'   | { it.create(10L, PipelineType.FULL, pipelineSettings()) }
-        'creating'              | 'Service 12'   | { it.create(12L, PipelineType.FULL, pipelineSettings()) }
+        'starting new services' | 'Service 12'   | { it.createMissing(1L, [12L], FULL) }
+        'starting new services' | 'Product 7'    | { it.createMissing(7L, [10L], FULL) }
+        'creating'              | 'Service 10'   | { it.create(10L, FULL, pipelineSettings()) }
+        'creating'              | 'Service 12'   | { it.create(12L, FULL, pipelineSettings()) }
         'deleting'              | 'Pipeline 100' | { it.delete(100L) }
         'issuing a key'         | 'Pipeline 100' | { it.issueKey(100L) }
     }
@@ -93,18 +96,18 @@ class PipelineServiceSpec extends Specification {
         products.findByServiceId(10L) >> Optional.of(certScanner)
 
         when:
-        def view = service.create(10L, PipelineType.SECURITY, pipelineSettings(
+        def view = service.create(10L, SECURITY, pipelineSettings(
                 agentLabels: ['linux'], extendedPipelineJob: 'CERT/gui-extended', jenkinsJob: 'DevSecOps/CERT/gui-security'))
 
         then:
         1 * pipelines.save({ Pipeline p ->
-            p.id() == null && p.type() == PipelineType.SECURITY && p.service().serviceId() == 10L &&
+            p.id() == null && p.type() == SECURITY && p.service().serviceId() == 10L &&
                     p.service().productId() == 1L && p.keys()*.value() == [NEW_KEY] && p.keys()[0].issuedAt() == NOW_MICROS
         }) >> { Pipeline p -> stored(100L, p) }
         view.pipeline().id() == 100
         view.pipeline().settings().extendedPipelineJob() == 'CERT/gui-extended'
         view.jenkinsJobUrl() == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-security/'
-        view.pipeline().activeKey().get().status() == KeyStatus.ACTIVE
+        view.pipeline().activeKey().get().status() == ACTIVE
     }
 
     def "every service a save covers starts with a #type pipeline and a key"() {
@@ -124,16 +127,16 @@ class PipelineServiceSpec extends Specification {
         views.every { it.pipeline().isEnabled() }
 
         where:
-        type << [PipelineType.FULL, PipelineType.SAST]
+        type << [FULL, SAST]
     }
 
     def "a service that already has a pipeline of the type keeps it, and a save that covered no service reads nothing"() {
         given:
         products.load(1L) >> Optional.of(certScanner)
-        pipelines.existsForService(10L, PipelineType.SECURITY) >> true
+        pipelines.existsForService(10L, SECURITY) >> true
 
         when:
-        def views = service.createMissing(1L, [10L, 11L], PipelineType.SECURITY)
+        def views = service.createMissing(1L, [10L, 11L], SECURITY)
 
         then:
         1 * pipelines.save({ Pipeline p -> p.service().serviceId() == 11L }) >> { Pipeline p -> stored(101L, p) }
@@ -141,7 +144,7 @@ class PipelineServiceSpec extends Specification {
         views*.pipeline()*.id() == [101L]
 
         when:
-        def none = service.createMissing(1L, [], PipelineType.SECURITY)
+        def none = service.createMissing(1L, [], SECURITY)
 
         then:
         none == []
@@ -152,7 +155,7 @@ class PipelineServiceSpec extends Specification {
     def "#refusal is refused before anything is saved"() {
         given:
         products.findByServiceId(10L) >> Optional.of(certScanner)
-        pipelines.existsForService(10L, PipelineType.FULL) >> true
+        pipelines.existsForService(10L, FULL) >> true
         pipelines.load(100L) >> Optional.of(pipeline(id: 100))
 
         when:
@@ -164,9 +167,9 @@ class PipelineServiceSpec extends Specification {
         0 * pipelines.save(_)
 
         where:
-        refusal                       | action                                                     || message
-        'a second pipeline of a type' | { it.create(10L, PipelineType.FULL, pipelineSettings()) }  || 'Service gui already has a full pipeline'
-        'a change of the type'        | { it.update(100L, PipelineType.SAST, pipelineSettings()) } || 'The type of a pipeline cannot change; add a new pipeline instead'
+        refusal                       | action                                        || message
+        'a second pipeline of a type' | { it.create(10L, FULL, pipelineSettings()) }  || 'Service gui already has a full pipeline'
+        'a change of the type'        | { it.update(100L, SAST, pipelineSettings()) } || 'The type of a pipeline cannot change; add a new pipeline instead'
     }
 
     def "a pipeline's settings can change"() {
@@ -175,7 +178,7 @@ class PipelineServiceSpec extends Specification {
         products.load(1L) >> Optional.of(certScanner)
 
         when:
-        def view = service.update(100L, PipelineType.FULL, pipelineSettings(
+        def view = service.update(100L, FULL, pipelineSettings(
                 agentLabels: ['windows', 'linux'], extendedPipelineJob: 'CERT/x', securityPipelineJob: 'CERT/y',
                 description: 'Nightly'))
 
@@ -217,7 +220,7 @@ class PipelineServiceSpec extends Specification {
         then:
         1 * pipelines.save(_) >> { Pipeline p -> p }
         view.pipeline().activeKey().get().value() == NEW_KEY
-        view.pipeline().keys()*.status() == [KeyStatus.ACTIVE, KeyStatus.REVOKED]
+        view.pipeline().keys()*.status() == [ACTIVE, REVOKED]
     }
 
     def "an active key given in any case and with spaces authorizes its pipeline and its use is recorded"() {
@@ -258,9 +261,9 @@ class PipelineServiceSpec extends Specification {
         e.message.endsWith(message)
 
         where:
-        outcome       | reread                                                                     || failure             | message
-        'invalidated' | Optional.of(new IssuedKey(100L, revokedKey(value: KEY, reason: 'Leaked'))) || SecurityException | ': Leaked'
-        'deleted'     | Optional.empty()                                                           || NoSuchElementException   | 'Unknown DevSecOps pipeline key'
+        outcome       | reread                                                                     || failure                | message
+        'invalidated' | Optional.of(new IssuedKey(100L, revokedKey(value: KEY, reason: 'Leaked'))) || SecurityException      | ': Leaked'
+        'deleted'     | Optional.empty()                                                           || NoSuchElementException | 'Unknown DevSecOps pipeline key'
     }
 
     def "a key that is still active after a use that was not recorded authorizes its pipeline"() {

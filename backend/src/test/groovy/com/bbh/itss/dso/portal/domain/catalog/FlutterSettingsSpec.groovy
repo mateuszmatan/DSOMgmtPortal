@@ -2,8 +2,11 @@ package com.bbh.itss.dso.portal.domain.catalog
 
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT
+import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM
 import static com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform.APK
 import static com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform.APPBUNDLE
+import static com.bbh.itss.dso.portal.domain.catalog.FlutterSettings.NONE
 import static com.bbh.itss.dso.portal.domain.shared.Sections.problems
 import static com.bbh.itss.dso.portal.domain.shared.Sections.reported
 import static com.bbh.itss.dso.portal.domain.shared.Sections.written
@@ -18,8 +21,8 @@ class FlutterSettingsSpec extends Specification {
         expect:
         new FlutterSettings(null, [' app ', 'app', ''], null, [' core '], [' '], *([' '] * 8), null, ' ', ' ') ==
                 new FlutterSettings(null, ['app'], [], ['core'], [], *([null] * 8), false, null, null)
-        FlutterSettings.NONE == new FlutterSettings(*([null] * 16))
-        written(FlutterSettings.NONE) == [:]
+        NONE == new FlutterSettings(*([null] * 16))
+        written(NONE) == [:]
     }
 
     def "every Flutter setting is written under the key the library reads"() {
@@ -48,13 +51,13 @@ class FlutterSettingsSpec extends Specification {
 
     def "the SonarQube Flutter plugin is written only when it is used"() {
         expect:
-        written(new FlutterSettings(APK, [], [], [], [], null, null, null, null, null, null, 'lib', null, false, null, null)) ==
+        written(FlutterSettings.builder().platform(APK).sonarSources('lib').build()) ==
                 [flutter: [platform: 'apk'], tools: [sonar: [sources: 'lib']]]
     }
 
     def "the Flutter build stage needs its modules, a test module and all three credentials"() {
         when:
-        def problems = reported { FlutterSettings.NONE.validate(it, DeployTarget.OPENSHIFT) }
+        def problems = reported { NONE.validate(it, OPENSHIFT) }
 
         then:
         problems*.field == ['modules', 'testModules', 'signingPasswordCredentialsId', 'prodLicenseCredentialsId',
@@ -67,8 +70,10 @@ class FlutterSettingsSpec extends Specification {
     def "a Flutter build delivered to VMs needs the Nexus coordinates of its delivery"() {
         when:
         def problems = reported {
-            new FlutterSettings(APK, ['app'], ['app'], [], [], 'sign', 'prod', 'test', group, artifact, plugin, null, null,
-                    false, null, null).validate(it, target)
+            FlutterSettings.builder().platform(APK).modules(['app']).testModules(['app'])
+                    .signingPasswordCredentialsId('sign').prodLicenseCredentialsId('prod')
+                    .testLicenseCredentialsId('test').deliveryGroup(group).deliveryArtifact(artifact)
+                    .deliveryPlugin(plugin).build().validate(it, target)
         }
 
         then:
@@ -76,21 +81,22 @@ class FlutterSettingsSpec extends Specification {
         problems*.message.every { it == 'is required for Flutter on VMs: the Nexus delivery uploads the build under it' }
 
         where:
-        target                 | group     | artifact | plugin   || missing
-        DeployTarget.VM        | null      | null     | null     || ['deliveryGroup', 'deliveryArtifact', 'deliveryPlugin']
-        DeployTarget.VM        | 'com.bbh' | ' '      | 'plugin' || ['deliveryArtifact']
-        DeployTarget.VM        | 'com.bbh' | 'app'    | 'plugin' || []
-        DeployTarget.OPENSHIFT | null      | null     | null     || []
+        target    | group     | artifact | plugin   || missing
+        VM        | null      | null     | null     || ['deliveryGroup', 'deliveryArtifact', 'deliveryPlugin']
+        VM        | 'com.bbh' | ' '      | 'plugin' || ['deliveryArtifact']
+        VM        | 'com.bbh' | 'app'    | 'plugin' || []
+        OPENSHIFT | null      | null     | null     || []
     }
 
     def "module lists that do not fit their column are refused"() {
         given:
         def tooMany = (1..30).collect { "modules/feature-$it/${'x' * 25}".toString() }
-        def settings = new FlutterSettings(APK, tooMany, tooMany, tooMany, ['ok'], 'sign', 'prod', 'test', null, null,
-                null, null, null, false, null, null)
+        def settings = FlutterSettings.builder().platform(APK).modules(tooMany).testModules(tooMany)
+                .testSubmodules(tooMany).testSubplugins(['ok']).signingPasswordCredentialsId('sign')
+                .prodLicenseCredentialsId('prod').testLicenseCredentialsId('test').build()
 
         when:
-        def problems = reported { settings.validate(it, DeployTarget.OPENSHIFT) }
+        def problems = reported { settings.validate(it, OPENSHIFT) }
 
         then:
         problems*.field == ['modules', 'testModules', 'testSubmodules']
@@ -99,7 +105,7 @@ class FlutterSettingsSpec extends Specification {
 
     def "missing credential #missing is reported"() {
         expect:
-        problems { settings.validate(it, DeployTarget.VM) } == missing
+        problems { settings.validate(it, VM) } == missing
 
         where:
         settings                             || missing
@@ -110,7 +116,8 @@ class FlutterSettingsSpec extends Specification {
     }
 
     private static FlutterSettings credentials(String signing, String prod, String test) {
-        new FlutterSettings(null, ['app'], ['app'], [], [], signing, prod, test, 'com.bbh', 'app', 'plugin', null, null,
-                false, null, null)
+        FlutterSettings.builder().modules(['app']).testModules(['app']).signingPasswordCredentialsId(signing)
+                .prodLicenseCredentialsId(prod).testLicenseCredentialsId(test).deliveryGroup('com.bbh')
+                .deliveryArtifact('app').deliveryPlugin('plugin').build()
     }
 }

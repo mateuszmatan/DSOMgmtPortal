@@ -1,7 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence
 
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettings
-import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues
 import com.bbh.itss.dso.portal.domain.settings.SeverityLimits
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
@@ -11,17 +10,19 @@ import org.springframework.jdbc.core.JdbcTemplate
 import spock.lang.Specification
 import spock.lang.Subject
 
+import static com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues.bbhDefaults
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.DAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SCA
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.Fixtures.copy
+import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 
 @DataJpaTest(properties = [
         'spring.datasource.url=jdbc:h2:mem:settings-adapter;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa'])
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@AutoConfigureTestDatabase(replace = NONE)
 @Import(GlobalSettingsPersistenceAdapter)
 class GlobalSettingsPersistenceAdapterSpec extends Specification {
 
@@ -32,7 +33,7 @@ class GlobalSettingsPersistenceAdapterSpec extends Specification {
     @Autowired
     JdbcTemplate jdbc
 
-    def bbh = GlobalSettingsValues.bbhDefaults()
+    def bbh = bbhDefaults()
 
     def "the defaults are stored under the fixed key and read back unchanged"() {
         expect:

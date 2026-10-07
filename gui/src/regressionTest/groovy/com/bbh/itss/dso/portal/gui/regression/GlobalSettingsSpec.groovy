@@ -2,12 +2,14 @@ package com.bbh.itss.dso.portal.gui.regression
 
 import com.bbh.itss.dso.portal.gui.support.GuiSpecification
 import com.bbh.itss.dso.portal.gui.support.RecordedRequest
-import com.bbh.itss.dso.portal.gui.support.StubApi
-import com.bbh.itss.dso.portal.gui.support.StubResponse
 import com.microsoft.playwright.Page
-import com.microsoft.playwright.options.AriaRole
 
+import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
+import static com.bbh.itss.dso.portal.gui.support.StubApi.fixtureText
+import static com.bbh.itss.dso.portal.gui.support.StubResponse.json
+import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
+import static com.microsoft.playwright.options.AriaRole.CHECKBOX
 
 class GlobalSettingsSpec extends GuiSpecification {
 
@@ -16,21 +18,21 @@ class GlobalSettingsSpec extends GuiSpecification {
     Map stored
 
     def setup() {
-        stored = StubApi.fixture('settings.json') as Map
-        api.get('/api/settings') { StubResponse.json(stored) }
+        stored = fixture('settings.json') as Map
+        api.get('/api/settings') { json(stored) }
         api.on('PUT', '/api/settings') { RecordedRequest request ->
             def body = request.json() as Map
             if (body.version != stored.version) {
-                return StubResponse.problem(409, 'Conflict', 'The settings were changed by someone else')
+                return problem(409, 'Conflict', 'The settings were changed by someone else')
             }
             stored = body + [version: (stored.version as int) + 1, updatedAt: SAVED_AT]
-            StubResponse.json(stored)
+            json(stored)
         }
     }
 
     def "saving the settings unchanged sends back what was loaded with its version"() {
         given:
-        def loaded = StubApi.fixture('settings.json') as Map
+        def loaded = fixture('settings.json') as Map
         open('/settings')
 
         expect:
@@ -52,7 +54,7 @@ class GlobalSettingsSpec extends GuiSpecification {
 
         when:
         field('Jenkins URL').fill('https://jenkins2.bbh.com/')
-        page.getByRole(AriaRole.CHECKBOX, new Page.GetByRoleOptions().setName('GoldenFix runs by default')).uncheck()
+        page.getByRole(CHECKBOX, new Page.GetByRoleOptions().setName('GoldenFix runs by default')).uncheck()
 
         then:
         assertThat(page.locator('.save-bar')).containsText('Unsaved changes')
@@ -66,7 +68,7 @@ class GlobalSettingsSpec extends GuiSpecification {
         body.platform.jenkinsUrl == 'https://jenkins2.bbh.com/'
         body.goldenFix.enabled == false
         body.findAll { !(it.key in ['platform', 'goldenFix']) } ==
-                (StubApi.fixture('settings.json') as Map).findAll { !(it.key in ['platform', 'goldenFix', 'updatedAt']) }
+                (fixture('settings.json') as Map).findAll { !(it.key in ['platform', 'goldenFix', 'updatedAt']) }
         assertThat(page.locator('.page-header .meta')).containsText('Version 2')
         assertThat(page.locator('.save-bar')).not().containsText('Unsaved changes')
         assertThat(field('Jenkins URL')).hasValue('https://jenkins2.bbh.com/')
@@ -112,7 +114,7 @@ class GlobalSettingsSpec extends GuiSpecification {
 
     def "the server's field errors are shown on their fields and the section is marked"() {
         given:
-        api.respond('PUT', '/api/settings', StubResponse.problem(400, 'Bad Request', 'Some values are not valid', [errors: [
+        api.respond('PUT', '/api/settings', problem(400, 'Bad Request', 'Some values are not valid', [errors: [
                 [field: 'platform.sonarServerUrl', message: 'SonarQube does not answer at this address'],
                 [field: 'audit.retentionDays', message: 'must be at least 30']]]))
         open('/settings')
@@ -172,7 +174,7 @@ class GlobalSettingsSpec extends GuiSpecification {
 
         then:
         assertThat(dialog().locator('h2')).hasText('Generated global configuration')
-        dialog().locator('pre.code-block').textContent() == StubApi.fixtureText('settings-config.yaml')
+        dialog().locator('pre.code-block').textContent() == fixtureText('settings-config.yaml')
         awaitRequest('GET', '/api/settings/config').params() == [format: 'yaml']
 
         when:
@@ -185,7 +187,7 @@ class GlobalSettingsSpec extends GuiSpecification {
 
         when:
         dialogButton('Close').click()
-        api.respond('GET', '/api/settings/config', StubResponse.problem(503, 'Service Unavailable', 'The configuration renderer is restarting'))
+        api.respond('GET', '/api/settings/config', problem(503, 'Service Unavailable', 'The configuration renderer is restarting'))
         button('Generated configuration', true).click()
 
         then:

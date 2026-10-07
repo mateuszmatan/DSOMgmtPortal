@@ -1,15 +1,15 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
-import java.util.Objects;
-
+import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trim;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public record ServiceDraft(Long id, String name, String description, ServiceSettings settings) {
 
     public ServiceDraft {
-        name = name == null ? null : name.trim();
+        name = trim(name);
         description = trimToNull(description);
-        Objects.requireNonNull(settings, "a service needs its settings");
+        requireNonNull(settings, "a service needs its settings");
     }
 
     Service place(int displayOrder, String productCode) {

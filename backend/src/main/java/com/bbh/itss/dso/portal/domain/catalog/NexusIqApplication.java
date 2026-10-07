@@ -1,11 +1,12 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
-import com.bbh.itss.dso.portal.domain.shared.StoredList;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.List;
 
+import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_2000;
+import static com.bbh.itss.dso.portal.domain.shared.Text.clean;
+import static org.apache.commons.lang3.BooleanUtils.isTrue;
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import static org.apache.commons.lang3.StringUtils.trim;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -17,9 +18,9 @@ public record NexusIqApplication(String application, List<String> scanPatterns, 
 
     public NexusIqApplication {
         application = trimToNull(application);
-        scanPatterns = Text.clean(scanPatterns);
+        scanPatterns = clean(scanPatterns);
         stage = defaultIfBlank(trim(stage), DEFAULT_STAGE);
-        failOnNetworkError = Boolean.TRUE.equals(failOnNetworkError);
+        failOnNetworkError = isTrue(failOnNetworkError);
     }
 
     public static NexusIqApplication of(String application, List<String> scanPatterns) {
@@ -29,6 +30,6 @@ public record NexusIqApplication(String application, List<String> scanPatterns, 
     public void validate(ValidationProblems problems) {
         problems.require("application", application, "must not be blank")
                 .require("scanPatterns", scanPatterns, "add at least one scan pattern for the Nexus IQ application");
-        StoredList.LINES_2000.check(problems, "scanPatterns", scanPatterns);
+        LINES_2000.check(problems, "scanPatterns", scanPatterns);
     }
 }

@@ -5,12 +5,15 @@ import com.sun.net.httpserver.HttpServer
 import groovy.json.JsonSlurper
 import groovy.transform.Canonical
 
-import java.nio.charset.StandardCharsets
-import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
+
+import static java.lang.Runtime.getRuntime
+import static java.net.InetAddress.getLoopbackAddress
+import static java.nio.charset.StandardCharsets.UTF_8
+import static java.time.Duration.ofDays
+import static java.util.concurrent.Executors.newFixedThreadPool
 
 class FakeInfluxDb implements AutoCloseable {
 
@@ -27,7 +30,7 @@ class FakeInfluxDb implements AutoCloseable {
     private final List<Run> runs = new CopyOnWriteArrayList<>()
     private final List<Map<String, String>> points = new CopyOnWriteArrayList<>()
     private final HttpServer server
-    private final ExecutorService executor = Executors.newFixedThreadPool(16, { Runnable task ->
+    private final ExecutorService executor = newFixedThreadPool(16, { Runnable task ->
         Thread thread = new Thread(task, 'fake-influxdb')
         thread.daemon = true
         thread
@@ -37,7 +40,7 @@ class FakeInfluxDb implements AutoCloseable {
     private volatile Closure queryListener
 
     private FakeInfluxDb() {
-        server = HttpServer.create(new InetSocketAddress(InetAddress.loopbackAddress, 0), 0)
+        server = HttpServer.create(new InetSocketAddress(getLoopbackAddress(), 0), 0)
         server.executor = executor
         server.createContext('/api/v2/query') { HttpExchange exchange -> handle(exchange) }
         server.start()
@@ -48,9 +51,9 @@ class FakeInfluxDb implements AutoCloseable {
     }
 
     static synchronized FakeInfluxDb shared() {
-        if (sharedInstance == null) {
+        if (!sharedInstance) {
             sharedInstance = start()
-            Runtime.runtime.addShutdownHook(new Thread({ sharedInstance.close() }))
+            getRuntime().addShutdownHook(new Thread({ sharedInstance.close() }))
         }
         sharedInstance
     }
@@ -115,7 +118,7 @@ class FakeInfluxDb implements AutoCloseable {
                     accept: exchange.requestHeaders.getFirst('Accept'), body: body)
             String answer = status == 200 ? (fixedAnswer ?: answer(body.query as String))
                     : '{"code":"unauthorized","message":"unauthorized access"}'
-            byte[] bytes = answer.getBytes(StandardCharsets.UTF_8)
+            byte[] bytes = answer.getBytes(UTF_8)
             exchange.responseHeaders.add('Content-Type', status == 200 ? 'text/csv; charset=utf-8' : 'application/json')
             exchange.sendResponseHeaders(status, bytes.length == 0 ? -1 : bytes.length)
             exchange.responseBody.withStream { it.write(bytes) }
@@ -145,7 +148,7 @@ class FakeInfluxDb implements AutoCloseable {
 
     private String latestRuns(String flux) {
         Set<String> projects = projectsIn(flux)
-        Instant since = Instant.now() - Duration.ofDays(days(flux))
+        Instant since = Instant.now() - ofDays(days(flux))
         boolean perJob = flux.contains('group(columns: ["project", "env", "job"])')
         def newest = runs.findAll { it.project in projects && it.time.isAfter(since) }
                 .groupBy { perJob ? [it.project, it.env, jobOf(it)] : [it.project, it.env] }
@@ -162,7 +165,7 @@ class FakeInfluxDb implements AutoCloseable {
 
     private String doraPoints(String flux) {
         Set<String> projects = projectsIn(flux)
-        Instant since = Instant.now() - Duration.ofDays(days(flux))
+        Instant since = Instant.now() - ofDays(days(flux))
         def selected = runs.findAll { it.project in projects && it.time.isAfter(since) }.sort { it.time }
         csv(DORA_COLUMNS, selected.collect { run ->
             [0, [run.time.toString(), run.project, run.env, run.variant, run.result == 'SUCCESS' ? '0' : '1',
@@ -187,13 +190,13 @@ class FakeInfluxDb implements AutoCloseable {
     }
 
     private static String csvCell(String value) {
-        value != null && (value.contains(',') || value.contains('"')) ? '"' + value.replace('"', '""') + '"' : (value ?: '')
+        value?.contains(',') || value?.contains('"') ? '"' + value.replace('"', '""') + '"' : (value ?: '')
     }
 
     private List<Run> selectedRuns(String flux) {
         def filter = (flux =~ /r\.project == "([^"]*)" and r\.env == "([^"]*)"/)[0]
         def job = (flux =~ /r\.job == "([^"]*)"/).with { it.find() ? it.group(1) : null }
-        Instant since = Instant.now() - Duration.ofDays(days(flux))
+        Instant since = Instant.now() - ofDays(days(flux))
         runs.findAll {
             it.project == filter[1] && it.env == filter[2] && it.time.isAfter(since) &&
                     (job == null || jobOf(it) == job || jobOf(it).startsWith(job + '/'))

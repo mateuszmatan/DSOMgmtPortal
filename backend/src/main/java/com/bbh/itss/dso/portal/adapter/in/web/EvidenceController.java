@@ -12,6 +12,7 @@ import com.bbh.itss.dso.portal.domain.evidence.RunEvidenceReport;
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,13 +24,10 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 @RestController
 @RequestMapping("/api/evidence")
+@RequiredArgsConstructor
 public class EvidenceController {
 
     private final QueryEvidenceUseCase evidence;
-
-    public EvidenceController(QueryEvidenceUseCase evidence) {
-        this.evidence = evidence;
-    }
 
     @GetMapping("/products/{id}")
     public ProductEvidenceResponse product(@PathVariable long id) {

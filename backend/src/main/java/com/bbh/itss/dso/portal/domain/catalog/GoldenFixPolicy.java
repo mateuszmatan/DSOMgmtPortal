@@ -1,15 +1,20 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.StoredList;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+import lombok.Builder;
+import lombok.With;
 
 import java.util.List;
 
+import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_1000;
+import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_2000;
+import static com.bbh.itss.dso.portal.domain.shared.Text.clean;
+import static lombok.AccessLevel.PRIVATE;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
-public record GoldenFixPolicy(Boolean enabled, Boolean onlyDirectDependencies, Integer minThreatLevel,
+@Builder
+public record GoldenFixPolicy(@With(PRIVATE) Boolean enabled, Boolean onlyDirectDependencies, Integer minThreatLevel,
                               List<String> ecosystems, List<String> goldenVersionTypes, List<String> excludeDirs,
                               Boolean verifyEnabled, Integer verifyMaxAttempts, Integer verifyTimeoutMinutes,
                               String verifyMavenCommand, String verifyGradleCommand, String verifyNpmCommand,
@@ -19,9 +24,9 @@ public record GoldenFixPolicy(Boolean enabled, Boolean onlyDirectDependencies, I
     public static final GoldenFixPolicy INHERITED = inherit(null);
 
     public GoldenFixPolicy {
-        ecosystems = Text.clean(ecosystems);
-        goldenVersionTypes = Text.clean(goldenVersionTypes);
-        excludeDirs = Text.clean(excludeDirs);
+        ecosystems = clean(ecosystems);
+        goldenVersionTypes = clean(goldenVersionTypes);
+        excludeDirs = clean(excludeDirs);
         verifyMavenCommand = trimToNull(verifyMavenCommand);
         verifyGradleCommand = trimToNull(verifyGradleCommand);
         verifyNpmCommand = trimToNull(verifyNpmCommand);
@@ -33,8 +38,7 @@ public record GoldenFixPolicy(Boolean enabled, Boolean onlyDirectDependencies, I
     }
 
     public static GoldenFixPolicy inherit(Boolean enabled) {
-        return new GoldenFixPolicy(enabled, null, null, List.of(), List.of(), List.of(), null, null, null, null, null,
-                null, null, null, null, null, null);
+        return builder().enabled(enabled).build();
     }
 
     public void writeTo(ConfigTree config) {
@@ -58,18 +62,12 @@ public record GoldenFixPolicy(Boolean enabled, Boolean onlyDirectDependencies, I
     }
 
     public GoldenFixPolicy enabledByDefault() {
-        if (enabled != null) {
-            return this;
-        }
-        return new GoldenFixPolicy(true, onlyDirectDependencies, minThreatLevel, ecosystems, goldenVersionTypes,
-                excludeDirs, verifyEnabled, verifyMaxAttempts, verifyTimeoutMinutes, verifyMavenCommand,
-                verifyGradleCommand, verifyNpmCommand, verifyPipCommand, verifyPubCommand, commitAuthorName,
-                commitAuthorEmail, timeZone);
+        return enabled != null ? this : withEnabled(true);
     }
 
     public void validate(ValidationProblems problems) {
-        StoredList.LINES_1000.check(problems, "goldenVersionTypes", goldenVersionTypes);
-        StoredList.LINES_2000.check(problems, "excludeDirs", excludeDirs);
+        LINES_1000.check(problems, "goldenVersionTypes", goldenVersionTypes);
+        LINES_2000.check(problems, "excludeDirs", excludeDirs);
     }
 
     public void validateComplete(ValidationProblems problems) {

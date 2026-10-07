@@ -2,8 +2,8 @@ package com.bbh.itss.dso.portal.adapter.out.localmetrics;
 
 import com.bbh.itss.dso.portal.application.monitoring.port.in.ReadMonitoringTargetsUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -12,31 +12,29 @@ import org.springframework.stereotype.Component;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.TreeMap;
 
+import static com.bbh.itss.dso.portal.adapter.out.localmetrics.LocalMetricsStore.ACTIVE;
+import static java.time.Duration.ofDays;
+import static java.time.temporal.ChronoUnit.SECONDS;
+
 @Component
-@ConditionalOnExpression(LocalMetricsStore.ACTIVE)
+@ConditionalOnExpression(ACTIVE)
+@RequiredArgsConstructor
+@Slf4j
 class DemoRunHistory {
 
-    static final Duration HISTORY = Duration.ofDays(120);
-    private static final Duration RETIRED = Duration.ofDays(9);
+    static final Duration HISTORY = ofDays(120);
+    private static final Duration RETIRED = ofDays(9);
     private static final long SEED = 20_261_007L;
-    private static final Logger log = LoggerFactory.getLogger(DemoRunHistory.class);
 
     private final LocalMetricsStore store;
     private final ReadMonitoringTargetsUseCase targets;
     private final Clock clock;
-
-    DemoRunHistory(LocalMetricsStore store, ReadMonitoringTargetsUseCase targets, Clock clock) {
-        this.store = store;
-        this.targets = targets;
-        this.clock = clock;
-    }
 
     @EventListener(ApplicationReadyEvent.class)
     void recordOnce() {
@@ -48,7 +46,7 @@ class DemoRunHistory {
             byJob.computeIfAbsent(view.metricsTag() + " " + view.pipeline().type() + " "
                     + view.pipeline().settings().jobPath(), key -> new ArrayList<>()).add(view);
         }
-        Instant now = clock.instant().truncatedTo(ChronoUnit.SECONDS);
+        Instant now = clock.instant().truncatedTo(SECONDS);
         List<StoredPoint> points = new ArrayList<>();
         byJob.forEach((key, views) -> {
             PipelineView first = views.getFirst();

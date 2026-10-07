@@ -1,9 +1,12 @@
 package com.bbh.itss.dso.portal.domain.shared
 
-import org.springframework.web.util.UriUtils
 import spock.lang.Specification
 
-import java.nio.charset.StandardCharsets
+import static com.bbh.itss.dso.portal.domain.shared.UriEncoding.pathSegment
+import static com.bbh.itss.dso.portal.domain.shared.UriEncoding.queryParam
+import static java.nio.charset.StandardCharsets.UTF_8
+import static org.springframework.web.util.UriUtils.encodePathSegment
+import static org.springframework.web.util.UriUtils.encodeQueryParam
 
 class UriEncodingSpec extends Specification {
 
@@ -11,7 +14,7 @@ class UriEncodingSpec extends Specification {
 
     def "a path segment keeps the characters RFC 3986 allows in it and encodes the rest in upper case hex"() {
         expect:
-        UriEncoding.pathSegment(segment) == encoded
+        pathSegment(segment) == encoded
 
         where:
         segment                       || encoded
@@ -25,7 +28,7 @@ class UriEncodingSpec extends Specification {
 
     def "a query parameter also keeps slashes and question marks but encodes the separators of parameters"() {
         expect:
-        UriEncoding.queryParam(value) == encoded
+        queryParam(value) == encoded
 
         where:
         value                 || encoded
@@ -39,7 +42,7 @@ class UriEncodingSpec extends Specification {
 
     def "the encodings match the ones Spring applies to path segments and query parameters"() {
         expect:
-        UriEncoding.pathSegment(EVERY_SYMBOL) == UriUtils.encodePathSegment(EVERY_SYMBOL, StandardCharsets.UTF_8)
-        UriEncoding.queryParam(EVERY_SYMBOL) == UriUtils.encodeQueryParam(EVERY_SYMBOL, StandardCharsets.UTF_8)
+        pathSegment(EVERY_SYMBOL) == encodePathSegment(EVERY_SYMBOL, UTF_8)
+        queryParam(EVERY_SYMBOL) == encodeQueryParam(EVERY_SYMBOL, UTF_8)
     }
 }

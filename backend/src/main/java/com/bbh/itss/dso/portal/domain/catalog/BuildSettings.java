@@ -3,6 +3,11 @@ package com.bbh.itss.dso.portal.domain.catalog;
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
+import static com.bbh.itss.dso.portal.domain.catalog.ToolCommand.NONE;
+import static org.apache.commons.lang3.BooleanUtils.isTrue;
+import static org.apache.commons.lang3.ObjectUtils.getIfNull;
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import static org.apache.commons.lang3.StringUtils.trim;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -15,9 +20,9 @@ public record BuildSettings(BuildTool tool, String sourceDir, String javaPath, B
     public BuildSettings {
         sourceDir = defaultIfBlank(trim(sourceDir), DEFAULT_SOURCE_DIR);
         javaPath = trimToNull(javaPath);
-        autoSetup = Boolean.TRUE.equals(autoSetup);
+        autoSetup = isTrue(autoSetup);
         buildPath = trimToNull(buildPath);
-        command = command == null ? ToolCommand.NONE : command;
+        command = getIfNull(command, NONE);
     }
 
     public void writeTo(ConfigTree config) {
@@ -27,13 +32,13 @@ public record BuildSettings(BuildTool tool, String sourceDir, String javaPath, B
     }
 
     public void validate(ValidationProblems problems) {
-        if (tool == BuildTool.FLUTTER) {
+        if (tool == FLUTTER) {
             validateFlutter(problems);
         } else if (javaPath == null && !autoSetup) {
             problems.add("javaPath", "set the JDK path or enable automatic build tool setup, the unit tests stage needs one of them");
         }
-        if (tool != BuildTool.FLUTTER && command.tasks().isEmpty()) {
-            problems.add("command.tasks", tool == BuildTool.MAVEN
+        if (tool != FLUTTER && command.tasks().isEmpty()) {
+            problems.add("command.tasks", tool == MAVEN
                     ? "add the Maven goals of the build, for example clean verify"
                     : "add the Gradle tasks of the build, for example clean build");
         }

@@ -1,11 +1,13 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import lombok.Builder;
 
 import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
+@Builder
 public record SshTarget(String host, String user, String deployDir, String deployScript, String versionFile) {
 
     public SshTarget {

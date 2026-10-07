@@ -1,5 +1,10 @@
 package com.bbh.itss.dso.portal.domain.settings;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+@Getter
+@RequiredArgsConstructor
 public enum Scanner {
     SAST("sast", "sast"),
     SCA("sca", "sca"),
@@ -8,17 +13,4 @@ public enum Scanner {
 
     private final String gateKey;
     private final String defaultsPath;
-
-    Scanner(String gateKey, String defaultsPath) {
-        this.gateKey = gateKey;
-        this.defaultsPath = defaultsPath;
-    }
-
-    public String gateKey() {
-        return gateKey;
-    }
-
-    public String defaultsPath() {
-        return defaultsPath;
-    }
 }

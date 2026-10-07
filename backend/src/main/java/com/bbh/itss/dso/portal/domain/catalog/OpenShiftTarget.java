@@ -2,11 +2,14 @@ package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+import lombok.Builder;
 
 import java.util.Map;
 
+import static org.apache.commons.lang3.BooleanUtils.isTrue;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
+@Builder
 public record OpenShiftTarget(String projectBuild, String buildConfigPath, String dockerFilePath, String buildContext,
                               String addFile, String dockerRepoPush, String dockerRepoPull, String certDir,
                               String nexusAuthFile, String projectDeployment, String deployConfigPath,
@@ -27,7 +30,7 @@ public record OpenShiftTarget(String projectBuild, String buildConfigPath, Strin
         projectDeployment = trimToNull(projectDeployment);
         deployConfigPath = trimToNull(deployConfigPath);
         configPath = trimToNull(configPath);
-        skipConfigDeploy = Boolean.TRUE.equals(skipConfigDeploy);
+        skipConfigDeploy = isTrue(skipConfigDeploy);
         healthCheckUrl = trimToNull(healthCheckUrl);
         routeHostname = trimToNull(routeHostname);
         deploymentPath = trimToNull(deploymentPath);
@@ -38,8 +41,7 @@ public record OpenShiftTarget(String projectBuild, String buildConfigPath, Strin
         internalDockerUrl = trimToNull(internalDockerUrl);
     }
 
-    public static final OpenShiftTarget NONE = new OpenShiftTarget(null, null, null, null, null, null, null, null, null,
-            null, null, null, false, null, null, null, null, null, null, null, null);
+    public static final OpenShiftTarget NONE = builder().build();
 
     public void validateImageBuild(ValidationProblems problems) {
         String message = "is required for OpenShift: the Nexus snapshot delivery builds the image in the RD project";

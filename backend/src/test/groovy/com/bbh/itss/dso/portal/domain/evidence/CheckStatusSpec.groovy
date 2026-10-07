@@ -2,25 +2,34 @@ package com.bbh.itss.dso.portal.domain.evidence
 
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.evidence.CheckStatus.BLOCKED
+import static com.bbh.itss.dso.portal.domain.evidence.CheckStatus.FAIL
+import static com.bbh.itss.dso.portal.domain.evidence.CheckStatus.NOT_REQUIRED
+import static com.bbh.itss.dso.portal.domain.evidence.CheckStatus.NO_DATA
+import static com.bbh.itss.dso.portal.domain.evidence.CheckStatus.PASS
+import static com.bbh.itss.dso.portal.domain.evidence.CheckStatus.SKIP
+import static com.bbh.itss.dso.portal.domain.evidence.CheckStatus.WARN
+import static com.bbh.itss.dso.portal.domain.evidence.CheckStatus.fromTag
+
 class CheckStatusSpec extends Specification {
 
     def "the tag #tag reads as #status"() {
         expect:
-        CheckStatus.fromTag(tag) == status
+        fromTag(tag) == status
 
         where:
         tag            || status
-        null           || CheckStatus.NO_DATA
-        ''             || CheckStatus.NO_DATA
-        '   '          || CheckStatus.NO_DATA
-        'PASS'         || CheckStatus.PASS
-        ' warn '       || CheckStatus.WARN
-        'Fail'         || CheckStatus.FAIL
-        'blocked'      || CheckStatus.BLOCKED
-        'not_required' || CheckStatus.NOT_REQUIRED
-        'SKIP'         || CheckStatus.SKIP
-        'no_data'      || CheckStatus.NO_DATA
-        'SUCCESS'      || CheckStatus.NO_DATA
-        'not required' || CheckStatus.NO_DATA
+        null           || NO_DATA
+        ''             || NO_DATA
+        '   '          || NO_DATA
+        'PASS'         || PASS
+        ' warn '       || WARN
+        'Fail'         || FAIL
+        'blocked'      || BLOCKED
+        'not_required' || NOT_REQUIRED
+        'SKIP'         || SKIP
+        'no_data'      || NO_DATA
+        'SUCCESS'      || NO_DATA
+        'not required' || NO_DATA
     }
 }

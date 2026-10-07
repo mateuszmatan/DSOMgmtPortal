@@ -7,6 +7,7 @@ import jakarta.persistence.Converter;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Converter(autoApply = true)
@@ -14,7 +15,7 @@ public class ScannerListConverter implements AttributeConverter<List<Scanner>, S
 
     @Override
     public String convertToDatabaseColumn(List<Scanner> scanners) {
-        return scanners == null || scanners.isEmpty() ? null
+        return isEmpty(scanners) ? null
                 : String.join(",", scanners.stream().map(Scanner::name).toList());
     }
 

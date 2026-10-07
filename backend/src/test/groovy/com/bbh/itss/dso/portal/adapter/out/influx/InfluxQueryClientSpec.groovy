@@ -108,11 +108,12 @@ class InfluxQueryClientSpec extends Specification {
         e.message == error
 
         where:
-        failure                                       || error
-        new IllegalStateException('401 Unauthorized') || 'InfluxDB could not be read: 401 Unauthorized'
-        new IllegalStateException('x' * 300)          || 'InfluxDB could not be read: ' + 'x' * 300
-        new IllegalStateException('0123456789' * 40)  || 'InfluxDB could not be read: ' + ('0123456789' * 30)
-        new RuntimeException()                        || 'InfluxDB could not be read: RuntimeException'
+        failure                                             || error
+        new IllegalStateException('401 Unauthorized')       || 'InfluxDB could not be read: 401 Unauthorized'
+        new IllegalStateException('x' * 300)                || 'InfluxDB could not be read: ' + 'x' * 300
+        new IllegalStateException('0123456789' * 40)        || 'InfluxDB could not be read: ' + ('0123456789' * 30)
+        new RuntimeException()                              || 'InfluxDB could not be read: RuntimeException'
+        new UncheckedIOException('kept', new IOException()) || 'kept'
     }
 
     def "the look-back for the latest runs must be a Flux duration"() {

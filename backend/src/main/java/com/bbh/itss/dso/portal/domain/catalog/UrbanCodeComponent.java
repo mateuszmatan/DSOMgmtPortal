@@ -2,24 +2,28 @@ package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+import lombok.Builder;
 
 import java.util.Map;
 
+import static org.apache.commons.lang3.BooleanUtils.isNotFalse;
+import static org.apache.commons.lang3.StringUtils.trim;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
+@Builder
 public record UrbanCodeComponent(String componentName, String baseDir, String fileIncludePatterns,
                                  String fileExcludePatterns, String versionPrefix, String version,
                                  Boolean incrementalVersion, String extensions, String charset,
                                  String pushDescription, String versionProperties, String versionDescription) {
 
     public UrbanCodeComponent {
-        componentName = componentName == null ? null : componentName.trim();
+        componentName = trim(componentName);
         baseDir = trimToNull(baseDir);
         fileIncludePatterns = trimToNull(fileIncludePatterns);
         fileExcludePatterns = trimToNull(fileExcludePatterns);
         versionPrefix = trimToNull(versionPrefix);
         version = trimToNull(version);
-        incrementalVersion = !Boolean.FALSE.equals(incrementalVersion);
+        incrementalVersion = isNotFalse(incrementalVersion);
         extensions = trimToNull(extensions);
         charset = trimToNull(charset);
         pushDescription = trimToNull(pushDescription);
@@ -28,8 +32,8 @@ public record UrbanCodeComponent(String componentName, String baseDir, String fi
     }
 
     public static UrbanCodeComponent of(String componentName, String baseDir, String fileIncludePatterns) {
-        return new UrbanCodeComponent(componentName, baseDir, fileIncludePatterns, null, null, null, true, null, null,
-                null, null, null);
+        return builder().componentName(componentName).baseDir(baseDir).fileIncludePatterns(fileIncludePatterns)
+                .build();
     }
 
     public void validate(ValidationProblems problems) {

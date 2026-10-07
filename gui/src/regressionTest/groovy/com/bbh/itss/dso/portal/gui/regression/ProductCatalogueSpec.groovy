@@ -1,10 +1,11 @@
 package com.bbh.itss.dso.portal.gui.regression
 
-import com.bbh.itss.dso.portal.gui.support.StubApi
 import com.microsoft.playwright.Locator
-import com.microsoft.playwright.options.AriaRole
 
+import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
+import static com.microsoft.playwright.options.AriaRole.BUTTON
+import static com.microsoft.playwright.options.AriaRole.LINK
 
 class ProductCatalogueSpec extends ProductPageSpecification {
 
@@ -35,7 +36,7 @@ class ProductCatalogueSpec extends ProductPageSpecification {
 
     def "products without a department are listed last until they are edited"() {
         given:
-        def products = StubApi.fixture('products.json') as List<Map>
+        def products = fixture('products.json') as List<Map>
         api.respond('GET', '/api/products', [products[0], products[1] + [departmentId: null, departmentName: null]])
 
         when:
@@ -46,7 +47,7 @@ class ProductCatalogueSpec extends ProductPageSpecification {
         assertThat(department('Not in a department').locator('td a.name')).hasText('Payments Hub')
         assertThat(department('Not in a department').locator('.tally')).hasText('6 DevSecOps pipelines for 1 product · 5 active')
         assertThat(department('Not in a department').locator('.hint')).hasText('Edit these products to choose their department.')
-        assertThat(department('Not in a department').getByRole(AriaRole.BUTTON)).hasCount(0)
+        assertThat(department('Not in a department').getByRole(BUTTON)).hasCount(0)
         ownErrors().isEmpty()
     }
 
@@ -121,7 +122,7 @@ class ProductCatalogueSpec extends ProductPageSpecification {
         assertThat(page.locator('h1')).hasText('CertScanner')
         assertThat(pipelineTypes('gui')).hasText(['Full pipeline', 'SAST scanning pipeline'] as String[])
         assertThat(link('Monitoring', true)).hasAttribute('href', '/monitoring/products/1')
-        assertThat(pipelineRow('gui', 'Full').getByRole(AriaRole.LINK,
+        assertThat(pipelineRow('gui', 'Full').getByRole(LINK,
                 new Locator.GetByRoleOptions().setName('Jenkins').setExact(true)))
                 .hasAttribute('href', 'https://jenkins.bbh.com/job/DevSecOps/job/CERTSCANNER/job/gui-full/')
         ownErrors().isEmpty()

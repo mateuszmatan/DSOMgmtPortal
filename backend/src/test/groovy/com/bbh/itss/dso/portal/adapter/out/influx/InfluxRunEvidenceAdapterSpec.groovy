@@ -1,16 +1,18 @@
 package com.bbh.itss.dso.portal.adapter.out.influx
 
-import com.bbh.itss.dso.portal.domain.evidence.CheckStatus
 import com.bbh.itss.dso.portal.domain.evidence.CoverageEvidence
 import com.bbh.itss.dso.portal.domain.evidence.EvidenceLinks
 import com.bbh.itss.dso.portal.domain.evidence.ReleaseGateEvidence
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun
-import com.bbh.itss.dso.portal.domain.monitoring.RunResult
 import org.springframework.web.client.RestClient
 import spock.lang.Specification
 
 import java.time.Instant
+
+import static com.bbh.itss.dso.portal.adapter.out.influx.InfluxRunEvidenceAdapter.belongsTo
+import static com.bbh.itss.dso.portal.domain.evidence.CheckStatus.WARN
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.SUCCESS
 
 class InfluxRunEvidenceAdapterSpec extends Specification {
 
@@ -100,7 +102,7 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
         evidence.keySet() == [guiRun, sastRun, uatRun] as Set
         evidence[guiRun].stages()*.name() == ['Build']
         evidence[guiRun].releaseGate() == new ReleaseGateEvidence(true, null, null)
-        evidence[guiRun].coverage('gui') == new CoverageEvidence(CheckStatus.WARN, null, null, null, null)
+        evidence[guiRun].coverage('gui') == CoverageEvidence.builder().status(WARN).build()
         evidence[uatRun].stages()*.name() == ['Deploy']
         evidence[sastRun].stages() == []
         evidence[sastRun].releaseGate() == null
@@ -153,9 +155,8 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
 
     def "a #measurement point #offset seconds from the finish belongs to the run: #belongs"() {
         expect:
-        InfluxRunEvidenceAdapter.belongsTo([_measurement: measurement, _time: at(FINISHED.plusSeconds(offset))],
-                run(FINISHED, 600)) == belongs
-        !InfluxRunEvidenceAdapter.belongsTo([_measurement: 'release_gate'], run(FINISHED, 600))
+        belongsTo([_measurement: measurement, _time: at(FINISHED.plusSeconds(offset))], run(FINISHED, 600)) == belongs
+        !belongsTo([_measurement: 'release_gate'], run(FINISHED, 600))
 
         where:
         measurement         | offset || belongs
@@ -174,7 +175,7 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
     }
 
     private static PipelineRun run(Instant finished, Long durationSeconds) {
-        new PipelineRun(finished, RunResult.SUCCESS, 'develop', 42L, durationSeconds, 'a1b2c3d',
+        new PipelineRun(finished, SUCCESS, 'develop', 42L, durationSeconds, 'a1b2c3d',
                 'DevSecOps/CERT/gui-full', 12L, 12L, 0L, 0L, 0L, 0L)
     }
 

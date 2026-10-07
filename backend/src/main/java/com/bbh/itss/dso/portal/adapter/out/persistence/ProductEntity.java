@@ -4,35 +4,45 @@ import com.bbh.itss.dso.portal.adapter.RecordMapper;
 import com.bbh.itss.dso.portal.domain.catalog.AppScanAccount;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.ProductDetails;
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.EmbeddedColumnNaming;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static jakarta.persistence.CascadeType.ALL;
+import static jakarta.persistence.FetchType.LAZY;
+import static jakarta.persistence.GenerationType.IDENTITY;
+import static lombok.AccessLevel.PACKAGE;
+import static lombok.AccessLevel.PROTECTED;
+
 @Entity
 @Table(name = "DSO_PRODUCT")
+@NoArgsConstructor(access = PROTECTED)
 public class ProductEntity extends AuditedEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = IDENTITY)
+    @Getter(PACKAGE)
     private Long id;
 
     private String code;
+
+    @Getter(PACKAGE)
     private String name;
+
     private String description;
     private String ownerTeam;
     private String contactEmail;
@@ -40,27 +50,16 @@ public class ProductEntity extends AuditedEntity {
     @Column(name = "DEPARTMENT_ID")
     private Long departmentId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = LAZY)
     @JoinColumn(name = "DEPARTMENT_ID", insertable = false, updatable = false)
     private DepartmentEntity department;
 
     @EmbeddedColumnNaming("ASOC_%s")
     private AppScanAccountEmbeddable appScanAccount;
 
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "product", cascade = ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC, name ASC")
     private List<ServiceEntity> services = new ArrayList<>();
-
-    protected ProductEntity() {
-    }
-
-    Long getId() {
-        return id;
-    }
-
-    String name() {
-        return name;
-    }
 
     String departmentName() {
         return department == null ? null : department.name();
@@ -69,7 +68,7 @@ public class ProductEntity extends AuditedEntity {
     Product toDomain() {
         return Product.restore(id, RecordMapper.map(ProductDetails.class, this),
                 RecordMapper.map(appScanAccount, AppScanAccount.class),
-                services.stream().map(ServiceEntity::toDomain).toList(), getVersion(), getCreatedAt(), getUpdatedAt());
+                services.stream().map(ServiceEntity::toDomain).toList(), version(), createdAt(), updatedAt());
     }
 
     void apply(Product product) {
@@ -88,7 +87,7 @@ public class ProductEntity extends AuditedEntity {
     }
 
     Optional<ServiceEntity> service(Long serviceId) {
-        return services.stream().filter(service -> serviceId.equals(service.getId())).findFirst();
+        return services.stream().filter(service -> serviceId.equals(service.id())).findFirst();
     }
 
     ServiceEntity addService() {

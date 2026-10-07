@@ -3,9 +3,9 @@ package com.bbh.itss.dso.portal.domain.shared;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
+import static java.util.Locale.ROOT;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public class ConfigTree {
@@ -22,7 +22,7 @@ public class ConfigTree {
             node = child(node, keys[i]);
         }
         node.put(keys[keys.length - 1],
-                value instanceof Enum<?> constant ? constant.name().toLowerCase(Locale.ROOT) : value);
+                value instanceof Enum<?> constant ? constant.name().toLowerCase(ROOT) : value);
         return this;
     }
 

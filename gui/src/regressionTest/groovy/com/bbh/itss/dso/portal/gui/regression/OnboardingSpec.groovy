@@ -1,13 +1,15 @@
 package com.bbh.itss.dso.portal.gui.regression
 
 import com.bbh.itss.dso.portal.gui.support.ProductStore
-import com.bbh.itss.dso.portal.gui.support.StubApi
-import com.bbh.itss.dso.portal.gui.support.StubResponse
 import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
-import com.microsoft.playwright.options.AriaRole
 
+import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
+import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
+import static com.microsoft.playwright.options.AriaRole.BUTTON
+import static com.microsoft.playwright.options.AriaRole.OPTION
+import static com.microsoft.playwright.options.AriaRole.RADIOGROUP
 
 class OnboardingSpec extends EditorSpecification {
 
@@ -20,7 +22,7 @@ class OnboardingSpec extends EditorSpecification {
     def "a product manager adds a new product with a Security pipeline step by step"() {
         given:
         recordClipboard()
-        api.respond('POST', '/api/products', StubResponse.problem(400, 'Bad Request',
+        api.respond('POST', '/api/products', problem(400, 'Bad Request',
                 'The portal did not accept some values.',
                 [errors: [[field: 'services[1].appScan.applicationId', message: 'the AppScan application belongs to CertScanner']]]))
 
@@ -113,7 +115,7 @@ class OnboardingSpec extends EditorSpecification {
 
         when:
         def store = ProductStore.created(api, 3)
-        page.locator('.step-bar').getByRole(AriaRole.BUTTON).filter(new Locator.FilterOptions().setHasText('Services')).click()
+        page.locator('.step-bar').getByRole(BUTTON).filter(new Locator.FilterOptions().setHasText('Services')).click()
         button('Change', true).nth(1).click()
         input(dialog(), 'AppScan application ID').fill(GUI_APPLICATION)
         dialogButton('Next').click()
@@ -161,7 +163,7 @@ class OnboardingSpec extends EditorSpecification {
     def "a product in the portal gets a Static scan pipeline for every service, a new service included"() {
         given:
         def store = ProductStore.recorded(api, 1)
-        def stored = StubApi.fixture('product-1.json') as Map
+        def stored = fixture('product-1.json') as Map
 
         when:
         open('/beadle/onboarding')
@@ -180,7 +182,7 @@ class OnboardingSpec extends EditorSpecification {
         assertThat(page.locator('mat-optgroup .mat-mdc-optgroup-label')).hasText(['Corporate Technology', 'Fund Services'] as String[])
 
         when:
-        page.getByRole(AriaRole.OPTION, new Page.GetByRoleOptions().setName('CertScanner (CERTSCANNER)').setExact(true)).click()
+        page.getByRole(OPTION, new Page.GetByRoleOptions().setName('CertScanner (CERTSCANNER)').setExact(true)).click()
 
         then:
         assertThat(step().locator('dl.rows dd')).hasText(['Corporate Technology', 'Technology Architecture', '2'] as String[])
@@ -209,7 +211,7 @@ class OnboardingSpec extends EditorSpecification {
         dialogButton('Next').click()
 
         then:
-        assertThat(dialog().getByRole(AriaRole.RADIOGROUP)).hasCount(1)
+        assertThat(dialog().getByRole(RADIOGROUP)).hasCount(1)
 
         when:
         radio(dialog(), 'Maven').click()
@@ -263,7 +265,7 @@ class OnboardingSpec extends EditorSpecification {
         given:
         def store = ProductStore.recorded(api, 2)
         store.product.departmentId = null
-        def products = StubApi.fixture('products.json') as List<Map>
+        def products = fixture('products.json') as List<Map>
         api.respond('GET', '/api/products', [products[0], products[1] + [departmentId: null, departmentName: null]])
 
         when:
@@ -277,7 +279,7 @@ class OnboardingSpec extends EditorSpecification {
         assertThat(page.locator('mat-optgroup .mat-mdc-optgroup-label')).hasText(['Corporate Technology', 'Not in a department'] as String[])
 
         when:
-        page.getByRole(AriaRole.OPTION, new Page.GetByRoleOptions().setName('Payments Hub (PAYHUB)').setExact(true)).click()
+        page.getByRole(OPTION, new Page.GetByRoleOptions().setName('Payments Hub (PAYHUB)').setExact(true)).click()
 
         then:
         assertThat(hintOf(step(), 'Department')).hasText('The product is not in a department yet')

@@ -1,17 +1,28 @@
 package com.bbh.itss.dso.portal.domain.monitoring;
 
 import com.bbh.itss.dso.portal.domain.monitoring.DoraSummary.DailyActivity;
+import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.bbh.itss.dso.portal.domain.monitoring.DoraLevel.ELITE;
+import static com.bbh.itss.dso.portal.domain.monitoring.DoraLevel.HIGH;
+import static com.bbh.itss.dso.portal.domain.monitoring.DoraLevel.LOW;
+import static com.bbh.itss.dso.portal.domain.monitoring.DoraLevel.MEDIUM;
+import static java.lang.Math.round;
+import static java.time.ZoneOffset.UTC;
+import static java.util.Comparator.comparing;
+import static lombok.AccessLevel.PRIVATE;
+import static org.apache.commons.lang3.ObjectUtils.getIfNull;
+import static org.apache.commons.lang3.ObjectUtils.min;
+
+@NoArgsConstructor(access = PRIVATE)
 public final class DoraCalculator {
 
     private static final long HOUR = 3_600;
@@ -19,16 +30,12 @@ public final class DoraCalculator {
     private static final long WEEK = 7 * DAY;
     private static final long MONTH = 30 * DAY;
 
-    private DoraCalculator() {
-    }
-
     public static DoraSummary summarize(List<DoraPoint> points, int rangeDays, Instant now) {
         return summarizeAll(List.of(points), rangeDays, now);
     }
 
     public static DoraSummary summarizeAll(Collection<List<DoraPoint>> series, int rangeDays, Instant now) {
-        List<DoraPoint> points = series.stream().flatMap(List::stream).sorted(Comparator.comparing(DoraPoint::time))
-                .toList();
+        List<DoraPoint> points = series.stream().flatMap(List::stream).sorted(comparing(DoraPoint::time)).toList();
         int runs = points.size();
         int deployments = (int) points.stream().filter(DoraPoint::deployment).count();
         Double perWeek = rangeDays > 0 ? deployments * 7.0 / rangeDays : null;
@@ -43,16 +50,13 @@ public final class DoraCalculator {
         List<Long> restoreTimes = new ArrayList<>();
         Instant failingSince = null;
         for (List<DoraPoint> one : series) {
-            Instant failing = restores(one, restoreTimes);
-            if (failing != null && (failingSince == null || failing.isBefore(failingSince))) {
-                failingSince = failing;
-            }
+            failingSince = min(failingSince, restores(one, restoreTimes));
         }
         Long mttr = restoreTimes.isEmpty() ? null
-                : Math.round(restoreTimes.stream().mapToLong(Long::longValue).average().orElse(0));
+                : round(restoreTimes.stream().mapToLong(Long::longValue).average().orElse(0));
 
         Long averageDuration = runs == 0 ? null
-                : Math.round(points.stream().mapToLong(DoraPoint::durationSeconds).average().orElse(0));
+                : round(points.stream().mapToLong(DoraPoint::durationSeconds).average().orElse(0));
 
         return new DoraSummary(rangeDays, runs, deployments, perWeek,
                 runs == 0 || perWeek == null ? null : deploymentFrequencyLevel(perWeek),
@@ -64,12 +68,10 @@ public final class DoraCalculator {
 
     private static Instant restores(List<DoraPoint> points, List<Long> restoreTimes) {
         Instant failingSince = null;
-        for (DoraPoint point : points.stream().filter(DoraPoint::deployment)
-                .sorted(Comparator.comparing(DoraPoint::time)).toList()) {
+        for (DoraPoint point : points.stream().filter(DoraPoint::deployment).sorted(comparing(DoraPoint::time))
+                .toList()) {
             if (point.changeFailure()) {
-                if (failingSince == null) {
-                    failingSince = point.time();
-                }
+                failingSince = getIfNull(failingSince, point.time());
             } else if (failingSince != null) {
                 restoreTimes.add(point.time().getEpochSecond() - failingSince.getEpochSecond());
                 failingSince = null;
@@ -80,15 +82,15 @@ public final class DoraCalculator {
 
     static DoraLevel deploymentFrequencyLevel(double perWeek) {
         if (perWeek >= 7) {
-            return DoraLevel.ELITE;
+            return ELITE;
         }
         if (perWeek >= 1) {
-            return DoraLevel.HIGH;
+            return HIGH;
         }
         if (perWeek >= 7.0 / 30) {
-            return DoraLevel.MEDIUM;
+            return MEDIUM;
         }
-        return DoraLevel.LOW;
+        return LOW;
     }
 
     static DoraLevel leadTimeLevel(long seconds) {
@@ -101,28 +103,28 @@ public final class DoraCalculator {
 
     static DoraLevel changeFailureRateLevel(double percent) {
         if (percent <= 5) {
-            return DoraLevel.ELITE;
+            return ELITE;
         }
         if (percent <= 10) {
-            return DoraLevel.HIGH;
+            return HIGH;
         }
         if (percent <= 15) {
-            return DoraLevel.MEDIUM;
+            return MEDIUM;
         }
-        return DoraLevel.LOW;
+        return LOW;
     }
 
     private static DoraLevel duration(long seconds, long elite, long high, long medium) {
         if (seconds < elite) {
-            return DoraLevel.ELITE;
+            return ELITE;
         }
         if (seconds < high) {
-            return DoraLevel.HIGH;
+            return HIGH;
         }
         if (seconds < medium) {
-            return DoraLevel.MEDIUM;
+            return MEDIUM;
         }
-        return DoraLevel.LOW;
+        return LOW;
     }
 
     private static Long median(List<Long> sorted) {
@@ -134,13 +136,13 @@ public final class DoraCalculator {
     }
 
     private static List<DailyActivity> daily(List<DoraPoint> points, int rangeDays, Instant now) {
-        LocalDate today = LocalDate.ofInstant(now, ZoneOffset.UTC);
+        LocalDate today = LocalDate.ofInstant(now, UTC);
         Map<LocalDate, int[]> days = new LinkedHashMap<>();
         for (int i = rangeDays - 1; i >= 0; i--) {
             days.put(today.minusDays(i), new int[3]);
         }
         for (DoraPoint point : points) {
-            int[] counts = days.get(LocalDate.ofInstant(point.time(), ZoneOffset.UTC));
+            int[] counts = days.get(LocalDate.ofInstant(point.time(), UTC));
             if (counts != null) {
                 counts[0]++;
                 if (point.changeFailure()) {

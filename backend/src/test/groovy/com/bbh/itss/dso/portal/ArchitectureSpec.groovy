@@ -23,6 +23,8 @@ import spock.lang.Specification
 
 import java.util.function.Predicate
 
+import static com.tngtech.archunit.base.DescribedPredicate.describe
+import static com.tngtech.archunit.lang.SimpleConditionEvent.violated
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices
@@ -61,28 +63,37 @@ class ArchitectureSpec extends Specification {
         rule << [
                 classes().that().doNotHaveFullyQualifiedName(DsoPortalApplication.name)
                         .should().resideInAnyPackage(DOMAIN, APPLICATION, ADAPTER, CONFIG),
-                classes().that().resideInAPackage('com.bbh.itss.dso.portal').should().haveFullyQualifiedName(DsoPortalApplication.name),
+                classes().that().resideInAPackage('com.bbh.itss.dso.portal')
+                        .should().haveFullyQualifiedName(DsoPortalApplication.name),
                 classes().should().resideInAPackage('com.bbh.itss.dso..'),
-                classes().that().resideInAPackage(DOMAIN).should().onlyDependOnClassesThat().resideInAnyPackage('java..', DOMAIN, *HELPERS),
+                classes().that().resideInAPackage(DOMAIN)
+                        .should().onlyDependOnClassesThat().resideInAnyPackage('java..', DOMAIN, *HELPERS),
                 classes().that().resideInAPackage(APPLICATION)
                         .should().onlyDependOnClassesThat().resideInAnyPackage('java..', DOMAIN, APPLICATION, *HELPERS),
-                noClasses().that().resideInAnyPackage(DOMAIN, APPLICATION).should().dependOnClassesThat().resideInAnyPackage(FRAMEWORKS),
-                noClasses().that().resideInAPackage(ADAPTER_IN).should().dependOnClassesThat().resideInAPackage(ADAPTER_OUT),
-                noClasses().that().resideInAPackage(ADAPTER_OUT).should().dependOnClassesThat().resideInAPackage(ADAPTER_IN),
+                noClasses().that().resideInAnyPackage(DOMAIN, APPLICATION)
+                        .should().dependOnClassesThat().resideInAnyPackage(FRAMEWORKS),
                 noClasses().that().resideInAPackage(ADAPTER_IN)
-                        .should().dependOnClassesThat().resideInAPackage('com.bbh.itss.dso.portal.application..port.out..'),
+                        .should().dependOnClassesThat().resideInAPackage(ADAPTER_OUT),
+                noClasses().that().resideInAPackage(ADAPTER_OUT)
+                        .should().dependOnClassesThat().resideInAPackage(ADAPTER_IN),
+                noClasses().that().resideInAPackage(ADAPTER_IN)
+                        .should().dependOnClassesThat()
+                        .resideInAPackage('com.bbh.itss.dso.portal.application..port.out..'),
                 classes().that(describedAs('are controllers or controller advice') { JavaClass type ->
                     [RestController, RestControllerAdvice, Controller].any { type.isAnnotatedWith(it) }
                 }).should().resideInAPackage(WEB),
                 classes().that(describedAs('are persistence types') { JavaClass type ->
-                    [Entity, Embeddable, MappedSuperclass, Converter].any { type.isAnnotatedWith(it) } || type.isAssignableTo(Repository)
+                    [Entity, Embeddable, MappedSuperclass, Converter].any { type.isAnnotatedWith(it) } ||
+                            type.isAssignableTo(Repository)
                 }).should().resideInAPackage(PERSISTENCE),
                 noClasses().that().resideOutsideOfPackage(INFLUX)
-                        .should().dependOnClassesThat().resideInAnyPackage('org.springframework.web.client..', 'java.net.http..'),
+                        .should().dependOnClassesThat()
+                        .resideInAnyPackage('org.springframework.web.client..', 'java.net.http..'),
                 slices().matching('com.bbh.itss.dso.portal.domain.(*)..').should().beFreeOfCycles(),
                 slices().matching('com.bbh.itss.dso.portal.application.(**)').should().beFreeOfCycles(),
                 slices().matching('com.bbh.itss.dso.portal.adapter.(**)').should().beFreeOfCycles(),
-                classes().that().areAnnotatedWith(UseCase).should().resideInAPackage(APPLICATION).andShould(implementAnInPort()),
+                classes().that().areAnnotatedWith(UseCase)
+                        .should().resideInAPackage(APPLICATION).andShould(implementAnInPort()),
                 classes().should(notDependOnOtherUseCases())]
     }
 
@@ -92,7 +103,7 @@ class ArchitectureSpec extends Specification {
     }
 
     private static DescribedPredicate<JavaClass> describedAs(String description, Closure<Boolean> test) {
-        DescribedPredicate.describe(description, { JavaClass type -> test(type) } as Predicate<JavaClass>)
+        describe(description, { JavaClass type -> test(type) } as Predicate<JavaClass>)
     }
 
     private static ArchCondition<JavaClass> implementAnInPort() {
@@ -112,7 +123,7 @@ class ArchitectureSpec extends Specification {
             void check(JavaClass type, ConditionEvents events) {
                 type.directDependenciesFromSelf
                         .findAll { it.targetClass != type && it.targetClass.isAnnotatedWith(UseCase) }
-                        .each { events.add(SimpleConditionEvent.violated(it, it.description)) }
+                        .each { events.add(violated(it, it.description)) }
             }
         }
     }

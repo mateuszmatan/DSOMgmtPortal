@@ -1,5 +1,14 @@
 package com.bbh.itss.dso.portal.gui.support
 
+import static com.bbh.itss.dso.portal.gui.support.ApiData.activeKey
+import static com.bbh.itss.dso.portal.gui.support.ApiData.keyValue
+import static com.bbh.itss.dso.portal.gui.support.ApiData.newPipeline
+import static com.bbh.itss.dso.portal.gui.support.ApiData.noFlutterSettings
+import static com.bbh.itss.dso.portal.gui.support.ApiData.servicePipelines
+import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
+import static com.bbh.itss.dso.portal.gui.support.StubResponse.json
+import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
+
 class ProductStore {
 
     static final String SAVED_AT = '2026-10-05T10:00:00Z'
@@ -22,14 +31,14 @@ class ProductStore {
     }
 
     static ProductStore recorded(StubApi api, int id) {
-        new ProductStore(api, id, StubApi.fixture("product-${id}.json") as Map,
-                StubApi.fixture("product-${id}-pipelines.json") as List<Map>).serve()
+        new ProductStore(api, id, fixture("product-${id}.json") as Map,
+                fixture("product-${id}-pipelines.json") as List<Map>).serve()
     }
 
     static ProductStore created(StubApi api, int id) {
         def store = new ProductStore(api, id, null, [])
         api.on('POST', '/api/products') { RecordedRequest request ->
-            StubResponse.json(store.save(request.json() as Map, request.params().pipelineType), 201)
+            json(store.save(request.json() as Map, request.params().pipelineType), 201)
         }
         store.serve()
     }
@@ -45,13 +54,13 @@ class ProductStore {
     private ProductStore serve() {
         def path = "/api/products/$id"
         api.get(path) {
-            product ? StubResponse.json(product) : StubResponse.problem(404, 'Not Found', "Product $id was not found")
+            product ? json(product) : problem(404, 'Not Found', "Product $id was not found")
         }
-        api.get("$path/pipelines") { StubResponse.json(services) }
+        api.get("$path/pipelines") { json(services) }
         api.on('PUT', path) { RecordedRequest request ->
             def body = request.json() as Map
-            body.version == product.version ? StubResponse.json(save(body, request.params().pipelineType))
-                    : StubResponse.problem(409, 'Conflict', 'The product was changed by someone else; reload it and try again')
+            body.version == product.version ? json(save(body, request.params().pipelineType))
+                    : problem(409, 'Conflict', 'The product was changed by someone else; reload it and try again')
         }
         this
     }
@@ -59,12 +68,12 @@ class ProductStore {
     private synchronized Map save(Map request, String type) {
         def saved = request.services.collect { Map service ->
             def stored = service.id == null ? service + [id: nextServiceId++] : service
-            stored + [flutter: stored.flutter ?: ApiData.noFlutterSettings()]
+            stored + [flutter: stored.flutter ?: noFlutterSettings()]
         }
         def previous = product
         product = request + [id       : id, version: previous == null ? 0 : (previous.version as int) + 1,
                              createdAt: previous?.createdAt ?: SAVED_AT, updatedAt: SAVED_AT, services: saved]
-        services = saved.collect { Map service -> ApiData.servicePipelines(service, pipelinesOf(service, type)) }
+        services = saved.collect { Map service -> servicePipelines(service, pipelinesOf(service, type)) }
         product
     }
 
@@ -72,12 +81,12 @@ class ProductStore {
         def existing = ((services.find { it.serviceId == service.id }?.pipelines ?: []) as List<Map>)
                 .collect { it + [serviceName: service.name] }
         def wanted = type ?: (existing ? null : 'FULL')
-        if (wanted == null || existing.any { it.type == wanted }) {
+        if (!wanted || existing.any { it.type == wanted }) {
             return existing
         }
-        def value = ApiData.keyValue(nextKeyId)
+        def value = keyValue(nextKeyId)
         generatedKeys[service.name as String] = value
-        def key = ApiData.activeKey(nextKeyId++, value, SAVED_AT)
-        existing + [ApiData.newPipeline(nextPipelineId++, product, service, key, wanted)]
+        def key = activeKey(nextKeyId++, value, SAVED_AT)
+        existing + [newPipeline(nextPipelineId++, product, service, key, wanted)]
     }
 }

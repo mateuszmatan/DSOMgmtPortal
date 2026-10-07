@@ -51,7 +51,7 @@ class PortalSmokeSpec extends Specification {
         then:
         products.status == 200
         products.json instanceof List
-        started == null || !products.json.isEmpty()
+        !started || !products.json.isEmpty()
     }
 
     def "the departments answer with the DevSecOps pipelines of their products"() {
@@ -64,9 +64,9 @@ class PortalSmokeSpec extends Specification {
         then:
         departments.status == 200
         departments.json instanceof List
-        started == null || tallies == ['AI Lab'              : [2, 4, 8, 8], 'Capital Partners': [2, 5, 9, 9],
-                                       'Corporate Technology': [2, 4, 10, 10], 'Custody': [2, 4, 8, 7],
-                                       'Fund Services'       : [2, 6, 11, 10]]
+        !started || tallies == ['AI Lab'              : [2, 4, 8, 8], 'Capital Partners': [2, 5, 9, 9],
+                                'Corporate Technology': [2, 4, 10, 10], 'Custody': [2, 4, 8, 7],
+                                'Fund Services'       : [2, 6, 11, 10]]
     }
 
     def "every product's services, pipelines, configuration and change evidence can be read"() {
@@ -113,7 +113,7 @@ class PortalSmokeSpec extends Specification {
         products.every { product ->
             def profile = api.get("/api/products/$product.id/change-profile")
             assert profile.status == 200: profile
-            assert started == null || profile.json.version != null
+            assert !started || profile.json.version != null
             if (profile.json.version != null) {
                 def epics = api.get("/api/products/$product.id/jira/epics?$range")
                 assert epics.status == 200: epics
@@ -140,7 +140,7 @@ class PortalSmokeSpec extends Specification {
         overview.json.products instanceof List
         activity.status == 200
         activity.json.dora.daily.size() == 30
-        started == null || overview.json.products.every { it.lastRunAt } && activity.json.dora.runs > 0
+        !started || overview.json.products.every { it.lastRunAt } && activity.json.dora.runs > 0
     }
 
     @Requires({ PortalSmokeSpec.uiExpected() })
@@ -157,6 +157,6 @@ class PortalSmokeSpec extends Specification {
 
     static boolean uiExpected() {
         System.getProperty('smoke.ui') != 'false' &&
-                (System.getProperty('smoke.baseUrl') || PortalSmokeSpec.getResource('/static/index.html') != null)
+                (System.getProperty('smoke.baseUrl') || PortalSmokeSpec.getResource('/static/index.html'))
     }
 }

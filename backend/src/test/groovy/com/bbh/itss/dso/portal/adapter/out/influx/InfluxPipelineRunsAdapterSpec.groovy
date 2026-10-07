@@ -3,11 +3,14 @@ package com.bbh.itss.dso.portal.adapter.out.influx
 import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint
 import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
-import com.bbh.itss.dso.portal.domain.monitoring.RunResult
 import org.springframework.web.client.RestClient
 import spock.lang.Specification
 
 import java.time.Instant
+
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.FAILURE
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.SUCCESS
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.UNSTABLE
 
 class InfluxPipelineRunsAdapterSpec extends Specification {
 
@@ -57,7 +60,7 @@ class InfluxPipelineRunsAdapterSpec extends Specification {
                                    run('2026-10-02T10:00:00Z', 'CERT-guisast', 'test', 'FAILURE'),
                                    run('2026-10-03T10:00:00Z', 'CERT-gui', 'prod', 'SUCCESS')]
         runs.runs().keySet() == [gui, guiSast] as Set
-        runs.runs()[guiSast]*.result() == [RunResult.FAILURE]
+        runs.runs()[guiSast]*.result() == [FAILURE]
         runs.runs()[gui]*.time() == [Instant.parse('2026-10-01T10:00:00Z')]
     }
 
@@ -82,7 +85,7 @@ class InfluxPipelineRunsAdapterSpec extends Specification {
               |> last(column: "_time")
             '''.stripIndent()) >> [run('2026-10-02T10:00:00Z', 'CertScanner', 'test', 'SUCCESS') + [job: 'CertScanner-gui'],
                                    run('2026-10-03T10:00:00Z', 'CertScanner', 'test', 'FAILURE') + [job: 'CertScanner-api']]
-        runs.runs()[gui]*.result() == [RunResult.SUCCESS]
+        runs.runs()[gui]*.result() == [SUCCESS]
         runs.runs()[certScanner]*.job() == ['CertScanner-gui', 'CertScanner-api']
         runs.sharedTags() == [certScanner] as Set
     }
@@ -103,7 +106,7 @@ class InfluxPipelineRunsAdapterSpec extends Specification {
               |> limit(n: 25)
             '''.stripIndent()) >> [run('2026-10-02T10:00:00Z', 'CERT-gui', 'test', 'UNSTABLE'),
                                    run('2026-10-01T10:00:00Z', 'CERT-gui', 'test', 'SUCCESS')]
-        runs*.result() == [RunResult.UNSTABLE, RunResult.SUCCESS]
+        runs*.result() == [UNSTABLE, SUCCESS]
     }
 
     def "recent runs of a tag several services share are those of one Jenkins job or its branches"() {

@@ -1,7 +1,7 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.Versions;
+import lombok.Getter;
 
 import java.time.Instant;
 import java.util.Comparator;
@@ -10,13 +10,18 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
+import static com.bbh.itss.dso.portal.domain.shared.Versions.requireCurrent;
+import static java.util.Comparator.comparingInt;
+import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.toCollection;
+import static java.util.stream.IntStream.range;
+
+@Getter
 public final class Product {
 
     private static final Comparator<Service> DISPLAY_ORDER =
-            Comparator.comparingInt(Service::displayOrder).thenComparing(Service::name);
+            comparingInt(Service::displayOrder).thenComparing(Service::name);
 
     private final Long id;
     private final long version;
@@ -46,23 +51,23 @@ public final class Product {
 
     public static Product restore(Long id, ProductDetails details, AppScanAccount appScanAccount, List<Service> services,
                                   long version, Instant createdAt, Instant updatedAt) {
-        return new Product(id, Objects.requireNonNull(details), appScanAccount, services, version, createdAt, updatedAt);
+        return new Product(id, requireNonNull(details), appScanAccount, services, version, createdAt, updatedAt);
     }
 
     public void update(Long expectedVersion, ProductDetails details, AppScanAccount appScanAccount,
                        List<ServiceDraft> services, ProductDirectory directory) {
-        Versions.requireCurrent(expectedVersion, version);
+        requireCurrent(expectedVersion, version);
         change(details, appScanAccount, services, directory);
     }
 
     private void change(ProductDetails details, AppScanAccount appScanAccount, List<ServiceDraft> drafts,
                         ProductDirectory directory) {
-        Objects.requireNonNull(details, "a product needs its details");
-        Objects.requireNonNull(drafts, "a product needs its list of services");
+        requireNonNull(details, "a product needs its details");
+        requireNonNull(drafts, "a product needs its list of services");
         new ProductRules(id, serviceIds(), directory).check(details, appScanAccount, drafts);
         this.details = details;
         this.appScanAccount = appScanAccount;
-        this.services = IntStream.range(0, drafts.size()).mapToObj(order -> drafts.get(order).place(order,
+        this.services = range(0, drafts.size()).mapToObj(order -> drafts.get(order).place(order,
                 details.code())).toList();
     }
 
@@ -72,20 +77,12 @@ public final class Product {
 
     public Set<Long> serviceIds() {
         return services.stream().map(Service::id).filter(Objects::nonNull)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+                .collect(toCollection(LinkedHashSet::new));
     }
 
     public void writeConfig(Service service, ConfigTree config) {
         service.settings().writeTo(config);
         appScanAccount.writeTo(config);
-    }
-
-    public Long id() {
-        return id;
-    }
-
-    public ProductDetails details() {
-        return details;
     }
 
     public String code() {
@@ -110,25 +107,5 @@ public final class Product {
 
     public Long departmentId() {
         return details.departmentId();
-    }
-
-    public AppScanAccount appScanAccount() {
-        return appScanAccount;
-    }
-
-    public List<Service> services() {
-        return services;
-    }
-
-    public long version() {
-        return version;
-    }
-
-    public Instant createdAt() {
-        return createdAt;
-    }
-
-    public Instant updatedAt() {
-        return updatedAt;
     }
 }

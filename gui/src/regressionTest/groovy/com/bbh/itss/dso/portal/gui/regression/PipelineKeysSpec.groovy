@@ -1,14 +1,20 @@
 package com.bbh.itss.dso.portal.gui.regression
 
-import com.bbh.itss.dso.portal.gui.support.ApiData
-import com.bbh.itss.dso.portal.gui.support.StubApi
 import com.bbh.itss.dso.portal.gui.support.StubResponse
 import com.microsoft.playwright.Page
-import com.microsoft.playwright.options.AriaRole
 
 import java.util.regex.Pattern
 
+import static com.bbh.itss.dso.portal.gui.support.ApiData.ISSUED_AT
+import static com.bbh.itss.dso.portal.gui.support.ApiData.activeKey
+import static com.bbh.itss.dso.portal.gui.support.ApiData.hint
+import static com.bbh.itss.dso.portal.gui.support.ApiData.keyValue
+import static com.bbh.itss.dso.portal.gui.support.ApiData.pipeline
+import static com.bbh.itss.dso.portal.gui.support.ApiData.revokedKey
+import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
+import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
+import static com.microsoft.playwright.options.AriaRole.OPTION
 
 class PipelineKeysSpec extends ProductPageSpecification {
 
@@ -66,14 +72,14 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
     def "a pipeline is added to a service with the types it lacks, after its field errors are fixed"() {
         given:
-        def created = ApiData.pipeline(id: 20, productId: 1, serviceId: 1, serviceName: 'gui', type: 'SECURITY',
+        def created = pipeline(id: 20, productId: 1, serviceId: 1, serviceName: 'gui', type: 'SECURITY',
                 entryPoint: 'devSecOpsSecurityPipeline', agentLabels: ['linux-agent', 'docker'],
                 extendedPipelineJob: 'DevSecOps/CERTSCANNER/gui-extended',
                 jenkinsJob: 'DevSecOps/CERTSCANNER/gui-security-scan',
                 jenkinsJobUrl: 'https://jenkins.bbh.com/job/DevSecOps/job/CERTSCANNER/job/gui-security-scan/',
-                description: 'Nightly security scan', activeKey: ApiData.activeKey(30, ApiData.keyValue(30)),
+                description: 'Nightly security scan', activeKey: activeKey(30, keyValue(30)),
                 influxProjectTag: 'CERTSCANNER-guisecurity')
-        api.respond('POST', '/api/services/1/pipelines', StubResponse.problem(400, 'Bad Request', 'Some values are not valid',
+        api.respond('POST', '/api/services/1/pipelines', problem(400, 'Bad Request', 'Some values are not valid',
                 [errors: [[field: 'jenkinsJob', message: 'another pipeline already runs in this Jenkins job']]]))
         open('/products/1')
 
@@ -83,10 +89,10 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
         then:
         assertThat(dialog().locator('h2')).hasText('Add pipeline')
-        assertThat(page.getByRole(AriaRole.OPTION)).hasText(['Security', 'Extended'] as String[])
+        assertThat(page.getByRole(OPTION)).hasText(['Security', 'Extended'] as String[])
 
         when:
-        page.getByRole(AriaRole.OPTION, new Page.GetByRoleOptions().setName('Security')).click()
+        page.getByRole(OPTION, new Page.GetByRoleOptions().setName('Security')).click()
         input(dialog(), 'Jenkins agent labels').fill('linux-agent, docker')
         input(dialog(), 'Jenkins job').fill('DevSecOps/CERTSCANNER/gui-security')
         input(dialog(), 'Extended pipeline job').fill('DevSecOps/../gui-extended')
@@ -118,7 +124,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
                 extendedPipelineJob: 'DevSecOps/CERTSCANNER/gui-extended', securityPipelineJob: null,
                 jenkinsJob         : 'DevSecOps/CERTSCANNER/gui-security-scan', description: 'Nightly security scan']
         assertThat(pipelineTypes('gui')).hasText(['Full pipeline', 'Security pipeline', 'SAST scanning pipeline'] as String[])
-        assertThat(keyOf('gui', 'Security')).hasText(ApiData.hint(ApiData.keyValue(30)))
+        assertThat(keyOf('gui', 'Security')).hasText(hint(keyValue(30)))
         assertThat(snackBar()).containsText('Security pipeline added to gui')
         assertThat(stat('Pipelines')).hasText('4')
         ownErrors().findAll { !it.contains('400') }.isEmpty()
@@ -126,10 +132,10 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
     def "replacing a key asks first, issues a new key and shows it once"() {
         given:
-        def replaced = StubApi.fixture('pipeline-1.json') as Map
-        def value = ApiData.keyValue(41)
-        def key = ApiData.activeKey(41, value)
-        replaced += [activeKey: key, keys: [key, ApiData.revokedKey(replaced.activeKey as Map, 'Replaced by a new key', ApiData.ISSUED_AT)]]
+        def replaced = fixture('pipeline-1.json') as Map
+        def value = keyValue(41)
+        def key = activeKey(41, value)
+        replaced += [activeKey: key, keys: [key, revokedKey(replaced.activeKey as Map, 'Replaced by a new key', ISSUED_AT)]]
         api.respond('POST', '/api/pipelines/1/keys', replaced)
         open('/products/1')
 
@@ -160,12 +166,12 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
     def "a key invalidated with a reason is regenerated from its history, and the old key stays invalidated"() {
         given:
-        def original = StubApi.fixture('pipeline-2.json') as Map
+        def original = fixture('pipeline-2.json') as Map
         def oldKey = original.activeKey as Map
         def revoked = original + [enabled: false, activeKey: null, keys: null]
-        def history = revoked + [keys: [ApiData.revokedKey(oldKey, 'Key printed in a build log', '2026-10-05T09:30:00Z')]]
-        def newValue = ApiData.keyValue(42)
-        def newKey = ApiData.activeKey(42, newValue, '2026-10-05T09:45:00Z')
+        def history = revoked + [keys: [revokedKey(oldKey, 'Key printed in a build log', '2026-10-05T09:30:00Z')]]
+        def newValue = keyValue(42)
+        def newKey = activeKey(42, newValue, '2026-10-05T09:45:00Z')
         def regenerated = original + [enabled: true, activeKey: newKey, keys: [newKey] + (history.keys as List)]
         api.respond('POST', '/api/pipelines/2/keys/revoke', revoked)
         api.respond('GET', '/api/pipelines/2', history)
@@ -208,7 +214,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         assertThat(dialog().locator('.key-status')).containsText('New key')
         assertThat(dialog().locator('.key-status .key-value')).hasText(newValue)
         assertThat(dialog().locator('tr.mat-mdc-row')).hasCount(2)
-        keyRows([[ApiData.hint(newValue), 'Active'],
+        keyRows([[hint(newValue), 'Active'],
                  ['2c0ca4f4…e713', 'Invalidated', 'Key printed in a build log']])
         awaitRequest('POST', '/api/pipelines/2/keys').json() == [:]
 
@@ -226,8 +232,8 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
     def "an invalidated key is regenerated from the product page after a failed try, and the old key stays invalidated"() {
         given:
-        def regenerated = StubApi.fixture('pipeline-9-regenerated.json') as Map
-        api.respond('POST', '/api/pipelines/9/keys', StubResponse.problem(503, 'Service Unavailable', 'The key store is being upgraded; try again in a minute'))
+        def regenerated = fixture('pipeline-9-regenerated.json') as Map
+        api.respond('POST', '/api/pipelines/9/keys', problem(503, 'Service Unavailable', 'The key store is being upgraded; try again in a minute'))
         open('/products/2')
         def regenerate = pipelineButton('mobile-app', 'SAST scanning', 'Regenerate key of the SAST scanning pipeline')
 
@@ -263,7 +269,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
         then:
         assertThat(dialog().locator('tr.mat-mdc-row')).hasCount(2)
-        keyRows([[ApiData.hint(REGENERATED_KEY), 'Active'], ['dd3ac7a4…825e', 'Invalidated']])
+        keyRows([[hint(REGENERATED_KEY), 'Active'], ['dd3ac7a4…825e', 'Invalidated']])
         assertThat(dialog().locator('.reason')).hasText('Mobile app moved to the new mobile platform pipeline')
         assertThat(dialogButton('Regenerate key')).hasCount(0)
         ownErrors().findAll { !it.contains('503') }.isEmpty()
@@ -271,7 +277,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
     def "pipeline settings are edited with the type fixed"() {
         given:
-        def updated = StubApi.fixture('pipeline-1.json') as Map
+        def updated = fixture('pipeline-1.json') as Map
         updated += [agentLabels: ['linux-agent', 'docker'], description: 'Main branch delivery', keys: null]
         api.respond('PUT', '/api/pipelines/1', updated)
         open('/products/1')

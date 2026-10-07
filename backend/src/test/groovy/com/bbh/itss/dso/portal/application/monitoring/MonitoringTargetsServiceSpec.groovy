@@ -5,18 +5,18 @@ import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringTargets
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
-import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
 import spock.lang.Subject
 
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
+import static org.spockframework.mock.EmptyOrDummyResponse.INSTANCE
 
 class MonitoringTargetsServiceSpec extends Specification {
 
-    ProductRepositoryPort products = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
-    PipelineRepositoryPort pipelines = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
+    ProductRepositoryPort products = Mock(defaultResponse: INSTANCE)
+    PipelineRepositoryPort pipelines = Mock(defaultResponse: INSTANCE)
     ManageGlobalSettingsUseCase settings = Stub() {
         current() >> storedSettings('https://jenkins.test')
     }
@@ -114,7 +114,7 @@ class MonitoringTargetsServiceSpec extends Specification {
         where:
         read << [{ MonitoringTargets it -> it.product() }, { MonitoringTargets it -> it.pipeline() },
                  { MonitoringTargets it -> new MonitoringTargets([], [], null, [] as Set) }]
-        failure << [IllegalStateException, IllegalStateException, NullPointerException]
+        failure << [IllegalArgumentException, IllegalArgumentException, NullPointerException]
         message << ['these monitoring targets are not those of one product',
                     'these monitoring targets are not those of one pipeline',
                     'monitoring targets carry the platform settings their links are built on']

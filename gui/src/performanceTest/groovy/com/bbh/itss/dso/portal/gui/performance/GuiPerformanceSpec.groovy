@@ -3,12 +3,19 @@ package com.bbh.itss.dso.portal.gui.performance
 import com.bbh.itss.dso.portal.gui.support.GuiSpecification
 import com.microsoft.playwright.Browser
 import com.microsoft.playwright.Page
-import com.microsoft.playwright.options.ReducedMotion
-import com.microsoft.playwright.options.WaitUntilState
 import spock.lang.Shared
 
-import java.nio.file.Files
 import java.nio.file.Paths
+
+import static com.bbh.itss.dso.portal.gui.performance.LargeCatalogue.PIPELINES
+import static com.bbh.itss.dso.portal.gui.performance.LargeCatalogue.PRODUCTS
+import static com.bbh.itss.dso.portal.gui.performance.LargeCatalogue.SERVICES
+import static com.bbh.itss.dso.portal.gui.performance.LargeCatalogue.TYPES
+import static com.microsoft.playwright.options.ReducedMotion.REDUCE
+import static com.microsoft.playwright.options.WaitUntilState.COMMIT
+import static java.lang.Math.ceil
+import static java.nio.file.Files.createDirectories
+import static java.nio.file.Files.writeString
 
 class GuiPerformanceSpec extends GuiSpecification {
 
@@ -27,7 +34,7 @@ class GuiPerformanceSpec extends GuiSpecification {
 
     @Shared
     List<String> report = ['# Gui performance report', '',
-                           "${LargeCatalogue.PRODUCTS} products × ${LargeCatalogue.SERVICES} services × ${LargeCatalogue.TYPES.size()} pipelines; " +
+                           "${PRODUCTS} products × ${SERVICES} services × ${TYPES.size()} pipelines; " +
                                    "${WARMUPS} warm-up and ${RUNS} measured runs per page; time from the click (or the navigation) until the " +
                                    "content is visible; limits × ${FACTOR} (-Dperformance.factor).", '',
                            '| Page | Visible when | Median | p95 | Limit | Result |', '| --- | --- | ---: | ---: | ---: | --- |']
@@ -38,20 +45,20 @@ class GuiPerformanceSpec extends GuiSpecification {
 
     def cleanupSpec() {
         def target = Paths.get(System.getProperty('performance.report', 'build/reports/performance/gui-performance-report.md'))
-        Files.createDirectories(target.parent)
-        Files.writeString(target, report.join('\n') + '\n')
+        createDirectories(target.parent)
+        writeString(target, report.join('\n') + '\n')
     }
 
     @Override
     Browser.NewContextOptions contextOptions() {
-        super.contextOptions().setReducedMotion(ReducedMotion.REDUCE)
+        super.contextOptions().setReducedMotion(REDUCE)
     }
 
     def "#scenario is visible within #limit ms at the 95th percentile"() {
         when:
-        def times = (0..<WARMUPS + RUNS).collect { int run -> measure(from, menu, click, 1 + (run * 7) % LargeCatalogue.PRODUCTS, [selector: selector, count: count]) }
+        def times = (0..<WARMUPS + RUNS).collect { int run -> measure(from, menu, click, 1 + (run * 7) % PRODUCTS, [selector: selector, count: count]) }
         def sorted = times.drop(WARMUPS).sort()
-        def p95 = sorted[(int) Math.ceil(0.95d * RUNS) - 1]
+        def p95 = sorted[(int) ceil(0.95d * RUNS) - 1]
         report << "| $scenario | $count × `$selector` | ${Math.round(sorted[RUNS.intdiv(2)])} ms | ${Math.round(p95)} ms | ${Math.round(limit * FACTOR)} ms | ${p95 <= limit * FACTOR ? 'pass' : 'FAIL'} |".toString()
 
         then:
@@ -60,13 +67,13 @@ class GuiPerformanceSpec extends GuiSpecification {
 
         where:
         scenario                                   | limit | from                | menu                   | click                                                    | selector                                                    | count
-        'Product list, cold start'                 | 2500  | null                | null                   | null                                                     | 'tr.mat-mdc-row'                                            | LargeCatalogue.PRODUCTS
-        'Product page from the product list'       | 1500  | '/products'         | null                   | "a.name[href='/products/ID']"                            | 'section.service .pipeline'                                 | LargeCatalogue.PIPELINES
-        'Product editor from the product page'     | 2000  | '/products/ID'      | null                   | "a[href='/products/ID/edit']"                            | 'mat-expansion-panel-header .service-name'                  | LargeCatalogue.SERVICES
+        'Product list, cold start'                 | 2500  | null                | null                   | null                                                     | 'tr.mat-mdc-row'                                            | PRODUCTS
+        'Product page from the product list'       | 1500  | '/products'         | null                   | "a.name[href='/products/ID']"                            | 'section.service .pipeline'                                 | PIPELINES
+        'Product editor from the product page'     | 2000  | '/products/ID'      | null                   | "a[href='/products/ID/edit']"                            | 'mat-expansion-panel-header .service-name'                  | SERVICES
         'A service expanded in the editor'         | 500   | '/products/ID/edit' | null                   | 'mat-expansion-panel-header >> nth=8'                    | 'mat-expansion-panel.mat-expanded dso-service-fields input' | 1
-        'Monitoring overview from the menu'        | 1000  | '/products'         | 'DevSecOps Management' | ".mat-mdc-menu-panel a[href='/monitoring']"              | 'a.card.product'                                            | LargeCatalogue.PRODUCTS
-        "A product's monitoring from the overview" | 1000  | '/monitoring'       | null                   | "a.card.product[href='/monitoring/products/ID']"         | 'a.pipeline-link'                                           | LargeCatalogue.PIPELINES
-        "A product's change evidence expanded"     | 1500  | '/evidence'         | null                   | "mat-expansion-panel-header:has(.code:text-is('CATID'))" | 'dso-pipeline-evidence-card'                                | LargeCatalogue.PIPELINES
+        'Monitoring overview from the menu'        | 1000  | '/products'         | 'DevSecOps Management' | ".mat-mdc-menu-panel a[href='/monitoring']"              | 'a.card.product'                                            | PRODUCTS
+        "A product's monitoring from the overview" | 1000  | '/monitoring'       | null                   | "a.card.product[href='/monitoring/products/ID']"         | 'a.pipeline-link'                                           | PIPELINES
+        "A product's change evidence expanded"     | 1500  | '/evidence'         | null                   | "mat-expansion-panel-header:has(.code:text-is('CATID'))" | 'dso-pipeline-evidence-card'                                | PIPELINES
     }
 
     double measure(String from, String menu, String click, int product, Map ready) {
@@ -80,7 +87,7 @@ class GuiPerformanceSpec extends GuiSpecification {
             return (page.waitForFunction(READY, ready).jsonValue() as double) - start
         }
         newPage()
-        page.navigate(url('/products'), new Page.NavigateOptions().setWaitUntil(WaitUntilState.COMMIT))
+        page.navigate(url('/products'), new Page.NavigateOptions().setWaitUntil(COMMIT))
         page.waitForFunction(READY, ready).jsonValue() as double
     }
 }

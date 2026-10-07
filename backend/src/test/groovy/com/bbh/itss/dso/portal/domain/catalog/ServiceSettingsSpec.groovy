@@ -4,6 +4,19 @@ import com.bbh.itss.dso.portal.domain.shared.ConfigTree
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
+import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT
+import static com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform.APK
+import static com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy.INHERITED
+import static com.bbh.itss.dso.portal.domain.catalog.Region.QC
+import static com.bbh.itss.dso.portal.domain.catalog.Region.RD
+import static com.bbh.itss.dso.portal.domain.catalog.TestJobType.LOCAL
+import static com.bbh.itss.dso.portal.domain.catalog.TestJobType.REMOTE
+import static com.bbh.itss.dso.portal.domain.catalog.TestSettings.DEFAULTS
+import static com.bbh.itss.dso.portal.domain.catalog.TestStage.REGRESSION
+import static com.bbh.itss.dso.portal.domain.catalog.TestStage.SMOKE
+import static com.bbh.itss.dso.portal.domain.catalog.ToolCommand.NONE
 import static com.bbh.itss.dso.portal.support.Fixtures.APP_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.appScan
 import static com.bbh.itss.dso.portal.support.Fixtures.build
@@ -15,40 +28,40 @@ import static com.bbh.itss.dso.portal.support.Fixtures.settings
 class ServiceSettingsSpec extends Specification {
 
     static final String REPO = 'https://bitbucket.bbh.com/scm/ta/cert.git'
-    static final SshTarget RD_HOST = new SshTarget('rd.host', null, null, null, null)
-    static final OpenShiftTarget RD_PROJECT = new OpenShiftTarget('cert-build', null, null, null, null, null, null,
-            null, null, 'cert-rd', null, null, false, null, null, null, null, null, null, null, null)
+    static final SshTarget RD_HOST = SshTarget.builder().host('rd.host').build()
+    static final OpenShiftTarget RD_PROJECT = OpenShiftTarget.builder().projectBuild('cert-build')
+            .projectDeployment('cert-rd').build()
     static final UrbanCodeApplicationSettings UCD_APP = UrbanCodeApplicationSettings.of('Cert', 1, ['RD'], null,
-            [new UrbanCodeComponent('cert-gui', 'build', '*.war', null, null, null, false, null, null, null, null, null)])
+            [UrbanCodeComponent.builder().componentName('cert-gui').baseDir('build').fileIncludePatterns('*.war')
+                    .incrementalVersion(false).build()])
 
     def "sections left out take their defaults"() {
         expect:
-        new ServiceSettings(build(), null, null, null, deployment(), null, null, null, null, null, appScan(), null, null,
-                null, null, null, null, null) == new ServiceSettings(build(), UnitTestSettings.NONE,
-                TestSettings.DEFAULTS, [], deployment(), ToolCommand.NONE, UrbanCodeSettings.DEFAULTS, [], [:], [:],
-                appScan(), SonarSettings.NONE, NexusIqSettings.NONE, null, ScmSettings.NONE, GoldenFixPolicy.INHERITED,
-                MetricsSettings.DEFAULTS, FlutterSettings.NONE)
+        ServiceSettings.builder().build(build()).deployment(deployment()).appScan(appScan()).build() ==
+                new ServiceSettings(build(), UnitTestSettings.NONE, DEFAULTS, [], deployment(), NONE,
+                        UrbanCodeSettings.DEFAULTS, [], [:], [:], appScan(), SonarSettings.NONE, NexusIqSettings.NONE,
+                        null, ScmSettings.NONE, INHERITED, MetricsSettings.DEFAULTS, FlutterSettings.NONE)
     }
 
     def "deployment targets that set nothing, or have no region, are dropped and the rest kept in region order"() {
         given:
         def ssh = new LinkedHashMap<Region, SshTarget>()
-        ssh[Region.QC] = new SshTarget('qc.host', null, null, null, null)
-        ssh[Region.RD] = new SshTarget(' ', null, null, null, null)
+        ssh[QC] = SshTarget.builder().host('qc.host').build()
+        ssh[RD] = SshTarget.builder().host(' ').build()
         ssh[null] = RD_HOST
 
         when:
-        def settings = settings(sshTargets: ssh, openShiftTargets: [(Region.RD): RD_PROJECT])
+        def settings = settings(sshTargets: ssh, openShiftTargets: [(RD): RD_PROJECT])
 
         then:
-        settings.sshTargets().keySet() as List == [Region.QC]
-        settings.openShiftTargets().keySet() as List == [Region.RD]
+        settings.sshTargets().keySet() as List == [QC]
+        settings.openShiftTargets().keySet() as List == [RD]
     }
 
     def "a Gradle service on a VM writes its UrbanCode and SSH deployment but no delivery or OpenShift section"() {
         when:
         def tree = written(settings(delivery: command(['publish']), urbanCodeApplications: [UCD_APP],
-                sshTargets: [(Region.RD): RD_HOST], openShiftTargets: [(Region.RD): RD_PROJECT]))
+                sshTargets: [(RD): RD_HOST], openShiftTargets: [(RD): RD_PROJECT]))
 
         then:
         tree.get('build.gradle.tasks') == ['clean', 'build']
@@ -57,15 +70,15 @@ class ServiceSettingsSpec extends Specification {
         tree.get('deploy.vm.dod.applications')*.applicationName == ['Cert']
         tree.get('deploy.openshift') == null
         tree.get('flutter') == null
-        written(settings(build: build(tool: BuildTool.MAVEN), delivery: command(['deploy:deploy-file'], ['-Did=bbh'])))
+        written(settings(build: build(tool: MAVEN), delivery: command(['deploy:deploy-file'], ['-Did=bbh'])))
                 .get('delivery') == [maven: [goals: ['deploy:deploy-file'], flags: ['-Did=bbh']]]
     }
 
     def "a service on OpenShift writes its OpenShift projects and nothing of the VM deployment"() {
         when:
-        def tree = written(settings(deployment: deployment(target: DeployTarget.OPENSHIFT, appName: 'cert',
-                artifactName: 'cert.jar'), urbanCodeApplications: [UCD_APP], sshTargets: [(Region.RD): RD_HOST],
-                openShiftTargets: [(Region.RD): RD_PROJECT]))
+        def tree = written(settings(deployment: deployment(target: OPENSHIFT, appName: 'cert',
+                artifactName: 'cert.jar'), urbanCodeApplications: [UCD_APP], sshTargets: [(RD): RD_HOST],
+                openShiftTargets: [(RD): RD_PROJECT]))
 
         then:
         tree.get('deploy.openshift.rd') == [projectBuildR: 'cert-build', projectDeploymentR: 'cert-rd']
@@ -74,11 +87,11 @@ class ServiceSettingsSpec extends Specification {
 
     def "only a Flutter service writes its Flutter section"() {
         given:
-        def flutter = new FlutterSettings(FlutterPlatform.APK, ['app'], [], [], [], 'sign', 'prod-license',
-                'test-license', null, null, null, null, null, false, null, null)
+        def flutter = FlutterSettings.builder().platform(APK).modules(['app']).signingPasswordCredentialsId('sign')
+                .prodLicenseCredentialsId('prod-license').testLicenseCredentialsId('test-license').build()
 
         when:
-        def flutterTree = written(settings(build: build(tool: BuildTool.FLUTTER, javaPath: null), flutter: flutter))
+        def flutterTree = written(settings(build: build(tool: FLUTTER, javaPath: null), flutter: flutter))
 
         then:
         flutterTree.get('flutter.platform') == 'apk'
@@ -92,10 +105,10 @@ class ServiceSettingsSpec extends Specification {
         def problems = new ValidationProblems()
 
         when:
-        settings(build: build(javaPath: null), deployment: deployment(target: DeployTarget.OPENSHIFT),
+        settings(build: build(javaPath: null), deployment: deployment(target: OPENSHIFT),
                 appScan: appScan(dastEnabled: true), scm: ScmSettings.of(REPO, null),
                 sonar: SonarSettings.of('Cert', 'cert', null),
-                unitTests: new UnitTestSettings(null, '**/TEST-*.xml', null, null, false, null))
+                unitTests: UnitTestSettings.builder().resultPattern('**/TEST-*.xml').build())
                 .validate(problems.at('services[3]'))
 
         then:
@@ -109,27 +122,27 @@ class ServiceSettingsSpec extends Specification {
 
     def "a Maven service on a VM needs its artifact path and delivery goals and a Flutter service what its stages read"() {
         expect:
-        reported(settings(build: build(tool: BuildTool.MAVEN), delivery: ToolCommand.NONE))*.field ==
+        reported(settings(build: build(tool: MAVEN), delivery: NONE))*.field ==
                 ['build.buildPath', 'delivery.tasks']
-        reported(settings(build: build(tool: BuildTool.MAVEN), delivery: ToolCommand.NONE))[0].message ==
+        reported(settings(build: build(tool: MAVEN), delivery: NONE))[0].message ==
                 'is required for Maven on VMs: the Nexus delivery publishes the artifact found there'
-        reported(settings(build: build(tool: BuildTool.FLUTTER, javaPath: null)))*.field ==
+        reported(settings(build: build(tool: FLUTTER, javaPath: null)))*.field ==
                 ['build.javaPath', 'flutter.modules', 'flutter.testModules', 'flutter.signingPasswordCredentialsId',
                  'flutter.prodLicenseCredentialsId', 'flutter.testLicenseCredentialsId', 'flutter.deliveryGroup',
                  'flutter.deliveryArtifact', 'flutter.deliveryPlugin']
-        reported(settings(build: build(tool: BuildTool.MAVEN), delivery: ToolCommand.NONE,
-                deployment: deployment(target: DeployTarget.OPENSHIFT, appName: 'cert', artifactName: 'cert.jar'),
-                openShiftTargets: [(Region.RD): fullSettings().openShiftTargets()[Region.RD]])) == []
+        reported(settings(build: build(tool: MAVEN), delivery: NONE,
+                deployment: deployment(target: OPENSHIFT, appName: 'cert', artifactName: 'cert.jar'),
+                openShiftTargets: [(RD): fullSettings().openShiftTargets()[RD]])) == []
     }
 
     def "an OpenShift service needs an RD target that can build its image"() {
         given:
-        def rd = new OpenShiftTarget('cert-build', null, 'Dockerfile', '.', null, 'push.bbh.com/cert', null, null, null,
-                'cert-rd', null, null, false, null, null, null, null, null, null, null, null)
+        def rd = OpenShiftTarget.builder().projectBuild('cert-build').dockerFilePath('Dockerfile').buildContext('.')
+                .dockerRepoPush('push.bbh.com/cert').projectDeployment('cert-rd').build()
 
         when:
-        def problems = reported(settings(deployment: deployment(target: DeployTarget.OPENSHIFT, appName: 'cert',
-                artifactName: 'cert.jar'), openShiftTargets: [(Region.RD): rd]))
+        def problems = reported(settings(deployment: deployment(target: OPENSHIFT, appName: 'cert',
+                artifactName: 'cert.jar'), openShiftTargets: [(RD): rd]))
 
         then:
         problems*.field == ['openShiftTargets[RD].buildConfigPath', 'openShiftTargets[RD].nexusAuthFile']
@@ -153,8 +166,8 @@ class ServiceSettingsSpec extends Specification {
         given:
         def applications = [UrbanCodeApplicationSettings.of('Cert', 1, [], null, []),
                             UrbanCodeApplicationSettings.of('Cert Batch', 2, [], null,
-                                    [new UrbanCodeComponent('batch', ' ', null, null, null, null, true, null, null, null, null, null),
-                                     new UrbanCodeComponent('config', 'config', '*.yml', null, null, null, true, null, null, null, null, null)])]
+                                    [UrbanCodeComponent.of('batch', ' ', null),
+                                     UrbanCodeComponent.of('config', 'config', '*.yml')])]
 
         expect:
         reported(settings(urbanCodeApplications: applications))*.field == ['urbanCodeApplications[0].components',
@@ -164,8 +177,8 @@ class ServiceSettingsSpec extends Specification {
 
     def "test job parameters '#parameters' are one NAME=value per line: #valid"() {
         when:
-        def problems = reported(settings(testJobs: [new TestJob(TestStage.SMOKE, null, TestJobType.LOCAL, 'CERT/smoke',
-                null, parameters, null, null, null, null, null, false, false, false, false, false, false)]))
+        def problems = reported(settings(testJobs: [TestJob.builder().stage(SMOKE).type(LOCAL).job('CERT/smoke')
+                .parameters(parameters).build()]))
 
         then:
         problems.collect { [it.field, it.message] } ==
@@ -187,15 +200,14 @@ class ServiceSettingsSpec extends Specification {
         def longFlags = (1..12).collect { "-Dproperty.$it=${'v' * 200}".toString() }
         def longDirs = (1..20).collect { "${'d' * 150}/$it".toString() }
         def reviewers = (1..3).collect { ("reviewer-$it-" + '\u017c\u00f3\u0142\u0107' * 120).toString() }
-        def command = new ToolCommand(['build'], longFlags, null, null, [], null, false)
+        def command = ToolCommand.of(['build'], longFlags)
 
         when:
         def problems = reported(settings(build: build(command: command),
-                appScan: new AppScanSettings(APP_ID, null, longDirs, ['test'], false, false, false, false, null, command,
-                        false, null, null, null, null),
-                scm: new ScmSettings(REPO, 'bb-creds', null, null, null, null, reviewers, null, null, null, null),
-                goldenFix: new GoldenFixPolicy(null, null, null, [], [], longDirs, null, null, null, null, null, null,
-                        null, null, null, null, null)))
+                appScan: AppScanSettings.builder().applicationId(APP_ID).includedDirs(longDirs).excludedDirs(['test'])
+                        .compile(false).compileCommand(command).build(),
+                scm: ScmSettings.builder().repositoryUrl(REPO).credentialsId('bb-creds').reviewers(reviewers).build(),
+                goldenFix: GoldenFixPolicy.builder().excludeDirs(longDirs).build()))
 
         then:
         problems*.field == ['build.command.flags', 'appScan.includedDirs', 'appScan.compileCommand.flags',
@@ -205,11 +217,9 @@ class ServiceSettingsSpec extends Specification {
 
     def "a remote test job given as a path must name its Jenkins"() {
         given:
-        def jobs = [TestJob.of(TestStage.SMOKE, null, TestJobType.REMOTE, 'CERT/smoke', null),
-                    new TestJob(TestStage.SMOKE, null, TestJobType.REMOTE, 'https://jenkins.qc/job/smoke/', null, null,
-                            null, null, null, null, null, false, false, false, false, false, false),
-                    new TestJob(TestStage.REGRESSION, null, TestJobType.REMOTE, 'CERT/regression', null, null, 'qc', null,
-                            null, null, null, false, false, false, false, false, false)]
+        def jobs = [TestJob.of(SMOKE, null, REMOTE, 'CERT/smoke', null),
+                    TestJob.builder().stage(SMOKE).type(REMOTE).job('https://jenkins.qc/job/smoke/').build(),
+                    TestJob.builder().stage(REGRESSION).type(REMOTE).job('CERT/regression').remoteJenkins('qc').build()]
 
         expect:
         reported(settings(testJobs: jobs))*.field == ['testJobs[0].remoteJenkins']
@@ -228,9 +238,9 @@ class ServiceSettingsSpec extends Specification {
 
     def "a service cannot do without its #section settings"() {
         when:
-        new ServiceSettings(section == 'build' ? null : build(), null, null, null,
-                section == 'deployment' ? null : deployment(), null, null, null, null, null,
-                section == 'AppScan' ? null : appScan(), null, null, null, null, null, null, null)
+        ServiceSettings.builder().build(section == 'build' ? null : build())
+                .deployment(section == 'deployment' ? null : deployment())
+                .appScan(section == 'AppScan' ? null : appScan()).build()
 
         then:
         def e = thrown(NullPointerException)

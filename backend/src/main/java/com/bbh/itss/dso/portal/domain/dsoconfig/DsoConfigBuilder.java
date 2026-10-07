@@ -4,14 +4,15 @@ import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings;
-import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues;
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY;
+import static java.util.Objects.requireNonNull;
 
 public final class DsoConfigBuilder {
 
@@ -24,7 +25,7 @@ public final class DsoConfigBuilder {
     private final GlobalSettingsValues global;
 
     public DsoConfigBuilder(GlobalSettingsValues global) {
-        this.global = Objects.requireNonNull(global, "the configuration is built on the global settings");
+        this.global = requireNonNull(global, "the configuration is built on the global settings");
     }
 
     public Map<String, Object> productConfig(Product product) {
@@ -37,7 +38,7 @@ public final class DsoConfigBuilder {
     public Map<String, Object> pipelineConfig(Product product, Service service, Pipeline pipeline) {
         PipelineSettings pipelineSettings = pipeline.settings();
         ConfigTree serviceTree = serviceTree(product, service);
-        if (pipeline.type() == PipelineType.SECURITY) {
+        if (pipeline.type() == SECURITY) {
             serviceTree.set("jenkins.pipeline.extendedPipeline", pipelineSettings.extendedPipelineJob());
         }
 

@@ -6,12 +6,14 @@ import spock.lang.Specification
 
 import java.time.Instant
 
+import static com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues.bbhDefaults
+import static com.bbh.itss.dso.portal.domain.settings.Scanner.DAST
 import static com.bbh.itss.dso.portal.support.Fixtures.copy
 
 class GlobalSettingsSpec extends Specification {
 
     static final Instant UPDATED = Instant.parse('2026-10-04T12:00:00Z')
-    static final GlobalSettingsValues BBH = GlobalSettingsValues.bbhDefaults()
+    static final GlobalSettingsValues BBH = bbhDefaults()
 
     def stored = new GlobalSettings(BBH, 3, UPDATED)
 
@@ -66,7 +68,7 @@ class GlobalSettingsSpec extends Specification {
         e.problems() == problems
 
         where:
-        invalid << [copy(BBH, platform: copy(BBH.platform(), proxyHost: null), limits: BBH.limits().findAll { it.key != Scanner.DAST }),
+        invalid << [copy(BBH, platform: copy(BBH.platform(), proxyHost: null), limits: BBH.limits().findAll { it.key != DAST }),
                     copy(BBH, goldenFix: copy(BBH.goldenFix(), commitAuthorEmail: null))]
         message << ['2 fields are invalid', 'is required in the global settings']
         problems << [[new FieldProblem('platform.proxyHost', 'is required with a proxy port'),

@@ -1,19 +1,20 @@
 package com.bbh.itss.dso.portal.domain.dsoconfig
 
-import com.bbh.itss.dso.portal.domain.catalog.BuildTool
-import com.bbh.itss.dso.portal.domain.catalog.DeployTarget
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication
 import com.bbh.itss.dso.portal.domain.catalog.Product
-import com.bbh.itss.dso.portal.domain.catalog.Region
 import com.bbh.itss.dso.portal.domain.catalog.Service
 import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
 import com.bbh.itss.dso.portal.domain.catalog.SshTarget
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeComponent
-import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import spock.lang.Specification
 import spock.lang.Subject
 
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
+import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT
+import static com.bbh.itss.dso.portal.domain.catalog.Region.RD
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.EXTENDED
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.command
 import static com.bbh.itss.dso.portal.support.Fixtures.deployment
@@ -30,8 +31,8 @@ class DsoConfigBuilderSpec extends Specification {
     static final Map GUI = [id: 10L, name: 'gui',
                             sonar: SonarSettings.of('CertScanner GUI', 'cert-gui', command(['sonarqube'])),
                             nexusIqApplications: [NexusIqApplication.of('cert-gui', ['**/build/libs/*.jar'])]]
-    static final Map API = [id: 11L, name: 'backend-api', build: build(tool: BuildTool.MAVEN),
-                            deployment: deployment(target: DeployTarget.OPENSHIFT, appName: 'cert-api',
+    static final Map API = [id: 11L, name: 'backend-api', build: build(tool: MAVEN),
+                            deployment: deployment(target: OPENSHIFT, appName: 'cert-api',
                                     artifactName: 'cert-api.jar')]
 
     Product certScanner = product(services: [GUI, API])
@@ -86,9 +87,10 @@ class DsoConfigBuilderSpec extends Specification {
     def "the global deployment defaults fill in what a VM deployment leaves out"() {
         given:
         certScanner = product(services: [GUI, API, [id: 12L, name: 'batch',
-                sshTargets: [(Region.RD): new SshTarget(null, 'batchadm', '/opt/batch', null, null)],
+                sshTargets: [(RD): SshTarget.builder().user('batchadm').deployDir('/opt/batch').build()],
                 urbanCodeApplications: [UrbanCodeApplicationSettings.of('Batch', 1, ['RD'], null,
-                        [new UrbanCodeComponent('batch-app', 'build/libs', '*.jar', null, null, null, false, null, null, null, null, null)])]]])
+                        [UrbanCodeComponent.builder().componentName('batch-app').baseDir('build/libs')
+                                .fileIncludePatterns('*.jar').incrementalVersion(false).build()])]]])
 
         when:
         Map deploy = builder.productConfig(certScanner).projects.batch.deploy
@@ -134,10 +136,10 @@ class DsoConfigBuilderSpec extends Specification {
         config.projects.gui.jenkins == projectEntry
 
         where:
-        type                  | extended            | security            || pipelineEntry       | projectEntry
-        PipelineType.SECURITY | 'CERT/gui-extended' | null                || null                | [pipeline: [extendedPipeline: 'CERT/gui-extended']]
-        PipelineType.EXTENDED | null                | 'CERT/gui-security' || 'CERT/gui-security' | null
-        PipelineType.SECURITY | null                | null                || null                | null
+        type     | extended            | security            || pipelineEntry       | projectEntry
+        SECURITY | 'CERT/gui-extended' | null                || null                | [pipeline: [extendedPipeline: 'CERT/gui-extended']]
+        EXTENDED | null                | 'CERT/gui-security' || 'CERT/gui-security' | null
+        SECURITY | null                | null                || null                | null
     }
 
     def "the global configuration holds the platform and the library defaults"() {

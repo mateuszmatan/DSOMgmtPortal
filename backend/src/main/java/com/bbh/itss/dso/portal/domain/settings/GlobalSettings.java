@@ -1,15 +1,16 @@
 package com.bbh.itss.dso.portal.domain.settings;
 
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
-import com.bbh.itss.dso.portal.domain.shared.Versions;
 
 import java.time.Instant;
-import java.util.Objects;
+
+import static com.bbh.itss.dso.portal.domain.shared.Versions.requireCurrent;
+import static java.util.Objects.requireNonNull;
 
 public record GlobalSettings(GlobalSettingsValues values, long version, Instant updatedAt) {
 
     public GlobalSettings {
-        Objects.requireNonNull(values, "values");
+        requireNonNull(values, "values");
     }
 
     public static GlobalSettings bbhDefaults() {
@@ -17,7 +18,7 @@ public record GlobalSettings(GlobalSettingsValues values, long version, Instant 
     }
 
     public GlobalSettings change(Long expectedVersion, GlobalSettingsValues changed) {
-        Versions.requireCurrent(expectedVersion, version);
+        requireCurrent(expectedVersion, version);
         ValidationProblems problems = new ValidationProblems();
         changed.validate(problems);
         problems.throwIfAny();

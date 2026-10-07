@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.regression
 
-import com.bbh.itss.dso.portal.support.ApiJson
 import com.bbh.itss.dso.portal.support.PortalSpecification
 
 import static com.bbh.itss.dso.portal.support.ApiJson.build

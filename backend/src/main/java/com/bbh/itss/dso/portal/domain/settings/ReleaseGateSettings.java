@@ -3,9 +3,11 @@ package com.bbh.itss.dso.portal.domain.settings;
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
-import java.util.Comparator;
 import java.util.List;
 
+import static java.util.Comparator.naturalOrder;
+import static java.util.Comparator.nullsLast;
+import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public record ReleaseGateSettings(List<Scanner> scanners, Boolean requireCoverage, String stateFile) {
@@ -16,8 +18,7 @@ public record ReleaseGateSettings(List<Scanner> scanners, Boolean requireCoverag
     }
 
     public static List<Scanner> normalize(List<Scanner> scanners) {
-        return scanners == null ? List.of()
-                : scanners.stream().distinct().sorted(Comparator.nullsLast(Comparator.naturalOrder())).toList();
+        return emptyIfNull(scanners).stream().distinct().sorted(nullsLast(naturalOrder())).toList();
     }
 
     public void validate(ValidationProblems problems) {

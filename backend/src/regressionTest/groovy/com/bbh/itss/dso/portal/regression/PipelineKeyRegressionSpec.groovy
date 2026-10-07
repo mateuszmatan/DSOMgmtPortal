@@ -6,13 +6,13 @@ import org.yaml.snakeyaml.Yaml
 import java.util.concurrent.Callable
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
+import static java.util.concurrent.Executors.newFixedThreadPool
+import static java.util.concurrent.TimeUnit.SECONDS
 
 class PipelineKeyRegressionSpec extends PortalSpecification {
 
@@ -213,7 +213,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
     def "concurrent key changes leave exactly one active key"() {
         given:
         long id = pipelineFor(gui).id as long
-        def pool = Executors.newFixedThreadPool(10)
+        def pool = newFixedThreadPool(10)
 
         when:
         def statuses = pool.invokeAll((1..20).collect { { -> api.post("/api/pipelines/$id/keys").status } as Callable<Integer> })*.get()
@@ -232,7 +232,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
         given:
         def raced = createProduct(product(code: uniqueCode('RACE'), name: "Race ${uniqueCode()}",
                 services: (1..5).collect { service(name: "svc-$it") }))
-        def pool = Executors.newFixedThreadPool(FETCHERS)
+        def pool = newFixedThreadPool(FETCHERS)
 
         when:
         def outcomes = raced.services.collect { svc ->
@@ -262,7 +262,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
     def "a key replaced while pipelines keep fetching its configuration leaves one active key"() {
         given:
         def created = pipelineFor(gui)
-        def pool = Executors.newFixedThreadPool(FETCHERS)
+        def pool = newFixedThreadPool(FETCHERS)
         List<String> replaced = []
 
         when:
@@ -333,10 +333,10 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
                 fetches
             } as Callable<List<Map>>)
         }
-        assert warmedUp.await(30, TimeUnit.SECONDS)
+        assert warmedUp.await(30, SECONDS)
         change()
         changed.set(true)
-        assert settled.await(30, TimeUnit.SECONDS)
+        assert settled.await(30, SECONDS)
         stop.set(true)
         fetchers.collectMany { it.get() }
     }

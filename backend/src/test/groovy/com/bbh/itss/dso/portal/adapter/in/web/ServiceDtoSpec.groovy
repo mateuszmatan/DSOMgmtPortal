@@ -1,8 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.in.web
 
 import com.bbh.itss.dso.portal.adapter.RecordMapper
-import com.bbh.itss.dso.portal.domain.catalog.BuildTool
-import com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform
 import com.bbh.itss.dso.portal.domain.catalog.FlutterSettings
 import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
@@ -16,12 +14,10 @@ import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
 import com.bbh.itss.dso.portal.domain.catalog.SshTarget
 import com.bbh.itss.dso.portal.domain.catalog.TestJob
 import com.bbh.itss.dso.portal.domain.catalog.TestSettings
-import com.bbh.itss.dso.portal.domain.catalog.TestStage
 import com.bbh.itss.dso.portal.domain.catalog.UnitTestSettings
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeComponent
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeSettings
-import jakarta.validation.Validation
 import jakarta.validation.Validator
 import spock.lang.Shared
 import spock.lang.Specification
@@ -31,8 +27,14 @@ import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.IMAGE_TAG_MESS
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.POWERSHELL_PATH_MESSAGE
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL_MESSAGE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
+import static com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform.WEB
+import static com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy.INHERITED
 import static com.bbh.itss.dso.portal.domain.catalog.Region.QC
 import static com.bbh.itss.dso.portal.domain.catalog.Region.RD
+import static com.bbh.itss.dso.portal.domain.catalog.TestSettings.DEFAULTS
+import static com.bbh.itss.dso.portal.domain.catalog.TestStage.SMOKE
+import static com.bbh.itss.dso.portal.domain.catalog.UnitTestSettings.NONE
 import static com.bbh.itss.dso.portal.support.ApiJson.APP_ID
 import static com.bbh.itss.dso.portal.support.ApiJson.build as buildJson
 import static com.bbh.itss.dso.portal.support.ApiJson.service as serviceJson
@@ -41,11 +43,12 @@ import static com.bbh.itss.dso.portal.support.Fixtures.appScan
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.command
 import static com.bbh.itss.dso.portal.support.Fixtures.deployment
+import static jakarta.validation.Validation.buildDefaultValidatorFactory
 
 class ServiceDtoSpec extends Specification {
 
     @Shared
-    Validator validator = Validation.buildDefaultValidatorFactory().validator
+    Validator validator = buildDefaultValidatorFactory().validator
 
     @Shared
     JsonMapper json = JsonMapper.builder().build()
@@ -75,11 +78,11 @@ class ServiceDtoSpec extends Specification {
         def settings = request(toJson(serviceJson(sshTargets: [RD: null, QC: [host: 'qc.host']]))).toDraft().settings()
 
         then:
-        settings.unitTests() == UnitTestSettings.NONE
-        settings.tests() == TestSettings.DEFAULTS
-        settings.goldenFix() == GoldenFixPolicy.INHERITED
+        settings.unitTests() == NONE
+        settings.tests() == DEFAULTS
+        settings.goldenFix() == INHERITED
         settings.metrics() == MetricsSettings.DEFAULTS
-        settings.sshTargets() == [(QC): new SshTarget('qc.host', null, null, null, null)]
+        settings.sshTargets() == [(QC): SshTarget.builder().host('qc.host').build()]
         settings.openShiftTargets() == [:]
     }
 
@@ -97,9 +100,10 @@ class ServiceDtoSpec extends Specification {
         dto.appScan().applicationId() == APP_ID
         dto.appScan().includedDirs() == ['src']
         dto.appScan().compile()
-        dto.appScan().compileCommand() == new ServiceDto.ToolCommandDto([], [], null, null, [], null, false)
+        dto.appScan().compileCommand() ==
+                ServiceDto.ToolCommandDto.builder().tasks([]).flags([]).environment([]).returnStdout(false).build()
         dto.scm().reviewers() == ['alice']
-        dto.sshTargets()[QC] == new ServiceDto.SshTargetDto('qc.host', null, null, null, null)
+        dto.sshTargets()[QC] == ServiceDto.SshTargetDto.builder().host('qc.host').build()
         dto.urbanCodeApplications()[0].applicationName() == 'Cert'
         dto.urbanCodeApplications()[0].environments() == ['RD']
         dto.urbanCodeApplications()[0].components() == []
@@ -157,27 +161,38 @@ class ServiceDtoSpec extends Specification {
     }
 
     static ServiceSettings fullSettings() {
-        new ServiceSettings(build(tool: BuildTool.MAVEN, buildPath: 'target/gui.war'),
-                new UnitTestSettings(command(['test']), '**/TEST-*.xml', null, null, true, null),
-                new TestSettings(5, 1, 2, 3, true, true, true, null, null, null),
-                [TestJob.of(TestStage.SMOKE, 'smoke', null, 'CERT/gui-smoke', 10)],
-                deployment(appName: 'gui'),
-                command(['deploy:deploy-file']),
-                new UrbanCodeSettings('BBH-RD', 'Deploy', true, false, true, false, true, 'desc', 'a=b'),
-                [UrbanCodeApplicationSettings.of('Cert', 1, ['RD'], 'snap',
-                        [new UrbanCodeComponent('cert-gui', 'build/libs', '*.war', null, null, null, false, null, null, null, null, null)])],
-                [(QC): new SshTarget('qc.host', null, null, null, null), (RD): new SshTarget('rd.host', null, null, null, null)],
-                [(QC): new OpenShiftTarget(null, null, null, null, null, null, 'pull/cert', null, null, 'cert-qc', null, null,
-                        true, null, null, null, null, null, null, null, null)],
-                appScan(dastEnabled: true, dastTargetUrl: 'https://rdl1.testbbh.com', compileCommand: command(['compile'])),
-                SonarSettings.of('Cert', 'cert-gui', command(['sonar:sonar'])),
-                new NexusIqSettings('https://iq.bbh.com', 'iq-creds', null),
-                [NexusIqApplication.of('cert', ['**/*.war']), NexusIqApplication.of('cert-batch', ['**/batch/*.jar'])],
-                new ScmSettings('https://bitbucket.bbh.com/scm/ta/cert.git', 'bb-creds', null, null, null, null, null,
-                        'https://bitbucket.bbh.com/rest/api/1.0', 'ta-workspace', 'TA', 'cert-gui'),
-                GoldenFixPolicy.inherit(false),
-                new MetricsSettings(false, 'cert-gui', 'qc', null, null),
-                new FlutterSettings(FlutterPlatform.WEB, ['app'], [], [], [], 's', 'p', 't', null, null, null, null, null, true,
-                        null, null))
+        ServiceSettings.builder()
+                .build(build(tool: MAVEN, buildPath: 'target/gui.war'))
+                .unitTests(UnitTestSettings.builder().command(command(['test'])).resultPattern('**/TEST-*.xml')
+                        .allowEmptyResults(true).build())
+                .tests(TestSettings.builder().maxParallel(5).smokeMaxParallel(1).regressionMaxParallel(2)
+                        .performanceMaxParallel(3).smokeRequired(true).regressionRequired(true)
+                        .performanceRequired(true).build())
+                .testJobs([TestJob.of(SMOKE, 'smoke', null, 'CERT/gui-smoke', 10)])
+                .deployment(deployment(appName: 'gui'))
+                .delivery(command(['deploy:deploy-file']))
+                .urbanCode(new UrbanCodeSettings('BBH-RD', 'Deploy', true, false, true, false, true, 'desc', 'a=b'))
+                .urbanCodeApplications([UrbanCodeApplicationSettings.of('Cert', 1, ['RD'], 'snap',
+                        [UrbanCodeComponent.builder().componentName('cert-gui').baseDir('build/libs')
+                                .fileIncludePatterns('*.war').incrementalVersion(false).build()])])
+                .sshTargets([(QC): SshTarget.builder().host('qc.host').build(),
+                             (RD): SshTarget.builder().host('rd.host').build()])
+                .openShiftTargets([(QC): OpenShiftTarget.builder().dockerRepoPull('pull/cert')
+                        .projectDeployment('cert-qc').skipConfigDeploy(true).build()])
+                .appScan(appScan(dastEnabled: true, dastTargetUrl: 'https://rdl1.testbbh.com',
+                        compileCommand: command(['compile'])))
+                .sonar(SonarSettings.of('Cert', 'cert-gui', command(['sonar:sonar'])))
+                .nexusIq(new NexusIqSettings('https://iq.bbh.com', 'iq-creds', null))
+                .nexusIqApplications([NexusIqApplication.of('cert', ['**/*.war']),
+                                      NexusIqApplication.of('cert-batch', ['**/batch/*.jar'])])
+                .scm(ScmSettings.builder().repositoryUrl('https://bitbucket.bbh.com/scm/ta/cert.git')
+                        .credentialsId('bb-creds').apiUrl('https://bitbucket.bbh.com/rest/api/1.0')
+                        .workspace('ta-workspace').projectKey('TA').repoSlug('cert-gui').build())
+                .goldenFix(GoldenFixPolicy.inherit(false))
+                .metrics(new MetricsSettings(false, 'cert-gui', 'qc', null, null))
+                .flutter(FlutterSettings.builder().platform(WEB).modules(['app']).testModules([]).testSubmodules([])
+                        .testSubplugins([]).signingPasswordCredentialsId('s').prodLicenseCredentialsId('p')
+                        .testLicenseCredentialsId('t').sonarFlutterPlugin(true).build())
+                .build()
     }
 }

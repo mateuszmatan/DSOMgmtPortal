@@ -1,7 +1,8 @@
 package com.bbh.itss.dso.portal.domain.evidence;
 
-import com.bbh.itss.dso.portal.domain.shared.UriEncoding;
-
+import static com.bbh.itss.dso.portal.domain.shared.UriEncoding.pathSegment;
+import static com.bbh.itss.dso.portal.domain.shared.UriEncoding.queryParam;
+import static org.apache.commons.lang3.StringUtils.isAnyBlank;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.stripEnd;
 import static org.apache.commons.lang3.StringUtils.trim;
@@ -12,11 +13,10 @@ public record EvidenceLinks(String buildUrl, String appScanUrl, String sonarUrl,
 
     public static EvidenceLinks of(String buildUrl, String asocUrl, String appScanApplicationId,
                                    String sonarServerUrl, String sonarProjectKey, String nexusIqServerUrl) {
-        String appScan = isBlank(asocUrl) || isBlank(appScanApplicationId) ? null
-                : stripEnd(trim(asocUrl), "/") + "/main/myapps/" + UriEncoding.pathSegment(appScanApplicationId.trim())
-                        + "/scans";
-        String sonar = isBlank(sonarServerUrl) || isBlank(sonarProjectKey) ? null
-                : stripEnd(trim(sonarServerUrl), "/") + "/dashboard?id=" + UriEncoding.queryParam(sonarProjectKey);
+        String appScan = isAnyBlank(asocUrl, appScanApplicationId) ? null
+                : stripEnd(trim(asocUrl), "/") + "/main/myapps/" + pathSegment(appScanApplicationId.trim()) + "/scans";
+        String sonar = isAnyBlank(sonarServerUrl, sonarProjectKey) ? null
+                : stripEnd(trim(sonarServerUrl), "/") + "/dashboard?id=" + queryParam(sonarProjectKey);
         String nexusIq = isBlank(nexusIqServerUrl) ? null : stripEnd(trim(nexusIqServerUrl), "/") + "/";
         return new EvidenceLinks(buildUrl, appScan, sonar, nexusIq);
     }

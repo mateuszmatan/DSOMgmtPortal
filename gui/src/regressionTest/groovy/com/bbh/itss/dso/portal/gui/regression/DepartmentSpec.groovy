@@ -1,7 +1,6 @@
 package com.bbh.itss.dso.portal.gui.regression
 
-import com.bbh.itss.dso.portal.gui.support.StubResponse
-
+import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 
 class DepartmentSpec extends ProductPageSpecification {
@@ -32,7 +31,7 @@ class DepartmentSpec extends ProductPageSpecification {
         assertThat(page.locator('.toolbar .count')).hasText('2 products in 6 departments')
 
         when:
-        api.respond('PUT', '/api/departments/6', StubResponse.problem(409, 'Conflict', 'A department named Custody already exists'))
+        api.respond('PUT', '/api/departments/6', problem(409, 'Conflict', 'A department named Custody already exists'))
         buttonIn(department('Treasury'), 'Rename').click()
         input(dialog(), 'Name').fill('custody')
         dialogButton('Save').click()
@@ -94,7 +93,7 @@ class DepartmentSpec extends ProductPageSpecification {
         awaitRequest('DELETE', '/api/departments/4')
 
         when:
-        api.respond('DELETE', '/api/departments/1', StubResponse.problem(409, 'Conflict',
+        api.respond('DELETE', '/api/departments/1', problem(409, 'Conflict',
                 'AI Lab still has 1 product(s). Move them to another department first.'))
         buttonIn(department('AI Lab'), 'Delete').click()
         dialogButton('Delete department').click()

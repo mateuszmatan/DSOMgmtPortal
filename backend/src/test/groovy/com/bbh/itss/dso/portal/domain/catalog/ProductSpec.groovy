@@ -5,6 +5,7 @@ import com.bbh.itss.dso.portal.domain.shared.ConfigTree
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.catalog.TestStage.SMOKE
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.Fixtures.DEPARTMENT_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.account
@@ -76,7 +77,7 @@ class ProductSpec extends Specification {
     def "a service writes its config.yaml entry with the product's AppScan account"() {
         given:
         def product = product(services: [[name: 'gui', id: 10, testJobs: [
-                TestJob.of(TestStage.SMOKE, 'smoke', null, 'CERT/gui-smoke', null)]]])
+                TestJob.of(SMOKE, 'smoke', null, 'CERT/gui-smoke', null)]]])
         def tree = new ConfigTree()
 
         when:
@@ -225,7 +226,7 @@ class ProductSpec extends Specification {
 
         then:
         def updated = thrown(InvalidRequestException)
-        updated.problems() == created.problems
+        updated.problems() == created.problems()
         older.departmentId() == null
 
         when:

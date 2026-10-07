@@ -2,12 +2,12 @@ package com.bbh.itss.dso.portal.gui.regression
 
 import com.bbh.itss.dso.portal.gui.support.GuiSpecification
 import com.bbh.itss.dso.portal.gui.support.RecordedRequest
-import com.bbh.itss.dso.portal.gui.support.StubApi
-import com.bbh.itss.dso.portal.gui.support.StubResponse
 import com.microsoft.playwright.Locator
-import com.microsoft.playwright.options.AriaRole
 
+import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
+import static com.bbh.itss.dso.portal.gui.support.StubResponse.json
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
+import static com.microsoft.playwright.options.AriaRole.LINK
 
 class MonitoringSpec extends GuiSpecification {
 
@@ -70,7 +70,7 @@ class MonitoringSpec extends GuiSpecification {
 
     def "a product's pipelines link their Jenkins jobs and the builds their runs recorded"() {
         given:
-        def monitoring = StubApi.fixture('monitoring-product-2.json') as Map
+        def monitoring = fixture('monitoring-product-2.json') as Map
         def health = monitoring.pipelines as List<Map>
         health.find { it.pipeline.serviceName == 'notifications' }.lastRun.buildUrl = null
         api.respond('GET', '/api/monitoring/products/2', monitoring)
@@ -80,7 +80,7 @@ class MonitoringSpec extends GuiSpecification {
         assertThat(page.locator('tr.mat-mdc-row td.service')).hasText(health*.pipeline*.serviceName as String[])
         health.every { item ->
             def row = row(item.pipeline.id as int)
-            assertThat(row.getByRole(AriaRole.LINK, new Locator.GetByRoleOptions().setName("Open the Jenkins job of ${item.pipeline.serviceName}")))
+            assertThat(row.getByRole(LINK, new Locator.GetByRoleOptions().setName("Open the Jenkins job of ${item.pipeline.serviceName}")))
                     .hasAttribute('href', item.pipeline.jenkinsJobUrl as String)
             if (item.lastRun.buildUrl) {
                 assertThat(row.locator('a.build-link')).hasAttribute('href', item.lastRun.buildUrl as String)
@@ -94,7 +94,7 @@ class MonitoringSpec extends GuiSpecification {
         !health.any { it.lastRun.buildUrl?.startsWith(it.pipeline.jenkinsJobUrl as String) }
 
         when:
-        def popup = page.waitForPopup { row(7).getByRole(AriaRole.LINK, new Locator.GetByRoleOptions().setName('Open the Jenkins job of ledger')).click() }
+        def popup = page.waitForPopup { row(7).getByRole(LINK, new Locator.GetByRoleOptions().setName('Open the Jenkins job of ledger')).click() }
 
         then:
         popup.url() == 'https://jenkins.bbh.com/job/DevSecOps/job/PAYHUB/job/ledger-full/'
@@ -113,9 +113,9 @@ class MonitoringSpec extends GuiSpecification {
     def "the pipeline page asks for the selected range and keeps it in the address"() {
         given:
         api.get('/api/monitoring/pipelines/1') { RecordedRequest request ->
-            def monitoring = StubApi.fixture('monitoring-pipeline-1.json') as Map
+            def monitoring = fixture('monitoring-pipeline-1.json') as Map
             monitoring.dora.rangeDays = (request.params().range - 'd') as int
-            StubResponse.json(monitoring)
+            json(monitoring)
         }
         open('/monitoring/pipelines/1')
 
@@ -154,7 +154,7 @@ class MonitoringSpec extends GuiSpecification {
 
     def "the pipeline page links Jenkins, Grafana and every build its runs recorded"() {
         given:
-        def monitoring = StubApi.fixture('monitoring-pipeline-1.json') as Map
+        def monitoring = fixture('monitoring-pipeline-1.json') as Map
         def runs = monitoring.recentRuns as List<Map>
         runs[1].buildUrl = 'https://jenkins.bbh.com/job/CERTSCANNER-gui/job/full/job/feature%252Flogin/60/'
         runs[2].buildUrl = null
@@ -194,12 +194,12 @@ class MonitoringSpec extends GuiSpecification {
     def "without InfluxDB the pages explain that only the key state is known"() {
         given:
         api.respond('GET', '/api/monitoring/status', [influxConfigured: false, influxReachable: false, influxError: null])
-        def overview = StubApi.fixture('monitoring-products.json') as Map
+        def overview = fixture('monitoring-products.json') as Map
         overview.products.each { product -> product.overall = 'NO_DATA'; product.statusCounts = [NO_DATA: product.pipelineCount]; product.lastRunAt = null }
         api.respond('GET', '/api/monitoring/products', overview)
-        def activity = StubApi.fixture('monitoring-activity.json') as Map
+        def activity = fixture('monitoring-activity.json') as Map
         api.respond('GET', '/api/monitoring/activity', activity + [dora: (activity.dora as Map) + [runs: 0, deployments: 0, daily: []]])
-        def pipeline = StubApi.fixture('monitoring-pipeline-1.json') as Map
+        def pipeline = fixture('monitoring-pipeline-1.json') as Map
         pipeline += [status: 'NO_DATA', lastRun: null, recentRuns: [], grafana: null,
                      dora  : (pipeline.dora as Map) + [runs: 0, deployments: 0, daily: []]]
         api.respond('GET', '/api/monitoring/pipelines/1', pipeline)
@@ -228,7 +228,7 @@ class MonitoringSpec extends GuiSpecification {
     def "an unreachable InfluxDB and failed metric reads are named"() {
         given:
         api.respond('GET', '/api/monitoring/status', [influxConfigured: true, influxReachable: false, influxError: 'connection refused'])
-        def overview = StubApi.fixture('monitoring-products.json') as Map
+        def overview = fixture('monitoring-products.json') as Map
         overview.metricsError = 'query timed out after 10 seconds'
         api.respond('GET', '/api/monitoring/products', overview)
 

@@ -4,6 +4,10 @@ import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.EXTENDED
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
+
 class GrafanaDashboardLinksAdapterSpec extends Specification {
 
     static final String PIPELINE = 'https://grafana.bbh.com/d/adzfc54123/devsecops-pipeline-long'
@@ -26,10 +30,10 @@ class GrafanaDashboardLinksAdapterSpec extends Specification {
 
         where:
         type                  | security || dashboard          | securityAlone | link
-        PipelineType.FULL     | SECURITY || 'the pipeline one' | false         | "$PIPELINE?var-project=CERT%20gui&from=now-90d&to=now"
-        PipelineType.EXTENDED | SECURITY || 'the pipeline one' | false         | "$PIPELINE?var-project=CERT%20gui&from=now-90d&to=now"
+        FULL                  | SECURITY || 'the pipeline one' | false         | "$PIPELINE?var-project=CERT%20gui&from=now-90d&to=now"
+        EXTENDED              | SECURITY || 'the pipeline one' | false         | "$PIPELINE?var-project=CERT%20gui&from=now-90d&to=now"
         PipelineType.SECURITY | SECURITY || 'the security one' | true          | "$SECURITY&var-project=CERT%20gui&from=now-90d&to=now"
-        PipelineType.SAST     | SECURITY || 'the security one' | true          | "$SECURITY&var-project=CERT%20gui&from=now-90d&to=now"
-        PipelineType.SAST     | ' '      || 'the pipeline one' | true          | "$PIPELINE?var-project=CERT%20gui&from=now-90d&to=now"
+        SAST                  | SECURITY || 'the security one' | true          | "$SECURITY&var-project=CERT%20gui&from=now-90d&to=now"
+        SAST                  | ' '      || 'the pipeline one' | true          | "$PIPELINE?var-project=CERT%20gui&from=now-90d&to=now"
     }
 }

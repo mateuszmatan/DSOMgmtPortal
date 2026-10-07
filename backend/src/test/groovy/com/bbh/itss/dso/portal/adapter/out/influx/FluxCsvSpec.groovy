@@ -2,6 +2,8 @@ package com.bbh.itss.dso.portal.adapter.out.influx
 
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.adapter.out.influx.FluxCsv.splitLine
+
 class FluxCsvSpec extends Specification {
 
     def "rows are read by column name without the yield column"() {
@@ -26,7 +28,7 @@ class FluxCsvSpec extends Specification {
 
     def "quoted cells may hold commas and quotes"() {
         expect:
-        FluxCsv.splitLine('a,"b, c","say ""hi""",') == ['a', 'b, c', 'say "hi"', '']
+        splitLine('a,"b, c","say ""hi""",') == ['a', 'b, c', 'say "hi"', '']
     }
 
     def "#description"() {

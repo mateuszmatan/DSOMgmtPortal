@@ -13,6 +13,7 @@ import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.monitoring.DoraSummary;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,15 +24,14 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import static com.bbh.itss.dso.portal.adapter.in.web.PipelineResponse.monitored;
+
 @RestController
 @RequestMapping("/api/monitoring")
+@RequiredArgsConstructor
 public class MonitoringController {
 
     private final MonitorPipelinesUseCase monitoring;
-
-    public MonitoringController(MonitorPipelinesUseCase monitoring) {
-        this.monitoring = monitoring;
-    }
 
     @GetMapping("/status")
     public StatusResponse status() {
@@ -61,7 +61,7 @@ public class MonitoringController {
                                                @RequestParam(defaultValue = "30d") String range) {
         PipelineMonitoring found = monitoring.pipeline(id, range);
         PipelineView view = found.pipeline();
-        return new PipelineMonitoringResponse(PipelineResponse.monitored(view), found.status(),
+        return new PipelineMonitoringResponse(monitored(view), found.status(),
                 RunResponse.of(found.lastRun(), view), found.dora(),
                 found.recentRuns().stream().map(run -> RunResponse.of(run, view)).toList(),
                 found.dashboardUrl() == null ? null : new Grafana(found.dashboardUrl()), found.metricsError());
@@ -99,7 +99,7 @@ public class MonitoringController {
     public record PipelineHealthResponse(PipelineResponse pipeline, RunResult status, RunResponse lastRun) {
 
         static PipelineHealthResponse of(PipelineHealth health) {
-            return new PipelineHealthResponse(PipelineResponse.monitored(health.pipeline()), health.status(),
+            return new PipelineHealthResponse(monitored(health.pipeline()), health.status(),
                     RunResponse.of(health.lastRun(), health.pipeline()));
         }
     }

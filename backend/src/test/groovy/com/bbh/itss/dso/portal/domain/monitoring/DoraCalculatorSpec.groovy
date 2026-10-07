@@ -1,23 +1,29 @@
 package com.bbh.itss.dso.portal.domain.monitoring
 
+import com.bbh.itss.dso.portal.domain.monitoring.DoraSummary.DailyActivity
 import spock.lang.Specification
 
 import java.time.Instant
 import java.time.LocalDate
 
+import static com.bbh.itss.dso.portal.domain.monitoring.DoraCalculator.summarize
+import static com.bbh.itss.dso.portal.domain.monitoring.DoraCalculator.summarizeAll
 import static com.bbh.itss.dso.portal.domain.monitoring.DoraLevel.ELITE
 import static com.bbh.itss.dso.portal.domain.monitoring.DoraLevel.HIGH
 import static com.bbh.itss.dso.portal.domain.monitoring.DoraLevel.LOW
 import static com.bbh.itss.dso.portal.domain.monitoring.DoraLevel.MEDIUM
+import static java.lang.Math.abs
 
 class DoraCalculatorSpec extends Specification {
 
     static final Instant NOW = Instant.parse('2026-10-04T12:00:00Z')
 
     def "no runs give no metrics, only empty days"() {
+        given:
+        def days = (0..6).collect { new DailyActivity(LocalDate.parse('2026-09-28').plusDays(it), 0, 0, 0) }
+
         expect:
-        DoraCalculator.summarize([], 7, NOW) == new DoraSummary(7, 0, 0, 0.0d, null, null, null, null, null, null, null, 0,
-                null, null, (0..6).collect { new DoraSummary.DailyActivity(LocalDate.parse('2026-09-28').plusDays(it), 0, 0, 0) })
+        summarize([], 7, NOW) == DoraSummary.builder().rangeDays(7).deploymentsPerWeek(0.0d).daily(days).build()
     }
 
     def "a month of runs in any order gives the four metrics over its deployments"() {
@@ -32,12 +38,12 @@ class DoraCalculatorSpec extends Specification {
                 point('2026-10-03T08:00:00Z', false, true, 1800, 600)]
 
         when:
-        def summary = DoraCalculator.summarize(points, 30, NOW)
+        def summary = summarize(points, 30, NOW)
 
         then: 'five of the seven runs deployed'
         summary.runs() == 7
         summary.deployments() == 5
-        Math.abs(summary.deploymentsPerWeek() - 1.1666d) < 0.0001
+        abs(summary.deploymentsPerWeek() - 1.1666d) < 0.0001
         summary.deploymentFrequencyLevel() == HIGH
 
         and: 'the median of the positive lead times of the deployments, not of the builds between them'
@@ -72,7 +78,7 @@ class DoraCalculatorSpec extends Specification {
                       point('2026-10-03T10:00:00Z', false, false, 1800, 600)]
 
         when:
-        def summary = DoraCalculator.summarize(points, 30, NOW)
+        def summary = summarize(points, 30, NOW)
 
         then:
         summary.with { [runs(), deployments(), restores(), averageDurationSeconds()] } == [3, 0, 0, 600L]
@@ -89,7 +95,7 @@ class DoraCalculatorSpec extends Specification {
                       point('2026-10-01T13:00:00Z', true, false, 60, 60)]
 
         when:
-        def summary = DoraCalculator.summarize(points, 30, NOW)
+        def summary = summarize(points, 30, NOW)
 
         then:
         summary.restores() == 1
@@ -106,7 +112,7 @@ class DoraCalculatorSpec extends Specification {
                    point('2026-10-02T09:00:00Z', true, true, 2400, 120)]
 
         when:
-        def summary = DoraCalculator.summarizeAll([gui, api], 7, NOW)
+        def summary = summarizeAll([gui, api], 7, NOW)
 
         then:
         summary.runs() == 4
@@ -118,16 +124,16 @@ class DoraCalculatorSpec extends Specification {
         summary.leadTimeMedianSeconds() == 1500
         summary.averageDurationSeconds() == 90
         day(summary, '2026-10-01') == [3, 1, 3]
-        DoraCalculator.summarizeAll([], 7, NOW).runs() == 0
+        summarizeAll([], 7, NOW).runs() == 0
     }
 
     def "runs before the range count only in the totals, a range without days has no rate, and an odd count has the middle median"() {
         given:
-        def old = DoraCalculator.summarize([point('2026-08-01T10:00:00Z', true, false, 60, 60)], 7, NOW)
-        def none = DoraCalculator.summarize([point('2026-10-04T10:00:00Z', true, false, 60, 60)], 0, NOW)
-        def odd = DoraCalculator.summarize([point('2026-10-01T10:00:00Z', true, false, 100, 1),
-                                            point('2026-10-02T10:00:00Z', true, false, 900, 1),
-                                            point('2026-10-03T10:00:00Z', true, false, 300, 1)], 30, NOW)
+        def old = summarize([point('2026-08-01T10:00:00Z', true, false, 60, 60)], 7, NOW)
+        def none = summarize([point('2026-10-04T10:00:00Z', true, false, 60, 60)], 0, NOW)
+        def odd = summarize([point('2026-10-01T10:00:00Z', true, false, 100, 1),
+                             point('2026-10-02T10:00:00Z', true, false, 900, 1),
+                             point('2026-10-03T10:00:00Z', true, false, 300, 1)], 30, NOW)
 
         expect:
         old.runs() == 1
