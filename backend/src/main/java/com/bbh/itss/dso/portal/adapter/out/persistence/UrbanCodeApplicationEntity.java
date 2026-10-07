@@ -7,27 +7,31 @@ import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
+import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static jakarta.persistence.FetchType.LAZY;
+import static jakarta.persistence.GenerationType.IDENTITY;
+import static lombok.AccessLevel.PROTECTED;
+
 @Entity
 @Table(name = "DSO_UCD_APPLICATION")
+@NoArgsConstructor(access = PROTECTED)
 public class UrbanCodeApplicationEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = LAZY, optional = false)
     @JoinColumn(name = "SERVICE_ID")
     private ServiceEntity service;
 
@@ -38,9 +42,6 @@ public class UrbanCodeApplicationEntity {
     @CollectionTable(name = "DSO_UCD_COMPONENT", joinColumns = @JoinColumn(name = "APPLICATION_ID"))
     @OrderColumn(name = "POSITION")
     private List<UrbanCodeComponentEmbeddable> components = new ArrayList<>();
-
-    protected UrbanCodeApplicationEntity() {
-    }
 
     UrbanCodeApplicationEntity(ServiceEntity service, int position, UrbanCodeApplicationSettings settings) {
         this.service = service;

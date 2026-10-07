@@ -1,18 +1,19 @@
 package com.bbh.itss.dso.portal.domain.settings
 
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException.FieldProblem
 import spock.lang.Specification
 
 import java.time.Instant
 
+import static com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues.bbhDefaults
+import static com.bbh.itss.dso.portal.domain.settings.Scanner.DAST
 import static com.bbh.itss.dso.portal.support.Fixtures.copy
 
 class GlobalSettingsSpec extends Specification {
 
     static final Instant UPDATED = Instant.parse('2026-10-04T12:00:00Z')
-    static final GlobalSettingsValues BBH = GlobalSettingsValues.bbhDefaults()
+    static final GlobalSettingsValues BBH = bbhDefaults()
 
     def stored = new GlobalSettings(BBH, 3, UPDATED)
 
@@ -27,7 +28,6 @@ class GlobalSettingsSpec extends Specification {
         stored.values().deployment() == BBH.deployment()
         stored.jenkinsUrl() == null
         withJenkins.jenkinsUrl() == 'https://jenkins.bbh.com'
-        new MissingGlobalSettingsException().message == 'The global settings are missing; the portal creates them at start-up'
 
         when:
         new GlobalSettings(null, 0, null)
@@ -54,7 +54,7 @@ class GlobalSettingsSpec extends Specification {
         stored.change(2L, BBH)
 
         then:
-        def e = thrown(ConflictException)
+        def e = thrown(IllegalStateException)
         e.message == 'The record was changed by someone else in the meantime. Reload it and apply your change again.'
     }
 
@@ -65,10 +65,10 @@ class GlobalSettingsSpec extends Specification {
         then:
         def e = thrown(InvalidRequestException)
         e.message == message
-        e.problems == problems
+        e.problems() == problems
 
         where:
-        invalid << [copy(BBH, platform: copy(BBH.platform(), proxyHost: null), limits: BBH.limits().findAll { it.key != Scanner.DAST }),
+        invalid << [copy(BBH, platform: copy(BBH.platform(), proxyHost: null), limits: BBH.limits().findAll { it.key != DAST }),
                     copy(BBH, goldenFix: copy(BBH.goldenFix(), commitAuthorEmail: null))]
         message << ['2 fields are invalid', 'is required in the global settings']
         problems << [[new FieldProblem('platform.proxyHost', 'is required with a proxy port'),

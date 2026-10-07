@@ -11,6 +11,8 @@ import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM
+import static com.bbh.itss.dso.portal.domain.catalog.MetricsSettings.DEFAULTS
+import static com.bbh.itss.dso.portal.domain.catalog.ToolCommand.NONE
 import static com.bbh.itss.dso.portal.domain.shared.Sections.messages
 import static com.bbh.itss.dso.portal.domain.shared.Sections.problems
 import static com.bbh.itss.dso.portal.domain.shared.Sections.reported
@@ -26,7 +28,7 @@ class ConfigSectionsSpec extends Specification {
         def build = new BuildSettings(MAVEN, ' ', ' /opt/jdk-17 ', null, ' target/cert.jar ', null)
 
         then:
-        build == new BuildSettings(MAVEN, '.', '/opt/jdk-17', false, 'target/cert.jar', ToolCommand.NONE)
+        build == new BuildSettings(MAVEN, '.', '/opt/jdk-17', false, 'target/cert.jar', NONE)
         written(build) == [buildTool: 'maven', sourceDir: '.', javaPath: '/opt/jdk-17', build: [buildPath: 'target/cert.jar']]
         new BuildSettings(GRADLE, null, ' ', false, ' ', null).javaPath() == null
         new BuildSettings(GRADLE, null, null, false, ' ', null).buildPath() == null
@@ -34,8 +36,8 @@ class ConfigSectionsSpec extends Specification {
 
     def "a Maven build writes its goals, flags, directory, Maven installation and environment under build.maven"() {
         given:
-        def command = new ToolCommand(['clean', 'verify'], ['-B', '-s', 'settings.xml'], ' gui ', ' /opt/maven ',
-                ['MAVEN_OPTS=-Xmx1g'], null, false)
+        def command = ToolCommand.builder().tasks(['clean', 'verify']).flags(['-B', '-s', 'settings.xml'])
+                .directory(' gui ').mavenHome(' /opt/maven ').environment(['MAVEN_OPTS=-Xmx1g']).build()
 
         expect:
         written(new BuildSettings(MAVEN, 'gui', '/jdk', false, null, command)) ==
@@ -99,8 +101,8 @@ class ConfigSectionsSpec extends Specification {
                 null, null, null, null, null, ' ', null, null, ' ', ' ', ' ', null)
 
         then:
-        appScan == new AppScanSettings(APP_ID, null, ['src'], [], true, false, false, false, null, ToolCommand.NONE,
-                false, null, null, null, null)
+        appScan == new AppScanSettings(APP_ID, null, ['src'], [], true, false, false, false, null, NONE, false, null,
+                null, null, null)
         written { appScan.writeTo(it, GRADLE) } == [appId: APP_ID, includedDirs: 'src', dast: [enabled: false]]
         written { AppScanSettings.of(APP_ID).writeTo(it, MAVEN) } == [appId: APP_ID, dast: [enabled: false]]
         AppScanSettings.of(null).applicationId() == null
@@ -108,9 +110,11 @@ class ConfigSectionsSpec extends Specification {
 
     def "every AppScan option that differs from the library's default is written"() {
         given:
+        def compileCommand = ToolCommand.builder().tasks(['compileJava']).flags(['--offline']).directory('gui')
+                .mavenHome('/opt/maven').environment(['JAVA_OPTS=-Xmx2g']).build()
         def appScan = new AppScanSettings(APP_ID, ' cert-gui ', ['src/main', ' lib '], ['src/test'], false, true, true,
-                true, ' /opt/appscan ', new ToolCommand(['compileJava'], ['--offline'], 'gui', '/opt/maven',
-                ['JAVA_OPTS=-Xmx2g'], null, false), true, ' cert-gui-dast ', ' https://rdl1.testbbh.com ', ' p-1 ', null)
+                true, ' /opt/appscan ', compileCommand, true, ' cert-gui-dast ', ' https://rdl1.testbbh.com ', ' p-1 ',
+                null)
 
         expect:
         written { appScan.writeTo(it, GRADLE) } ==
@@ -125,8 +129,8 @@ class ConfigSectionsSpec extends Specification {
 
     def "the AppScan compile command goes under asoc.#key for #tool"() {
         given:
-        def appScan = new AppScanSettings(APP_ID, null, [], [], true, false, false, false, null,
-                new ToolCommand(['compile'], [], null, '/opt/maven', [], null, false), false, null, null, null, null)
+        def appScan = AppScanSettings.builder().applicationId(APP_ID)
+                .compileCommand(ToolCommand.builder().tasks(['compile']).mavenHome('/opt/maven').build()).build()
 
         expect:
         written { appScan.writeTo(it, tool) }.asoc == asoc
@@ -148,20 +152,19 @@ class ConfigSectionsSpec extends Specification {
 
     def "a #tool compile command that sets #description reports #fields"() {
         given:
-        def appScan = new AppScanSettings(APP_ID, null, [], [], compile, false, false, false, null, command, false, null,
-                null, null, null)
+        def appScan = AppScanSettings.builder().applicationId(APP_ID).compile(compile).compileCommand(command).build()
 
         expect:
         problems { appScan.validate(it, tool) } == fields
 
         where:
-        description              | tool    | compile | command                                                       || fields
-        'nothing'                | GRADLE  | true    | ToolCommand.NONE                                              || []
-        'only a step label'      | GRADLE  | true    | new ToolCommand([], [], null, null, [], 'Compile', false)     || ['compileCommand.tasks']
-        'only returnStdout'      | MAVEN   | true    | new ToolCommand([], [], null, null, [], null, true)           || ['compileCommand.tasks']
-        'a label, not compiling' | GRADLE  | false   | new ToolCommand([], [], null, null, [], 'Compile', false)     || []
-        'a label'                | FLUTTER | true    | new ToolCommand([], [], null, null, [], 'Compile', false)     || []
-        'tasks and a label'      | GRADLE  | true    | new ToolCommand(['classes'], [], null, null, [], 'Compile', false) || []
+        description              | tool    | compile | command                                                         || fields
+        'nothing'                | GRADLE  | true    | NONE                                                            || []
+        'only a step label'      | GRADLE  | true    | ToolCommand.builder().label('Compile').build()                  || ['compileCommand.tasks']
+        'only returnStdout'      | MAVEN   | true    | ToolCommand.builder().returnStdout(true).build()                || ['compileCommand.tasks']
+        'a label, not compiling' | GRADLE  | false   | ToolCommand.builder().label('Compile').build()                  || []
+        'a label'                | FLUTTER | true    | ToolCommand.builder().label('Compile').build()                  || []
+        'tasks and a label'      | GRADLE  | true    | ToolCommand.builder().tasks(['classes']).label('Compile').build() || []
     }
 
     def "SonarQube settings trim their values and switch the badges off by default"() {
@@ -169,9 +172,9 @@ class ConfigSectionsSpec extends Specification {
         def sonar = new SonarSettings(' ', ' cert ', ' ', ' ', ' ', ' ', null, null, null, null)
 
         then:
-        sonar == new SonarSettings(null, 'cert', null, null, null, null, false, false, ToolCommand.NONE, null)
+        sonar == new SonarSettings(null, 'cert', null, null, null, null, false, false, NONE, null)
         SonarSettings.of(' CertScanner ', 'cert', null) == new SonarSettings('CertScanner', 'cert', null, null, null, null,
-                false, false, ToolCommand.NONE, null)
+                false, false, NONE, null)
         SonarSettings.NONE == new SonarSettings(' ', '', null, null, null, null, false, false, null, null)
     }
 
@@ -211,9 +214,9 @@ class ConfigSectionsSpec extends Specification {
 
     def "a SonarQube command that sets only a step label or the output switch needs its tasks without a project key too"() {
         expect:
-        problems { SonarSettings.of(null, null, new ToolCommand([], [], null, null, [], 'Analyse', false)).validate(it, GRADLE) } ==
+        problems { SonarSettings.of(null, null, ToolCommand.builder().label('Analyse').build()).validate(it, GRADLE) } ==
                 ['command.tasks']
-        problems { SonarSettings.of(null, null, new ToolCommand([], [], null, null, [], null, true)).validate(it, MAVEN) } ==
+        problems { SonarSettings.of(null, null, ToolCommand.builder().returnStdout(true).build()).validate(it, MAVEN) } ==
                 ['command.tasks']
     }
 
@@ -310,8 +313,9 @@ class ConfigSectionsSpec extends Specification {
                                    repoSlug   : 'cert-scanner']]]
         written(ScmSettings.of(REPO, 'bb-creds')) ==
                 [scm: [bitbucket: [url: REPO, credentialsId: 'bb-creds', authType: 'basic']]]
-        written(new ScmSettings(REPO, null, BASIC, CLOUD, null, null, [], null, 'ta-workspace', null, 'cert')).scm
-                .bitbucket == [url: REPO, authType: 'basic', type: 'cloud', workspace: 'ta-workspace', repoSlug: 'cert']
+        written(ScmSettings.builder().repositoryUrl(REPO).authType(BASIC).type(CLOUD).workspace('ta-workspace')
+                .repoSlug('cert').build()).scm.bitbucket ==
+                [url: REPO, authType: 'basic', type: 'cloud', workspace: 'ta-workspace', repoSlug: 'cert']
     }
 
     def "a repository needs the credentials GoldenFix pushes with"() {
@@ -324,11 +328,13 @@ class ConfigSectionsSpec extends Specification {
 
     def "the Bitbucket repository keys need the repository URL they refine"() {
         expect:
-        problems(new ScmSettings(null, null, null, null, null, null, null, apiUrl, workspace, projectKey, repoSlug)) ==
-                ['repositoryUrl']
-        messages(new ScmSettings(null, null, null, null, null, null, null, apiUrl, workspace, projectKey, repoSlug)) ==
+        problems(ScmSettings.builder().apiUrl(apiUrl).workspace(workspace).projectKey(projectKey).repoSlug(repoSlug)
+                .build()) == ['repositoryUrl']
+        messages(ScmSettings.builder().apiUrl(apiUrl).workspace(workspace).projectKey(projectKey).repoSlug(repoSlug)
+                .build()) ==
                 ['is required when the Bitbucket API URL, workspace, project key or repository slug is set']
-        problems(new ScmSettings(REPO, 'bb', null, null, null, null, null, apiUrl, workspace, projectKey, repoSlug)) == []
+        problems(ScmSettings.builder().repositoryUrl(REPO).credentialsId('bb').apiUrl(apiUrl).workspace(workspace)
+                .projectKey(projectKey).repoSlug(repoSlug).build()) == []
 
         where:
         apiUrl                          | workspace | projectKey | repoSlug
@@ -340,12 +346,12 @@ class ConfigSectionsSpec extends Specification {
 
     def "metrics are on by default, use the test environment and default the project to the product code and service name"() {
         expect:
-        new MetricsSettings(null, ' ', ' ', null, null) == MetricsSettings.DEFAULTS
-        MetricsSettings.DEFAULTS == new MetricsSettings(true, null, 'test', null, null)
+        new MetricsSettings(null, ' ', ' ', null, null) == DEFAULTS
+        DEFAULTS == new MetricsSettings(true, null, 'test', null, null)
         new MetricsSettings(false, ' cert ', ' prod ', null, null) == new MetricsSettings(false, 'cert', 'prod', null, null)
         written(new MetricsSettings(null, 'CERT-gui', null, null, null)) == [influx: [enabled: true, project: 'CERT-gui', env: 'test']]
         written(new MetricsSettings(false, null, 'uat', null, null)) == [influx: [enabled: false, env: 'uat']]
-        MetricsSettings.DEFAULTS.withDefaultProject('CERT', 'gui') == new MetricsSettings(true, 'CERT-gui', 'test', null, null)
+        DEFAULTS.withDefaultProject('CERT', 'gui') == new MetricsSettings(true, 'CERT-gui', 'test', null, null)
         new MetricsSettings(false, null, 'uat', null, null).withDefaultProject('CERT', 'gui') == new MetricsSettings(false, 'CERT-gui', 'uat', null, null)
         new MetricsSettings(true, 'cert-scanner', 'uat', null, null).with { it.withDefaultProject('CERT', 'gui').is(it) }
     }
@@ -355,11 +361,11 @@ class ConfigSectionsSpec extends Specification {
         written(new MetricsSettings(true, 'CERT-gui', null, ' https://influx.bbh.com/write ', ' cert-influx ')) ==
                 [influx: [enabled: true, url: 'https://influx.bbh.com/write', credentialsId: 'cert-influx',
                           project: 'CERT-gui', env: 'test']]
-        written { new SonarSettings(null, null, null, null, null, null, false, false, null, ' https://sonar.bbh.com ')
-                .writeTo(it, GRADLE) } == [tools: [sonar: [serverUrl: 'https://sonar.bbh.com']]]
+        written { SonarSettings.builder().serverUrl(' https://sonar.bbh.com ').build().writeTo(it, GRADLE) } ==
+                [tools: [sonar: [serverUrl: 'https://sonar.bbh.com']]]
         written {
-            new AppScanSettings(APP_ID, null, [], [], true, false, false, false, null, null, false, null, null, null,
-                    ' cert-secret ').writeTo(it, GRADLE)
+            AppScanSettings.builder().applicationId(APP_ID).secretCredentialsId(' cert-secret ').build()
+                    .writeTo(it, GRADLE)
             new AppScanAccount('bbh_key', 'product-secret').writeTo(it)
         }.asoc == [token: 'cert-secret', keyId: 'bbh_key']
     }
@@ -372,6 +378,6 @@ class ConfigSectionsSpec extends Specification {
     }
 
     private static AppScanSettings dast(String targetUrl) {
-        new AppScanSettings(APP_ID, null, [], [], true, false, false, false, null, null, true, null, targetUrl, null, null)
+        AppScanSettings.builder().applicationId(APP_ID).dastEnabled(true).dastTargetUrl(targetUrl).build()
     }
 }

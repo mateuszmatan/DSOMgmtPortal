@@ -2,6 +2,8 @@ package com.bbh.itss.dso.portal.domain.evidence
 
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.evidence.EvidenceLinks.PIPELINE_REPORT
+
 class EvidenceLinksSpec extends Specification {
 
     static final String APP_ID = '109f44ac-cc06-4ca0-884e-d944904f7019'
@@ -21,7 +23,7 @@ class EvidenceLinksSpec extends Specification {
         links.appScanUrl() == "https://bbh.cloud.appscan.com/main/myapps/$APP_ID/scans"
         links.sonarUrl() == 'https://tools.bbh.com/sonar/dashboard?id=cert-gui'
         links.nexusIqUrl() == 'https://tools.bbh.com/IQ/'
-        EvidenceLinks.PIPELINE_REPORT == 'Pipeline_20Report/'
+        PIPELINE_REPORT == 'Pipeline_20Report/'
     }
 
     def "trailing slashes of the tool servers are dropped and the identifiers encoded"() {

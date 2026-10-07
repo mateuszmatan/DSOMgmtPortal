@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.adapter.in.web;
 
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -10,13 +11,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/settings")
+@RequiredArgsConstructor
 public class GlobalSettingsController {
 
     private final ManageGlobalSettingsUseCase settings;
-
-    public GlobalSettingsController(ManageGlobalSettingsUseCase settings) {
-        this.settings = settings;
-    }
 
     @GetMapping
     public GlobalSettingsDto get() {

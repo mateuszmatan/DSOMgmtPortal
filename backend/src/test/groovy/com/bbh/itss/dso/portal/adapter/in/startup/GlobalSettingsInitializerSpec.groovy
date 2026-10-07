@@ -1,11 +1,12 @@
 package com.bbh.itss.dso.portal.adapter.in.startup
 
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
-import com.bbh.itss.dso.portal.domain.settings.GlobalSettings
 import org.springframework.boot.ApplicationArguments
-import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
 import spock.lang.Specification
+
+import static com.bbh.itss.dso.portal.domain.settings.GlobalSettings.bbhDefaults
+import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE
 
 class GlobalSettingsInitializerSpec extends Specification {
 
@@ -19,7 +20,7 @@ class GlobalSettingsInitializerSpec extends Specification {
         initializer.run(Stub(ApplicationArguments))
 
         then:
-        1 * settings.ensureExists() >> GlobalSettings.bbhDefaults()
-        GlobalSettingsInitializer.getAnnotation(Order).value() == Ordered.HIGHEST_PRECEDENCE
+        1 * settings.ensureExists() >> bbhDefaults()
+        GlobalSettingsInitializer.getAnnotation(Order).value() == HIGHEST_PRECEDENCE
     }
 }

@@ -5,6 +5,7 @@ import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException.FieldProble
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues.bbhDefaults
 import static com.bbh.itss.dso.portal.support.Fixtures.copy
 
 class PlatformSettingsSpec extends Specification {
@@ -15,7 +16,7 @@ class PlatformSettingsSpec extends Specification {
             '8.0.1646_Win/SAClientUtil-8.0.1646_Win-SAClientUtil_8.0.1646_Win.zip'
     static final String INFLUX_WRITE = 'http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s'
 
-    def bbh = GlobalSettingsValues.bbhDefaults().platform()
+    def bbh = bbhDefaults().platform()
 
     def "the platform section holds the BBH tools and the environment the library sets for AppScan"() {
         when:

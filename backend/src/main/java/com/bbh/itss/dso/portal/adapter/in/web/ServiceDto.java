@@ -40,6 +40,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import lombok.Builder;
 
 import java.util.List;
 import java.util.Map;
@@ -60,6 +61,7 @@ import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MES
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL_MESSAGE;
 
+@Builder
 public record ServiceDto(
         Long id,
         @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$",
@@ -152,6 +154,7 @@ public record ServiceDto(
             String baseArtifactName) implements Mirrors<DeploymentSettings> {
     }
 
+    @Builder
     public record ToolCommandDto(
             @Size(max = 30) List<@NotBlank @Size(max = 200) String> tasks,
             @Size(max = 40) List<@NotBlank @Size(max = 300) String> flags,
@@ -176,6 +179,7 @@ public record ServiceDto(
             @Size(max = 2000) String requestProperties) implements Mirrors<UrbanCodeSettings> {
     }
 
+    @Builder
     public record UrbanCodeApplicationSettingsDto(
             @NotBlank @Size(max = 200) String applicationName,
             Integer order,
@@ -211,6 +215,7 @@ public record ServiceDto(
             @Size(max = 1000) String versionDescription) implements Mirrors<UrbanCodeComponent> {
     }
 
+    @Builder
     public record SshTargetDto(
             @Size(max = 255) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String host,
             @Size(max = 100) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String user,
@@ -243,7 +248,8 @@ public record ServiceDto(
             @Size(max = 200) String deploymentRepoBranch,
             @Size(max = 200) String deploymentRepoCredentialsId,
             @Size(max = 500) @Pattern(regexp = IMAGE_TAG, message = IMAGE_TAG_MESSAGE) String buildTag,
-            @Size(max = 500) @Pattern(regexp = IMAGE_TAG, message = IMAGE_TAG_MESSAGE) String internalDockerUrl) implements Mirrors<OpenShiftTarget> {
+            @Size(max = 500) @Pattern(regexp = IMAGE_TAG, message = IMAGE_TAG_MESSAGE) String internalDockerUrl)
+            implements Mirrors<OpenShiftTarget> {
     }
 
     public record AppScanSettingsDto(

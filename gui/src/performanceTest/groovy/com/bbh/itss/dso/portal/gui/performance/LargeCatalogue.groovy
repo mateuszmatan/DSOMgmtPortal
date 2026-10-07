@@ -1,20 +1,27 @@
 package com.bbh.itss.dso.portal.gui.performance
 
-import com.bbh.itss.dso.portal.gui.support.ApiData
 import com.bbh.itss.dso.portal.gui.support.StubApi
 import com.bbh.itss.dso.portal.gui.support.StubResponse
+
+import static com.bbh.itss.dso.portal.gui.support.ApiData.ENTRY_POINTS
+import static com.bbh.itss.dso.portal.gui.support.ApiData.activeKey
+import static com.bbh.itss.dso.portal.gui.support.ApiData.keyValue
+import static com.bbh.itss.dso.portal.gui.support.ApiData.newPipeline
+import static com.bbh.itss.dso.portal.gui.support.ApiData.servicePipelines
+import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
+import static com.bbh.itss.dso.portal.gui.support.StubResponse.json
 
 class LargeCatalogue {
 
     static final int PRODUCTS = 25
     static final int SERVICES = 16
-    static final Map<String, String> TYPES = ApiData.ENTRY_POINTS
+    static final Map<String, String> TYPES = ENTRY_POINTS
     static final int PIPELINES = SERVICES * TYPES.size()
 
-    private final Map product = StubApi.fixture('product-2.json') as Map
-    private final List<Map> departments = StubApi.fixture('departments.json') as List<Map>
-    private final Map lastRun = (StubApi.fixture('monitoring-product-2.json') as Map).pipelines[0].lastRun as Map
-    private final Map evidenceRun = (StubApi.fixture('evidence-product-1.json') as Map).services[0].pipelines[0].run as Map
+    private final Map product = fixture('product-2.json') as Map
+    private final List<Map> departments = fixture('departments.json') as List<Map>
+    private final Map lastRun = (fixture('monitoring-product-2.json') as Map).pipelines[0].lastRun as Map
+    private final Map evidenceRun = (fixture('evidence-product-1.json') as Map).services[0].pipelines[0].run as Map
     private final Map<String, StubResponse> responses = [:]
 
     LargeCatalogue() {
@@ -34,7 +41,7 @@ class LargeCatalogue {
             overview << facts + [productId: id, departmentId: department.id, serviceCount: SERVICES, pipelineCount: PIPELINES, overall: overall,
                                  statusCounts: counts, lastRunAt: lastRun.time]
             store("/api/products/$id", product + facts + [id: id, departmentId: department.id, services: services])
-            store("/api/products/$id/pipelines", [services, pipelines].transpose().collect { Map service, List<Map> own -> ApiData.servicePipelines(service, own) })
+            store("/api/products/$id/pipelines", [services, pipelines].transpose().collect { Map service, List<Map> own -> servicePipelines(service, own) })
             store("/api/monitoring/products/$id", facts + [productId: id, overall: overall, metricsError: null, pipelines: all.collect {
                 [pipeline: it, status: status(it), lastRun: lastRun + [result: it.enabled ? status(it) : 'SUCCESS']]
             }])
@@ -56,7 +63,7 @@ class LargeCatalogue {
     }
 
     private void store(String path, Object body) {
-        responses[path] = StubResponse.json(body)
+        responses[path] = json(body)
     }
 
     private Map service(int productId, int index) {
@@ -71,8 +78,8 @@ class LargeCatalogue {
         def id = ((service.id as int) - 1) * TYPES.size() + index + 1
         def job = "DevSecOps/${facts.code}/${service.name}-${type.toLowerCase()}".toString()
         def enabled = id % 11 != 0
-        def key = ApiData.activeKey(id, ApiData.keyValue(id))
-        ApiData.newPipeline(id, facts + [id: productId], service, key, type) +
+        def key = activeKey(id, keyValue(id))
+        newPipeline(id, facts + [id: productId], service, key, type) +
                 [jenkinsJob      : job, jenkinsJobUrl: "https://jenkins.bbh.com/job/${job.replace('/', '/job/')}/".toString(),
                  enabled         : enabled, activeKey: enabled ? key : null,
                  influxProjectTag: "${facts.code}-${service.name}-${type.toLowerCase()}".toString()]

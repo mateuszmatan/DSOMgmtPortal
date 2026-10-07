@@ -21,28 +21,28 @@ import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.settings.PlatformSettings;
-import com.bbh.itss.dso.portal.domain.shared.Text;
+import lombok.RequiredArgsConstructor;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toList;
+import static org.apache.commons.lang3.ObjectUtils.getIfNull;
+import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
+import static org.apache.commons.lang3.StringUtils.trim;
 
 @UseCase
+@RequiredArgsConstructor
 public class ChangeEvidenceService implements QueryEvidenceUseCase {
 
     private final ReadMonitoringTargetsUseCase targets;
     private final PipelineRunsPort runs;
     private final RunEvidencePort evidence;
-
-    public ChangeEvidenceService(ReadMonitoringTargetsUseCase targets, PipelineRunsPort runs,
-                                 RunEvidencePort evidence) {
-        this.targets = targets;
-        this.runs = runs;
-        this.evidence = evidence;
-    }
 
     @Override
     @WithoutTransaction
@@ -50,11 +50,11 @@ public class ChangeEvidenceService implements QueryEvidenceUseCase {
         MonitoringTargets monitored = targets.ofProduct(productId);
         Readings readings = read(monitored);
         Map<Long, List<PipelineEvidence>> byService = monitored.pipelines().stream()
-                .collect(Collectors.groupingBy(view -> view.service().id(), Collectors.mapping(view -> {
+                .collect(groupingBy(view -> view.service().id(), mapping(view -> {
                     PipelineRun run = readings.latest().of(view.metricsTag(), view.pipeline());
                     return pipeline(view, run, run == null ? null : readings.evidence().get(run),
                             monitored.platform());
-                }, Collectors.toList())));
+                }, toList())));
         List<ServiceEvidence> services = monitored.product().services().stream()
                 .map(service -> new ServiceEvidence(service, byService.getOrDefault(service.id(), List.of())))
                 .toList();
@@ -89,11 +89,11 @@ public class ChangeEvidenceService implements QueryEvidenceUseCase {
         ServiceSettings settings = view.service().settings();
         EvidenceLinks links = EvidenceLinks.of(view.buildUrl(run), platform.asocUrl(),
                 settings.appScan().applicationId(),
-                Text.orDefault(settings.sonar().serverUrl(), platform.sonarServerUrl()), settings.sonar().projectKey(),
-                Text.orDefault(settings.nexusIq().serverUrl(), platform.nexusIqServerUrl()));
-        RunEvidence points = recorded == null ? RunEvidence.none() : recorded;
+                defaultIfBlank(trim(settings.sonar().serverUrl()), platform.sonarServerUrl()),
+                settings.sonar().projectKey(),
+                defaultIfBlank(trim(settings.nexusIq().serverUrl()), platform.nexusIqServerUrl()));
         return new PipelineEvidence(pipeline, view.jenkinsJobUrl(), status,
-                points.report(run, view.service().name(), links));
+                getIfNull(recorded, RunEvidence::none).report(run, view.service().name(), links));
     }
 
     private record Readings(LatestRuns latest, Map<PipelineRun, RunEvidence> evidence, String error) {

@@ -1,16 +1,17 @@
 package com.bbh.itss.dso.portal.gui.regression
 
-import com.bbh.itss.dso.portal.gui.support.ApiData
 import com.bbh.itss.dso.portal.gui.support.ProductStore
-import com.bbh.itss.dso.portal.gui.support.StubApi
 
+import static com.bbh.itss.dso.portal.gui.support.ApiData.noFlutterSettings
+import static com.bbh.itss.dso.portal.gui.support.ApiData.withoutResponseFields
+import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 
 class EditProductSpec extends EditorSpecification {
 
     def "saving product #id unchanged sends back exactly what was loaded, version included"() {
         given:
-        def loaded = StubApi.fixture("product-${id}.json") as Map
+        def loaded = fixture("product-${id}.json") as Map
         ProductStore.recorded(api, id)
         open("/admin/products/$id/edit")
 
@@ -20,9 +21,9 @@ class EditProductSpec extends EditorSpecification {
 
         then:
         def body = awaitRequest('PUT', "/api/products/$id").json() as Map
-        body == ApiData.withoutResponseFields(loaded)
+        body == withoutResponseFields(loaded)
         body.version == loaded.version
-        (loaded.services as List<Map>).findAll { (it.build as Map).tool != 'FLUTTER' }*.flutter.every { it == ApiData.noFlutterSettings() }
+        (loaded.services as List<Map>).findAll { (it.build as Map).tool != 'FLUTTER' }*.flutter.every { it == noFlutterSettings() }
         assertThat(snackBar()).containsText("${loaded.name} saved")
         ownErrors().isEmpty()
 
@@ -124,7 +125,7 @@ class EditProductSpec extends EditorSpecification {
 
     def "services are moved, duplicated and removed, and the save sends them in the new order"() {
         given:
-        def loaded = ApiData.withoutResponseFields(StubApi.fixture('product-2.json') as Map)
+        def loaded = withoutResponseFields(fixture('product-2.json') as Map)
         def store = ProductStore.recorded(api, 2)
         open('/admin/products/2/edit')
 
@@ -238,7 +239,7 @@ class EditProductSpec extends EditorSpecification {
     def "the Bitbucket repository fields are validated, saved and read back"() {
         given:
         def store = ProductStore.recorded(api, 1)
-        def loaded = ApiData.withoutResponseFields(StubApi.fixture('product-1.json') as Map)
+        def loaded = withoutResponseFields(fixture('product-1.json') as Map)
         open('/admin/products/1/edit')
         expandService('gui')
         showSection('Bitbucket')

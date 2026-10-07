@@ -1,12 +1,12 @@
 package com.bbh.itss.dso.portal.gui.regression
 
 import com.bbh.itss.dso.portal.gui.support.GuiSpecification
-import com.bbh.itss.dso.portal.gui.support.StubApi
-import com.bbh.itss.dso.portal.gui.support.StubResponse
 import com.microsoft.playwright.Locator
-import com.microsoft.playwright.options.AriaRole
 
+import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
+import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
+import static com.microsoft.playwright.options.AriaRole.LINK
 
 class ChangeEvidenceSpec extends GuiSpecification {
 
@@ -28,7 +28,7 @@ class ChangeEvidenceSpec extends GuiSpecification {
         assertThat(panel('CertScanner').locator('.product-facts a')).hasAttribute('href', 'mailto:ta-team@bbh.com')
         assertThat(card('CertScanner', 'gui', 'Full').locator('a.build-link'))
                 .hasAttribute('href', 'https://jenkins.bbh.com/job/CERTSCANNER-gui/job/full/62/')
-        assertThat(card('CertScanner', 'gui', 'Full').getByRole(AriaRole.LINK, new Locator.GetByRoleOptions().setName('Jenkins job')))
+        assertThat(card('CertScanner', 'gui', 'Full').getByRole(LINK, new Locator.GetByRoleOptions().setName('Jenkins job')))
                 .hasAttribute('href', 'https://jenkins.bbh.com/job/DevSecOps/job/CERTSCANNER/job/gui-full/')
         assertThat(service('CertScanner', 'backend-api').locator('.identifiers')).containsText('cert-scanner-backend.jar')
         api.requests('GET', '/api/evidence/products/1').size() == 1
@@ -85,7 +85,7 @@ class ChangeEvidenceSpec extends GuiSpecification {
 
     def "evidence that cannot be read is named and loaded again on request"() {
         given:
-        api.respond('GET', '/api/evidence/products/2', StubResponse.problem(502, 'Bad Gateway', 'InfluxDB did not answer within 10 seconds'))
+        api.respond('GET', '/api/evidence/products/2', problem(502, 'Bad Gateway', 'InfluxDB did not answer within 10 seconds'))
         open('/evidence')
 
         when:
@@ -95,7 +95,7 @@ class ChangeEvidenceSpec extends GuiSpecification {
         assertThat(panel('Payments Hub').locator('.banner')).containsText('InfluxDB did not answer within 10 seconds')
 
         when:
-        api.respond('GET', '/api/evidence/products/2', StubApi.fixture('evidence-product-2.json'))
+        api.respond('GET', '/api/evidence/products/2', fixture('evidence-product-2.json'))
         buttonIn(panel('Payments Hub'), 'Try again', false).click()
 
         then:
@@ -106,7 +106,7 @@ class ChangeEvidenceSpec extends GuiSpecification {
 
     def "runs that cannot be read are shown as not recorded with the reason"() {
         given:
-        def evidence = StubApi.fixture('evidence-product-1.json') as Map
+        def evidence = fixture('evidence-product-1.json') as Map
         evidence.metricsError = 'InfluxDB is not reachable'
         evidence.services.each { service -> service.pipelines.each { pipeline -> pipeline.run = null; pipeline.status = 'NO_DATA' } }
         api.respond('GET', '/api/evidence/products/1', evidence)

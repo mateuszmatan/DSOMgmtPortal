@@ -6,7 +6,6 @@ import com.bbh.itss.dso.portal.domain.catalog.ProductDirectory.ProductIdentity
 import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
 import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings
 import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
@@ -17,6 +16,7 @@ import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.domain.catalog.Region.QC
 import static com.bbh.itss.dso.portal.domain.catalog.Region.RD
+import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.Fixtures.DEPARTMENT_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.account
 import static com.bbh.itss.dso.portal.support.Fixtures.command
@@ -24,11 +24,12 @@ import static com.bbh.itss.dso.portal.support.Fixtures.copy
 import static com.bbh.itss.dso.portal.support.Fixtures.details
 import static com.bbh.itss.dso.portal.support.Fixtures.fullSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.settings
+import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 
 @DataJpaTest(properties = [
         'spring.datasource.url=jdbc:h2:mem:product-adapter;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa'])
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@AutoConfigureTestDatabase(replace = NONE)
 @Import(ProductPersistenceAdapter)
 class ProductPersistenceAdapterSpec extends Specification {
 
@@ -213,8 +214,8 @@ class ProductPersistenceAdapterSpec extends Specification {
         adapter.save(stale)
 
         then:
-        def e = thrown(ConflictException)
-        e.message == ConflictException.STALE_VERSION
+        def e = thrown(IllegalStateException)
+        e.message == STALE_VERSION
         jdbc.queryForObject('SELECT NAME FROM DSO_PRODUCT', String) == 'CertScanner'
 
         where:

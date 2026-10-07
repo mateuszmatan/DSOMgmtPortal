@@ -12,14 +12,13 @@ import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.MapKeyColumn;
 import jakarta.persistence.MapKeyEnumerated;
 import jakarta.persistence.Table;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.EmbeddedColumnNaming;
 import org.springframework.data.domain.Persistable;
 
@@ -28,8 +27,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static jakarta.persistence.EnumType.STRING;
+import static jakarta.persistence.FetchType.EAGER;
+import static lombok.AccessLevel.PROTECTED;
+
 @Entity
 @Table(name = "DSO_GLOBAL_SETTINGS")
+@NoArgsConstructor(access = PROTECTED)
 public class GlobalSettingsEntity extends AuditedEntity implements Persistable<Long> {
 
     static final long ID = 1L;
@@ -39,14 +43,11 @@ public class GlobalSettingsEntity extends AuditedEntity implements Persistable<L
 
     private ValuesEmbeddable values;
 
-    @ElementCollection(fetch = FetchType.EAGER)
+    @ElementCollection(fetch = EAGER)
     @CollectionTable(name = "DSO_GLOBAL_SEVERITY_LIMIT", joinColumns = @JoinColumn(name = "SETTINGS_ID"))
-    @MapKeyEnumerated(EnumType.STRING)
+    @MapKeyEnumerated(STRING)
     @MapKeyColumn(name = "SCANNER")
     private Map<Scanner, SeverityLimitsEmbeddable> limits = new HashMap<>();
-
-    protected GlobalSettingsEntity() {
-    }
 
     @Override
     public Long getId() {
@@ -55,12 +56,11 @@ public class GlobalSettingsEntity extends AuditedEntity implements Persistable<L
 
     @Override
     public boolean isNew() {
-        return getCreatedAt() == null;
+        return createdAt() == null;
     }
 
     GlobalSettings toDomain() {
-        return new GlobalSettings(RecordMapper.map(GlobalSettingsValues.class, values, this), getVersion(),
-                getUpdatedAt());
+        return new GlobalSettings(RecordMapper.map(GlobalSettingsValues.class, values, this), version(), updatedAt());
     }
 
     void apply(GlobalSettingsValues source) {
@@ -127,8 +127,8 @@ public class GlobalSettingsEntity extends AuditedEntity implements Persistable<L
 
     @Embeddable
     public record ServiceDefaultsEmbeddable(
-            @Enumerated(EnumType.STRING) @Column(name = "DEFAULT_BUILD_TOOL") BuildTool buildTool,
-            @Enumerated(EnumType.STRING) @Column(name = "DEFAULT_DEPLOY_TARGET") DeployTarget deployTarget,
+            @Enumerated(STRING) @Column(name = "DEFAULT_BUILD_TOOL") BuildTool buildTool,
+            @Enumerated(STRING) @Column(name = "DEFAULT_DEPLOY_TARGET") DeployTarget deployTarget,
             @Column(name = "DEFAULT_SOURCE_DIR") String sourceDir,
             Integer testsMaxParallel) {
     }

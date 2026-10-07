@@ -3,9 +3,9 @@ package com.bbh.itss.dso.portal.gui.regression
 import com.bbh.itss.dso.portal.gui.support.GuiSpecification
 import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
-import com.microsoft.playwright.options.AriaRole
 
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
+import static com.microsoft.playwright.options.AriaRole.MENUITEM
 
 abstract class ProductPageSpecification extends GuiSpecification {
 
@@ -45,7 +45,7 @@ abstract class ProductPageSpecification extends GuiSpecification {
     }
 
     Locator menuItem(String name) {
-        page.getByRole(AriaRole.MENUITEM, new Page.GetByRoleOptions().setName(name).setExact(true))
+        page.getByRole(MENUITEM, new Page.GetByRoleOptions().setName(name).setExact(true))
     }
 
     void keyRows(List<List<String>> expected) {

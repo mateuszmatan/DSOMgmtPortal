@@ -9,22 +9,17 @@ import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
 import com.bbh.itss.dso.portal.domain.dsoconfig.DsoConfigBuilder;
+import lombok.RequiredArgsConstructor;
 
 import java.util.Map;
 
 @UseCase
+@RequiredArgsConstructor
 public class PipelineConfigService implements RenderConfigUseCase {
 
     private final PipelinesUseCase pipelines;
     private final ProductsUseCase products;
     private final ManageGlobalSettingsUseCase settings;
-
-    public PipelineConfigService(PipelinesUseCase pipelines, ProductsUseCase products,
-                                 ManageGlobalSettingsUseCase settings) {
-        this.pipelines = pipelines;
-        this.products = products;
-        this.settings = settings;
-    }
 
     @Override
     @WithoutTransaction

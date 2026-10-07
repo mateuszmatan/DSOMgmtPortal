@@ -18,6 +18,7 @@ import com.bbh.itss.dso.portal.domain.pipeline.ServiceRef
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.forNewService
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.EXTENDED
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
@@ -207,7 +208,7 @@ class DemoDataLoaderSpec extends Specification {
 
     private static PipelineView view(Product product, long id, long serviceId, PipelineType type) {
         PipelineView.of(product, Pipeline.restore(id, new ServiceRef(product.id(), serviceId), type,
-                PipelineSettings.forNewService(), [], 0, null, null), null)
+                forNewService(), [], 0, null, null), null)
     }
 
     private static List<String> problems(settings) {

@@ -2,17 +2,17 @@ package com.bbh.itss.dso.portal.adapter.out.localmetrics
 
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsRow
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
-import com.bbh.itss.dso.portal.domain.monitoring.RunResult
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import spock.lang.Specification
 
 import java.time.Instant
-import java.time.ZoneOffset
 
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.FAILURE
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.EXTENDED
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
+import static java.time.ZoneOffset.UTC
 
 class RunHistorySpec extends Specification {
 
@@ -46,7 +46,7 @@ class RunHistorySpec extends Specification {
     def "runs start in working hours, mostly on weekdays"() {
         when:
         def runs = history(SECURITY, 3).points(FROM, UNTIL).findAll { it.measurement() == 'pipeline_run' }
-        def starts = runs.collect { it.time().minusSeconds(it.values().duration_s as long).atZone(ZoneOffset.UTC) }
+        def starts = runs.collect { it.time().minusSeconds(it.values().duration_s as long).atZone(UTC) }
 
         then:
         starts.every { it.hour >= 6 && it.hour < 21 }
@@ -82,7 +82,7 @@ class RunHistorySpec extends Specification {
         dora.every { point ->
             def run = runs[point.time()]
             (point.values().deployment == '0' || !run.branch.startsWith('feature/')) &&
-                    (point.values().change_failure == '0' || run.result == RunResult.FAILURE.name())
+                    (point.values().change_failure == '0' || run.result == FAILURE.name())
         }
     }
 

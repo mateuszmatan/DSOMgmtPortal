@@ -11,27 +11,28 @@ import com.bbh.itss.dso.portal.domain.catalog.Service
 import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
 import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException
-import org.spockframework.mock.EmptyOrDummyResponse
 import spock.lang.Specification
 
 import java.time.Instant
 
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
+import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.Fixtures.account
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.command
 import static com.bbh.itss.dso.portal.support.Fixtures.details
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.settings
+import static org.spockframework.mock.EmptyOrDummyResponse.INSTANCE
 
 class ProductCatalogServiceSpec extends Specification {
 
     static final SonarSettings CERT_SONAR = SonarSettings.of(null, 'cert', command(['sonarqube']))
     static final Instant CHANGED = Instant.parse('2026-10-03T10:00:00Z')
 
-    ProductRepositoryPort products = Mock(defaultResponse: EmptyOrDummyResponse.INSTANCE)
+    ProductRepositoryPort products = Mock(defaultResponse: INSTANCE)
     PipelineCountsPort pipelineCounts = Stub()
     PipelinesUseCase pipelines = Mock()
     def catalog = new ProductCatalogService(products, pipelineCounts, pipelines)
@@ -108,7 +109,7 @@ class ProductCatalogServiceSpec extends Specification {
         action(catalog)
 
         then:
-        def e = thrown(NotFoundException)
+        def e = thrown(NoSuchElementException)
         e.message == 'Product 5 does not exist'
         0 * products.save(_)
         0 * products.delete(_)
@@ -130,7 +131,7 @@ class ProductCatalogServiceSpec extends Specification {
         }
 
         then:
-        1 * pipelines.createMissing(9L, [10L, 11L], PipelineType.FULL)
+        1 * pipelines.createMissing(9L, [10L, 11L], FULL)
         created.id() == 9
         created.services()*.name() == ['gui', 'backend-api']
         created.services()*.settings()*.metrics()*.influxProject() == ['CERT-gui', 'CERT-backend-api']
@@ -145,7 +146,7 @@ class ProductCatalogServiceSpec extends Specification {
 
         then:
         1 * products.save(_) >> { Product p -> stored(5L, p, [10L] + created) }
-        1 * pipelines.createMissing(5L, created, PipelineType.FULL)
+        1 * pipelines.createMissing(5L, created, FULL)
 
         where:
         added                                         || created
@@ -162,12 +163,12 @@ class ProductCatalogServiceSpec extends Specification {
 
         then:
         1 * products.save(_) >> { Product p -> stored(5L, p, [10L, 12L]) }
-        1 * pipelines.createMissing(5L, [10L, 12L], PipelineType.SAST)
+        1 * pipelines.createMissing(5L, [10L, 12L], SAST)
 
         where:
-        save << [{ it.create(command(services: [service(name: 'gui'), service(name: 'worker')], pipelineType: PipelineType.SAST)) },
+        save << [{ it.create(command(services: [service(name: 'gui'), service(name: 'worker')], pipelineType: SAST)) },
                  { it.update(5L, command(version: 0L, services: [service(id: 10L, name: 'gui'), service(name: 'worker')],
-                         pipelineType: PipelineType.SAST)) }]
+                         pipelineType: SAST)) }]
     }
 
     def "every invalid service is reported at once and nothing is stored"() {
@@ -183,7 +184,7 @@ class ProductCatalogServiceSpec extends Specification {
 
         then:
         def e = thrown(InvalidRequestException)
-        e.problems*.field == ['services[0].build.javaPath', 'services[1].name', 'services[2].id']
+        e.problems()*.field == ['services[0].build.javaPath', 'services[1].name', 'services[2].id']
         0 * products.save(_)
     }
 
@@ -214,14 +215,14 @@ class ProductCatalogServiceSpec extends Specification {
         action(catalog)
 
         then:
-        def e = thrown(ConflictException)
+        def e = thrown(IllegalStateException)
         e.message == message
         0 * products.save(_)
 
         where:
         refusal                       | action                                    || message
         'a product code in use'       | { it.create(command()) }                  || 'Product code CERT is already used by Certificates'
-        'an update of an old version' | { it.update(1L, command(version: 3L)) }   || ConflictException.STALE_VERSION
+        'an update of an old version' | { it.update(1L, command(version: 3L)) }   || STALE_VERSION
     }
 
     private static ProductSummary summary(long id, String code, String name, String ownerTeam, String description,

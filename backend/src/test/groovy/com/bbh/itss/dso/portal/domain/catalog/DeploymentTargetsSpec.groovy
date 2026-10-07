@@ -2,13 +2,15 @@ package com.bbh.itss.dso.portal.domain.catalog
 
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.catalog.UrbanCodeSettings.DEFAULTS
 import static com.bbh.itss.dso.portal.domain.shared.Sections.written
 import static com.bbh.itss.dso.portal.support.Fixtures.copy
 
 class DeploymentTargetsSpec extends Specification {
 
-    static final UrbanCodeComponent GUI_COMPONENT = new UrbanCodeComponent('cert-gui', 'build/libs', '*.war', '*-plain.war',
-            'gui-', '1.0.0', false, null, null, null, null, null)
+    static final UrbanCodeComponent GUI_COMPONENT = UrbanCodeComponent.builder().componentName('cert-gui')
+            .baseDir('build/libs').fileIncludePatterns('*.war').fileExcludePatterns('*-plain.war').versionPrefix('gui-')
+            .version('1.0.0').incrementalVersion(false).build()
 
     def "an SSH target trims its values, writes the ones that are set in the library's order and is empty without any"() {
         when:
@@ -20,7 +22,7 @@ class DeploymentTargetsSpec extends Specification {
                               deployScript: 'deploy.sh', versionFile: 'version.txt']
         target.toConfig().keySet() as List == ['host', 'user', 'deployDir', 'deployScript', 'versionFile']
         !target.isEmpty()
-        new SshTarget(null, null, '/opt/cert', null, null).toConfig() == [deployDir: '/opt/cert']
+        SshTarget.builder().deployDir('/opt/cert').build().toConfig() == [deployDir: '/opt/cert']
         blank == new SshTarget(null, null, null, null, null)
         blank.isEmpty()
         blank.toConfig() == [:]
@@ -93,9 +95,9 @@ class DeploymentTargetsSpec extends Specification {
 
     def "UrbanCode settings default to deploying a snapshot of only the deployed versions and write nothing without applications"() {
         expect:
-        new UrbanCodeSettings(' ', ' ', null, null, null, null, null, ' ', ' ') == UrbanCodeSettings.DEFAULTS
-        UrbanCodeSettings.DEFAULTS == new UrbanCodeSettings(null, null, false, true, false, true, false, null, null)
-        written { UrbanCodeSettings.DEFAULTS.writeTo(it, []) } == [:]
+        new UrbanCodeSettings(' ', ' ', null, null, null, null, null, ' ', ' ') == DEFAULTS
+        DEFAULTS == new UrbanCodeSettings(null, null, false, true, false, true, false, null, null)
+        written { DEFAULTS.writeTo(it, []) } == [:]
         written { fullUrbanCode().writeTo(it, []) } == [:]
     }
 
@@ -104,7 +106,7 @@ class DeploymentTargetsSpec extends Specification {
         def app = UrbanCodeApplicationSettings.of('Cert', null, [], null, [])
 
         expect:
-        written { UrbanCodeSettings.DEFAULTS.writeTo(it, [app]) } ==
+        written { DEFAULTS.writeTo(it, [app]) } ==
                 [deploy: [vm: [dod: [skipWait                 : false, deployWithSnapshot: true, updateSnapshotComp: false,
                                      includeOnlyDeployVersions: true, deployOnlyChanged: false,
                                      applications             : [[applicationName: 'Cert']]]]]]
@@ -132,7 +134,7 @@ class DeploymentTargetsSpec extends Specification {
 
         when:
         def app = UrbanCodeApplicationSettings.of(' Cert ', 3, [' RD ', 'RD', '', 'QC'], ' ', components)
-        components << new UrbanCodeComponent('other', null, null, null, null, null, null, null, null, null, null, null)
+        components << UrbanCodeComponent.builder().componentName('other').build()
 
         then:
         app == UrbanCodeApplicationSettings.of('Cert', 3, ['RD', 'QC'], null, [GUI_COMPONENT])
@@ -154,8 +156,10 @@ class DeploymentTargetsSpec extends Specification {
 
     def "an UrbanCode application overrides the service's options with its own, false included"() {
         when:
-        def entry = new UrbanCodeApplicationSettings('Cert', null, [], null, ' BBH-QC ', ' Deploy QC ', false, null, true,
-                false, null, ' release ', ' Cert ', ' a=b ', [GUI_COMPONENT]).toConfig()
+        def entry = UrbanCodeApplicationSettings.builder().applicationName('Cert').siteName(' BBH-QC ')
+                .deployProcess(' Deploy QC ').skipWait(false).updateSnapshotComponents(true)
+                .includeOnlyDeployVersions(false).deployDescription(' release ').description(' Cert ')
+                .requestProperties(' a=b ').components([GUI_COMPONENT]).build().toConfig()
 
         then:
         entry.keySet() as List == ['applicationName', 'siteName', 'deployProcess', 'skipWait', 'updateSnapshotComp',
@@ -170,8 +174,9 @@ class DeploymentTargetsSpec extends Specification {
 
     def "an UrbanCode component writes the push options that are set"() {
         expect:
-        new UrbanCodeComponent('cert-gui', 'build/libs', '*.war', null, null, null, true, ' war,jar ', ' UTF-8 ', ' push ',
-                ' build=1 ', ' version ').toConfig() ==
+        UrbanCodeComponent.builder().componentName('cert-gui').baseDir('build/libs').fileIncludePatterns('*.war')
+                .extensions(' war,jar ').charset(' UTF-8 ').pushDescription(' push ').versionProperties(' build=1 ')
+                .versionDescription(' version ').build().toConfig() ==
                 [componentName     : 'cert-gui', baseDir: 'build/libs', fileIncludePatterns: '*.war',
                  incrementalVersion: true, extensions: 'war,jar', charset: 'UTF-8', pushDescription: 'push',
                  versionProperties : 'build=1', versionDescription: 'version']
@@ -188,7 +193,7 @@ class DeploymentTargetsSpec extends Specification {
         component == new UrbanCodeComponent('cert-gui', null, null, null, null, null, true, null, null, null, null, null)
         component.toConfig() == [componentName: 'cert-gui', incrementalVersion: true]
         component.toConfig().keySet() as List == ['componentName', 'incrementalVersion']
-        !new UrbanCodeComponent(null, null, null, null, null, null, false, null, null, null, null, null).incrementalVersion()
+        !UrbanCodeComponent.builder().incrementalVersion(false).build().incrementalVersion()
         GUI_COMPONENT.toConfig().keySet() as List == ['componentName', 'baseDir', 'fileIncludePatterns',
                                                        'fileExcludePatterns', 'versionPrefix', 'version', 'incrementalVersion']
     }
@@ -198,6 +203,6 @@ class DeploymentTargetsSpec extends Specification {
     }
 
     private static OpenShiftTarget openShift(Map fields) {
-        copy(fields, new OpenShiftTarget(*([null] * 21)))
+        copy(fields, OpenShiftTarget.builder().build())
     }
 }

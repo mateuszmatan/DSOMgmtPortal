@@ -1,10 +1,9 @@
 package com.bbh.itss.dso.portal.gui.regression
 
+import com.bbh.itss.dso.portal.gui.support.ProductStore
 import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 
-import static com.bbh.itss.dso.portal.gui.support.ProductStore.created
-import static com.bbh.itss.dso.portal.gui.support.ProductStore.recorded
 import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
 import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
@@ -120,7 +119,7 @@ class SelfServiceSpec extends EditorSpecification {
                 .hasText(['archive-gui, AppScan application ID: the AppScan application belongs to CertScanner'] as String[])
 
         when:
-        def store = created(api, 3)
+        def store = ProductStore.created(api, 3)
         page.locator('.step-bar').getByRole(BUTTON).filter(new Locator.FilterOptions().setHasText('Services')).click()
         button('Change archive-gui', true).click()
         input(dialog(), 'AppScan application ID').fill(GUI_APPLICATION)
@@ -169,7 +168,7 @@ class SelfServiceSpec extends EditorSpecification {
 
     def "a product in the portal gets a Static scan pipeline next to the pipelines it has, a new service included"() {
         given:
-        def store = recorded(api, 1)
+        def store = ProductStore.recorded(api, 1)
         def stored = fixture('product-1.json') as Map
 
         when:
@@ -286,7 +285,7 @@ class SelfServiceSpec extends EditorSpecification {
 
     def "a product in the portal without a department is put into one on the way"() {
         given:
-        def store = recorded(api, 2)
+        def store = ProductStore.recorded(api, 2)
         store.product.departmentId = null
         def products = fixture('products.json') as List<Map>
         api.respond('GET', '/api/products', [products[0], products[1] + [departmentId: null, departmentName: null]])
@@ -336,7 +335,7 @@ class SelfServiceSpec extends EditorSpecification {
 
     def "changing the build tool of a service in the portal puts its build settings back to the BBH defaults"() {
         given:
-        def store = recorded(api, 1)
+        def store = ProductStore.recorded(api, 1)
         def stored = fixture('product-1.json') as Map
 
         when:
@@ -395,7 +394,7 @@ class SelfServiceSpec extends EditorSpecification {
 
     def "removing a service of the portal deletes it with its pipelines and keys on save"() {
         given:
-        def store = recorded(api, 1)
+        def store = ProductStore.recorded(api, 1)
 
         when:
         openProduct('Corporate Technology', 'CertScanner (CERTSCANNER)')
@@ -445,7 +444,7 @@ class SelfServiceSpec extends EditorSpecification {
 
     def "adding a Security pipeline shows the pipelines the services of a product already have"() {
         given:
-        def store = recorded(api, 2)
+        def store = ProductStore.recorded(api, 2)
 
         when:
         openProduct('Fund Services', 'Payments Hub (PAYHUB)')

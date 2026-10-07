@@ -1,9 +1,10 @@
 package com.bbh.itss.dso.portal.domain.monitoring
 
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
-import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 
@@ -18,8 +19,8 @@ class MetricsTagSpec extends Specification {
         MetricsTag.of(service, pipeline(serviceId: 10L, type: type)) == new MetricsTag(project, 'uat')
 
         where:
-        type                  || project
-        PipelineType.FULL     || 'CERT-gui'
-        PipelineType.SAST     || 'CERT-guisast'
+        type || project
+        FULL || 'CERT-gui'
+        SAST || 'CERT-guisast'
     }
 }

@@ -1,51 +1,49 @@
 package com.bbh.itss.dso.portal.domain.settings;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+import lombok.Builder;
+import lombok.With;
 
 import java.net.URI;
 import java.util.Map;
+import java.util.Objects;
 
-public record PlatformSettings(String jenkinsUrl, String jenkinsLibrary, String asocUrl, String appScanClientLinuxUrl,
-                               String appScanClientWindowsUrl, String proxyHost, Integer proxyPort, String proxyUser,
-                               String oisHost, String sonarServerUrl, String sonarInstallationName,
-                               String nexusIqServerUrl, String nexusIqCredentialsId, String nexusSnapshotRepositoryUrl,
-                               String nexusSnapshotRepositoryId, String influxWriteUrl, String influxCredentialsId,
-                               String iosBuildAgent) {
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
+@Builder
+public record PlatformSettings(@With String jenkinsUrl, String jenkinsLibrary, String asocUrl,
+                               String appScanClientLinuxUrl, String appScanClientWindowsUrl, String proxyHost,
+                               Integer proxyPort, String proxyUser, String oisHost, String sonarServerUrl,
+                               String sonarInstallationName, String nexusIqServerUrl, String nexusIqCredentialsId,
+                               String nexusSnapshotRepositoryUrl, String nexusSnapshotRepositoryId,
+                               String influxWriteUrl, String influxCredentialsId, String iosBuildAgent) {
 
     public PlatformSettings {
-        jenkinsUrl = Text.trimToNull(jenkinsUrl);
-        jenkinsLibrary = Text.trimToNull(jenkinsLibrary);
-        asocUrl = Text.trimToNull(asocUrl);
-        appScanClientLinuxUrl = Text.trimToNull(appScanClientLinuxUrl);
-        appScanClientWindowsUrl = Text.trimToNull(appScanClientWindowsUrl);
-        proxyHost = Text.trimToNull(proxyHost);
-        proxyUser = Text.trimToNull(proxyUser);
-        oisHost = Text.trimToNull(oisHost);
-        sonarServerUrl = Text.trimToNull(sonarServerUrl);
-        sonarInstallationName = Text.trimToNull(sonarInstallationName);
-        nexusIqServerUrl = Text.trimToNull(nexusIqServerUrl);
-        nexusIqCredentialsId = Text.trimToNull(nexusIqCredentialsId);
-        nexusSnapshotRepositoryUrl = Text.trimToNull(nexusSnapshotRepositoryUrl);
-        nexusSnapshotRepositoryId = Text.trimToNull(nexusSnapshotRepositoryId);
-        influxWriteUrl = Text.trimToNull(influxWriteUrl);
-        influxCredentialsId = Text.trimToNull(influxCredentialsId);
-        iosBuildAgent = Text.trimToNull(iosBuildAgent);
-    }
-
-    public PlatformSettings withJenkinsUrl(String url) {
-        return new PlatformSettings(url, jenkinsLibrary, asocUrl, appScanClientLinuxUrl, appScanClientWindowsUrl,
-                proxyHost, proxyPort, proxyUser, oisHost, sonarServerUrl, sonarInstallationName, nexusIqServerUrl,
-                nexusIqCredentialsId, nexusSnapshotRepositoryUrl, nexusSnapshotRepositoryId, influxWriteUrl,
-                influxCredentialsId, iosBuildAgent);
+        jenkinsUrl = trimToNull(jenkinsUrl);
+        jenkinsLibrary = trimToNull(jenkinsLibrary);
+        asocUrl = trimToNull(asocUrl);
+        appScanClientLinuxUrl = trimToNull(appScanClientLinuxUrl);
+        appScanClientWindowsUrl = trimToNull(appScanClientWindowsUrl);
+        proxyHost = trimToNull(proxyHost);
+        proxyUser = trimToNull(proxyUser);
+        oisHost = trimToNull(oisHost);
+        sonarServerUrl = trimToNull(sonarServerUrl);
+        sonarInstallationName = trimToNull(sonarInstallationName);
+        nexusIqServerUrl = trimToNull(nexusIqServerUrl);
+        nexusIqCredentialsId = trimToNull(nexusIqCredentialsId);
+        nexusSnapshotRepositoryUrl = trimToNull(nexusSnapshotRepositoryUrl);
+        nexusSnapshotRepositoryId = trimToNull(nexusSnapshotRepositoryId);
+        influxWriteUrl = trimToNull(influxWriteUrl);
+        influxCredentialsId = trimToNull(influxCredentialsId);
+        iosBuildAgent = trimToNull(iosBuildAgent);
     }
 
     public Map<String, Object> toConfig() {
         Map<String, Object> environment = new ConfigTree().set("APPSCAN_SERVER_URL", asocUrl)
                 .set("APPSCAN_HOST", host(asocUrl)).set("SA_LINUX_URL", appScanClientLinuxUrl)
                 .set("SA_WIN_URL", appScanClientWindowsUrl).set("PROXY_HOST", proxyHost)
-                .set("PROXY_PORT", proxyPort == null ? null : String.valueOf(proxyPort)).set("PROXY_USER", proxyUser)
+                .set("PROXY_PORT", Objects.toString(proxyPort, null)).set("PROXY_USER", proxyUser)
                 .toMap();
         return new ConfigTree()
                 .set("jenkinsUrl", jenkinsUrl)

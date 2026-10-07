@@ -1,12 +1,13 @@
 package com.bbh.itss.dso.portal.gui.regression
 
 import com.bbh.itss.dso.portal.gui.support.ProductStore
-import com.bbh.itss.dso.portal.gui.support.StubApi
 import com.bbh.itss.dso.portal.gui.support.StubResponse
 import com.microsoft.playwright.Route
 
 import java.util.function.Consumer
 
+import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
+import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 
 class ApiFailureSpec extends EditorSpecification {
@@ -15,7 +16,7 @@ class ApiFailureSpec extends EditorSpecification {
 
     def "#path shows the problem detail when #endpoint fails"() {
         given:
-        api.respond('GET', endpoint, StubResponse.problem(500, 'Internal Server Error', DETAIL))
+        api.respond('GET', endpoint, problem(500, 'Internal Server Error', DETAIL))
 
         when:
         open(path)
@@ -51,8 +52,8 @@ class ApiFailureSpec extends EditorSpecification {
 
     def "a page that failed to load offers the way back or another try"() {
         given:
-        api.respond('GET', '/api/products/1', StubResponse.problem(404, 'Not Found', 'Product 1 was not found'))
-        api.respond('GET', '/api/settings', StubResponse.problem(503, 'Service Unavailable', DETAIL))
+        api.respond('GET', '/api/products/1', problem(404, 'Not Found', 'Product 1 was not found'))
+        api.respond('GET', '/api/settings', problem(503, 'Service Unavailable', DETAIL))
 
         when:
         open('/admin/products/1')
@@ -69,7 +70,7 @@ class ApiFailureSpec extends EditorSpecification {
         assertThat(page.locator('.banner')).hasText(DETAIL)
 
         when:
-        api.respond('GET', '/api/settings', StubApi.fixture('settings.json'))
+        api.respond('GET', '/api/settings', fixture('settings.json'))
         button('Try again', true).click()
 
         then:
@@ -80,7 +81,7 @@ class ApiFailureSpec extends EditorSpecification {
     def "a save that fails on the server keeps the editor and its changes"() {
         given:
         ProductStore.recorded(api, 1)
-        api.respond('PUT', '/api/products/1', StubResponse.problem(500, 'Internal Server Error', DETAIL))
+        api.respond('PUT', '/api/products/1', problem(500, 'Internal Server Error', DETAIL))
         open('/admin/products/1/edit')
 
         when:

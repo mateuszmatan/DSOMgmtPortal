@@ -1,68 +1,76 @@
 package com.bbh.itss.dso.portal.domain.settings;
 
-import com.bbh.itss.dso.portal.domain.catalog.BuildSettings;
-import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
-import com.bbh.itss.dso.portal.domain.catalog.DeployTarget;
 import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy;
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+import lombok.With;
 
-import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
-public record GlobalSettingsValues(PlatformSettings platform, DeploymentDefaults deployment,
+import static com.bbh.itss.dso.portal.domain.catalog.BuildSettings.DEFAULT_SOURCE_DIR;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE;
+import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM;
+import static com.bbh.itss.dso.portal.domain.settings.SeverityLimits.ZERO;
+import static java.util.Collections.unmodifiableMap;
+import static org.apache.commons.collections4.MapUtils.emptyIfNull;
+import static org.apache.commons.lang3.ObjectUtils.allNotNull;
+
+public record GlobalSettingsValues(@With PlatformSettings platform, DeploymentDefaults deployment,
                                    Map<Scanner, SeverityLimits> limits, ScanSettings scans,
                                    ReleaseGateSettings releaseGate, ServiceDefaults serviceDefaults,
                                    GoldenFixPolicy goldenFix) {
 
     public GlobalSettingsValues {
         Map<Scanner, SeverityLimits> ordered = new EnumMap<>(Scanner.class);
-        if (limits != null) {
-            limits.forEach((scanner, value) -> {
-                if (scanner != null && value != null) {
-                    ordered.put(scanner, value);
-                }
-            });
-        }
-        limits = Collections.unmodifiableMap(ordered);
+        emptyIfNull(limits).forEach((scanner, value) -> {
+            if (allNotNull(scanner, value)) {
+                ordered.put(scanner, value);
+            }
+        });
+        limits = unmodifiableMap(ordered);
         goldenFix = goldenFix == null ? null : goldenFix.enabledByDefault();
     }
 
     public static GlobalSettingsValues bbhDefaults() {
-        PlatformSettings platform = new PlatformSettings(null, "DevSecOpsJenkinsLibrary",
-                "https://bbh.cloud.appscan.com",
-                "https://tools.bbh.com/nexus/repository/releases/com/bbh/appscan/SAClientUtil/8.0.1646_Linux/"
-                        + "SAClientUtil-8.0.1646_Linux-SAClientUtil_8.0.1646_Linux.zip",
-                "https://tools.bbh.com/nexus/repository/releases/com/bbh/appscan/SAClientUtil/8.0.1646_Win/"
-                        + "SAClientUtil-8.0.1646_Win-SAClientUtil_8.0.1646_Win.zip",
-                "tstproxy.bbh.com", 9090, "PROXY_ASOCJenk", "oisapi.bbh.com",
-                "https://tools.bbh.com/sonar", "SonarQube", "https://tools.bbh.com/IQ", "nexusiqP",
-                "http://tools.bbh.com/nexus/content/repositories/snapshots/", "bbh-snapshots",
-                "http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s",
-                "influxdb-token", "mac002.bbh.com");
-        DeploymentDefaults deployment = new DeploymentDefaults("deploy.bbh.com", "tomcat-app-process",
-                "rdltaapps1.testbbh.com", "qcltaapps1.testbbh.com", "taadmin",
-                "scripts/deployment/zero-downtime-deployment.sh", "scripts/deployment/version.properties");
+        PlatformSettings platform = PlatformSettings.builder().jenkinsLibrary("DevSecOpsJenkinsLibrary")
+                .asocUrl("https://bbh.cloud.appscan.com")
+                .appScanClientLinuxUrl("https://tools.bbh.com/nexus/repository/releases/com/bbh/appscan/SAClientUtil/"
+                        + "8.0.1646_Linux/SAClientUtil-8.0.1646_Linux-SAClientUtil_8.0.1646_Linux.zip")
+                .appScanClientWindowsUrl("https://tools.bbh.com/nexus/repository/releases/com/bbh/appscan/SAClientUtil/"
+                        + "8.0.1646_Win/SAClientUtil-8.0.1646_Win-SAClientUtil_8.0.1646_Win.zip")
+                .proxyHost("tstproxy.bbh.com").proxyPort(9090).proxyUser("PROXY_ASOCJenk").oisHost("oisapi.bbh.com")
+                .sonarServerUrl("https://tools.bbh.com/sonar").sonarInstallationName("SonarQube")
+                .nexusIqServerUrl("https://tools.bbh.com/IQ").nexusIqCredentialsId("nexusiqP")
+                .nexusSnapshotRepositoryUrl("http://tools.bbh.com/nexus/content/repositories/snapshots/")
+                .nexusSnapshotRepositoryId("bbh-snapshots")
+                .influxWriteUrl("http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics"
+                        + "&precision=s")
+                .influxCredentialsId("influxdb-token").iosBuildAgent("mac002.bbh.com").build();
+        DeploymentDefaults deployment = DeploymentDefaults.builder().urbanCodeSiteName("deploy.bbh.com")
+                .urbanCodeDeployProcess("tomcat-app-process").rdHost("rdltaapps1.testbbh.com")
+                .qcHost("qcltaapps1.testbbh.com").sshUser("taadmin")
+                .deployScript("scripts/deployment/zero-downtime-deployment.sh")
+                .versionFile("scripts/deployment/version.properties").build();
         Map<Scanner, SeverityLimits> limits = new EnumMap<>(Scanner.class);
         for (Scanner scanner : Scanner.values()) {
-            limits.put(scanner, SeverityLimits.ZERO);
+            limits.put(scanner, ZERO);
         }
-        ScanSettings scans = new ScanSettings(60, 120, 50, 30, true, 40, 30, 60, 60, 30, 30, true, 5);
+        ScanSettings scans = ScanSettings.builder().coverageMinLine(60).sastPrepareTimeoutMinutes(120)
+                .sastPollTimeoutMinutes(50).sastPollIntervalSeconds(30).scaEnabled(true).scaPollTimeoutMinutes(40)
+                .scaPollIntervalSeconds(30).dastPollTimeoutMinutes(60).dastPollIntervalSeconds(60)
+                .dastReportTimeoutMinutes(30).dastReportIntervalSeconds(30).sonarWaitForQualityGate(true)
+                .sonarQualityGateTimeoutMinutes(5).build();
         ReleaseGateSettings releaseGate = new ReleaseGateSettings(List.of(Scanner.values()), true,
                 "release-gate.json");
-        ServiceDefaults serviceDefaults = new ServiceDefaults(BuildTool.GRADLE,
-                DeployTarget.VM, BuildSettings.DEFAULT_SOURCE_DIR, 20);
-        GoldenFixPolicy goldenFix = new GoldenFixPolicy(true, true, 2, List.of("maven", "npm", "pypi"),
-                List.of("recommended-non-breaking-with-dependencies", "recommended-non-breaking"),
-                List.of(), true, 3, 20, null, null, null, null, null, "DevSecOps GoldenFix",
-                "devsecops-goldenfix@noreply.local", null);
+        ServiceDefaults serviceDefaults = new ServiceDefaults(GRADLE, VM, DEFAULT_SOURCE_DIR, 20);
+        GoldenFixPolicy goldenFix = GoldenFixPolicy.builder().enabled(true).onlyDirectDependencies(true)
+                .minThreatLevel(2).ecosystems(List.of("maven", "npm", "pypi"))
+                .goldenVersionTypes(List.of("recommended-non-breaking-with-dependencies", "recommended-non-breaking"))
+                .excludeDirs(List.of()).verifyEnabled(true).verifyMaxAttempts(3).verifyTimeoutMinutes(20)
+                .commitAuthorName("DevSecOps GoldenFix").commitAuthorEmail("devsecops-goldenfix@noreply.local").build();
         return new GlobalSettingsValues(platform, deployment, limits, scans, releaseGate, serviceDefaults, goldenFix);
-    }
-
-    public GlobalSettingsValues withPlatform(PlatformSettings changed) {
-        return new GlobalSettingsValues(changed, deployment, limits, scans, releaseGate, serviceDefaults, goldenFix);
     }
 
     public void validate(ValidationProblems problems) {

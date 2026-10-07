@@ -3,12 +3,13 @@ package com.bbh.itss.dso.portal.regression
 import com.bbh.itss.dso.portal.support.PortalSpecification
 import com.zaxxer.hikari.HikariDataSource
 
-import java.time.Duration
 import java.time.Instant
 
 import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
+import static java.time.Duration.ofDays
+import static java.time.Duration.ofHours
 
 class MonitoringRegressionSpec extends PortalSpecification {
 
@@ -30,12 +31,12 @@ class MonitoringRegressionSpec extends PortalSpecification {
         api.post("/api/pipelines/$guiSast.id/keys/revoke", [reason: 'paused'])
 
         def now = Instant.now()
-        influx.addRun(project: "$code-gui", time: now - Duration.ofDays(3), result: 'FAILURE', deployment: true,
+        influx.addRun(project: "$code-gui", time: now - ofDays(3), result: 'FAILURE', deployment: true,
                 leadTimeSeconds: 7200)
-        influx.addRun(project: "$code-gui", time: now - Duration.ofDays(2), result: 'SUCCESS', leadTimeSeconds: 3600)
-        influx.addRun(project: "$code-gui", time: now - Duration.ofHours(4), result: 'FAILURE', leadTimeSeconds: 600)
-        influx.addRun(project: "$code-gui", time: now - Duration.ofHours(1), result: 'SUCCESS', leadTimeSeconds: 1800, build: 42)
-        influx.addRun(project: "$code-api", time: now - Duration.ofHours(2), result: 'FAILURE')
+        influx.addRun(project: "$code-gui", time: now - ofDays(2), result: 'SUCCESS', leadTimeSeconds: 3600)
+        influx.addRun(project: "$code-gui", time: now - ofHours(4), result: 'FAILURE', leadTimeSeconds: 600)
+        influx.addRun(project: "$code-gui", time: now - ofHours(1), result: 'SUCCESS', leadTimeSeconds: 1800, build: 42)
+        influx.addRun(project: "$code-api", time: now - ofHours(2), result: 'FAILURE')
     }
 
     def cleanup() {
@@ -129,7 +130,7 @@ class MonitoringRegressionSpec extends PortalSpecification {
     def "a pipeline without runs in the range shows the last one before it"() {
         given:
         def apiSast = pipelineFor(monitored.services[1].id as long, pipeline(type: 'SAST'))
-        influx.addRun(project: "$code-apisast", variant: 'sast', time: Instant.now() - Duration.ofDays(60), result: 'UNSTABLE')
+        influx.addRun(project: "$code-apisast", variant: 'sast', time: Instant.now() - ofDays(60), result: 'UNSTABLE')
 
         when:
         def details = api.get("/api/monitoring/pipelines/$apiSast.id?range=7d").json

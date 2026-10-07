@@ -9,6 +9,7 @@ import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns;
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsRow;
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
+import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -19,22 +20,32 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
+
+import static com.bbh.itss.dso.portal.domain.evidence.RunEvidence.MEASUREMENTS;
+import static com.bbh.itss.dso.portal.domain.evidence.RunEvidence.recordedDuring;
+import static com.bbh.itss.dso.portal.domain.evidence.RunEvidence.windowEnd;
+import static com.bbh.itss.dso.portal.domain.evidence.RunEvidence.windowStart;
+import static com.bbh.itss.dso.portal.domain.monitoring.MetricsRow.doraPoint;
+import static java.time.Duration.ofDays;
+import static java.time.ZoneOffset.UTC;
+import static java.util.Comparator.comparing;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toList;
+import static org.apache.commons.lang3.Strings.CS;
 
 @Component
 @Primary
 @ConditionalOnExpression(LocalMetricsStore.ACTIVE)
+@RequiredArgsConstructor
 class LocalMetricsStore implements PipelineRunsPort, RunEvidencePort {
 
     static final String ACTIVE = "${dso.demo-data:false} and '${dso.influx.url:}' == ''";
@@ -46,12 +57,6 @@ class LocalMetricsStore implements PipelineRunsPort, RunEvidencePort {
     private final NamedParameterJdbcTemplate jdbc;
     private final JsonMapper json;
     private final Clock clock;
-
-    LocalMetricsStore(NamedParameterJdbcTemplate jdbc, JsonMapper json, Clock clock) {
-        this.jdbc = jdbc;
-        this.json = json;
-        this.clock = clock;
-    }
 
     @Override
     public boolean configured() {
@@ -98,9 +103,8 @@ class LocalMetricsStore implements PipelineRunsPort, RunEvidencePort {
     @Override
     public List<PipelineRun> recentRuns(MetricsTag tag, String job, int days, int limit) {
         return series("pipeline_run", List.of(tag), days).stream()
-                .filter(point -> job == null || point.job() != null
-                        && (point.job().equals(job) || point.job().startsWith(job + "/")))
-                .sorted(Comparator.comparing(StoredPoint::time).reversed())
+                .filter(point -> job == null || job.equals(point.job()) || CS.startsWith(point.job(), job + "/"))
+                .sorted(comparing(StoredPoint::time).reversed())
                 .limit(limit)
                 .map(point -> MetricsRow.run(point.row()))
                 .toList();
@@ -108,8 +112,8 @@ class LocalMetricsStore implements PipelineRunsPort, RunEvidencePort {
 
     @Override
     public Map<MetricsTag, List<DoraPoint>> doraPoints(Collection<MetricsTag> tags, int days) {
-        return series("dora", tags, days).stream().collect(Collectors.groupingBy(StoredPoint::tag,
-                Collectors.mapping(point -> MetricsRow.doraPoint(point.row()), Collectors.toList())));
+        return series("dora", tags, days).stream().collect(groupingBy(StoredPoint::tag,
+                mapping(point -> doraPoint(point.row()), toList())));
     }
 
     @Override
@@ -118,10 +122,10 @@ class LocalMetricsStore implements PipelineRunsPort, RunEvidencePort {
         runs.forEach((tag, tagged) -> tagged.forEach(run -> evidence.put(run, new RunEvidence(
                 query(SELECT + "PROJECT = :project AND ENV = :env AND MEASUREMENT IN (:measurements) "
                                 + "AND RECORDED_AT BETWEEN :from AND :to",
-                        Map.of("project", tag.project(), "env", tag.env(), "measurements", RunEvidence.MEASUREMENTS,
-                                "from", at(RunEvidence.windowStart(run)), "to", at(RunEvidence.windowEnd(run))))
+                        Map.of("project", tag.project(), "env", tag.env(), "measurements", MEASUREMENTS,
+                                "from", at(windowStart(run)), "to", at(windowEnd(run))))
                         .stream()
-                        .filter(point -> RunEvidence.recordedDuring(run, point.measurement(), point.time()))
+                        .filter(point -> recordedDuring(run, point.measurement(), point.time()))
                         .map(point -> new EvidencePoint(point.measurement(), point.row()))
                         .toList()))));
         return evidence;
@@ -134,7 +138,7 @@ class LocalMetricsStore implements PipelineRunsPort, RunEvidencePort {
         return query(SELECT + "MEASUREMENT = :measurement AND PROJECT IN (:projects) AND RECORDED_AT >= :since "
                         + "ORDER BY RECORDED_AT",
                 Map.of("measurement", measurement, "projects", projects(tags),
-                        "since", at(clock.instant().minus(Duration.ofDays(days))))).stream()
+                        "since", at(clock.instant().minus(ofDays(days))))).stream()
                 .filter(point -> tags.contains(point.tag()))
                 .toList();
     }
@@ -151,6 +155,6 @@ class LocalMetricsStore implements PipelineRunsPort, RunEvidencePort {
     }
 
     private static OffsetDateTime at(Instant time) {
-        return time.atOffset(ZoneOffset.UTC);
+        return time.atOffset(UTC);
     }
 }

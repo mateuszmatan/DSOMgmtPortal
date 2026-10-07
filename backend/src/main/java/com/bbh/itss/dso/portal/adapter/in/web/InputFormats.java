@@ -1,5 +1,10 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
+import lombok.NoArgsConstructor;
+
+import static lombok.AccessLevel.PRIVATE;
+
+@NoArgsConstructor(access = PRIVATE)
 final class InputFormats {
 
     static final String URL = "^(https?://[^\\s$`\"\\\\]+)?$";
@@ -29,7 +34,4 @@ final class InputFormats {
     static final String MODULE_MESSAGE = "must be a module folder name";
     static final String NO_WHITESPACE = "^\\S*$";
     static final String NO_WHITESPACE_MESSAGE = "must not contain whitespace";
-
-    private InputFormats() {
-    }
 }

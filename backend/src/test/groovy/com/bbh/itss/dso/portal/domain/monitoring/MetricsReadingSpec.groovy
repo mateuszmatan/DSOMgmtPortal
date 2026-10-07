@@ -8,9 +8,9 @@ class MetricsReadingSpec extends Specification {
         expect:
         MetricsReading.of({ -> [1, 2] }, []) == new MetricsReading([1, 2], null)
         !MetricsReading.of({ -> [1, 2] }, []).failed()
-        MetricsReading.of({ -> throw new MetricsUnavailableException('InfluxDB is down') }, []) ==
+        MetricsReading.of({ -> throw new UncheckedIOException('InfluxDB is down', new IOException()) }, []) ==
                 new MetricsReading([], 'InfluxDB is down')
-        MetricsReading.of({ -> throw new MetricsUnavailableException('InfluxDB is down') }, []).failed()
+        MetricsReading.of({ -> throw new UncheckedIOException('InfluxDB is down', new IOException()) }, []).failed()
     }
 
     def "other failures are not swallowed"() {

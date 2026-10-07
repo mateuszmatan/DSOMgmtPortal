@@ -1,11 +1,11 @@
 package com.bbh.itss.dso.portal.domain.pipeline;
 
-import java.util.Objects;
+import static java.util.Objects.requireNonNull;
 
 public record IssuedKey(long pipelineId, PipelineKey key) {
 
     public IssuedKey {
-        Objects.requireNonNull(key, "an issued key names the key");
+        requireNonNull(key, "an issued key names the key");
     }
 
     public long authorize() {

@@ -3,8 +3,6 @@ package com.bbh.itss.dso.portal.gui.regression
 import com.bbh.itss.dso.portal.gui.support.GuiSpecification
 import com.microsoft.playwright.Locator
 
-import java.util.regex.Pattern
-
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 
 abstract class EditorSpecification extends GuiSpecification {
@@ -44,7 +42,7 @@ abstract class EditorSpecification extends GuiSpecification {
 
     private void expand(Locator panel) {
         panel.locator('mat-expansion-panel-header').click()
-        assertThat(panel).hasClass(Pattern.compile('\\bmat-expanded\\b'))
+        assertThat(panel).hasClass(~/\bmat-expanded\b/)
         assertThat(openService()).hasCount(1)
     }
 

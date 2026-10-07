@@ -1,27 +1,31 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.Text;
+import lombok.Builder;
 
 import java.util.List;
 
+import static org.apache.commons.lang3.BooleanUtils.isNotFalse;
+import static org.apache.commons.lang3.BooleanUtils.isTrue;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
+@Builder
 public record UrbanCodeSettings(String siteName, String deployProcess, Boolean skipWait, Boolean deployWithSnapshot,
                                 Boolean updateSnapshotComponents, Boolean includeOnlyDeployVersions,
                                 Boolean deployOnlyChanged, String deployDescription, String requestProperties) {
 
-    public static final UrbanCodeSettings DEFAULTS = new UrbanCodeSettings(null, null, false, true, false, true, false,
-            null, null);
+    public static final UrbanCodeSettings DEFAULTS = builder().build();
 
     public UrbanCodeSettings {
-        siteName = Text.trimToNull(siteName);
-        deployProcess = Text.trimToNull(deployProcess);
-        skipWait = Boolean.TRUE.equals(skipWait);
-        deployWithSnapshot = !Boolean.FALSE.equals(deployWithSnapshot);
-        updateSnapshotComponents = Boolean.TRUE.equals(updateSnapshotComponents);
-        includeOnlyDeployVersions = !Boolean.FALSE.equals(includeOnlyDeployVersions);
-        deployOnlyChanged = Boolean.TRUE.equals(deployOnlyChanged);
-        deployDescription = Text.trimToNull(deployDescription);
-        requestProperties = Text.trimToNull(requestProperties);
+        siteName = trimToNull(siteName);
+        deployProcess = trimToNull(deployProcess);
+        skipWait = isTrue(skipWait);
+        deployWithSnapshot = isNotFalse(deployWithSnapshot);
+        updateSnapshotComponents = isTrue(updateSnapshotComponents);
+        includeOnlyDeployVersions = isNotFalse(includeOnlyDeployVersions);
+        deployOnlyChanged = isTrue(deployOnlyChanged);
+        deployDescription = trimToNull(deployDescription);
+        requestProperties = trimToNull(requestProperties);
     }
 
     public void writeTo(ConfigTree config, List<UrbanCodeApplicationSettings> applications) {

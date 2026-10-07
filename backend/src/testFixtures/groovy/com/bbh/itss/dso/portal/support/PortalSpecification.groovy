@@ -11,7 +11,11 @@ import spock.lang.Specification
 
 import java.util.concurrent.atomic.AtomicInteger
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = [
+import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
+import static java.lang.System.nanoTime
+import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT
+
+@SpringBootTest(webEnvironment = RANDOM_PORT, properties = [
         'spring.datasource.url=jdbc:h2:mem:dso-portal;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000',
         'dso.demo-data=false',
         'dso.influx.token=test-token',
@@ -42,7 +46,7 @@ abstract class PortalSpecification extends Specification {
     }
 
     static String uniqueCode(String prefix = 'REG') {
-        "${prefix}${SEQUENCE.incrementAndGet()}${System.nanoTime() % 100_000}"
+        "${prefix}${SEQUENCE.incrementAndGet()}${nanoTime() % 100_000}"
     }
 
     Map createProduct(Map product) {
@@ -51,13 +55,13 @@ abstract class PortalSpecification extends Specification {
         response.json as Map
     }
 
-    Map createPipeline(long serviceId, Map pipeline = ApiJson.pipeline()) {
+    Map createPipeline(long serviceId, Map pipeline = pipeline()) {
         def response = api.post("/api/services/$serviceId/pipelines", pipeline)
         assert response.status == 201: response
         response.json as Map
     }
 
-    Map pipelineFor(long serviceId, Map settings = ApiJson.pipeline()) {
+    Map pipelineFor(long serviceId, Map settings = pipeline()) {
         Map started = pipelineOfService(serviceId, (settings.type ?: 'FULL') as String)
         if (!started) {
             return createPipeline(serviceId, settings)

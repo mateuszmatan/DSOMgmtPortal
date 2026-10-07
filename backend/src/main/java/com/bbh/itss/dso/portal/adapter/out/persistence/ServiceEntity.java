@@ -12,18 +12,14 @@ import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings;
 import com.bbh.itss.dso.portal.domain.catalog.TestJobType;
 import com.bbh.itss.dso.portal.domain.catalog.TestStage;
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings;
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -33,6 +29,8 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.EmbeddedColumnNaming;
 
 import java.util.ArrayList;
@@ -41,19 +39,31 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static jakarta.persistence.CascadeType.ALL;
+import static jakarta.persistence.EnumType.STRING;
+import static jakarta.persistence.FetchType.LAZY;
+import static jakarta.persistence.GenerationType.IDENTITY;
+import static lombok.AccessLevel.PACKAGE;
+import static lombok.AccessLevel.PROTECTED;
+
 @Entity
 @Table(name = "DSO_SERVICE")
+@NoArgsConstructor(access = PROTECTED)
 public class ServiceEntity extends AuditedEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = IDENTITY)
+    @Getter(PACKAGE)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = LAZY, optional = false)
     @JoinColumn(name = "PRODUCT_ID")
+    @Getter(PACKAGE)
     private ProductEntity product;
 
+    @Getter(PACKAGE)
     private String name;
+
     private String description;
     private int displayOrder;
     private SettingsEmbeddable settings;
@@ -63,7 +73,7 @@ public class ServiceEntity extends AuditedEntity {
     @OrderColumn(name = "POSITION")
     private List<TestJobEmbeddable> testJobs = new ArrayList<>();
 
-    @OneToMany(mappedBy = "service", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "service", cascade = ALL, orphanRemoval = true)
     @OrderBy("position ASC")
     private List<UrbanCodeApplicationEntity> urbanCodeApplications = new ArrayList<>();
 
@@ -74,33 +84,18 @@ public class ServiceEntity extends AuditedEntity {
 
     @ElementCollection
     @CollectionTable(name = "DSO_SERVICE_SSH_TARGET", joinColumns = @JoinColumn(name = "SERVICE_ID"))
-    @MapKeyEnumerated(EnumType.STRING)
+    @MapKeyEnumerated(STRING)
     @MapKeyColumn(name = "REGION")
     private Map<Region, SshTargetEmbeddable> sshTargets = new HashMap<>();
 
     @ElementCollection
     @CollectionTable(name = "DSO_SERVICE_OPENSHIFT_TARGET", joinColumns = @JoinColumn(name = "SERVICE_ID"))
-    @MapKeyEnumerated(EnumType.STRING)
+    @MapKeyEnumerated(STRING)
     @MapKeyColumn(name = "REGION")
     private Map<Region, OpenShiftTargetEmbeddable> openShiftTargets = new HashMap<>();
 
-    protected ServiceEntity() {
-    }
-
     ServiceEntity(ProductEntity product) {
         this.product = product;
-    }
-
-    Long getId() {
-        return id;
-    }
-
-    ProductEntity product() {
-        return product;
-    }
-
-    String name() {
-        return name;
     }
 
     List<UrbanCodeApplicationSettings> urbanCodeApplications() {
@@ -174,7 +169,7 @@ public class ServiceEntity extends AuditedEntity {
 
     @Embeddable
     public record BuildSettingsEmbeddable(
-            @Enumerated(EnumType.STRING) @Column(name = "BUILD_TOOL") BuildTool tool,
+            @Enumerated(STRING) @Column(name = "BUILD_TOOL") BuildTool tool,
             String sourceDir, String javaPath,
             @Column(name = "BUILD_TOOL_AUTO_SETUP") Boolean autoSetup,
             String buildPath,
@@ -200,9 +195,9 @@ public class ServiceEntity extends AuditedEntity {
 
     @Embeddable
     public record TestJobEmbeddable(
-            @Enumerated(EnumType.STRING) TestStage stage,
+            @Enumerated(STRING) TestStage stage,
             String name,
-            @Enumerated(EnumType.STRING) @Column(name = "JOB_TYPE") TestJobType type,
+            @Enumerated(STRING) @Column(name = "JOB_TYPE") TestJobType type,
             String job, Integer timeoutMinutes, String parameters, String remoteJenkins, String remoteJenkinsUrl,
             String credentialsId, Integer pollIntervalSec, String tokenCredentialsId, Boolean abortTriggeredJob,
             Boolean overrideTrustAllCertificates, Boolean preventRemoteBuildQueue, Boolean trustAllCertificates,
@@ -211,7 +206,7 @@ public class ServiceEntity extends AuditedEntity {
 
     @Embeddable
     public record DeploymentSettingsEmbeddable(
-            @Enumerated(EnumType.STRING) @Column(name = "DEPLOY_TARGET") DeployTarget target,
+            @Enumerated(STRING) @Column(name = "DEPLOY_TARGET") DeployTarget target,
             String appName, String artifactName, String baseArtifactName) {
     }
 
@@ -295,8 +290,8 @@ public class ServiceEntity extends AuditedEntity {
     public record ScmSettingsEmbeddable(
             String repositoryUrl,
             @Column(name = "BITBUCKET_CREDENTIALS_ID") String credentialsId,
-            @Enumerated(EnumType.STRING) @Column(name = "BITBUCKET_AUTH_TYPE") BitbucketAuthType authType,
-            @Enumerated(EnumType.STRING) @Column(name = "BITBUCKET_TYPE") BitbucketType type,
+            @Enumerated(STRING) @Column(name = "BITBUCKET_AUTH_TYPE") BitbucketAuthType authType,
+            @Enumerated(STRING) @Column(name = "BITBUCKET_TYPE") BitbucketType type,
             @Column(name = "BITBUCKET_TARGET_BRANCH") String targetBranch,
             @Column(name = "BITBUCKET_CLONE_URL") String cloneUrl,
             @Convert(converter = DelimitedListConverter.Commas.class)
@@ -334,7 +329,7 @@ public class ServiceEntity extends AuditedEntity {
     }
 
     @Embeddable
-    public record FlutterSettingsEmbeddable(@Enumerated(EnumType.STRING) FlutterPlatform platform,
+    public record FlutterSettingsEmbeddable(@Enumerated(STRING) FlutterPlatform platform,
             List<String> modules, List<String> testModules, List<String> testSubmodules, List<String> testSubplugins,
             @Column(name = "SIGNING_CREDENTIALS_ID") String signingPasswordCredentialsId,
             String prodLicenseCredentialsId, String testLicenseCredentialsId, String deliveryGroup,

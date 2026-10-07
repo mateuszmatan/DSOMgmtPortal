@@ -3,8 +3,6 @@ package com.bbh.itss.dso.portal.gui.regression
 import com.bbh.itss.dso.portal.gui.support.GuiSpecification
 import com.microsoft.playwright.Locator
 
-import java.util.regex.Pattern
-
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 
 class AdminTabsSpec extends GuiSpecification {
@@ -43,7 +41,7 @@ class AdminTabsSpec extends GuiSpecification {
         then:
         isOpen('Departments')
         assertThat(page.locator('tr.mat-mdc-row td.name').first()).hasText('AI Lab')
-        assertThat(page).hasTitle(Pattern.compile('^Departments · DevSecOps Admin'))
+        assertThat(page).hasTitle(~'^Departments · DevSecOps Admin')
 
         when:
         tab('Library defaults').click()
@@ -52,7 +50,7 @@ class AdminTabsSpec extends GuiSpecification {
         then:
         isOpen('Library defaults')
         assertThat(field('Jenkins URL')).hasValue('https://jenkins.bbh.com')
-        assertThat(page).hasTitle(Pattern.compile('^Library defaults · DevSecOps Admin'))
+        assertThat(page).hasTitle(~'^Library defaults · DevSecOps Admin')
 
         when:
         tab('Products').click()

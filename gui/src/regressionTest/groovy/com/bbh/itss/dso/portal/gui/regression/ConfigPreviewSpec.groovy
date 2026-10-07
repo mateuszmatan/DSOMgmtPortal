@@ -1,18 +1,17 @@
 package com.bbh.itss.dso.portal.gui.regression
 
-import com.bbh.itss.dso.portal.gui.support.StubApi
-import com.bbh.itss.dso.portal.gui.support.StubResponse
-
-import java.nio.file.Files
-
+import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
+import static com.bbh.itss.dso.portal.gui.support.StubApi.fixtureText
+import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
+import static java.nio.file.Files.readString
 
 class ConfigPreviewSpec extends ProductPageSpecification {
 
     def "a pipeline's config.yaml is shown as the library receives it, and can be downloaded and copied"() {
         given:
         recordClipboard()
-        def yaml = StubApi.fixtureText('pipeline-1-config.yaml')
+        def yaml = fixtureText('pipeline-1-config.yaml')
         open('/admin/products/1')
 
         when:
@@ -29,7 +28,7 @@ class ConfigPreviewSpec extends ProductPageSpecification {
 
         then:
         download.suggestedFilename() == 'certscanner-gui-full.yaml'
-        Files.readString(download.path()) == yaml
+        readString(download.path()) == yaml
 
         when:
         dialogButton('Copy').click()
@@ -48,7 +47,7 @@ class ConfigPreviewSpec extends ProductPageSpecification {
 
     def "the product's config.yaml holds every service of the product"() {
         given:
-        def yaml = StubApi.fixtureText('product-1-config.yaml')
+        def yaml = fixtureText('product-1-config.yaml')
         open('/admin/products/1')
 
         when:
@@ -68,7 +67,7 @@ class ConfigPreviewSpec extends ProductPageSpecification {
 
     def "the Jenkinsfile of a pipeline loads the shared library of the global settings with the pipeline's key"() {
         given:
-        def settings = StubApi.fixture('settings.json') as Map
+        def settings = fixture('settings.json') as Map
         settings.platform.jenkinsLibrary = 'BbhDevSecOps@2.4'
         api.respond('GET', '/api/settings', settings)
         open('/admin/products/1')
@@ -85,7 +84,7 @@ class ConfigPreviewSpec extends ProductPageSpecification {
 
     def "a failed #what preview shows the problem detail the API sends"() {
         given:
-        api.respond('GET', path, StubResponse.problem(status, title, detail))
+        api.respond('GET', path, problem(status, title, detail))
         open('/admin/products/1')
 
         when:

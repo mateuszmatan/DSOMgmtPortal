@@ -2,11 +2,17 @@ package com.bbh.itss.dso.portal.adapter.out.influx
 
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.adapter.out.influx.Flux.duration
+import static com.bbh.itss.dso.portal.adapter.out.influx.Flux.positive
+import static com.bbh.itss.dso.portal.adapter.out.influx.Flux.string
+import static com.bbh.itss.dso.portal.adapter.out.influx.Flux.strings
+import static java.lang.Integer.MIN_VALUE
+
 class FluxSpec extends Specification {
 
     def "the value #value is the Flux string #literal"() {
         expect:
-        Flux.string(value) == literal
+        string(value) == literal
 
         where:
         value         || literal
@@ -19,7 +25,7 @@ class FluxSpec extends Specification {
 
     def "a missing value is no Flux string"() {
         when:
-        Flux.string(null)
+        string(null)
 
         then:
         def e = thrown(IllegalArgumentException)
@@ -28,13 +34,13 @@ class FluxSpec extends Specification {
 
     def "a set of values lists each value once"() {
         expect:
-        Flux.strings(['CERT-gui', 'CERT-"api"', 'CERT-gui']) == '"CERT-gui", "CERT-\\"api\\""'
-        Flux.strings([]) == ''
+        strings(['CERT-gui', 'CERT-"api"', 'CERT-gui']) == '"CERT-gui", "CERT-\\"api\\""'
+        strings([]) == ''
     }
 
     def "#value is a Flux duration"() {
         expect:
-        Flux.duration(value) == value
+        duration(value) == value
 
         where:
         value << ['365d', '1h30m', '90d', '2w', '1mo', '1y', '500ms', '10us', '10µs', '5ns', '30s', '1d12h']
@@ -42,7 +48,7 @@ class FluxSpec extends Specification {
 
     def "#value is not a Flux duration"() {
         when:
-        Flux.duration(value)
+        duration(value)
 
         then:
         def e = thrown(IllegalArgumentException)
@@ -54,7 +60,7 @@ class FluxSpec extends Specification {
 
     def "#value is a positive number"() {
         expect:
-        Flux.positive(value) == value
+        positive(value) == value
 
         where:
         value << [1, 30, 730]
@@ -62,13 +68,13 @@ class FluxSpec extends Specification {
 
     def "#value is not a positive number"() {
         when:
-        Flux.positive(value)
+        positive(value)
 
         then:
         def e = thrown(IllegalArgumentException)
         e.message == "$value is not a positive number"
 
         where:
-        value << [0, -1, Integer.MIN_VALUE]
+        value << [0, -1, MIN_VALUE]
     }
 }

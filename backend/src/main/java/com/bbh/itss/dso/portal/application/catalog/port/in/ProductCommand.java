@@ -7,10 +7,12 @@ import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 
 import java.util.List;
 
+import static org.apache.commons.collections4.ListUtils.emptyIfNull;
+
 public record ProductCommand(Long version, ProductDetails details, AppScanAccount appScan, List<ServiceDraft> services,
                              PipelineType pipelineType) {
 
     public ProductCommand {
-        services = services == null ? List.of() : List.copyOf(services);
+        services = List.copyOf(emptyIfNull(services));
     }
 }

@@ -1,18 +1,21 @@
 package com.bbh.itss.dso.portal.adapter.out.influx;
 
+import lombok.NoArgsConstructor;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-final class FluxCsv {
+import static lombok.AccessLevel.PRIVATE;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
-    private FluxCsv() {
-    }
+@NoArgsConstructor(access = PRIVATE)
+final class FluxCsv {
 
     static List<Map<String, String>> parse(String csv) {
         List<Map<String, String>> rows = new ArrayList<>();
-        if (csv == null || csv.isBlank()) {
+        if (isBlank(csv)) {
             return rows;
         }
         List<String> header = null;

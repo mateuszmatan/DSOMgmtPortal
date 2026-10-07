@@ -1,15 +1,16 @@
 package com.bbh.itss.dso.portal.domain.evidence;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
+
+import static java.util.Collections.unmodifiableMap;
+import static java.util.Objects.requireNonNull;
 
 public record EvidencePoint(String measurement, Map<String, String> values) {
 
     public EvidencePoint {
-        Objects.requireNonNull(measurement, "a point belongs to a measurement");
-        values = Collections.unmodifiableMap(new HashMap<>(values));
+        requireNonNull(measurement, "a point belongs to a measurement");
+        values = unmodifiableMap(new HashMap<>(values));
     }
 
     public String value(String name) {

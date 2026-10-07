@@ -6,6 +6,7 @@ import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns;
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsRow;
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -15,14 +16,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.bbh.itss.dso.portal.adapter.out.influx.Flux.positive;
+import static com.bbh.itss.dso.portal.adapter.out.influx.Flux.string;
+import static com.bbh.itss.dso.portal.adapter.out.influx.Flux.strings;
+import static com.bbh.itss.dso.portal.domain.monitoring.MetricsRow.doraPoint;
+import static com.bbh.itss.dso.portal.domain.monitoring.MetricsRow.tag;
+
 @Component
+@RequiredArgsConstructor
 class InfluxPipelineRunsAdapter implements PipelineRunsPort {
 
     private final InfluxQueryClient influx;
-
-    InfluxPipelineRunsAdapter(InfluxQueryClient influx) {
-        this.influx = influx;
-    }
 
     @Override
     public boolean configured() {
@@ -69,9 +73,9 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort {
                 %s  |> sort(columns: ["_time"])
                   |> last(column: "_time")
                 """.formatted(influx.bucket(), influx.lastRunLookback(),
-                Flux.strings(tags.stream().map(MetricsTag::project).toList()), grouping);
+                strings(tags.stream().map(MetricsTag::project).toList()), grouping);
         for (Map<String, String> row : influx.query(flux)) {
-            MetricsTag tag = MetricsRow.tag(row);
+            MetricsTag tag = tag(row);
             if (tags.contains(tag)) {
                 runs.computeIfAbsent(tag, ignored -> new ArrayList<>()).add(MetricsRow.run(row));
             }
@@ -82,7 +86,7 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort {
     public List<PipelineRun> recentRuns(MetricsTag tag, String job, int days, int limit) {
         String byJob = job == null ? "" : """
                   |> filter(fn: (r) => exists r.job and (r.job == %s or strings.hasPrefix(v: r.job, prefix: %s)))
-                """.formatted(Flux.string(job), Flux.string(job + "/"));
+                """.formatted(string(job), string(job + "/"));
         String flux = """
                 %sfrom(bucket: %s)
                   |> range(start: -%dd)
@@ -92,8 +96,8 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort {
                 %s  |> group()
                   |> sort(columns: ["_time"], desc: true)
                   |> limit(n: %d)
-                """.formatted(job == null ? "" : "import \"strings\"\n\n", influx.bucket(), Flux.positive(days),
-                Flux.string(tag.project()), Flux.string(tag.env()), byJob, Flux.positive(limit));
+                """.formatted(job == null ? "" : "import \"strings\"\n\n", influx.bucket(), positive(days),
+                string(tag.project()), string(tag.env()), byJob, positive(limit));
         return influx.read(() -> influx.query(flux).stream().map(MetricsRow::run).toList());
     }
 
@@ -113,13 +117,13 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort {
                   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
                   |> group()
                   |> sort(columns: ["_time"])
-                """.formatted(influx.bucket(), Flux.positive(days),
-                Flux.strings(tags.stream().map(MetricsTag::project).toList()));
+                """.formatted(influx.bucket(), positive(days),
+                strings(tags.stream().map(MetricsTag::project).toList()));
         return influx.read(() -> {
             Map<MetricsTag, List<DoraPoint>> points = new HashMap<>();
             for (Map<String, String> row : influx.query(flux)) {
-                MetricsTag tag = MetricsRow.tag(row);
-                DoraPoint point = MetricsRow.doraPoint(row);
+                MetricsTag tag = tag(row);
+                DoraPoint point = doraPoint(row);
                 if (point != null && tags.contains(tag)) {
                     points.computeIfAbsent(tag, ignored -> new ArrayList<>()).add(point);
                 }
