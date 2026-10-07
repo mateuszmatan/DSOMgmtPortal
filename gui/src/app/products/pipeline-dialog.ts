@@ -116,7 +116,7 @@ export class PipelineDialog {
           'Jenkins job',
           '',
           'DevSecOps/CERT/backend-api-full',
-          'The job the pipeline runs in: its path, linked under the Jenkins URL of the global settings, or its full URL',
+          'The job the pipeline runs in: its path, linked under the Jenkins URL of the library defaults, or its full URL',
         ),
         error: 'A job path such as DevSecOps/CERT/backend-api-full, or an http or https URL',
       },

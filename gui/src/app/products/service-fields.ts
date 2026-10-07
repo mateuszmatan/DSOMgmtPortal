@@ -563,7 +563,7 @@ export class ServiceFields {
   }
 
   protected inheritedGoldenFix(): string {
-    const intro = 'The service follows the GoldenFix defaults of the DevSecOps Global Settings';
+    const intro = 'The service follows the GoldenFix defaults of the DSOEnhanced library';
     const g = this.defaults()?.goldenFix;
     if (!g) {
       return `${intro}.`;

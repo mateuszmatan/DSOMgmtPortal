@@ -233,7 +233,7 @@
             [formControl]="f.controls.goldenFix.controls.inherit"
             aria-label="GoldenFix policy"
           >
-            <mat-button-toggle [value]="true">Inherit the global settings</mat-button-toggle>
+            <mat-button-toggle [value]="true">Inherit the library defaults</mat-button-toggle>
             <mat-button-toggle [value]="false">Override for this service</mat-button-toggle>
           </mat-button-toggle-group>
           @if (f.controls.goldenFix.controls.inherit.value) {
