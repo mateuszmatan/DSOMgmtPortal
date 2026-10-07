@@ -6,11 +6,21 @@ export interface PortalSection {
   exact?: boolean;
 }
 
-export const PRODUCTS: PortalSection = {
-  path: '/products',
-  label: 'Product Management',
-  heading: 'DevSecOps Product Management',
-  description: 'Products, services, pipelines and keys',
+export interface PortalTab {
+  path: string;
+  label: string;
+}
+
+export interface AdminArea {
+  section: PortalSection;
+  tabs: readonly PortalTab[];
+}
+
+export const SELF_SERVICE: PortalSection = {
+  path: '/self-service',
+  label: 'Self-service',
+  heading: 'DevSecOps Self-service',
+  description: 'Set up or change the DevSecOps pipelines of your product, step by step',
 };
 
 export const MONITORING: PortalSection = {
@@ -27,14 +37,23 @@ export const EVIDENCE: PortalSection = {
   description: 'Builds, tests and scans for ServiceNow changes',
 };
 
-export const SETTINGS: PortalSection = {
-  path: '/settings',
-  label: 'Global Settings',
-  heading: 'DevSecOps Global Settings',
-  description: 'Tools, policy and defaults of every pipeline',
+export const ADMIN: PortalSection = {
+  path: '/admin',
+  label: 'Admin',
+  heading: 'DevSecOps Admin',
+  description: 'Departments, products, services and the DSOEnhanced library defaults',
 };
 
-export const SECTIONS: readonly PortalSection[] = [PRODUCTS, MONITORING, EVIDENCE, SETTINGS];
+export const SECTIONS: readonly PortalSection[] = [SELF_SERVICE, MONITORING, EVIDENCE, ADMIN];
+
+export const ADMIN_DEPARTMENTS: PortalTab = { path: '/admin/departments', label: 'Departments' };
+export const ADMIN_PRODUCTS: PortalTab = { path: '/admin/products', label: 'Products' };
+export const ADMIN_SETTINGS: PortalTab = { path: '/admin/settings', label: 'Library defaults' };
+
+export const DEVSECOPS_ADMIN: AdminArea = {
+  section: ADMIN,
+  tabs: [ADMIN_DEPARTMENTS, ADMIN_PRODUCTS, ADMIN_SETTINGS],
+};
 
 export const BEADLE: PortalSection = {
   path: '/beadle',
@@ -44,18 +63,29 @@ export const BEADLE: PortalSection = {
   exact: true,
 };
 
-export const ONBOARDING: PortalSection = {
-  path: '/beadle/onboarding',
-  label: 'Product Onboarding',
-  heading: 'Product Onboarding',
-  description: 'Set up DevSecOps for your product, step by step',
-};
-
 export const CHANGES: PortalSection = {
   path: '/beadle/changes',
   label: 'Production Change',
   heading: 'Production Change',
   description: 'Raise a ServiceNow change with its change tasks, written from Jira',
+};
+
+export const BEADLE_ADMIN: PortalSection = {
+  path: '/beadle/admin',
+  label: 'Admin',
+  heading: 'Beadle Admin',
+  description: 'Departments, products, services and the defaults of their ServiceNow changes',
+};
+
+export const BEADLE_DEPARTMENTS: PortalTab = {
+  path: '/beadle/admin/departments',
+  label: 'Departments',
+};
+export const BEADLE_PRODUCTS: PortalTab = { path: '/beadle/admin/products', label: 'Products' };
+
+export const BEADLE_ADMINISTRATION: AdminArea = {
+  section: BEADLE_ADMIN,
+  tabs: [BEADLE_DEPARTMENTS, BEADLE_PRODUCTS],
 };
 
 export interface PortalMenu {
@@ -64,6 +94,14 @@ export interface PortalMenu {
 }
 
 export const MENUS: readonly PortalMenu[] = [
-  { label: 'Beadle', sections: [BEADLE, ONBOARDING, CHANGES] },
+  { label: 'Beadle', sections: [BEADLE, CHANGES, BEADLE_ADMIN] },
   { label: 'DevSecOps Management', sections: SECTIONS },
 ];
+
+export function adminProduct(id: number | string, ...rest: string[]): (string | number)[] {
+  return [ADMIN_PRODUCTS.path, id, ...rest];
+}
+
+export function beadleProduct(id: number | string): (string | number)[] {
+  return [BEADLE_PRODUCTS.path, id];
+}

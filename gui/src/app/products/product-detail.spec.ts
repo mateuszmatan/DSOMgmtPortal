@@ -80,7 +80,7 @@ describe('ProductDetail', () => {
     expect(page().querySelector('h1')?.textContent).toBe('CertScanner');
     expect(
       [...page().querySelectorAll('.breadcrumb > :not(.sep)')].map((part) => part.textContent),
-    ).toEqual(['DevSecOps Product Management', 'Corporate Technology', 'CertScanner']);
+    ).toEqual(['DevSecOps Admin', 'Products', 'Corporate Technology', 'CertScanner']);
     expect(page().querySelector('.meta div')?.textContent).toBe('DepartmentCorporate Technology');
     expect([...page().querySelectorAll('.stat')].map((stat) => stat.textContent?.trim())).toEqual([
       '1Services',
@@ -167,7 +167,7 @@ describe('ProductDetail', () => {
 
     expect(page().querySelector('.banner')?.textContent).toBe('Product 1 does not exist');
     expect(
-      page().querySelector<HTMLAnchorElement>('a[href="/products"].mat-mdc-button-base'),
+      page().querySelector<HTMLAnchorElement>('a[href="/admin/products"].mat-mdc-button-base'),
     ).not.toBeNull();
     expect(page().querySelector('.breadcrumb')?.textContent).toContain('Product');
     expect(page().querySelector('h1')).toBeNull();
@@ -429,7 +429,7 @@ describe('ProductDetail', () => {
       expect(opened().data['title']).toBe('Delete CertScanner?');
       http.expectOne({ method: 'DELETE', url: '/api/products/1' }).flush(null);
       await fixture.whenStable();
-      expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(['/products']);
+      expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(['/admin/products']);
 
       await menu('Delete pipeline');
       http

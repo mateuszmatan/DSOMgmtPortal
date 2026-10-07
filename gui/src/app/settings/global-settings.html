@@ -1,25 +1,20 @@
-<div class="page settings">
-  <header class="page-header">
-    <div>
-      <h1>{{ page.heading }}</h1>
-      <p class="page-description">{{ page.description }}</p>
-      <p class="meta">
-        A service can replace only the deployment, service and GoldenFix defaults.
-        @if (settings(); as s) {
-          Version {{ s.version }} · saved {{ s.updatedAt | relative }}
-        }
-      </p>
-    </div>
-    <div class="actions">
-      <button
-        mat-stroked-button
-        type="button"
-        (click)="showConfig()"
-        [disabled]="!settings() || loadingConfig()"
-      >
-        Generated configuration
-      </button>
-    </div>
+<div class="settings">
+  <header class="tab-header">
+    <p class="meta">
+      The tools, policy and defaults the DSOEnhanced library applies to every pipeline. A service
+      can replace only the deployment, service and GoldenFix defaults.
+      @if (settings(); as s) {
+        Version {{ s.version }} · saved {{ s.updatedAt | relative }}
+      }
+    </p>
+    <button
+      mat-stroked-button
+      type="button"
+      (click)="showConfig()"
+      [disabled]="!settings() || loadingConfig()"
+    >
+      Generated configuration
+    </button>
   </header>
 
   @if (loading()) {

@@ -18,7 +18,8 @@ class SinglePageAppControllerSpec extends Specification {
         response.forwardedUrl == '/index.html'
 
         where:
-        path << ['/products', '/products/new', '/products/12/edit', '/monitoring', '/monitoring/pipelines/7', '/beadle']
+        path << ['/self-service', '/admin', '/admin/products/new', '/admin/products/12/edit', '/admin/settings',
+                 '/monitoring', '/monitoring/pipelines/7', '/beadle', '/beadle/admin/products/3']
     }
 
     def "other paths are left to the API and the static resources"() {
@@ -26,6 +27,6 @@ class SinglePageAppControllerSpec extends Specification {
         mvc.perform(get(path)).andReturn().response.status == 404
 
         where:
-        path << ['/api/unknown', '/favicon.ico']
+        path << ['/api/unknown', '/favicon.ico', '/products', '/settings']
     }
 }

@@ -305,7 +305,7 @@ export class ProductDetail {
       .subscribe({
         next: () => {
           this.notifier.success(`${product.name} deleted`);
-          this.router.navigate(['/products']);
+          this.router.navigate(['/admin/products']);
         },
         error: (error) => this.notifier.error(error),
       });

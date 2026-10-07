@@ -1,6 +1,6 @@
 import { pipeline, product, service, servicePipelines } from '../testing/fixtures';
 import {
-  OnboardingService,
+  WizardService,
   fromService,
   jobName,
   preparation,
@@ -8,11 +8,11 @@ import {
   productRequest,
   serviceRequest,
   servicesToStart,
-} from './onboarding-model';
+} from './self-service-model';
 
 const APP_ID = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31';
 
-function added(overrides: Partial<OnboardingService> = {}): OnboardingService {
+function added(overrides: Partial<WizardService> = {}): WizardService {
   return {
     id: null,
     name: 'gateway',
@@ -25,7 +25,7 @@ function added(overrides: Partial<OnboardingService> = {}): OnboardingService {
   };
 }
 
-describe('onboarding model', () => {
+describe('self-service model', () => {
   it('asks only what the chosen pipeline needs', () => {
     expect(preparation('SAST')).toHaveLength(3);
     expect(preparation('FULL')).toContain(

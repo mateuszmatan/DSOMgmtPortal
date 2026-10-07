@@ -1,6 +1,8 @@
 <div class="page">
   <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a routerLink="/products">DevSecOps Product Management</a>
+    <a routerLink="/admin">DevSecOps Admin</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <a routerLink="/admin/products">Products</a>
     <span class="sep" aria-hidden="true">/</span>
     @if (departmentName(); as department) {
       <span>{{ department }}</span>
@@ -15,7 +17,7 @@
 
   @if (product.error(); as error) {
     <div class="banner">{{ errorMessage(error) }}</div>
-    <a mat-stroked-button routerLink="/products">Back to products</a>
+    <a mat-stroked-button routerLink="/admin/products">Back to products</a>
   } @else if (product.hasValue()) {
     @let p = product.value();
     <header class="page-header">
@@ -60,9 +62,11 @@
       </div>
       <div class="actions">
         <a mat-stroked-button [routerLink]="['/monitoring/products', p.id]">Monitoring</a>
-        <a mat-stroked-button [routerLink]="['/products', p.id, 'change']">ServiceNow change</a>
+        <a mat-stroked-button [routerLink]="['/beadle/admin/products', p.id]"
+          >ServiceNow defaults</a
+        >
         <button mat-stroked-button (click)="showProductConfig(p)">config.yaml</button>
-        <a mat-flat-button [routerLink]="['/products', p.id, 'edit']">Edit product</a>
+        <a mat-flat-button [routerLink]="['/admin/products', p.id, 'edit']">Edit product</a>
         <button mat-button class="danger" (click)="deleteProduct(p)">Delete</button>
       </div>
     </header>
@@ -94,7 +98,7 @@
         <div class="card empty-state">
           <h3>No services yet</h3>
           <p>Define the services of the product to give them DevSecOps pipelines.</p>
-          <a mat-flat-button [routerLink]="['/products', p.id, 'edit']">Add services</a>
+          <a mat-flat-button [routerLink]="['/admin/products', p.id, 'edit']">Add services</a>
         </div>
       }
       @for (service of services.value(); track service.serviceId) {

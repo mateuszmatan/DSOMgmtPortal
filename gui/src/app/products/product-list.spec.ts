@@ -1,14 +1,10 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { Router, provideRouter } from '@angular/router';
-import { of } from 'rxjs';
 import { Department, ProductSummary } from '../core/models';
-import { ConfirmDialog } from '../shared/confirm-dialog';
-import { buttonOf, text } from '../testing/dom';
+import { text } from '../testing/dom';
 import { department, productSummary } from '../testing/fixtures';
-import { DepartmentDialog } from './department-dialog';
 import { ProductList } from './product-list';
 
 describe('ProductList', () => {
@@ -40,9 +36,6 @@ describe('ProductList', () => {
   const cards = () => [...page().querySelectorAll<HTMLElement>('section.department')];
   const card = (name: string) =>
     cards().find((section) => text(section.querySelector('h2')) === name)!;
-  const snack = () =>
-    [...document.querySelectorAll('mat-snack-bar-container')].map((bar) => text(bar)).join(' ');
-
   async function load(
     products: ProductSummary[] = [summary],
     departments: Department[] = [department(), fundServices],
@@ -52,16 +45,6 @@ describe('ProductList', () => {
     http.expectOne('/api/departments').flush(departments);
     await fixture.whenStable();
   }
-
-  const dialogClosing = (...results: unknown[]) => {
-    const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
-    results.forEach((result) =>
-      open.mockReturnValueOnce({
-        afterClosed: () => of(result),
-      } as unknown as MatDialogRef<unknown>),
-    );
-    return open;
-  };
 
   it('lists the products of every department with the tally of its pipelines', async () => {
     await load();
@@ -89,41 +72,14 @@ describe('ProductList', () => {
     expect(page().querySelector('.hint')).toBeNull();
   });
 
-  it('charts the active and invalidated pipelines of each department until a search starts', async () => {
-    await load();
-    const chart = () => page().querySelector('section.chart');
-
-    expect(
-      [...chart()!.querySelectorAll('.track')].map((track) => track.getAttribute('aria-label')),
-    ).toEqual(['Corporate Technology: 2 active, 1 invalidated', 'Fund Services: none']);
-    expect([...chart()!.querySelectorAll('.note')].map((note) => text(note))).toEqual([
-      '3 pipelines · 1 product',
-      '0 pipelines · 0 products',
-    ]);
-
-    const input = page().querySelector<HTMLInputElement>('input[aria-label="Search products"]')!;
-    input.value = 'cert';
-    input.dispatchEvent(new Event('input'));
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    fixture.detectChanges();
-    http.expectOne('/api/products?search=cert').flush([summary]);
-    await fixture.whenStable();
-
-    expect(chart()).toBeNull();
-  });
-
-  it('adds a product to a department and deletes only a department without products', async () => {
+  it('adds a product to a department from its card', async () => {
     await load();
     const addProduct = card('Fund Services').querySelector<HTMLAnchorElement>('a')!;
 
     expect(text(addProduct)).toBe('Add product');
-    expect(addProduct.getAttribute('href')).toBe('/products/new?department=5');
-    expect(buttonOf(card('Corporate Technology'), 'Delete').disabled).toBe(true);
-    expect(card('Corporate Technology').querySelector('.delete')?.getAttribute('title')).toBe(
-      'Corporate Technology still has 1 product. Move them to another department first.',
-    );
-    expect(buttonOf(card('Fund Services'), 'Delete').disabled).toBe(false);
-    expect(card('Fund Services').querySelector('.delete')?.hasAttribute('title')).toBe(false);
+    expect(addProduct.getAttribute('href')).toBe('/admin/products/new?department=5');
+    expect(page().querySelector('section.chart')).toBeNull();
+    expect(page().querySelector('h1')).toBeNull();
   });
 
   it('gathers the products without a department in a last card summed from their rows', async () => {
@@ -148,7 +104,6 @@ describe('ProductList', () => {
     expect(text(unassigned.querySelector('.hint'))).toBe(
       'Edit these products to choose their department.',
     );
-    expect(unassigned.querySelector('.department-actions')).toBeNull();
     expect(unassigned.querySelectorAll('tr.mat-mdc-row').length).toBe(2);
     expect(text(page().querySelector('.count'))).toBe(
       '1 product in 2 departments · 2 not in a department',
@@ -180,7 +135,9 @@ describe('ProductList', () => {
     await load([]);
 
     expect(text(page().querySelector('.empty-state h3'))).toBe('No products yet');
-    expect(page().querySelector('.empty-state a')?.getAttribute('href')).toBe('/products/new');
+    expect(page().querySelector('.empty-state a')?.getAttribute('href')).toBe(
+      '/admin/products/new',
+    );
     expect(cards().map((section) => text(section.querySelector('h2')))).toEqual([
       'Corporate Technology',
       'Fund Services',
@@ -254,64 +211,6 @@ describe('ProductList', () => {
     expect(rows[1].querySelector('.pipelines')?.textContent).toContain('3 active');
 
     rows[0].click();
-    expect(navigate).toHaveBeenCalledWith(['/products', 4]);
-  });
-
-  it('adds and renames a department and lists the departments again', async () => {
-    await load();
-    const added = department({ id: 6, name: 'Treasury', productCount: 0 });
-    const open = dialogClosing(added, { ...fundServices, name: 'Fund Administration' }, undefined);
-
-    buttonOf(page(), 'Add department').click();
-    fixture.detectChanges();
-    http.expectOne('/api/departments').flush([department(), fundServices, added]);
-    await fixture.whenStable();
-
-    expect(open.mock.calls[0][0]).toBe(DepartmentDialog);
-    expect(open.mock.calls[0][1]?.data).toBeNull();
-    expect(snack()).toContain('Treasury added');
-    expect(text(cards().at(-1)!.querySelector('h2'))).toBe('Treasury');
-
-    buttonOf(card('Fund Services'), 'Rename').click();
-    fixture.detectChanges();
-    http.expectOne('/api/departments').flush([department(), fundServices, added]);
-    await fixture.whenStable();
-
-    expect(open.mock.calls[1][1]?.data).toEqual(fundServices);
-    expect(snack()).toContain('Fund Services renamed to Fund Administration');
-
-    buttonOf(card('Fund Services'), 'Rename').click();
-    fixture.detectChanges();
-    http.expectNone('/api/departments');
-  });
-
-  it('deletes a department once confirmed and says why one could not be deleted', async () => {
-    await load();
-    const open = dialogClosing(true, false, true);
-
-    buttonOf(card('Fund Services'), 'Delete').click();
-    expect(open.mock.calls[0][0]).toBe(ConfirmDialog);
-    expect(open.mock.calls[0][1]?.data).toMatchObject({ title: 'Delete Fund Services?' });
-    http.expectOne({ method: 'DELETE', url: '/api/departments/5' }).flush(null);
-    fixture.detectChanges();
-    http.expectOne('/api/departments').flush([department()]);
-    await fixture.whenStable();
-
-    expect(snack()).toContain('Fund Services deleted');
-    expect(cards().length).toBe(1);
-
-    fixture.componentInstance['deleteDepartment'](department());
-    http.expectNone('/api/departments/3');
-
-    fixture.componentInstance['deleteDepartment'](department());
-    http
-      .expectOne({ method: 'DELETE', url: '/api/departments/3' })
-      .flush(
-        { detail: 'Corporate Technology still has 1 product(s).' },
-        { status: 409, statusText: 'Conflict' },
-      );
-    await fixture.whenStable();
-
-    expect(snack()).toContain('Corporate Technology still has 1 product(s).');
+    expect(navigate).toHaveBeenCalledWith(['/admin/products', 4]);
   });
 });

@@ -39,17 +39,17 @@ import { DepartmentsApi, PipelinesApi, ProductsApi, SettingsApi } from '../core/
 import { errorMessage, fieldProblems } from '../core/errors';
 import { Product } from '../core/models';
 import { Notifier } from '../core/notifier';
-import { ONBOARDING } from '../core/sections';
+import { SELF_SERVICE } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { byDepartment } from '../products/departments';
 import { jenkinsfile } from '../products/jenkinsfile';
 import { filled, max, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
-import { ChoiceTiles } from './choice-tiles';
+import { ChoiceTiles } from '../shared/choice-tiles';
 import {
   NewProduct,
-  OnboardingPipeline,
-  OnboardingService,
+  WizardPipeline,
+  WizardService,
   PIPELINES,
   PRODUCT_MODES,
   ProductMode,
@@ -65,8 +65,8 @@ import {
   problemText,
   productRequest,
   servicesToStart,
-} from './onboarding-model';
-import { OnboardingServiceDialog, ServiceDialogData } from './onboarding-service-dialog';
+} from './self-service-model';
+import { ServiceDialog, ServiceDialogData } from './service-dialog';
 
 interface Onboarded {
   product: Product;
@@ -76,7 +76,7 @@ interface Onboarded {
 const STEPS = ['Pipeline', 'Product', 'Services', 'Review', 'Next steps'];
 
 @Component({
-  selector: 'dso-onboarding',
+  selector: 'dso-self-service',
   imports: [
     ReactiveFormsModule,
     RouterLink,
@@ -90,17 +90,17 @@ const STEPS = ['Pipeline', 'Product', 'Services', 'Review', 'Next steps'];
     ChoiceTiles,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './onboarding.html',
-  styleUrl: './onboarding.scss',
+  templateUrl: './self-service.html',
+  styleUrl: '../shared/wizard.scss',
 })
-export class Onboarding implements HasUnsavedChanges {
+export class SelfService implements HasUnsavedChanges {
   private readonly productsApi = inject(ProductsApi);
   private readonly pipelinesApi = inject(PipelinesApi);
   private readonly dialog = inject(MatDialog);
   private readonly notifier = inject(Notifier);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly section = ONBOARDING;
+  protected readonly section = SELF_SERVICE;
   protected readonly steps = STEPS;
   protected readonly pipelines = PIPELINES;
   protected readonly modes = PRODUCT_MODES;
@@ -111,13 +111,13 @@ export class Onboarding implements HasUnsavedChanges {
   protected readonly step = signal(0);
   protected readonly checked = signal(false);
   protected readonly changed = signal(false);
-  protected readonly pipeline = signal<OnboardingPipeline | null>(null);
+  protected readonly pipeline = signal<WizardPipeline | null>(null);
   protected readonly pipelineLabel = computed(() => {
     const pipeline = this.pipeline();
     return pipeline ? pipelineLabel(pipeline) : '';
   });
   protected readonly mode = signal<ProductMode>('new');
-  protected readonly services = signal<OnboardingService[]>([]);
+  protected readonly services = signal<WizardService[]>([]);
   protected readonly unplaced = computed(() =>
     this.pipeline() === 'SAST'
       ? []
@@ -274,7 +274,7 @@ export class Onboarding implements HasUnsavedChanges {
     this.changed.set(true);
   }
 
-  protected serviceSummary(service: OnboardingService): string {
+  protected serviceSummary(service: WizardService): string {
     const target = deploysWith(this.pipeline()!, service);
     const parts = [choiceLabel(TOOLS, service.tool)];
     if (target && (this.pipeline() !== 'SAST' || service.id !== null)) {
@@ -327,18 +327,15 @@ export class Onboarding implements HasUnsavedChanges {
   protected openService(index: number | null): void {
     const services = this.services();
     this.dialog
-      .open<OnboardingServiceDialog, ServiceDialogData, OnboardingService>(
-        OnboardingServiceDialog,
-        {
-          data: {
-            pipeline: this.pipeline()!,
-            service: index === null ? null : services[index],
-            takenNames: services
-              .filter((_, position) => position !== index)
-              .map((service) => service.name),
-          },
+      .open<ServiceDialog, ServiceDialogData, WizardService>(ServiceDialog, {
+        data: {
+          pipeline: this.pipeline()!,
+          service: index === null ? null : services[index],
+          takenNames: services
+            .filter((_, position) => position !== index)
+            .map((service) => service.name),
         },
-      )
+      })
       .afterClosed()
       .subscribe((service) => {
         if (!service) {

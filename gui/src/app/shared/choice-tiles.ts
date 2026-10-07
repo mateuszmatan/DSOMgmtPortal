@@ -1,5 +1,11 @@
 import { ChangeDetectionStrategy, Component, input, model } from '@angular/core';
-import { Choice } from './onboarding-model';
+
+export interface Choice<T> {
+  value: T;
+  label: string;
+  description: string;
+  points?: readonly string[];
+}
 
 @Component({
   selector: 'dso-choice-tiles',

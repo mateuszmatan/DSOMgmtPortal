@@ -156,7 +156,7 @@ describe('MonitoringOverview', () => {
     await load(monitoringOverview({ products: [] }));
 
     expect(page().querySelector('.empty-state h3')?.textContent).toBe('No products yet');
-    expect(page().querySelector('.empty-state a')?.getAttribute('href')).toBe('/products/new');
+    expect(page().querySelector('.empty-state a')?.getAttribute('href')).toBe('/admin/products/new');
 
     page().querySelector<HTMLButtonElement>('.actions button')!.click();
     fixture.detectChanges();

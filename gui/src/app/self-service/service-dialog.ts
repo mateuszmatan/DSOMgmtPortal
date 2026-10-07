@@ -14,19 +14,19 @@ import { BuildTool, DeployTarget } from '../core/models';
 import { SERVICE_NAME, UUID } from '../products/product-form-model';
 import { filled, max, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
-import { ChoiceTiles } from './choice-tiles';
+import { ChoiceTiles } from '../shared/choice-tiles';
 import {
   OPENSHIFT_PROJECT,
-  OnboardingPipeline,
-  OnboardingService,
+  WizardPipeline,
+  WizardService,
   TARGETS,
   TOOLS,
   choiceLabel,
-} from './onboarding-model';
+} from './self-service-model';
 
 export interface ServiceDialogData {
-  pipeline: OnboardingPipeline;
-  service: OnboardingService | null;
+  pipeline: WizardPipeline;
+  service: WizardService | null;
   takenNames: readonly string[];
 }
 
@@ -35,7 +35,7 @@ const APP_SCAN_HELP = 'Paste the ID as it is, for example 109f44ac-cc06-4ca0-884
 const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-payhub";
 
 @Component({
-  selector: 'dso-onboarding-service-dialog',
+  selector: 'dso-service-dialog',
   imports: [
     ReactiveFormsModule,
     MatButtonModule,
@@ -168,10 +168,9 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
     }
   `,
 })
-export class OnboardingServiceDialog {
+export class ServiceDialog {
   protected readonly data = inject<ServiceDialogData>(MAT_DIALOG_DATA);
-  private readonly dialogRef =
-    inject<MatDialogRef<OnboardingServiceDialog, OnboardingService>>(MatDialogRef);
+  private readonly dialogRef = inject<MatDialogRef<ServiceDialog, WizardService>>(MatDialogRef);
 
   private readonly start = this.data.service;
   protected readonly existing = this.start?.id != null;

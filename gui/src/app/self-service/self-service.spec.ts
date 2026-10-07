@@ -4,20 +4,20 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { fieldOf, text } from '../testing/dom';
 import { department, globalSettings, product, productSummary, service } from '../testing/fixtures';
-import { Onboarding } from './onboarding';
-import { OnboardingService } from './onboarding-model';
+import { SelfService } from './self-service';
+import { WizardService } from './self-service-model';
 
-describe('Onboarding', () => {
-  let fixture: ComponentFixture<Onboarding>;
+describe('SelfService', () => {
+  let fixture: ComponentFixture<SelfService>;
   let http: HttpTestingController;
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
-      imports: [Onboarding],
+      imports: [SelfService],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(Onboarding);
+    fixture = TestBed.createComponent(SelfService);
     fixture.detectChanges();
     http
       .expectOne('/api/products')
@@ -130,7 +130,7 @@ describe('Onboarding', () => {
   });
 
   it('asks where the services added for a static scan run once the pipeline deploys them', async () => {
-    const added: OnboardingService = {
+    const added: WizardService = {
       id: null,
       name: 'archive-api',
       description: '',
@@ -177,14 +177,14 @@ describe('Onboarding', () => {
   });
 });
 
-describe('Onboarding without departments', () => {
+describe('SelfService without departments', () => {
   it('says why no department can be chosen', async () => {
     TestBed.configureTestingModule({
-      imports: [Onboarding],
+      imports: [SelfService],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     const http = TestBed.inject(HttpTestingController);
-    const fixture = TestBed.createComponent(Onboarding);
+    const fixture = TestBed.createComponent(SelfService);
     fixture.detectChanges();
     http.expectOne('/api/products').flush([productSummary()]);
     http

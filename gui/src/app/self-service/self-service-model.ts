@@ -12,17 +12,11 @@ import {
   ServicePipelines,
 } from '../core/models';
 import { createServiceForm, toServiceRequest } from '../products/product-form-model';
+import { Choice } from '../shared/choice-tiles';
 
-export type OnboardingPipeline = Extract<PipelineType, 'SAST' | 'SECURITY' | 'FULL'>;
+export type WizardPipeline = Extract<PipelineType, 'SAST' | 'SECURITY' | 'FULL'>;
 
-export interface Choice<T> {
-  value: T;
-  label: string;
-  description: string;
-  points?: readonly string[];
-}
-
-export const PIPELINES: readonly Choice<OnboardingPipeline>[] = [
+export const PIPELINES: readonly Choice<WizardPipeline>[] = [
   {
     value: 'SAST',
     label: 'Static scan',
@@ -91,7 +85,7 @@ const MAVEN_ARTIFACT = 'target/*.jar';
 const MAVEN_DELIVERY = 'deploy:deploy-file';
 const IMAGE_REGISTRY = 'docker-qc.tools.bbh.com';
 
-export function pipelineLabel(pipeline: OnboardingPipeline): string {
+export function pipelineLabel(pipeline: WizardPipeline): string {
   return PIPELINES.find((option) => option.value === pipeline)!.label;
 }
 
@@ -99,7 +93,7 @@ export function choiceLabel<T>(choices: readonly Choice<T>[], value: T): string 
   return choices.find((option) => option.value === value)?.label ?? String(value);
 }
 
-export function preparation(pipeline: OnboardingPipeline): string[] {
+export function preparation(pipeline: WizardPipeline): string[] {
   const needs = [
     "Your product's AppScan API key ID, from the Application Security team",
     'The name and the AppScan application ID of each service',
@@ -110,7 +104,7 @@ export function preparation(pipeline: OnboardingPipeline): string[] {
     : [...needs, 'Whether each service runs on virtual machines or OpenShift'];
 }
 
-export interface OnboardingService {
+export interface WizardService {
   id: number | null;
   name: string;
   description: string;
@@ -120,7 +114,7 @@ export interface OnboardingService {
   openShiftProject: string;
 }
 
-export function fromService(service: Service): OnboardingService {
+export function fromService(service: Service): WizardService {
   return {
     id: service.id,
     name: service.name,
@@ -132,10 +126,7 @@ export function fromService(service: Service): OnboardingService {
   };
 }
 
-export function deploysWith(
-  pipeline: OnboardingPipeline,
-  service: OnboardingService,
-): DeployTarget | null {
+export function deploysWith(pipeline: WizardPipeline, service: WizardService): DeployTarget | null {
   return pipeline === 'SAST' && service.id === null ? 'VM' : service.target;
 }
 
@@ -170,8 +161,8 @@ export function openShiftTargets(
 }
 
 export function serviceRequest(
-  service: OnboardingService,
-  pipeline: OnboardingPipeline,
+  service: WizardService,
+  pipeline: WizardPipeline,
   existing?: Service,
 ) {
   const form = createServiceForm(existing);
@@ -215,8 +206,8 @@ export interface NewProduct {
 
 export function productRequest(
   product: NewProduct | Product,
-  services: readonly OnboardingService[],
-  pipeline: OnboardingPipeline,
+  services: readonly WizardService[],
+  pipeline: WizardPipeline,
   departmentId: number | null = null,
 ): ProductRequest {
   const stored = 'id' in product ? product : null;
@@ -261,7 +252,7 @@ const FIELD_NAMES: Record<string, string> = {
   code: 'product code',
 };
 
-export function problemText(problem: FieldProblem, services: readonly OnboardingService[]): string {
+export function problemText(problem: FieldProblem, services: readonly WizardService[]): string {
   const match = /^services\[(\d+)]\.(.+)$/.exec(problem.field);
   if (!match) {
     return `${FIELD_NAMES[problem.field] ?? problem.field}: ${problem.message}`;
@@ -277,7 +268,7 @@ export interface ServiceStart {
 
 export function servicesToStart(
   services: readonly ServicePipelines[],
-  pipeline: OnboardingPipeline,
+  pipeline: WizardPipeline,
 ): ServiceStart[] {
   return services.map((service) => ({
     serviceName: service.serviceName,

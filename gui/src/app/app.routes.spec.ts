@@ -5,20 +5,25 @@ import { MatIconRegistry } from '@angular/material/icon';
 import { Title } from '@angular/platform-browser';
 import {
   ActivatedRouteSnapshot,
+  Route,
   Router,
   RouterStateSnapshot,
+  Routes,
   TitleStrategy,
   provideRouter,
 } from '@angular/router';
 import { Observable, firstValueFrom, of } from 'rxjs';
 import { appConfig } from './app.config';
 import { routes } from './app.routes';
+import { AdminPage } from './admin/admin-page';
+import { DepartmentsAdmin } from './admin/departments-admin';
 import { BeadleOverview } from './beadle/beadle-overview';
-import { Onboarding } from './beadle/onboarding';
+import { BeadleProduct } from './beadle/beadle-product';
+import { BeadleProducts } from './beadle/beadle-products';
 import { ChangeDetail } from './changes/change-detail';
-import { ChangeProfileEditor } from './changes/change-profile-editor';
 import { ChangeWizard } from './changes/change-wizard';
 import { ProductionChanges } from './changes/production-changes';
+import { BEADLE_ADMINISTRATION, DEVSECOPS_ADMIN } from './core/sections';
 import { PortalTitleStrategy } from './core/title-strategy';
 import { HasUnsavedChanges, unsavedChangesGuard } from './core/unsaved-changes';
 import { ChangeEvidencePage } from './evidence/change-evidence';
@@ -28,6 +33,7 @@ import { ProductMonitoringPage } from './monitoring/product-monitoring';
 import { ProductDetail } from './products/product-detail';
 import { ProductEditor } from './products/product-editor';
 import { ProductList } from './products/product-list';
+import { SelfService } from './self-service/self-service';
 import { GlobalSettingsPage } from './settings/global-settings';
 import { ConfirmDialog } from './shared/confirm-dialog';
 
@@ -35,41 +41,67 @@ import { ConfirmDialog } from './shared/confirm-dialog';
 class Blank {}
 
 describe('routes', () => {
+  const flattened = (list: Routes, parent = ''): [string, Route][] =>
+    list.flatMap((route) => {
+      const path = [parent, route.path].filter(Boolean).join('/');
+      return [[path, route] as [string, Route], ...flattened(route.children ?? [], path)];
+    });
+
   it('loads the page of every section lazily', async () => {
     const pages = await Promise.all(
-      routes
-        .filter((route) => route.loadComponent)
-        .map(async (route) => [route.path, await route.loadComponent!()]),
+      flattened(routes)
+        .filter(([, route]) => route.loadComponent)
+        .map(async ([path, route]) => [path, await route.loadComponent!()]),
     );
 
     expect(Object.fromEntries(pages)).toEqual({
-      products: ProductList,
-      'products/new': ProductEditor,
-      'products/:id': ProductDetail,
-      'products/:id/change': ChangeProfileEditor,
-      'products/:id/edit': ProductEditor,
+      'self-service': SelfService,
       monitoring: MonitoringOverview,
       'monitoring/products/:id': ProductMonitoringPage,
       'monitoring/pipelines/:id': PipelineMonitoringPage,
       evidence: ChangeEvidencePage,
-      settings: GlobalSettingsPage,
+      'admin/products/new': ProductEditor,
+      'admin/products/:id': ProductDetail,
+      'admin/products/:id/edit': ProductEditor,
+      admin: AdminPage,
+      'admin/departments': DepartmentsAdmin,
+      'admin/products': ProductList,
+      'admin/settings': GlobalSettingsPage,
       beadle: BeadleOverview,
-      'beadle/onboarding': Onboarding,
       'beadle/changes': ProductionChanges,
       'beadle/changes/new': ChangeWizard,
       'beadle/changes/:id': ChangeDetail,
+      'beadle/admin/products/:id': BeadleProduct,
+      'beadle/admin': AdminPage,
+      'beadle/admin/departments': DepartmentsAdmin,
+      'beadle/admin/products': BeadleProducts,
     });
   });
 
+  it('shows the pipeline counts only on the departments of DevSecOps Admin', () => {
+    const data = Object.fromEntries(
+      flattened(routes)
+        .filter(([, route]) => route.loadComponent)
+        .map(([path, route]) => [path, route.data ?? null]),
+    );
+
+    expect(data['admin/departments']).toEqual({ pipelines: true });
+    expect(data['beadle/admin/departments']).toBeNull();
+    expect(data['admin']).toEqual({ area: DEVSECOPS_ADMIN });
+    expect(data['beadle/admin']).toEqual({ area: BEADLE_ADMINISTRATION });
+  });
+
   it('guards the editors against leaving with unsaved changes', () => {
-    const guarded = routes.filter((route) => route.canDeactivate).map((route) => route.path);
+    const guarded = flattened(routes)
+      .filter(([, route]) => route.canDeactivate)
+      .map(([path]) => path);
     expect(guarded).toEqual([
-      'products/new',
-      'products/:id/change',
-      'products/:id/edit',
-      'settings',
-      'beadle/onboarding',
+      'self-service',
+      'admin/products/new',
+      'admin/products/:id/edit',
+      'admin/settings',
       'beadle/changes/new',
+      'beadle/admin/products/:id',
     ]);
   });
 });

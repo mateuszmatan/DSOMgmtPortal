@@ -158,7 +158,7 @@ describe('ProductEditor', () => {
     http.expectOne('/api/departments').flush(departments);
 
     expect(open.mock.calls[0][1]?.data).toEqual({ departments, departmentId: null });
-    expect(router.navigate).toHaveBeenCalledWith(['/products']);
+    expect(router.navigate).toHaveBeenCalledWith(['/admin/products']);
   });
 
   it('says why a new product cannot start without the departments', async () => {
@@ -203,7 +203,7 @@ describe('ProductEditor', () => {
     request.flush(product({ id: 5 }));
     await fixture.whenStable();
 
-    expect(router.navigate).toHaveBeenCalledWith(['/products', 5]);
+    expect(router.navigate).toHaveBeenCalledWith(['/admin/products', 5]);
     expect(editor().hasUnsavedChanges()).toBe(false);
     expect(TestBed.inject(GeneratedKeys).take(5)).toEqual(['gui']);
   });
@@ -294,7 +294,7 @@ describe('ProductEditor', () => {
     ]);
     request.flush(product());
     await fixture.whenStable();
-    expect(router.navigate).toHaveBeenCalledWith(['/products', 1]);
+    expect(router.navigate).toHaveBeenCalledWith(['/admin/products', 1]);
     expect(TestBed.inject(GeneratedKeys).take(1)).toEqual([]);
   });
 

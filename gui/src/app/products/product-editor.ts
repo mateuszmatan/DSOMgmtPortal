@@ -182,7 +182,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
         .subscribe({
           next: (started) => {
             if (!started) {
-              this.router.navigate(['/products']);
+              this.router.navigate(['/admin/products']);
               return;
             }
             this.settings.set(started.settings);
@@ -321,7 +321,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
           this.notifier.success(
             stored ? `${product.name} saved` : `${product.name} added to DevSecOps`,
           );
-          this.router.navigate(['/products', product.id]);
+          this.router.navigate(['/admin/products', product.id]);
         },
         error: (error) => this.showSaveError(error),
       });
@@ -329,7 +329,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
 
   protected cancel(): void {
     const stored = this.product();
-    this.router.navigate(stored ? ['/products', stored.id] : ['/products']);
+    this.router.navigate(stored ? ['/admin/products', stored.id] : ['/admin/products']);
   }
 
   private showSaveError(error: unknown): void {

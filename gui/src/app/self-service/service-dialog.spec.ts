@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { inputOf, text } from '../testing/dom';
-import { OnboardingService } from './onboarding-model';
-import { OnboardingServiceDialog, ServiceDialogData } from './onboarding-service-dialog';
+import { WizardService } from './self-service-model';
+import { ServiceDialog, ServiceDialogData } from './service-dialog';
 
 const APP_ID = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31';
 
-describe('OnboardingServiceDialog', () => {
-  let fixture: ComponentFixture<OnboardingServiceDialog>;
+describe('ServiceDialog', () => {
+  let fixture: ComponentFixture<ServiceDialog>;
   const close = vi.fn();
 
   async function open(data: Partial<ServiceDialogData> = {}) {
     TestBed.configureTestingModule({
-      imports: [OnboardingServiceDialog],
+      imports: [ServiceDialog],
       providers: [
         { provide: MatDialogRef, useValue: { close } },
         {
@@ -21,7 +21,7 @@ describe('OnboardingServiceDialog', () => {
         },
       ],
     });
-    fixture = TestBed.createComponent(OnboardingServiceDialog);
+    fixture = TestBed.createComponent(ServiceDialog);
     await fixture.whenStable();
   }
 
@@ -92,7 +92,7 @@ describe('OnboardingServiceDialog', () => {
       tool: 'MAVEN',
       target: 'OPENSHIFT',
       openShiftProject: 'pay-payhub',
-    } satisfies OnboardingService);
+    } satisfies WizardService);
   });
 
   it('asks only for the build tool of a static scan and goes back to the first part', async () => {
@@ -122,7 +122,7 @@ describe('OnboardingServiceDialog', () => {
   });
 
   it('changes a service of the portal in one part and leaves its build and platform alone', async () => {
-    const service: OnboardingService = {
+    const service: WizardService = {
       id: 10,
       name: 'gui',
       description: 'Angular front end',
