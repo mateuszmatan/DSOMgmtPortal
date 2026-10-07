@@ -38,7 +38,7 @@ export interface BarRow {
   styles: `
     :host {
       display: grid;
-      grid-template-columns: max-content minmax(80px, 1fr) max-content;
+      grid-template-columns: auto minmax(60px, 1fr) auto;
       align-items: center;
       gap: 6px 12px;
       font-size: 12.5px;
