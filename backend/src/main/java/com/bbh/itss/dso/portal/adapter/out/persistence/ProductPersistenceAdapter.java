@@ -19,9 +19,12 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
 
     private final ProductJpaRepository products;
     private final ServiceJpaRepository services;
-    ProductPersistenceAdapter(ProductJpaRepository products, ServiceJpaRepository services) {
+    private final DepartmentJpaRepository departments;
+    ProductPersistenceAdapter(ProductJpaRepository products, ServiceJpaRepository services,
+                              DepartmentJpaRepository departments) {
         this.products = products;
         this.services = services;
+        this.departments = departments;
     }
 
     @Override
@@ -94,6 +97,11 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
     @Override
     public Optional<ProductIdentity> findProductByName(String name) {
         return products.findByNameIgnoreCase(name).map(ProductPersistenceAdapter::identity);
+    }
+
+    @Override
+    public boolean departmentExists(long id) {
+        return departments.existsById(id);
     }
 
     private ProductEntity existing(Product product) {

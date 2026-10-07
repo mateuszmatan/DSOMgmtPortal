@@ -2,6 +2,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import {
+  Department,
+  DepartmentRequest,
   GlobalSettings,
   GlobalSettingsRequest,
   MonitoringOverview,
@@ -59,6 +61,27 @@ export class ProductsApi {
 
   config(id: number): Observable<string> {
     return this.http.get(`/api/products/${id}/config`, { responseType: 'text' });
+  }
+}
+
+@Injectable({ providedIn: 'root' })
+export class DepartmentsApi {
+  private readonly http = inject(HttpClient);
+
+  list(): Observable<Department[]> {
+    return this.http.get<Department[]>('/api/departments');
+  }
+
+  create(name: string): Observable<Department> {
+    return this.http.post<Department>('/api/departments', { name });
+  }
+
+  rename(id: number, request: DepartmentRequest): Observable<Department> {
+    return this.http.put<Department>(`/api/departments/${id}`, request);
+  }
+
+  delete(id: number): Observable<void> {
+    return this.http.delete<void>(`/api/departments/${id}`);
   }
 }
 

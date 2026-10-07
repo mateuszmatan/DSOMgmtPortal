@@ -205,6 +205,7 @@ export function serviceRequest(
 }
 
 export interface NewProduct {
+  departmentId: number | null;
   name: string;
   code: string;
   ownerTeam: string;
@@ -216,6 +217,7 @@ export function productRequest(
   product: NewProduct | Product,
   services: readonly OnboardingService[],
   pipeline: OnboardingPipeline,
+  departmentId: number | null = null,
 ): ProductRequest {
   const stored = 'id' in product ? product : null;
   const requests = services.map((service) =>
@@ -232,6 +234,7 @@ export function productRequest(
       description: stored.description,
       ownerTeam: stored.ownerTeam,
       contactEmail: stored.contactEmail,
+      departmentId: stored.departmentId ?? departmentId,
       appScan: stored.appScan,
       version: stored.version,
       services: requests,
@@ -244,6 +247,7 @@ export function productRequest(
     description: null,
     ownerTeam: fresh.ownerTeam.trim() || null,
     contactEmail: fresh.contactEmail.trim() || null,
+    departmentId: fresh.departmentId,
     appScan: { keyId: fresh.appScanKeyId.trim(), secretCredentialsId: null },
     version: null,
     services: requests,

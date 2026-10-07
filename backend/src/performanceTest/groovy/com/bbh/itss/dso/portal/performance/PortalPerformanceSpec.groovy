@@ -49,7 +49,7 @@ class PortalPerformanceSpec extends PortalSpecification {
         def stats = LatencyStats.measure("Create a product with $SERVICES services", calls: PRODUCTS, warmUp: false) { int i ->
             def code = uniqueCode('PERF')
             def response = api.post('/api/products', product(code: code, name: "Performance $code",
-                    services: (1..SERVICES).collect { fullService(code, "service-$it") }))
+                    departmentId: i % 5 + 1, services: (1..SERVICES).collect { fullService(code, "service-$it") }))
             if (response.status == 201) {
                 products << (response.json as Map)
             }
@@ -86,9 +86,13 @@ class PortalPerformanceSpec extends PortalSpecification {
         pipelines.every { it.activeKey.value != null }
     }
 
-    def "the product list and a product's details stay fast"() {
+    def "the product list, the departments and a product's details stay fast"() {
         when:
         def list = LatencyStats.measure('List all products', calls: 100, threads: 8) { api.get('/api/products').status == 200 }
+        def departments = LatencyStats.measure('List departments with their pipeline counts', calls: 100, threads: 8) {
+            def response = api.get('/api/departments')
+            response.status == 200 && response.json.sum { it.pipelineCount } == pipelines.size()
+        }
         def details = LatencyStats.measure("Read a product with $SERVICES services", calls: 200, threads: 8) { int i ->
             api.get("/api/products/${products[i % PRODUCTS].id}").status == 200
         }
@@ -98,6 +102,7 @@ class PortalPerformanceSpec extends PortalSpecification {
 
         then:
         within(list, 500)
+        within(departments, 500)
         within(details, 300)
         within(productPipelines, 300)
     }

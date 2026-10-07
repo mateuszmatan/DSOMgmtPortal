@@ -19,7 +19,7 @@ Gradle downloads Node.js 24 into `gui/.gradle/nodejs`.
 |---------------|-------|
 | `core/`       | API clients, models mirroring the backend DTOs, error handling, the portal sections and the header menus |
 | `beadle/`     | Beadle: the overview page of the new features and the Product Onboarding wizard, whose answers `onboarding-model.ts` turns into a product request with BBH defaults (build tasks, Nexus delivery, OpenShift project names) |
-| `products/`   | Product Management: product list, product editor, product page with pipelines and keys |
+| `products/`   | Product Management: departments with the tally of their pipelines, the product list grouped by department, product editor, product page with pipelines and keys |
 | `monitoring/` | Pipeline Monitoring: overview, product pipelines, pipeline details with DORA and Grafana |
 | `evidence/`   | Change Evidence: builds, tests and scans of each pipeline for ServiceNow changes |
 | `settings/`   | Global Settings: tools, policy and defaults of every pipeline |
@@ -52,7 +52,8 @@ API answers recorded from the backend (`src/testFixtures/resources/.../api`) and
 specification checks both what the page shows and the exact JSON the gui sends. Screenshots of the last state of
 every feature land in `build/reports/gui/screenshots`.
 
-- Regression (`src/regressionTest`): searching and opening products; adding a product with two services, through
+- Regression (`src/regressionTest`): the products grouped by department with their pipeline tallies, and adding,
+  renaming and deleting departments; searching and opening products; adding a product with two services, through
   the browser's required-field checks and the server's field errors, to the request it sends; saving unchanged
   products, which sends back what was loaded with its version; the unsaved-changes guard; moving, duplicating and
   removing services; Bitbucket fields, GoldenFix default and test job parameters; adding pipelines, replacing,

@@ -6,6 +6,8 @@ import com.microsoft.playwright.Page
 import com.microsoft.playwright.options.AriaRole
 import spock.lang.IgnoreIf
 
+import java.util.regex.Pattern
+
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 
 class GuiSmokeSpec extends GuiSpecification {
@@ -45,6 +47,18 @@ class GuiSmokeSpec extends GuiSpecification {
             true
         }
         assertThat(page.locator('footer')).containsText('BBH 2026')
+        ownErrors().isEmpty()
+    }
+
+    def "the product list groups the products by department with the tally of their pipelines"() {
+        when:
+        open('/products')
+
+        then:
+        assertThat(page.locator('section.department h2').first()).isVisible()
+        assertThat(page.locator('section.department .tally').first())
+                .hasText(Pattern.compile('^\\d+ DevSecOps pipelines? for \\d+ products?( · \\d+ active)?$'))
+        assertThat(page.locator('.toolbar .count')).hasText(Pattern.compile('^\\d+ products? in \\d+ departments?$'))
         ownErrors().isEmpty()
     }
 

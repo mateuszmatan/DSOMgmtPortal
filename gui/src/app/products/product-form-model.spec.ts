@@ -791,6 +791,7 @@ describe('product form', () => {
       code: 'CERT',
       name: 'CertScanner',
       ownerTeam: 'Technology Architecture',
+      departmentId: 3,
       appScan: { keyId: 'bbh_key', secretCredentialsId: 'hcl-app-scan-account' },
       version: 3,
     });
@@ -798,6 +799,18 @@ describe('product form', () => {
       [10, 'gui'],
       [11, 'backend-api'],
     ]);
+  });
+
+  it('needs the department of a product that is not in one yet', () => {
+    const form = createProductForm();
+    patchProduct(form, product({ departmentId: null }));
+
+    expect(form.controls.departmentId.hasError('required')).toBe(true);
+
+    form.controls.departmentId.setValue(5);
+
+    expect(form.valid).toBe(true);
+    expect(toProductRequest(form, 3).departmentId).toBe(5);
   });
 
   it('replaces the services of an earlier product when patched again', () => {

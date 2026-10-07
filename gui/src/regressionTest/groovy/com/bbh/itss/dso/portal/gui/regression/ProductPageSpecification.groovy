@@ -9,6 +9,16 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 
 abstract class ProductPageSpecification extends GuiSpecification {
 
+    static final List<String> DEPARTMENTS = ['AI Lab', 'Capital Partners', 'Corporate Technology', 'Custody', 'Fund Services']
+
+    Locator departmentNames() {
+        page.locator('section.department h2')
+    }
+
+    Locator department(String name) {
+        holding(page.locator('section.department'), "h2:text-is('${name}')")
+    }
+
     Locator serviceCard(String name) {
         holding(page.locator('section.service'), "h2:text-is('${name}')")
     }

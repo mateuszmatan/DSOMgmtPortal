@@ -52,6 +52,20 @@ class PortalSmokeSpec extends Specification {
         started == null || !products.json.isEmpty()
     }
 
+    def "the departments answer with the DevSecOps pipelines of their products"() {
+        when:
+        def departments = api.get('/api/departments')
+        def tallies = departments.json.collectEntries {
+            [it.name, [it.productCount, it.serviceCount, it.pipelineCount, it.activePipelineCount]]
+        }
+
+        then:
+        departments.status == 200
+        departments.json instanceof List
+        started == null || tallies.subMap(['AI Lab', 'Corporate Technology', 'Fund Services']) ==
+                ['AI Lab': [0, 0, 0, 0], 'Corporate Technology': [1, 2, 7, 7], 'Fund Services': [1, 4, 7, 6]]
+    }
+
     def "every product's services, pipelines, configuration and change evidence can be read"() {
         given:
         def products = api.get('/api/products').json.take(5)

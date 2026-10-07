@@ -1,5 +1,7 @@
 package com.bbh.itss.dso.portal.adapter.in.startup
 
+import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentView
+import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentsUseCase
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductCommand
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductSummaryView
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase
@@ -25,28 +27,32 @@ import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
 class DemoDataLoaderSpec extends Specification {
 
     ProductsUseCase products = Mock()
+    DepartmentsUseCase departments = Mock()
     PipelinesUseCase pipelines = Mock()
     ManageGlobalSettingsUseCase settings = Mock()
     List<ProductCommand> created = []
     List<List> requested = []
     List<Product> stored = []
 
-    def loader = new DemoDataLoader(products, pipelines, settings)
+    def loader = new DemoDataLoader(products, departments, pipelines, settings)
 
     def "a database with products is left alone"() {
         when:
         loader.run(null)
 
         then:
-        1 * products.list(null) >> [new ProductSummaryView(1L, 'CERT', 'CertScanner', null, null, 1, 1, 1, null)]
+        1 * products.list(null) >> [new ProductSummaryView(1L, 'CERT', 'CertScanner', null, null, 3L,
+                'Corporate Technology', 1, 1, 1, null)]
         0 * settings.update(*_)
         0 * products.create(_)
+        0 * departments._
         0 * pipelines._
     }
 
     def "an empty database gets two products with pipelines, one of them invalidated, and a Jenkins to link unless one is set: #jenkinsUrl"() {
         given:
         demoCatalog(jenkinsUrl)
+        departments.list() >> [department(3L, 'Corporate Technology'), department(5L, 'Fund Services')]
 
         when:
         loader.run(null)
@@ -54,7 +60,9 @@ class DemoDataLoaderSpec extends Specification {
         then:
         updates * settings.update(null, { it.platform().jenkinsUrl() == 'https://jenkins.bbh.com' })
         1 * pipelines.revokeKey(13L, 'Mobile app moved to the new mobile platform pipeline')
+        0 * departments.create(_)
         created*.details()*.code() == ['CERTSCANNER', 'PAYHUB']
+        created*.details()*.departmentId() == [3L, 5L]
         created*.services()*.size() == [2, 4]
         created.every { it.services().every { service -> problems(service.settings()) == [] } }
         requested*.get(1) == [FULL, SECURITY, EXTENDED, FULL, SECURITY, EXTENDED, SAST, FULL, SECURITY, EXTENDED, FULL,
@@ -74,6 +82,19 @@ class DemoDataLoaderSpec extends Specification {
         jenkinsUrl             || updates
         null                   || 1
         'https://jenkins.test' || 0
+    }
+
+    def "a demo department that is gone is created again"() {
+        given:
+        demoCatalog(null)
+        departments.list() >> [department(3L, 'corporate technology')]
+
+        when:
+        loader.run(null)
+
+        then:
+        1 * departments.create('Fund Services') >> department(6L, 'Fund Services')
+        created*.details()*.departmentId() == [3L, 6L]
     }
 
     private void demoCatalog(String jenkinsUrl) {
@@ -106,6 +127,10 @@ class DemoDataLoaderSpec extends Specification {
         }
         stored << Product.restore(created.size() as Long, command.details(), command.appScan(), services, 0, null, null)
         stored.last()
+    }
+
+    private static DepartmentView department(long id, String name) {
+        new DepartmentView(id, name, 0, 0, 0, 0, 0)
     }
 
     private static PipelineView view(Product product, long id, long serviceId, PipelineType type) {

@@ -7,6 +7,7 @@ import { of } from 'rxjs';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
 import {
   anotherService,
+  department,
   globalSettings,
   product,
   service,
@@ -38,10 +39,11 @@ describe('ProductEditor', () => {
   const editor = () => fixture.componentInstance;
   const page = () => fixture.nativeElement as HTMLElement;
 
-  const naming = (name: string | undefined) =>
-    vi
-      .spyOn(TestBed.inject(MatDialog), 'open')
-      .mockReturnValue({ afterClosed: () => of(name) } as unknown as MatDialogRef<unknown>);
+  const naming = (name: string | undefined, departmentId = 3) =>
+    vi.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
+      afterClosed: () => of(name && { name, departmentId }),
+    } as unknown as MatDialogRef<unknown>);
+  const departments = [department(), department({ id: 5, name: 'Fund Services' })];
 
   const suggestion = (name: string) =>
     http.expectOne(
@@ -52,6 +54,7 @@ describe('ProductEditor', () => {
   async function start(name = 'CertScanner', code = 'CERTSCANNER') {
     naming(name);
     await fixture.whenStable();
+    http.expectOne('/api/departments').flush(departments);
     http.expectOne('/api/settings').flush(globalSettings());
     suggestion(name).flush({ code });
     await fixture.whenStable();
@@ -67,10 +70,10 @@ describe('ProductEditor', () => {
     await fixture.whenStable();
   }
 
-  async function edit(services = [service(), anotherService()]) {
+  async function edit(services = [service(), anotherService()], stored = product({ services })) {
     fixture.componentRef.setInput('id', '1');
     await fixture.whenStable();
-    http.expectOne('/api/products/1').flush(product({ services }));
+    http.expectOne('/api/products/1').flush(stored);
     http
       .expectOne('/api/products/1/pipelines')
       .flush([
@@ -78,6 +81,7 @@ describe('ProductEditor', () => {
         servicePipelines({ serviceId: 11, serviceName: 'api', pipelines: [] }),
       ]);
     http.expectOne('/api/settings').flush(globalSettings());
+    http.expectOne('/api/departments').flush(departments);
     await fixture.whenStable();
   }
 
@@ -132,24 +136,46 @@ describe('ProductEditor', () => {
     expect(editor().hasUnsavedChanges()).toBe(false);
   });
 
-  it('asks for the name first and makes the unique code from it', async () => {
-    const open = naming('Payments Hub');
+  it('asks for the department and the name first and makes the unique code from the name', async () => {
+    const open = naming('Payments Hub', 5);
+    fixture.componentRef.setInput('department', '5');
     await fixture.whenStable();
+    http.expectOne('/api/departments').flush(departments);
     http.expectOne('/api/settings').flush(globalSettings());
     suggestion('Payments Hub').flush({ code: 'PAYMENTSHUB2' });
     await fixture.whenStable();
 
-    expect(open).toHaveBeenCalledWith(ProductNameDialog);
+    expect(open).toHaveBeenCalledWith(ProductNameDialog, {
+      data: { departments, departmentId: 5 },
+    });
     expect(inputOf(page(), 'Name').value).toBe('Payments Hub');
     expect(inputOf(page(), 'Code').value).toBe('PAYMENTSHUB2');
+    expect(editor()['form'].controls.departmentId.value).toBe(5);
+    expect(page().querySelector('.product-fields mat-select')?.textContent).toContain(
+      'Fund Services',
+    );
     expect(editor().hasUnsavedChanges()).toBe(false);
   });
 
   it('goes back to the products when the name is not given', async () => {
-    naming(undefined);
+    const open = naming(undefined);
+    await fixture.whenStable();
+    http.expectOne('/api/departments').flush(departments);
+
+    expect(open.mock.calls[0][1]?.data).toEqual({ departments, departmentId: null });
+    expect(router.navigate).toHaveBeenCalledWith(['/products']);
+  });
+
+  it('says why a new product cannot start without the departments', async () => {
+    const open = naming('CertScanner');
+    await fixture.whenStable();
+    http
+      .expectOne('/api/departments')
+      .flush({ detail: 'The database is not available' }, { status: 500, statusText: 'Error' });
     await fixture.whenStable();
 
-    expect(router.navigate).toHaveBeenCalledWith(['/products']);
+    expect(open).not.toHaveBeenCalled();
+    expect(page().querySelector('.banner')?.textContent).toBe('The database is not available');
   });
 
   it('keeps the code in step with the name until the code is changed by hand', async () => {
@@ -175,6 +201,7 @@ describe('ProductEditor', () => {
     const request = http.expectOne({ method: 'POST', url: '/api/products' });
     expect(request.request.body).toMatchObject({
       code: 'CERT',
+      departmentId: 3,
       version: null,
       services: [{ id: null, name: 'gui' }],
     });
@@ -255,6 +282,7 @@ describe('ProductEditor', () => {
       .flush(product({ services: [service(), anotherService({ name: 'api' })] }));
     http.expectOne('/api/products/1/pipelines').flush([servicePipelines()]);
     http.expectOne('/api/settings').flush(globalSettings());
+    http.expectOne('/api/departments').flush(departments);
     await fixture.whenStable();
 
     expect(page().querySelector('h1')?.textContent).toBe('Edit CertScanner');
@@ -273,6 +301,26 @@ describe('ProductEditor', () => {
     await fixture.whenStable();
     expect(router.navigate).toHaveBeenCalledWith(['/products', 1]);
     expect(TestBed.inject(GeneratedKeys).take(1)).toEqual([]);
+  });
+
+  it('requires a department for a product that is not in one yet', async () => {
+    await edit([service()], product({ departmentId: null }));
+
+    await submit();
+
+    http.expectNone({ method: 'PUT', url: '/api/products/1' });
+    expect(page().querySelector('.save-error')?.textContent).toBe(
+      'Some fields need your attention.',
+    );
+    expect(editor()['form'].controls.departmentId.hasError('required')).toBe(true);
+
+    editor()['form'].controls.departmentId.setValue(5);
+    await submit();
+
+    const request = http.expectOne({ method: 'PUT', url: '/api/products/1' });
+    expect(request.request.body.departmentId).toBe(5);
+    request.flush(product({ departmentId: 5 }));
+    await fixture.whenStable();
   });
 
   it('moves services up and down and keeps the open one open', async () => {

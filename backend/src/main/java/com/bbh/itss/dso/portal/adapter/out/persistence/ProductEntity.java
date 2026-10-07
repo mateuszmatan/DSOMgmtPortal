@@ -5,11 +5,15 @@ import com.bbh.itss.dso.portal.domain.catalog.AppScanAccount;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.ProductDetails;
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
@@ -33,6 +37,13 @@ public class ProductEntity extends AuditedEntity {
     private String ownerTeam;
     private String contactEmail;
 
+    @Column(name = "DEPARTMENT_ID")
+    private Long departmentId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "DEPARTMENT_ID", insertable = false, updatable = false)
+    private DepartmentEntity department;
+
     @EmbeddedColumnNaming("ASOC_%s")
     private AppScanAccountEmbeddable appScanAccount;
 
@@ -51,6 +62,10 @@ public class ProductEntity extends AuditedEntity {
         return name;
     }
 
+    String departmentName() {
+        return department == null ? null : department.name();
+    }
+
     Product toDomain() {
         return Product.restore(id, RecordMapper.map(ProductDetails.class, this),
                 RecordMapper.map(appScanAccount, AppScanAccount.class),
@@ -64,6 +79,7 @@ public class ProductEntity extends AuditedEntity {
         description = details.description();
         ownerTeam = details.ownerTeam();
         contactEmail = details.contactEmail();
+        departmentId = details.departmentId();
         appScanAccount = RecordMapper.map(product.appScanAccount(), AppScanAccountEmbeddable.class);
     }
 

@@ -43,9 +43,9 @@ public class ProductCatalogService implements ProductsUseCase {
         return products.summaries().stream()
                 .filter(product -> product.matches(search))
                 .map(product -> new ProductSummaryView(product.id(), product.code(), product.name(),
-                        product.description(), product.ownerTeam(), serviceCounts.getOrDefault(product.id(), 0L),
-                        pipelines.getOrDefault(product.id(), 0L), active.getOrDefault(product.id(), 0L),
-                        product.updatedAt()))
+                        product.description(), product.ownerTeam(), product.departmentId(), product.departmentName(),
+                        serviceCounts.getOrDefault(product.id(), 0L), pipelines.getOrDefault(product.id(), 0L),
+                        active.getOrDefault(product.id(), 0L), product.updatedAt()))
                 .toList();
     }
 

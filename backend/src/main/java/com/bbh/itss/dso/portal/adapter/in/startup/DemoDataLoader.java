@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.in.startup;
 
+import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentsUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductCommand;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
@@ -68,11 +69,14 @@ public class DemoDataLoader implements ApplicationRunner {
     private static final String CERT_SCANNER_DEPLOY_DIR = "/opt/ta/CertScanner/gui/deployment";
 
     private final ProductsUseCase products;
+    private final DepartmentsUseCase departments;
     private final PipelinesUseCase pipelines;
     private final ManageGlobalSettingsUseCase settings;
 
-    public DemoDataLoader(ProductsUseCase products, PipelinesUseCase pipelines, ManageGlobalSettingsUseCase settings) {
+    public DemoDataLoader(ProductsUseCase products, DepartmentsUseCase departments, PipelinesUseCase pipelines,
+                          ManageGlobalSettingsUseCase settings) {
         this.products = products;
+        this.departments = departments;
         this.pipelines = pipelines;
         this.settings = settings;
     }
@@ -89,12 +93,12 @@ public class DemoDataLoader implements ApplicationRunner {
 
         Product certScanner = products.create(new ProductCommand(null, new ProductDetails("CERTSCANNER", "CertScanner",
                 "Monitors the validity of TLS certificates across BBH and alerts owners before they expire.",
-                "Technology Architecture", "ta-team@bbh.com"),
+                "Technology Architecture", "ta-team@bbh.com", department("Corporate Technology")),
                 new AppScanAccount("bbh_b81fbc9f-39c1-8eb4-38b5-b702268969b9", null),
                 List.of(certScannerGui(), certScannerApi())));
         Product payments = products.create(new ProductCommand(null, new ProductDetails("PAYHUB", "Payments Hub",
                 "Payment orchestration platform: gateway, ledger, notifications and reporting.",
-                "Payments Engineering", "payments-eng@bbh.com"),
+                "Payments Engineering", "payments-eng@bbh.com", department("Fund Services")),
                 new AppScanAccount("bbh_1c2d3e4f-0000-4abc-9def-123456789abc", "payhub-appscan-key-secret"), List.of(
                 mavenOpenShift("gateway", "Public payment API", "3a1b2c3d-1111-4a5b-8c9d-0e1f2a3b4c5d",
                         "payhub-gateway", "payhub-gateway", "pay-payhub"),
@@ -124,6 +128,11 @@ public class DemoDataLoader implements ApplicationRunner {
         PipelineView retired = pipeline(payments, "mobile-app", PipelineType.SAST);
         pipelines.revokeKey(retired.pipeline().id(), "Mobile app moved to the new mobile platform pipeline");
         log.info("Created demo data: {} and {}", certScanner.name(), payments.name());
+    }
+
+    private long department(String name) {
+        return departments.list().stream().filter(department -> department.name().equalsIgnoreCase(name))
+                .findFirst().orElseGet(() -> departments.create(name)).id();
     }
 
     private static ServiceDraft certScannerGui() {

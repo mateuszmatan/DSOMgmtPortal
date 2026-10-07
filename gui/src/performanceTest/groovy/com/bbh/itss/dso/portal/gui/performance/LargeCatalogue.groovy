@@ -13,6 +13,7 @@ class LargeCatalogue {
     static final int PIPELINES = SERVICES * TYPES.size()
 
     private final Map product = StubApi.fixture('product-2.json') as Map
+    private final List<Map> departments = StubApi.fixture('departments.json') as List<Map>
     private final Map pipeline = (StubApi.fixture('product-2-pipelines.json') as List<Map>)[0].pipelines[0] as Map
     private final Map lastRun = (StubApi.fixture('monitoring-product-2.json') as Map).pipelines[0].lastRun as Map
     private final Map evidenceRun = (StubApi.fixture('evidence-product-1.json') as Map).services[0].pipelines[0].run as Map
@@ -22,6 +23,7 @@ class LargeCatalogue {
         def summaries = []
         def overview = []
         (1..PRODUCTS).each { int id ->
+            def department = departments[(id - 1) % departments.size()]
             def facts = [code       : "CAT$id".toString(), name: String.format('Catalogue Product %02d', id),
                          description: "Generated product $id of the performance catalogue".toString(), ownerTeam: product.ownerTeam]
             def services = (0..<SERVICES).collect { int index -> service(id, index) }
@@ -29,11 +31,11 @@ class LargeCatalogue {
             def all = pipelines.flatten() as List<Map>
             def counts = all.countBy { status(it) }
             def overall = ['FAILURE', 'UNSTABLE', 'SUCCESS'].find { it in counts }
-            summaries << facts + [id: id, serviceCount: SERVICES, pipelineCount: PIPELINES, activePipelineCount: all.count { it.enabled },
-                                  updatedAt: product.updatedAt]
+            summaries << facts + [id          : id, departmentId: department.id, departmentName: department.name, serviceCount: SERVICES,
+                                  pipelineCount: PIPELINES, activePipelineCount: all.count { it.enabled }, updatedAt: product.updatedAt]
             overview << facts + [productId: id, serviceCount: SERVICES, pipelineCount: PIPELINES, overall: overall,
                                  statusCounts: counts, lastRunAt: lastRun.time]
-            store("/api/products/$id", product + facts + [id: id, services: services])
+            store("/api/products/$id", product + facts + [id: id, departmentId: department.id, services: services])
             store("/api/products/$id/pipelines", [services, pipelines].transpose().collect { Map service, List<Map> own -> ApiData.servicePipelines(service, own) })
             store("/api/monitoring/products/$id", facts + [productId: id, overall: overall, metricsError: null, pipelines: all.collect {
                 [pipeline: it, status: status(it), lastRun: lastRun + [result: it.enabled ? status(it) : 'SUCCESS']]
@@ -42,6 +44,12 @@ class LargeCatalogue {
                                                          services: [services, pipelines].transpose().collect { Map service, List<Map> own -> serviceEvidence(service, own) }])
         }
         store('/api/products', summaries)
+        store('/api/departments', departments.collect { Map department ->
+            def own = summaries.findAll { it.departmentId == department.id }
+            department + [productCount       : own.size(), serviceCount: own.sum(0) { it.serviceCount },
+                          pipelineCount      : own.sum(0) { it.pipelineCount },
+                          activePipelineCount: own.sum(0) { it.activePipelineCount }]
+        })
         store('/api/monitoring/products', [products: overview, metricsError: null])
     }
 

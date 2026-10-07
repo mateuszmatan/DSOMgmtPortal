@@ -111,6 +111,10 @@ public final class Product {
         return details.contactEmail();
     }
 
+    public Long departmentId() {
+        return details.departmentId();
+    }
+
     public AppScanAccount appScanAccount() {
         return appScanAccount;
     }

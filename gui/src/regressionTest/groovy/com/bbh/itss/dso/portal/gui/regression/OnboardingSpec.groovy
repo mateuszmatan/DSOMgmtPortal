@@ -4,6 +4,7 @@ import com.bbh.itss.dso.portal.gui.support.ProductStore
 import com.bbh.itss.dso.portal.gui.support.StubApi
 import com.bbh.itss.dso.portal.gui.support.StubResponse
 import com.microsoft.playwright.Locator
+import com.microsoft.playwright.Page
 import com.microsoft.playwright.options.AriaRole
 
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
@@ -52,10 +53,13 @@ class OnboardingSpec extends EditorSpecification {
         then:
         assertThat(currentStep()).hasText('Product')
         assertThat(tile(step(), 'A new product')).hasAttribute('aria-checked', 'true')
-        hasErrors(step(), ['Product name'      : 'This product is already in the portal: choose "A product in the portal" above',
+        assertThat(step().locator('.fields mat-label').first()).hasText('Department')
+        hasErrors(step(), ['Department'        : 'Required',
+                           'Product name'      : 'This product is already in the portal: choose "A product in the portal" above',
                            'AppScan API key ID': 'Required'])
 
         when:
+        choose(step(), 'Department', 'Custody')
         fillIn(step(), ['Product name': 'Trade Archive', 'Owner team': 'Custody Technology',
                         'AppScan API key ID': APP_SCAN_KEY])
 
@@ -102,6 +106,7 @@ class OnboardingSpec extends EditorSpecification {
 
         then:
         assertThat(currentStep()).hasText('Review')
+        assertThat(review('Department')).hasText('Custody')
         assertThat(page.locator('.save-problem strong')).hasText('The portal did not accept some values.')
         assertThat(page.locator('.save-problem .problems li'))
                 .hasText(['archive-gui, AppScan application ID: the AppScan application belongs to CertScanner'] as String[])
@@ -123,6 +128,7 @@ class OnboardingSpec extends EditorSpecification {
         with(request.json() as Map) {
             code == 'TRADEARCHIVE'
             name == 'Trade Archive'
+            departmentId == 4
             ownerTeam == 'Custody Technology'
             contactEmail == null
             appScan.keyId == OnboardingSpec.APP_SCAN_KEY
@@ -168,10 +174,17 @@ class OnboardingSpec extends EditorSpecification {
         assertThat(choiceError()).hasText('Choose the product')
 
         when:
-        choose(step(), 'Product', 'CertScanner (CERTSCANNER)')
+        select(step(), 'Product').click()
 
         then:
-        assertThat(step().locator('dl.rows dd')).hasText(['Technology Architecture', '2'] as String[])
+        assertThat(page.locator('mat-optgroup .mat-mdc-optgroup-label')).hasText(['Corporate Technology', 'Fund Services'] as String[])
+
+        when:
+        page.getByRole(AriaRole.OPTION, new Page.GetByRoleOptions().setName('CertScanner (CERTSCANNER)').setExact(true)).click()
+
+        then:
+        assertThat(step().locator('dl.rows dd')).hasText(['Corporate Technology', 'Technology Architecture', '2'] as String[])
+        assertThat(formField(step(), 'Department')).hasCount(0)
 
         when:
         button('Continue', true).click()
@@ -222,6 +235,7 @@ class OnboardingSpec extends EditorSpecification {
         request.params() == [pipelineType: 'SAST']
         with(request.json() as Map) {
             version == stored.version
+            departmentId == stored.departmentId
             services*.id == [1, 2, null]
             services*.description == ['Web front end', stored.services[1].description, null]
             services[1].build == stored.services[1].build
@@ -242,6 +256,55 @@ class OnboardingSpec extends EditorSpecification {
         then:
         assertThat(currentStep()).hasText('Pipeline')
         assertThat(step().locator('[role=radio][aria-checked=true]')).hasCount(0)
+        ownErrors().isEmpty()
+    }
+
+    def "a product in the portal without a department is put into one on the way"() {
+        given:
+        def store = ProductStore.recorded(api, 2)
+        store.product.departmentId = null
+        def products = StubApi.fixture('products.json') as List<Map>
+        api.respond('GET', '/api/products', [products[0], products[1] + [departmentId: null, departmentName: null]])
+
+        when:
+        open('/beadle/onboarding')
+        tile(step(), 'Static scan').click()
+        button('Continue', true).click()
+        tile(step(), 'A product in the portal').click()
+        select(step(), 'Product').click()
+
+        then:
+        assertThat(page.locator('mat-optgroup .mat-mdc-optgroup-label')).hasText(['Corporate Technology', 'Not in a department'] as String[])
+
+        when:
+        page.getByRole(AriaRole.OPTION, new Page.GetByRoleOptions().setName('Payments Hub (PAYHUB)').setExact(true)).click()
+
+        then:
+        assertThat(hintOf(step(), 'Department')).hasText('The product is not in a department yet')
+        assertThat(step().locator('dl.rows dt')).hasText(['Owner team', 'Services'] as String[])
+
+        when:
+        button('Continue', true).click()
+
+        then:
+        assertThat(currentStep()).hasText('Product')
+        assertThat(errorOf(step(), 'Department')).hasText('Required')
+
+        when:
+        choose(step(), 'Department', 'Fund Services')
+        button('Continue', true).click()
+        button('Continue', true).click()
+
+        then:
+        assertThat(review('Department')).hasText('Fund Services')
+
+        when:
+        button('Save and create the pipelines', true).click()
+
+        then:
+        assertThat(step().locator('h2')).hasText('Payments Hub is ready. Do these steps in order')
+        awaitRequest('PUT', '/api/products/2').json().departmentId == 5
+        store.product.departmentId == 5
         ownErrors().isEmpty()
     }
 
@@ -293,6 +356,10 @@ class OnboardingSpec extends EditorSpecification {
 
     Locator choiceError() {
         step().locator('.choice-error')
+    }
+
+    Locator review(String term) {
+        step().locator("dl.rows dt:text-is('${term}') + dd")
     }
 
     Locator tile(Locator scope, String label) {

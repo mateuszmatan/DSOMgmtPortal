@@ -2,7 +2,11 @@ package com.bbh.itss.dso.portal.gui.regression
 
 import com.bbh.itss.dso.portal.gui.support.ProductStore
 import com.bbh.itss.dso.portal.gui.support.StubResponse
+import com.microsoft.playwright.Locator
+import com.microsoft.playwright.options.AriaRole
 import groovy.json.JsonSlurper
+
+import java.util.regex.Pattern
 
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 
@@ -12,7 +16,7 @@ class AddProductSpec extends EditorSpecification {
     static final String API_APPLICATION = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b32'
     static final String TAKEN_APPLICATION = '209f44ac-dd06-4ca0-884e-d944904f8020'
 
-    def "a new product starts from its name, and its code follows the name until the code is typed"() {
+    def "a new product starts from its department and name, and its code follows the name until the code is typed"() {
         when:
         open('/products/new')
         dialogButton('Cancel').click()
@@ -26,14 +30,17 @@ class AddProductSpec extends EditorSpecification {
         dialogButton('Continue').click()
 
         then:
+        assertThat(errorOf(dialog(), 'Department')).hasText('Required')
         assertThat(errorOf(dialog(), 'Product name')).hasText('Required')
 
         when:
+        choose(dialog(), 'Department', 'Fund Services')
         input(dialog(), 'Product name').fill('Cert Scanner')
         dialogButton('Continue').click()
 
         then:
         assertThat(dialog()).hasCount(0)
+        assertThat(select(productFields(), 'Department')).hasText('Fund Services')
         assertThat(input(productFields(), 'Name')).hasValue('Cert Scanner')
         assertThat(input(productFields(), 'Code')).hasValue('CERTSCANNER')
 
@@ -51,6 +58,27 @@ class AddProductSpec extends EditorSpecification {
         then:
         assertThat(input(productFields(), 'Code')).hasValue('CERTNEXT')
         api.requests('GET', '/api/products/code-suggestion')*.params()*.name == ['Cert Scanner', 'Cert Scanner Next']
+        ownErrors().isEmpty()
+    }
+
+    def "Add product of a department starts the new product in that department"() {
+        when:
+        open('/products')
+        holding(page.locator('section.department'), "h2:text-is('Custody')")
+                .getByRole(AriaRole.LINK, new Locator.GetByRoleOptions().setName('Add product').setExact(true)).click()
+
+        then:
+        assertThat(page).hasURL(Pattern.compile('/products/new\\?department=4$'))
+        assertThat(select(dialog(), 'Department')).hasText('Custody')
+
+        when:
+        input(dialog(), 'Product name').fill('Trade Archive')
+        dialogButton('Continue').click()
+
+        then:
+        assertThat(dialog()).hasCount(0)
+        assertThat(select(productFields(), 'Department')).hasText('Custody')
+        assertThat(input(productFields(), 'Code')).hasValue('TRADEARCHIVE')
         ownErrors().isEmpty()
     }
 

@@ -36,9 +36,14 @@ class ProductCatalogServiceSpec extends Specification {
     PipelinesUseCase pipelines = Mock()
     def catalog = new ProductCatalogService(products, pipelineCounts, pipelines)
 
-    def "the list shows each product with its service and pipeline counts"() {
+    def setup() {
+        products.departmentExists(_) >> true
+    }
+
+    def "the list shows each product with its department, service and pipeline counts"() {
         given:
-        products.summaries() >> [summary(1, 'CERT', 'CertScanner', 'TA', null), summary(2, 'PAY', 'Payments Hub', null, null)]
+        products.summaries() >> [summary(1, 'CERT', 'CertScanner', 'TA', null, 3L, 'Corporate Technology'),
+                                 summary(2, 'PAY', 'Payments Hub', null, null, null, null)]
         products.servicesPerProduct() >> [1L: 2L, 2L: 4L]
         pipelineCounts.pipelinesPerProduct() >> [1L: 3L]
         pipelineCounts.activePipelinesPerProduct() >> [1L: 1L]
@@ -55,12 +60,15 @@ class ProductCatalogServiceSpec extends Specification {
         list[0].id() == 1
         list[0].name() == 'CertScanner'
         list[0].updatedAt() == CHANGED
+        list*.departmentId() == [3L, null]
+        list*.departmentName() == ['Corporate Technology', null]
     }
 
     def "searching '#search' finds #codes"() {
         given:
-        products.summaries() >> [summary(1, 'CERT', 'CertScanner', 'Technology Architecture', null),
-                                 summary(2, 'PAY', 'Payments Hub', null, 'Payment orchestration')]
+        products.summaries() >> [summary(1, 'CERT', 'CertScanner', 'Technology Architecture', null, 3L,
+                                         'Corporate Technology'),
+                                 summary(2, 'PAY', 'Payments Hub', null, 'Payment orchestration', 5L, 'Fund Services')]
 
         expect:
         catalog.list(search)*.code() == codes
@@ -74,6 +82,8 @@ class ProductCatalogServiceSpec extends Specification {
         'pay'           || ['PAY']
         'ARCHITECTURE'  || ['CERT']
         'orchestration' || ['PAY']
+        'fund services' || ['PAY']
+        'corporate'     || ['CERT']
         'nothing'       || []
     }
 
@@ -214,8 +224,9 @@ class ProductCatalogServiceSpec extends Specification {
         'an update of an old version' | { it.update(1L, command(version: 3L)) }   || ConflictException.STALE_VERSION
     }
 
-    private static ProductSummary summary(long id, String code, String name, String ownerTeam, String description) {
-        new ProductSummary(id, code, name, description, ownerTeam, CHANGED)
+    private static ProductSummary summary(long id, String code, String name, String ownerTeam, String description,
+                                          Long departmentId, String departmentName) {
+        new ProductSummary(id, code, name, description, ownerTeam, departmentId, departmentName, CHANGED)
     }
 
     private static ServiceDraft service(Map args) {

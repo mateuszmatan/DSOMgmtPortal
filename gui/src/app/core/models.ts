@@ -22,12 +22,29 @@ export type TestSuite = 'UNIT' | TestStage;
 export const TEST_SUITES: TestSuite[] = ['UNIT', ...TEST_STAGES];
 export const SCANNERS: Scanner[] = ['SAST', 'SCA', 'NEXUS_IQ', 'DAST'];
 
+export interface Department {
+  id: number;
+  name: string;
+  version: number;
+  productCount: number;
+  serviceCount: number;
+  pipelineCount: number;
+  activePipelineCount: number;
+}
+
+export interface DepartmentRequest {
+  name: string;
+  version: number | null;
+}
+
 export interface ProductSummary {
   id: number;
   code: string;
   name: string;
   description: string | null;
   ownerTeam: string | null;
+  departmentId: number | null;
+  departmentName: string | null;
   serviceCount: number;
   pipelineCount: number;
   activePipelineCount: number;
@@ -332,6 +349,7 @@ export interface ProductFields {
   description: string | null;
   ownerTeam: string | null;
   contactEmail: string | null;
+  departmentId: number | null;
   appScan: AppScanAccount;
 }
 

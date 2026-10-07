@@ -28,6 +28,7 @@ public record ProductDto(
         @Size(max = 4000) String description,
         @Size(max = 200) String ownerTeam,
         @Email @Size(max = 320) String contactEmail,
+        Long departmentId,
         @NotNull @Valid AppScanAccountDto appScan,
         Long version,
         Instant createdAt,
@@ -36,13 +37,14 @@ public record ProductDto(
 
     static ProductDto from(Product product) {
         return new ProductDto(product.id(), product.code(), product.name(), product.description(),
-                product.ownerTeam(), product.contactEmail(),
+                product.ownerTeam(), product.contactEmail(), product.departmentId(),
                 RecordMapper.map(product.appScanAccount(), AppScanAccountDto.class), product.version(),
                 product.createdAt(), product.updatedAt(), product.services().stream().map(ServiceDto::from).toList());
     }
 
     ProductCommand toCommand(PipelineType pipelineType) {
-        return new ProductCommand(version, new ProductDetails(code, name, description, ownerTeam, contactEmail),
+        return new ProductCommand(version,
+                new ProductDetails(code, name, description, ownerTeam, contactEmail, departmentId),
                 RecordMapper.map(appScan, AppScanAccount.class), services.stream().map(ServiceDto::toDraft).toList(),
                 pipelineType);
     }
