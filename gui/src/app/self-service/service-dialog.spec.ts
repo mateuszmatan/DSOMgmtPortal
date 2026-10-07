@@ -121,24 +121,71 @@ describe('ServiceDialog', () => {
     );
   });
 
-  it('changes a service of the portal in one part and leaves its build and platform alone', async () => {
+  it('changes the build tool and platform of a service of the portal and asks for its project', async () => {
     const service: WizardService = {
       id: 10,
       name: 'gui',
       description: 'Angular front end',
       appScanId: APP_ID,
-      tool: 'MAVEN',
-      target: 'OPENSHIFT',
+      tool: 'GRADLE',
+      target: 'VM',
       openShiftProject: '',
     };
     await open({ service, takenNames: ['api'] });
 
-    expect(page().querySelector('.page-count')).toBeNull();
-    expect(text(page().querySelector('.note'))).toContain('Built with Maven, runs on OpenShift.');
+    expect(text(page().querySelector('h2'))).toBe('Change gui');
+    expect(text(page().querySelector('.page-count'))).toBe('Part 1 of 2 · About the service');
 
     await type('What it does', 'Web front end');
     await submit();
 
-    expect(close).toHaveBeenCalledWith({ ...service, description: 'Web front end' });
+    expect(text(page().querySelector('.page-count'))).toBe('Part 2 of 2 · Build and run');
+    expect(
+      page().querySelector('[role=radio][aria-checked=true][aria-label=Gradle]'),
+    ).not.toBeNull();
+    expect(text(page().querySelector('.note'))).toBe(
+      'If you change how it is built or where it runs, its build or deployment settings go back to the BBH defaults.',
+    );
+    expect(inputOf(page(), 'OpenShift project')).toBeUndefined();
+
+    await choose('Maven');
+    await choose('OpenShift');
+    await submit();
+
+    expect(errors()).toEqual(['Required']);
+
+    await type('OpenShift project', 'cert-gui');
+    await submit();
+
+    expect(close).toHaveBeenCalledWith({
+      ...service,
+      description: 'Web front end',
+      tool: 'MAVEN',
+      target: 'OPENSHIFT',
+      openShiftProject: 'cert-gui',
+    });
+  });
+
+  it('keeps a service of the portal on OpenShift without asking for its project again', async () => {
+    const service: WizardService = {
+      id: 10,
+      name: 'gui',
+      description: '',
+      appScanId: APP_ID,
+      tool: 'MAVEN',
+      target: 'OPENSHIFT',
+      openShiftProject: '',
+    };
+    await open({ service, pipeline: 'SAST', takenNames: [] });
+    await submit();
+
+    expect(page().querySelectorAll('[role=radiogroup]')).toHaveLength(1);
+    expect(text(page().querySelector('.note'))).toBe(
+      'If you change how it is built, its build settings go back to the BBH defaults.',
+    );
+
+    await submit();
+
+    expect(close).toHaveBeenCalledWith(service);
   });
 });

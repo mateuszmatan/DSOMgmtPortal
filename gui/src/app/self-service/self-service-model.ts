@@ -3,6 +3,7 @@ import {
   DeployTarget,
   FieldProblem,
   OpenShiftTarget,
+  PIPELINE_TYPES,
   Pipeline,
   PipelineType,
   Product,
@@ -10,6 +11,7 @@ import {
   Region,
   Service,
   ServicePipelines,
+  pipelineTypeLabel,
 } from '../core/models';
 import { createServiceForm, toServiceRequest } from '../products/product-form-model';
 import { Choice } from '../shared/choice-tiles';
@@ -51,6 +53,11 @@ export const TOOLS: readonly Choice<BuildTool>[] = [
   { value: 'MAVEN', label: 'Maven', description: 'The code has a pom.xml file' },
 ];
 
+const TOOL_NAMES: readonly Choice<BuildTool>[] = [
+  ...TOOLS,
+  { value: 'FLUTTER', label: 'Flutter', description: 'The code has a pubspec.yaml file' },
+];
+
 export const TARGETS: readonly Choice<DeployTarget>[] = [
   {
     value: 'VM',
@@ -71,7 +78,7 @@ export const PRODUCT_MODES: readonly Choice<ProductMode>[] = [
   {
     value: 'existing',
     label: 'A product in the portal',
-    description: 'Add services to it or change them',
+    description: 'Add a pipeline or change its services',
   },
 ];
 
@@ -87,6 +94,39 @@ const IMAGE_REGISTRY = 'docker-qc.tools.bbh.com';
 
 export function pipelineLabel(pipeline: WizardPipeline): string {
   return PIPELINES.find((option) => option.value === pipeline)!.label;
+}
+
+function typeLabel(type: PipelineType): string {
+  return PIPELINES.find((option) => option.value === type)?.label ?? pipelineTypeLabel(type);
+}
+
+export function pipelineNames(service: ServicePipelines): string {
+  const order = (type: PipelineType) => PIPELINE_TYPES.findIndex((option) => option.value === type);
+  return service.pipelines
+    .map((pipeline) => pipeline.type)
+    .sort((one, other) => order(one) - order(other))
+    .map(typeLabel)
+    .join(', ');
+}
+
+function coverage(services: readonly ServicePipelines[], type: PipelineType): string {
+  const count = services.filter((service) =>
+    service.pipelines.some((pipeline) => pipeline.type === type),
+  ).length;
+  if (!count) {
+    return 'No service has it yet';
+  }
+  return count === services.length
+    ? 'Every service has it'
+    : `${count} of ${services.length} services ${count === 1 ? 'has' : 'have'} it`;
+}
+
+export function pipelineChoices(
+  services: readonly ServicePipelines[] | null,
+): readonly Choice<WizardPipeline>[] {
+  return services
+    ? PIPELINES.map((option) => ({ ...option, note: coverage(services, option.value) }))
+    : PIPELINES;
 }
 
 export function choiceLabel<T>(choices: readonly Choice<T>[], value: T): string {
@@ -130,6 +170,89 @@ export function deploysWith(pipeline: WizardPipeline, service: WizardService): D
   return pipeline === 'SAST' && service.id === null ? 'VM' : service.target;
 }
 
+export function serviceSummary(pipeline: WizardPipeline, service: WizardService): string {
+  const target = deploysWith(pipeline, service);
+  const parts = [choiceLabel(TOOL_NAMES, service.tool)];
+  if (target && (pipeline !== 'SAST' || service.id !== null)) {
+    parts.push(`runs on ${choiceLabel(TARGETS, target)}`);
+  }
+  if (target === 'OPENSHIFT' && service.openShiftProject) {
+    parts.push(`project ${service.openShiftProject}`);
+  }
+  return parts.join(' · ');
+}
+
+export function changesOf(service: WizardService, stored: Service): string[] {
+  const changes: string[] = [];
+  if (service.name !== stored.name) {
+    changes.push(`renamed from ${stored.name}`);
+  }
+  if (service.description !== (stored.description ?? '')) {
+    changes.push(service.description ? 'new description' : 'no description');
+  }
+  if (service.appScanId.toLowerCase() !== stored.appScan.applicationId.toLowerCase()) {
+    changes.push('new AppScan application ID');
+  }
+  if (service.tool !== stored.build.tool) {
+    changes.push(
+      `built with ${choiceLabel(TOOLS, service.tool)} instead of ${choiceLabel(TOOL_NAMES, stored.build.tool)}, with the default build settings`,
+    );
+  }
+  if (service.target !== stored.deployment.target) {
+    const project = service.openShiftProject ? ` in project ${service.openShiftProject}` : '';
+    changes.push(
+      `runs on ${choiceLabel(TARGETS, service.target)}${project} instead of ${choiceLabel(TARGETS, stored.deployment.target)}, with the default deployment settings`,
+    );
+  }
+  return changes;
+}
+
+const REVIEW_LABELS = ['Added', 'Changed', 'Removed', 'Unchanged'] as const;
+
+type ReviewLabel = (typeof REVIEW_LABELS)[number];
+
+interface ReviewEntry {
+  name: string;
+  text: string;
+}
+
+export interface ReviewGroup {
+  label: ReviewLabel;
+  services: ReviewEntry[];
+}
+
+function reviewEntry(
+  pipeline: WizardPipeline,
+  service: WizardService,
+  stored: readonly Service[],
+  removed: readonly number[],
+): [ReviewLabel, ReviewEntry] {
+  const before = stored.find((candidate) => candidate.id === service.id);
+  if (!before) {
+    return ['Added', { name: service.name, text: serviceSummary(pipeline, service) }];
+  }
+  if (removed.includes(before.id)) {
+    return ['Removed', { name: service.name, text: serviceSummary(pipeline, service) }];
+  }
+  const changes = changesOf(service, before);
+  return changes.length
+    ? ['Changed', { name: service.name, text: changes.join('; ') }]
+    : ['Unchanged', { name: service.name, text: serviceSummary(pipeline, service) }];
+}
+
+export function reviewGroups(
+  pipeline: WizardPipeline,
+  services: readonly WizardService[],
+  stored: readonly Service[],
+  removed: readonly number[],
+): ReviewGroup[] {
+  const entries = services.map((service) => reviewEntry(pipeline, service, stored, removed));
+  return REVIEW_LABELS.map((label) => ({
+    label,
+    services: entries.filter(([group]) => group === label).map(([, entry]) => entry),
+  })).filter((group) => group.services.length);
+}
+
 type TargetText = Partial<Omit<Record<keyof OpenShiftTarget, string>, 'skipConfigDeploy'>>;
 
 export function openShiftTargets(
@@ -165,15 +288,25 @@ export function serviceRequest(
   pipeline: WizardPipeline,
   existing?: Service,
 ) {
-  const form = createServiceForm(existing);
+  const target = deploysWith(pipeline, service) ?? 'VM';
+  const retooled = existing?.build.tool !== service.tool;
+  const moved = existing?.deployment.target !== target;
+  const openShift = target === 'OPENSHIFT';
+  const form = createServiceForm(
+    existing && {
+      ...existing,
+      build: retooled ? undefined : existing.build,
+      delivery: retooled || moved ? undefined : existing.delivery,
+      deployment: moved ? undefined : existing.deployment,
+      openShiftTargets: moved ? undefined : existing.openShiftTargets,
+    },
+  );
   form.patchValue({
     name: service.name,
     description: service.description,
     appScan: { applicationId: service.appScanId },
   });
-  if (!existing) {
-    const target = deploysWith(pipeline, service) ?? 'VM';
-    const openShift = target === 'OPENSHIFT';
+  if (retooled) {
     form.patchValue({
       build: {
         tool: service.tool,
@@ -181,16 +314,22 @@ export function serviceRequest(
         buildPath: service.tool === 'MAVEN' ? MAVEN_ARTIFACT : '',
         command: { tasks: BUILD_TASKS[service.tool] },
       },
+    });
+  }
+  if (moved) {
+    form.patchValue({
       deployment: {
         target,
         appName: openShift ? service.name : '',
         artifactName: openShift ? `${service.name}.jar` : '',
       },
-      delivery: { tasks: MAVEN_DELIVERY },
       openShiftTargets: openShift
         ? openShiftTargets(service.openShiftProject, service.name, service.tool)
         : {},
     });
+  }
+  if (retooled || moved) {
+    form.patchValue({ delivery: { tasks: MAVEN_DELIVERY } });
   }
   return toServiceRequest(form);
 }

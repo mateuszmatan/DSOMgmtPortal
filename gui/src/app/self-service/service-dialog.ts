@@ -21,7 +21,6 @@ import {
   WizardService,
   TARGETS,
   TOOLS,
-  choiceLabel,
 } from './self-service-model';
 
 export interface ServiceDialogData {
@@ -49,11 +48,9 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
     <h2 mat-dialog-title>{{ data.service ? 'Change ' + data.service.name : 'Add a service' }}</h2>
     <form [formGroup]="form" (ngSubmit)="next()" novalidate>
       <mat-dialog-content>
-        @if (!existing) {
-          <p class="page-count">
-            Part {{ page() }} of 2 · {{ page() === 1 ? 'About the service' : 'Build and run' }}
-          </p>
-        }
+        <p class="page-count">
+          Part {{ page() }} of 2 · {{ page() === 1 ? 'About the service' : 'Build and run' }}
+        </p>
         @if (page() === 1) {
           <mat-form-field class="full-width">
             <mat-label>Service name</mat-label>
@@ -86,12 +83,6 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
             <mat-hint>The Application Security team gives it to you</mat-hint>
             <mat-error>{{ errorText(form.controls.appScanId, appScanHelp) }}</mat-error>
           </mat-form-field>
-          @if (existing) {
-            <p class="note">
-              Built with {{ toolLabel() }}, runs on {{ targetLabel() }}. How it is built and
-              deployed is changed in Product Management.
-            </p>
-          }
         } @else {
           <h3>What builds the code?</h3>
           <dso-choice-tiles label="Build tool" [options]="tools" [(value)]="tool" />
@@ -104,7 +95,7 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
             @if (checked() && target() === null) {
               <p class="choice-error">Choose where the service runs</p>
             }
-            @if (target() === 'OPENSHIFT') {
+            @if (needsProject()) {
               <mat-form-field class="full-width project">
                 <mat-label>OpenShift project</mat-label>
                 <input
@@ -118,6 +109,15 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
                 <mat-error>{{ errorText(form.controls.openShiftProject, projectHelp) }}</mat-error>
               </mat-form-field>
             }
+          }
+          @if (existing) {
+            <p class="note">
+              {{
+                deploys
+                  ? 'If you change how it is built or where it runs, its build or deployment settings go back to the BBH defaults.'
+                  : 'If you change how it is built, its build settings go back to the BBH defaults.'
+              }}
+            </p>
           }
         }
       </mat-dialog-content>
@@ -175,6 +175,8 @@ export class ServiceDialog {
   private readonly start = this.data.service;
   protected readonly existing = this.start?.id != null;
   protected readonly deploys = this.data.pipeline !== 'SAST';
+  private readonly onOpenShift =
+    this.existing && this.start?.target === 'OPENSHIFT' && !this.start.openShiftProject;
   protected readonly tools = TOOLS;
   protected readonly targets = TARGETS;
   protected readonly nameHelp = NAME_HELP;
@@ -186,10 +188,11 @@ export class ServiceDialog {
   protected readonly checked = signal(false);
   protected readonly tool = signal<BuildTool | null>(this.start?.tool ?? null);
   protected readonly target = signal<DeployTarget | null>(this.start?.target ?? null);
-  protected readonly toolLabel = computed(() => choiceLabel(TOOLS, this.tool()));
-  protected readonly targetLabel = computed(() => choiceLabel(TARGETS, this.target()));
+  protected readonly needsProject = computed(
+    () => this.deploys && this.target() === 'OPENSHIFT' && !this.onOpenShift,
+  );
   protected readonly submitLabel = computed(() =>
-    !this.existing && this.page() === 1 ? 'Next' : this.start ? 'Save service' : 'Add service',
+    this.page() === 1 ? 'Next' : this.start ? 'Save service' : 'Add service',
   );
 
   protected readonly form = new FormGroup({
@@ -209,12 +212,7 @@ export class ServiceDialog {
     const { name, description, appScanId, openShiftProject } = this.form.controls;
     if (this.page() === 1) {
       [name, description, appScanId].forEach((control) => control.markAsTouched());
-      if (!name.valid || !description.valid || !appScanId.valid) {
-        return;
-      }
-      if (this.existing) {
-        this.finish();
-      } else {
+      if (name.valid && description.valid && appScanId.valid) {
         this.page.set(2);
       }
       return;
@@ -230,10 +228,6 @@ export class ServiceDialog {
     if (!this.needsProject() || openShiftProject.valid) {
       this.finish();
     }
-  }
-
-  private needsProject(): boolean {
-    return this.deploys && this.target() === 'OPENSHIFT';
   }
 
   private finish(): void {

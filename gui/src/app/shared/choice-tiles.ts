@@ -5,6 +5,7 @@ export interface Choice<T> {
   label: string;
   description: string;
   points?: readonly string[];
+  note?: string;
 }
 
 @Component({
@@ -25,10 +26,15 @@ export interface Choice<T> {
           [class.selected]="option.value === value()"
           [attr.aria-checked]="option.value === value()"
           [attr.aria-label]="option.label"
-          [attr.aria-description]="option.description"
+          [attr.aria-description]="
+            option.note ? option.description + ' ' + option.note : option.description
+          "
           (click)="value.set(option.value)"
         >
           <span class="tile-label">{{ option.label }}</span>
+          @if (option.note) {
+            <span class="tag tile-note">{{ option.note }}</span>
+          }
           <span class="tile-description">{{ option.description }}</span>
           @if (option.points?.length) {
             <ul>
@@ -81,6 +87,10 @@ export interface Choice<T> {
       font-size: 14px;
       font-weight: 600;
       color: var(--dso-navy);
+    }
+
+    .tile-note {
+      margin: 1px 0 2px;
     }
 
     .tile-description {

@@ -25,41 +25,11 @@
   <section class="card step">
     @switch (step()) {
       @case (0) {
-        <h2>Which pipeline does your product need?</h2>
-        <p class="lead">
-          A pipeline checks your code automatically every time it runs. Choose one for the whole
-          product; every service gets its own.
-        </p>
-        <dso-choice-tiles label="Pipeline" [options]="pipelines" [(value)]="pipeline" />
-        @if (checked() && !pipeline()) {
-          <p class="choice-error">Choose a pipeline to continue</p>
-        }
-        @if (pipeline(); as chosen) {
-          <div class="prepare">
-            <h3>Have these at hand</h3>
-            <ul>
-              @for (need of preparation(chosen); track need) {
-                <li>{{ need }}</li>
-              }
-            </ul>
-          </div>
-        } @else {
-          <p class="hint">Not sure? Start with Security. You can add another pipeline later.</p>
-        }
-      }
-      @case (1) {
         <h2>Which product is it?</h2>
-        <p class="lead">Start a new product or pick one that is already in the portal.</p>
-        <dso-choice-tiles
-          label="Product"
-          [options]="modes"
-          [value]="mode()"
-          (valueChange)="chooseMode($event!)"
-        />
-        @if (departmentsError(); as error) {
-          <p class="choice-error">The departments could not be loaded: {{ error }}</p>
-        }
-        <ng-template #departmentField>
+        <p class="lead">
+          Choose its department, then start a new product or pick one that is already in the portal.
+        </p>
+        <div class="fields">
           <mat-form-field>
             <mat-label>Department</mat-label>
             <mat-select [formControl]="productForm.controls.departmentId">
@@ -68,14 +38,22 @@
               }
             </mat-select>
             @if (needsDepartment()) {
-              <mat-hint>The product is not in a department yet</mat-hint>
+              <mat-hint>Saving moves the product into this department</mat-hint>
             }
             <mat-error>{{ errorText(productForm.controls.departmentId) }}</mat-error>
           </mat-form-field>
-        </ng-template>
+        </div>
+        @if (departmentsError(); as error) {
+          <p class="choice-error">The departments could not be loaded: {{ error }}</p>
+        }
+        <dso-choice-tiles
+          label="Product"
+          [options]="modes"
+          [value]="mode()"
+          (valueChange)="chooseMode($event!)"
+        />
         @if (mode() === 'new') {
           <form class="fields" [formGroup]="productForm" novalidate>
-            <ng-container [ngTemplateOutlet]="departmentField" />
             <mat-form-field>
               <mat-label>Product name</mat-label>
               <input
@@ -136,21 +114,14 @@
                   </mat-optgroup>
                 }
               </mat-select>
-              <mat-hint>{{ products().length }} products in the portal</mat-hint>
+              <mat-hint>{{ choosable() }} to choose from</mat-hint>
             </mat-form-field>
-            @if (needsDepartment()) {
-              <ng-container [ngTemplateOutlet]="departmentField" />
-            }
           </div>
           @if (productError(); as error) {
             <p class="choice-error">{{ error }}</p>
           }
           @if (existing(); as product) {
             <dl class="rows">
-              @if (!needsDepartment()) {
-                <dt>Department</dt>
-                <dd>{{ departmentName() }}</dd>
-              }
               <dt>Owner team</dt>
               <dd>{{ product.ownerTeam ?? 'not set' }}</dd>
               <dt>Services</dt>
@@ -159,6 +130,53 @@
           } @else if (checked()) {
             <p class="choice-error">Choose the product</p>
           }
+        }
+      }
+      @case (1) {
+        <h2>Which pipeline does {{ productName() }} need?</h2>
+        <p class="lead">
+          A pipeline checks your code automatically every time it runs.
+          @if (existing()) {
+            Choosing one adds it to every service that lacks it and keeps the other pipelines.
+          } @else {
+            Choose one for the whole product; every service gets its own.
+          }
+        </p>
+        @if (existing()) {
+          @if (current.isLoading()) {
+            <mat-progress-bar mode="indeterminate" />
+          }
+          @if (current.error(); as error) {
+            <p class="choice-error">Its pipelines could not be loaded: {{ errorMessage(error) }}</p>
+          } @else if (current.hasValue()) {
+            <div class="today">
+              <h3>Pipelines today</h3>
+              <ul>
+                @for (service of current.value(); track service.serviceId) {
+                  <li>
+                    <strong>{{ service.serviceName }}</strong> ·
+                    {{ pipelineNames(service) || 'no pipeline yet' }}
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+        }
+        <dso-choice-tiles label="Pipeline" [options]="pipelines()" [(value)]="pipeline" />
+        @if (checked() && !pipeline()) {
+          <p class="choice-error">Choose a pipeline to continue</p>
+        }
+        @if (pipeline(); as chosen) {
+          <div class="prepare">
+            <h3>Have these at hand</h3>
+            <ul>
+              @for (need of preparation(chosen); track need) {
+                <li>{{ need }}</li>
+              }
+            </ul>
+          </div>
+        } @else {
+          <p class="hint">Not sure? Start with Security. You can add another pipeline later.</p>
         }
       }
       @case (2) {
@@ -170,22 +188,31 @@
         @if (services().length) {
           <ol class="service-list">
             @for (service of services(); track $index; let index = $index) {
-              <li>
+              <li [class.removed]="isRemoved(service)">
                 <span class="index">{{ index + 1 }}</span>
                 <div class="service-text">
                   <div class="row-wrap">
                     <strong>{{ service.name }}</strong>
                     @if (service.id === null) {
                       <span class="tag new">New</span>
+                    } @else if (isRemoved(service)) {
+                      <span class="tag error">Removed</span>
+                    } @else if (isChanged(service)) {
+                      <span class="tag">Changed</span>
                     }
                   </div>
                   <span class="muted">{{ serviceSummary(service) }}</span>
                   @if (service.description) {
                     <span class="muted">{{ service.description }}</span>
                   }
+                  @if (isRemoved(service)) {
+                    <span class="removal">{{ removalText(service) }}</span>
+                  }
                 </div>
-                <button mat-button type="button" (click)="openService(index)">Change</button>
-                @if (service.id === null) {
+                @if (isRemoved(service)) {
+                  <button mat-button type="button" (click)="keepService(service)">Undo</button>
+                } @else {
+                  <button mat-button type="button" (click)="openService(index)">Change</button>
                   <button mat-button type="button" class="danger" (click)="removeService(index)">
                     Remove
                   </button>
@@ -197,8 +224,10 @@
           <p class="empty">No services yet. Add the first one.</p>
         }
         <button mat-stroked-button type="button" (click)="openService(null)">Add a service</button>
-        @if (checked() && !services().length) {
-          <p class="choice-error">Add at least one service</p>
+        @if (checked() && !kept().length) {
+          <p class="choice-error">
+            {{ services().length ? 'Keep at least one service' : 'Add at least one service' }}
+          </p>
         }
         @if (checked() && unplaced().length) {
           <p class="choice-error">Choose where these services run: {{ unplaced().join(', ') }}</p>
@@ -211,8 +240,6 @@
           {{ pipelineLabel() }} pipeline with its own key, unless it has one already.
         </p>
         <dl class="rows">
-          <dt>Pipeline</dt>
-          <dd>{{ pipelineLabel() }}</dd>
           <dt>Product</dt>
           <dd>{{ productName() }} ({{ existing()?.code ?? code() }})</dd>
           <dt>Department</dt>
@@ -223,23 +250,39 @@
             <dt>Contact e-mail</dt>
             <dd>{{ productForm.controls.contactEmail.value || 'not set' }}</dd>
           }
-          <dt>Services</dt>
-          <dd>
-            <ul class="review-services">
-              @for (service of services(); track $index) {
-                <li>
-                  <strong>{{ service.name }}</strong> · {{ serviceSummary(service) }}
-                  @if (service.id === null) {
-                    <span class="tag new">New</span>
-                  }
-                </li>
-              }
-            </ul>
-          </dd>
+          <dt>Pipeline</dt>
+          <dd>{{ pipelineLabel() }}</dd>
+          @for (group of review(); track group.label) {
+            <dt>{{ group.label }}</dt>
+            <dd>
+              <ul class="review-services">
+                @for (entry of group.services; track $index) {
+                  <li>
+                    <strong>{{ entry.name }}</strong> · {{ entry.text }}
+                  </li>
+                }
+              </ul>
+            </dd>
+          }
         </dl>
+        @if (doomed().length) {
+          <div class="banner danger removal-warning" role="alert">
+            <div>
+              <strong
+                >Saving deletes these pipelines and their keys. Jenkins jobs that use these keys
+                stop working.</strong
+              >
+              <ul class="problems">
+                @for (line of doomed(); track line) {
+                  <li>{{ line }}</li>
+                }
+              </ul>
+            </div>
+          </div>
+        }
         <p class="note">
-          The portal fills in everything else from BBH defaults and the Global Settings. The
-          DevSecOps team can fine-tune it in Product Management.
+          The portal fills in everything else from the BBH library defaults. The DevSecOps team can
+          fine-tune it in {{ admin }}.
         </p>
         @if (saving()) {
           <mat-progress-bar mode="indeterminate" />
@@ -317,7 +360,7 @@
                 <h3>Connect your tests and deployment</h3>
                 <p>
                   Add the smoke, regression and performance test jobs and the deployment details of
-                  each service in Product Management, or ask the DevSecOps team to do it.
+                  each service in {{ admin }}, or ask the DevSecOps team to do it.
                 </p>
               </li>
             }
@@ -337,11 +380,11 @@
 
     <div class="step-actions">
       @if (step() === 4) {
-        <a mat-button [routerLink]="['/admin/products', result()?.product?.id]"
-          >Open in Product Management</a
-        >
+        @if (result(); as done) {
+          <a mat-button [routerLink]="adminProduct(done.product.id)">Open in {{ admin }}</a>
+        }
         <span class="spacer"></span>
-        <button mat-flat-button type="button" (click)="restart()">Onboard another product</button>
+        <button mat-flat-button type="button" (click)="restart()">Start again</button>
       } @else {
         @if (step() > 0) {
           <button mat-button type="button" [disabled]="saving()" (click)="back()">Back</button>
