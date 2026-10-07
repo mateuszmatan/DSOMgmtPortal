@@ -32,7 +32,7 @@
             mat-button
             type="button"
             (click)="move(job, -1)"
-            [disabled]="isFirst(job)"
+            [disabled]="$first"
             [attr.aria-label]="'Start ' + jobName(job) + ' earlier'"
           >
             Up
@@ -41,7 +41,7 @@
             mat-button
             type="button"
             (click)="move(job, 1)"
-            [disabled]="isLast(job)"
+            [disabled]="$last"
             [attr.aria-label]="'Start ' + jobName(job) + ' later'"
           >
             Down

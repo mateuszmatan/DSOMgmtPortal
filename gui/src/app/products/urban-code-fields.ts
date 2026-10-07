@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { GlobalSettings } from '../core/models';
-import { addItem } from '../shared/form-controls';
+import { addItem, removeItem } from '../shared/form-controls';
 import {
   Field,
   Fields,
@@ -10,9 +10,11 @@ import {
   check,
   choice,
   count,
+  defaulted,
   formRevision,
   line,
   mono,
+  tristate,
 } from '../shared/fields';
 import {
   ServiceForm,
@@ -43,14 +45,8 @@ const TEXTS: Field[] = [
 
 const SERVICE_SETTING = 'left empty: the setting above';
 
-const THREE_STATES = [
-  { value: null, label: 'Setting above' },
-  { value: true, label: 'Yes' },
-  { value: false, label: 'No' },
-];
-
 const threeState = (key: string, label: string, code: string) =>
-  choice(key, label, THREE_STATES, code, 4);
+  choice(key, label, tristate('Setting above', 'Yes', 'No'), code, 4);
 
 const APPLICATION: Field[] = [
   mono('applicationName', 'Application name', 'applicationName', 5),
@@ -149,17 +145,22 @@ export class UrbanCodeFields {
 
   protected settingsFields(): Field[] {
     const deployment = this.defaults()?.deployment;
-    const site = deployment?.urbanCodeSiteName;
-    const process = deployment?.urbanCodeDeployProcess;
+    const global = 'left empty: the global default';
     return [
-      line('siteName', 'Site name', 'deploy.vm.dod.siteName', 6, {
-        placeholder: site ?? '',
-        hint: `left empty: ${site ?? 'the global default'}`,
-      }),
-      line('deployProcess', 'Deployment process', 'deploy.vm.dod.deployProcess', 6, {
-        placeholder: process ?? '',
-        hint: `left empty: ${process ?? 'the global default'}`,
-      }),
+      line(
+        'siteName',
+        'Site name',
+        'deploy.vm.dod.siteName',
+        6,
+        defaulted(deployment?.urbanCodeSiteName, global),
+      ),
+      line(
+        'deployProcess',
+        'Deployment process',
+        'deploy.vm.dod.deployProcess',
+        6,
+        defaulted(deployment?.urbanCodeDeployProcess, global),
+      ),
       ...SWITCHES,
       ...TEXTS,
     ];
@@ -167,21 +168,17 @@ export class UrbanCodeFields {
 
   protected addApplication(): void {
     addItem(this.form().controls.urbanCodeApplications, createUrbanCodeApplicationForm());
-    this.form().markAsDirty();
   }
 
   protected removeApplication(index: number): void {
-    this.form().controls.urbanCodeApplications.removeAt(index);
-    this.form().markAsDirty();
+    removeItem(this.form().controls.urbanCodeApplications, index);
   }
 
   protected addComponent(application: UrbanCodeApplicationForm): void {
     addItem(application.controls.components, createUrbanCodeComponentForm());
-    this.form().markAsDirty();
   }
 
   protected removeComponent(application: UrbanCodeApplicationForm, index: number): void {
-    application.controls.components.removeAt(index);
-    this.form().markAsDirty();
+    removeItem(application.controls.components, index);
   }
 }

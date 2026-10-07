@@ -30,11 +30,6 @@ import { MonitoringStatus } from '../core/models';
       </div>
     }
   `,
-  styles: `
-    code {
-      font-size: 12px;
-    }
-  `,
 })
 export class MetricsBanner {
   readonly status = input<MonitoringStatus | undefined>();

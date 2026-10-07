@@ -145,6 +145,15 @@ h5 {
     height: 100%;
     max-width: 100%;
     background: var(--dso-navy);
+
+    &.warn {
+      background: var(--dso-warning);
+    }
+
+    &.fail,
+    &.blocked {
+      background: var(--dso-danger);
+    }
   }
 
   .required {

@@ -33,19 +33,22 @@ import {
 } from 'rxjs';
 import { DepartmentsApi, PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
-import {
-  BuildTool,
-  DeployTarget,
-  Department,
-  FieldProblem,
-  GlobalSettings,
-  Product,
-} from '../core/models';
+import { Department, FieldProblem, GlobalSettings, Product } from '../core/models';
 import { Notifier } from '../core/notifier';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
-import { Field, Fields, area, choice, line, mono } from '../shared/fields';
-import { addItem, revalidateAll } from '../shared/form-controls';
+import {
+  Field,
+  Fields,
+  TARGET_LABELS,
+  TOOL_LABELS,
+  area,
+  choice,
+  line,
+  mono,
+} from '../shared/fields';
+import { addItem, moveItem, removeItem, revalidateAll } from '../shared/form-controls';
+import { CountedPipe } from '../shared/formatting';
 import {
   ServiceForm,
   applyProductProblems,
@@ -99,6 +102,7 @@ const APP_SCAN_ACCOUNT: Field[] = [
     MatExpansionModule,
     MatProgressBarModule,
     MatProgressSpinnerModule,
+    CountedPipe,
     Fields,
     ServiceFields,
   ],
@@ -146,15 +150,8 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
 
   protected readonly productFields = computed(() => productFields(this.departments()));
   protected readonly appScanFields = APP_SCAN_ACCOUNT;
-  protected readonly toolLabels: Record<BuildTool, string> = {
-    GRADLE: 'Gradle',
-    MAVEN: 'Maven',
-    FLUTTER: 'Flutter',
-  };
-  protected readonly targetLabels: Record<DeployTarget, string> = {
-    VM: 'Virtual machine',
-    OPENSHIFT: 'OpenShift',
-  };
+  protected readonly toolLabels = TOOL_LABELS;
+  protected readonly targetLabels = TARGET_LABELS;
 
   ngOnInit(): void {
     const id = this.id();
@@ -248,30 +245,22 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       createServiceForm(undefined, this.settings()?.serviceDefaults),
     );
     this.expanded.set(this.form.controls.services.length - 1);
-    this.form.markAsDirty();
   }
 
   protected duplicate(index: number): void {
-    this.form.controls.services.insert(
-      index + 1,
-      duplicateService(this.form.controls.services.at(index)),
-    );
+    const services = this.form.controls.services;
+    addItem(services, duplicateService(services.at(index)), index + 1);
     this.expanded.set(index + 1);
-    this.form.markAsDirty();
   }
 
   protected move(index: number, offset: -1 | 1): void {
-    const services = this.form.controls.services;
     const target = index + offset;
-    const service = services.at(index);
-    services.removeAt(index, { emitEvent: false });
-    services.insert(target, service);
+    moveItem(this.form.controls.services, index, target);
     if (this.expanded() === index) {
       this.expanded.set(target);
     } else if (this.expanded() === target) {
       this.expanded.set(index);
     }
-    this.form.markAsDirty();
   }
 
   protected remove(index: number): void {
@@ -404,13 +393,12 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   }
 
   private removeAt(index: number): void {
-    this.form.controls.services.removeAt(index);
+    removeItem(this.form.controls.services, index);
     const expanded = this.expanded();
     if (expanded === index) {
       this.expanded.set(null);
     } else if (expanded !== null && expanded > index) {
       this.expanded.set(expanded - 1);
     }
-    this.form.markAsDirty();
   }
 }

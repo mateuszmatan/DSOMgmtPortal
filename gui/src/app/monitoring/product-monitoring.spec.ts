@@ -10,6 +10,7 @@ import {
   productMonitoring,
 } from '../testing/fixtures';
 import { ProductMonitoringPage } from './product-monitoring';
+import { buttonOf } from '../testing/dom';
 
 describe('ProductMonitoringPage', () => {
   let fixture: ComponentFixture<ProductMonitoringPage>;
@@ -82,9 +83,7 @@ describe('ProductMonitoringPage', () => {
 
   it('reads the product again on refresh and shows the progress meanwhile', async () => {
     await load();
-    const refresh = [...page().querySelectorAll<HTMLButtonElement>('button')].find(
-      (button) => button.textContent?.trim() === 'Refresh',
-    )!;
+    const refresh = buttonOf(page(), 'Refresh');
 
     refresh.click();
     TestBed.tick();

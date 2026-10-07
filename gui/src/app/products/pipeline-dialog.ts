@@ -16,14 +16,16 @@ import {
 } from '../core/models';
 import { Field, Fields, area, choice, mono } from '../shared/fields';
 import {
+  applyFieldProblems,
   commaItems,
   eachItem,
+  filled,
   fitsColumn,
   joinWords,
+  max,
   setEnabled,
   text,
 } from '../shared/form-controls';
-import { applyFieldProblems } from './product-form-model';
 
 export interface PipelineDialogData {
   service: ServicePipelines;
@@ -68,30 +70,24 @@ export class PipelineDialog {
     ),
     agentLabels: text(
       joinWords(this.data.pipeline?.agentLabels ?? ['linux-agent'], ', '),
-      Validators.required,
+      filled,
       (control) =>
         commaItems(control.value).length > MAX_LABELS ? { maxItems: { max: MAX_LABELS } } : null,
       eachItem(commaItems, AGENT_LABEL, 'At most 100 characters per label'),
       fitsColumn(commaItems, ',', 1000),
     ),
-    jenkinsJob: new FormControl(this.data.pipeline?.jenkinsJob ?? '', {
-      nonNullable: true,
-      validators: [Validators.pattern(JENKINS_JOB), Validators.maxLength(1000)],
-    }),
+    jenkinsJob: text(this.data.pipeline?.jenkinsJob, Validators.pattern(JENKINS_JOB), max(1000)),
     extendedPipelineJob: text(
       this.data.pipeline?.extendedPipelineJob,
       Validators.pattern(JOB_PATH),
-      Validators.maxLength(500),
+      max(500),
     ),
     securityPipelineJob: text(
       this.data.pipeline?.securityPipelineJob,
       Validators.pattern(JOB_PATH),
-      Validators.maxLength(500),
+      max(500),
     ),
-    description: new FormControl(this.data.pipeline?.description ?? '', {
-      nonNullable: true,
-      validators: Validators.maxLength(1000),
-    }),
+    description: text(this.data.pipeline?.description, max(1000)),
   });
 
   private readonly type = toSignal(this.form.controls.type.valueChanges, {
@@ -104,7 +100,7 @@ export class PipelineDialog {
 
   protected readonly error = signal<string | null>(null);
 
-  protected fields(): Field[] {
+  protected readonly fields = computed<Field[]>(() => {
     const type = this.selectedType();
     const job = (key: string, label: string, code: string, example: string, hint: string) =>
       mono(key, label, code, 12, { placeholder: example, hint, error: JOB_PATH_ERROR });
@@ -150,7 +146,7 @@ export class PipelineDialog {
         placeholder: 'Nightly security scan of the develop branch',
       }),
     ];
-  }
+  });
 
   constructor() {
     const sync = (type: PipelineType) => {

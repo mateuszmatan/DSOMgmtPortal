@@ -12,7 +12,7 @@ import { MonitoringApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { RunResult } from '../core/models';
 import { MONITORING } from '../core/sections';
-import { RelativeTimePipe } from '../shared/formatting';
+import { CountedPipe, RelativeTimePipe } from '../shared/formatting';
 import { StatusChip } from '../shared/status-chip';
 import { MetricsBanner } from './metrics-banner';
 import { STATUS_ORDER, StatusBar } from './status-bar';
@@ -27,6 +27,7 @@ import { STATUS_ORDER, StatusBar } from './status-bar';
     MatInputModule,
     MatProgressBarModule,
     MatTooltipModule,
+    CountedPipe,
     MetricsBanner,
     RelativeTimePipe,
     StatusBar,

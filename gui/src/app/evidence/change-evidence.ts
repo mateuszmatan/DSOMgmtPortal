@@ -12,9 +12,10 @@ import { EvidenceApi, ProductsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { ProductEvidence, ServiceEvidence } from '../core/models';
 import { EVIDENCE } from '../core/sections';
+import { CountedPipe } from '../shared/formatting';
 import { PipelineEvidenceCard } from './pipeline-evidence-card';
 
-export type EvidenceState =
+type EvidenceState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
   | { status: 'loaded'; evidence: ProductEvidence };
@@ -29,6 +30,7 @@ export type EvidenceState =
     MatFormFieldModule,
     MatInputModule,
     MatProgressBarModule,
+    CountedPipe,
     PipelineEvidenceCard,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,

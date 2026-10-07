@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { DailyActivity } from '../core/models';
+import { counted } from '../shared/formatting';
 
 const WIDTH = 800;
 const HEIGHT = 190;
@@ -18,7 +19,6 @@ const dayFormat = new Intl.DateTimeFormat('en', {
     @let c = chart();
     <svg
       [attr.viewBox]="'0 0 ' + c.width + ' ' + c.height"
-      preserveAspectRatio="none"
       role="img"
       [attr.aria-label]="c.summary"
     >
@@ -85,9 +85,9 @@ const dayFormat = new Intl.DateTimeFormat('en', {
       }
     </svg>
     <div class="legend">
-      <span><i class="success"></i>Successful runs</span>
-      <span><i class="failure"></i>Failed or unstable runs</span>
-      <span><i class="deployment"></i>Deployed that day</span>
+      <span><i class="swatch success"></i>Successful runs</span>
+      <span><i class="swatch failure"></i>Failed or unstable runs</span>
+      <span><i class="swatch deployment"></i>Deployed that day</span>
     </div>
   `,
   styles: `
@@ -96,7 +96,7 @@ const dayFormat = new Intl.DateTimeFormat('en', {
     }
     svg {
       width: 100%;
-      height: 190px;
+      height: auto;
       display: block;
     }
     .grid {
@@ -120,34 +120,10 @@ const dayFormat = new Intl.DateTimeFormat('en', {
       fill: var(--dso-run-failure);
     }
     .deployment {
-      fill: #1a73e8;
+      fill: var(--dso-run-deploy);
     }
     .legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px 18px;
       margin-top: 8px;
-      font-size: 12px;
-      color: var(--dso-muted);
-    }
-    .legend span {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .legend i {
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-    }
-    .legend i.success {
-      background: var(--dso-run-success);
-    }
-    .legend i.failure {
-      background: var(--dso-run-failure);
-    }
-    .legend i.deployment {
-      background: #1a73e8;
     }
   `,
 })
@@ -177,9 +153,7 @@ export class ActivityChart {
         failureY: y(day.runs),
         failureHeight: (day.failures / max) * plotHeight,
         deployments: day.deployments,
-        title:
-          `${label(day.date)}: ${day.runs} ${day.runs === 1 ? 'run' : 'runs'}, ${day.failures} failed, ` +
-          `${day.deployments} ${day.deployments === 1 ? 'deployment' : 'deployments'}`,
+        title: `${label(day.date)}: ${counted(day.runs, 'run')}, ${day.failures} failed, ${counted(day.deployments, 'deployment')}`,
       };
     });
 
@@ -209,7 +183,7 @@ export class ActivityChart {
       bars,
       xTicks,
       yTicks,
-      summary: `${runs} runs over ${days.length} days`,
+      summary: `${counted(runs, 'run')} over ${counted(days.length, 'day')}`,
     };
   });
 }

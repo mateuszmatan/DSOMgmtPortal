@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { GlobalSettings, TEST_STAGES, TestStage } from '../core/models';
-import { HTTP_URL_ERROR, addItem } from '../shared/form-controls';
+import { HTTP_URL_ERROR, addItem, moveItem, removeItem } from '../shared/form-controls';
 import {
   Field,
   Fields,
@@ -182,38 +182,23 @@ export class TestJobsFields {
 
   protected add(stage: TestStage): void {
     addItem(this.form().controls.testJobs, createTestJobForm({ stage }));
-    this.form().markAsDirty();
   }
 
   protected remove(job: TestJobForm): void {
     const jobs = this.form().controls.testJobs;
-    jobs.removeAt(jobs.controls.indexOf(job));
-    this.form().markAsDirty();
+    removeItem(jobs, jobs.controls.indexOf(job));
   }
 
   protected move(job: TestJobForm, offset: -1 | 1): void {
     const jobs = this.form().controls.testJobs;
     const sameStage = this.jobsOf(job.controls.stage.value);
     const neighbour = sameStage[sameStage.indexOf(job) + offset];
-    if (!neighbour) {
-      return;
+    if (neighbour) {
+      moveItem(jobs, jobs.controls.indexOf(job), jobs.controls.indexOf(neighbour));
     }
-    const from = jobs.controls.indexOf(job);
-    const to = jobs.controls.indexOf(neighbour);
-    jobs.removeAt(from, { emitEvent: false });
-    jobs.insert(to, job);
-    this.form().markAsDirty();
   }
 
   protected jobName(job: TestJobForm): string {
     return job.controls.name.value || job.controls.job.value || 'New job';
-  }
-
-  protected isFirst(job: TestJobForm): boolean {
-    return this.jobsOf(job.controls.stage.value)[0] === job;
-  }
-
-  protected isLast(job: TestJobForm): boolean {
-    return this.jobsOf(job.controls.stage.value).at(-1) === job;
   }
 }

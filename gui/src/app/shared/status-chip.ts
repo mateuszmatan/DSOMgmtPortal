@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RunResult } from '../core/models';
 
-const LOOK: Record<RunResult, { label: string; tone: string }> = {
+export const RUN_LOOK: Record<RunResult, { label: string; tone: string }> = {
   SUCCESS: { label: 'Success', tone: 'success' },
   UNSTABLE: { label: 'Unstable', tone: 'warning' },
   FAILURE: { label: 'Failed', tone: 'danger' },
@@ -19,5 +19,5 @@ const LOOK: Record<RunResult, { label: string; tone: string }> = {
 export class StatusChip {
   readonly status = input.required<RunResult>();
   readonly label = input<string>();
-  protected readonly look = computed(() => LOOK[this.status()] ?? LOOK.NO_DATA);
+  protected readonly look = computed(() => RUN_LOOK[this.status()] ?? RUN_LOOK.NO_DATA);
 }

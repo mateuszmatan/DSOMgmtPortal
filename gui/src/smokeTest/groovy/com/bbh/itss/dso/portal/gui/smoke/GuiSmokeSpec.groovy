@@ -86,14 +86,7 @@ class GuiSmokeSpec extends GuiSpecification {
         ownErrors().isEmpty()
 
         where:
-        path                 | heading
-        '/products'          | 'DevSecOps Product Management'
-        '/monitoring'        | 'DevSecOps Pipeline Monitoring'
-        '/evidence'          | 'DevSecOps Change Evidence'
-        '/settings'          | 'DevSecOps Global Settings'
-        '/products/new'      | 'Add product'
-        '/beadle'            | 'Beadle'
-        '/beadle/onboarding' | 'Product Onboarding'
+        [path, heading] << SECTIONS.collect { [it.path, it.heading] } + [['/products/new', 'Add product']]
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })

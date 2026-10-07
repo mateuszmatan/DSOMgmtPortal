@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -9,6 +9,7 @@ import { finalize } from 'rxjs';
 import { PipelinesApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { Pipeline } from '../core/models';
+import { filled, max, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 
 @Component({
@@ -39,6 +40,7 @@ import { errorText } from '../shared/form-errors';
           <textarea
             matInput
             formControlName="reason"
+            required
             rows="3"
             placeholder="Service retired, key leaked in a build log, ..."
           ></textarea>
@@ -64,17 +66,6 @@ import { errorText } from '../shared/form-errors';
     mat-dialog-content {
       width: min(520px, 80vw);
     }
-    .banner {
-      margin-bottom: 12px;
-    }
-    .danger {
-      --mat-button-filled-container-color: var(--dso-danger);
-    }
-    mat-spinner {
-      display: inline-block;
-      margin-right: 8px;
-      vertical-align: middle;
-    }
   `,
 })
 export class RevokeKeyDialog {
@@ -83,10 +74,7 @@ export class RevokeKeyDialog {
   private readonly api = inject(PipelinesApi);
 
   protected readonly form = new FormGroup({
-    reason: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.required, Validators.maxLength(500)],
-    }),
+    reason: text('', filled, max(500)),
   });
   protected readonly reason = this.form.controls.reason;
   protected readonly saving = signal(false);

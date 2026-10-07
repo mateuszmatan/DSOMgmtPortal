@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AbstractControl, FormArray, FormGroup } from '@angular/forms';
 import { BuildTool, DeployTarget, GlobalSettings, Service } from '../core/models';
 import { wholeNumber } from '../shared/form-controls';
-import { checkboxOf, fieldOf, text } from '../testing/dom';
+import { buttonOf, checkboxOf, fieldOf, text } from '../testing/dom';
 import { globalSettings, service } from '../testing/fixtures';
 import { ServiceForm, createServiceForm } from './product-form-model';
 import { ServiceFields } from './service-fields';
@@ -211,9 +211,7 @@ describe('ServiceFields', () => {
         'cert-gui',
       ]);
 
-      [...pane().querySelectorAll<HTMLButtonElement>('button')]
-        .find((button) => button.textContent?.trim() === 'Add application')!
-        .click();
+      buttonOf(pane(), 'Add application').click();
       await fixture.whenStable();
       expect(items().length).toBe(2);
       expect(form.controls.nexusIqApplications.at(1).controls.stage.value).toBe('build');

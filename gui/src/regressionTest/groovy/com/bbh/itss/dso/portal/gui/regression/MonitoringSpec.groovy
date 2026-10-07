@@ -5,7 +5,6 @@ import com.bbh.itss.dso.portal.gui.support.RecordedRequest
 import com.bbh.itss.dso.portal.gui.support.StubApi
 import com.bbh.itss.dso.portal.gui.support.StubResponse
 import com.microsoft.playwright.Locator
-import com.microsoft.playwright.Page
 import com.microsoft.playwright.options.AriaRole
 
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
@@ -104,12 +103,12 @@ class MonitoringSpec extends GuiSpecification {
         open('/monitoring/pipelines/1')
 
         expect:
-        assertThat(rangeToggle('30d')).hasAttribute('aria-checked', 'true')
+        assertThat(radio(page.locator('mat-button-toggle-group'), '30d')).hasAttribute('aria-checked', 'true')
         assertThat(recentRunsNote()).hasText('Newest first, within the last 30 days')
 
         when:
         ['7d', '90d', '180d'].each { range ->
-            rangeToggle(range).click()
+            radio(page.locator('mat-button-toggle-group'), range).click()
             page.waitForURL("**/monitoring/pipelines/1?range=$range")
             assertThat(recentRunsNote()).hasText("Newest first, within the last ${range - 'd'} days")
         }
@@ -117,7 +116,7 @@ class MonitoringSpec extends GuiSpecification {
         button('Refresh the pipeline metrics', true).click()
 
         then:
-        assertThat(rangeToggle('180d')).hasAttribute('aria-checked', 'true')
+        assertThat(radio(page.locator('mat-button-toggle-group'), '180d')).hasAttribute('aria-checked', 'true')
         awaitRequest('GET', '/api/monitoring/pipelines/1', 5).params() == [range: '180d']
         api.requests('GET', '/api/monitoring/pipelines/1')*.params()*.range == ['30d', '7d', '90d', '180d', '180d']
 
@@ -126,7 +125,7 @@ class MonitoringSpec extends GuiSpecification {
 
         then:
         api.lastRequest('GET', '/api/monitoring/pipelines/1').params() == [range: '90d']
-        assertThat(rangeToggle('90d')).hasAttribute('aria-checked', 'true')
+        assertThat(radio(page.locator('mat-button-toggle-group'), '90d')).hasAttribute('aria-checked', 'true')
 
         when:
         open('/monitoring/pipelines/1?range=1y')
@@ -240,9 +239,5 @@ class MonitoringSpec extends GuiSpecification {
 
     Locator recentRunsNote() {
         recentRuns().locator('.card-header .muted')
-    }
-
-    Locator rangeToggle(String range) {
-        page.getByRole(AriaRole.RADIO, new Page.GetByRoleOptions().setName(range).setExact(true))
     }
 }

@@ -21,7 +21,7 @@ export interface CodeDialogData {
       @if (data.subtitle) {
         <p class="subtitle">{{ data.subtitle }}</p>
       }
-      <pre class="code mono">{{ data.code }}</pre>
+      <pre class="code-block">{{ data.code }}</pre>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       @if (data.fileName) {
@@ -38,16 +38,8 @@ export interface CodeDialogData {
       margin: 0 0 8px;
       color: var(--dso-muted);
     }
-    .code {
-      margin: 0;
-      padding: 10px 12px;
-
-      background: var(--dso-code-bg);
-      color: var(--dso-code-fg);
-      font-size: 12px;
-      line-height: 1.45;
+    .code-block {
       max-height: 60vh;
-      overflow: auto;
     }
   `,
 })

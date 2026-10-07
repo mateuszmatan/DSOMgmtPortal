@@ -4,37 +4,19 @@ import {
   PipelineEvidence,
   ProductEvidence,
   RunEvidence,
-  RunResult,
   ScanEvidence,
   ServiceEvidence,
+  StageEvidence,
   TEST_SUITES,
   TestSuite,
   TestSuiteEvidence,
   pipelineTypeLabel,
 } from '../core/models';
-import { formatDuration } from '../shared/formatting';
+import { CHECK_LOOK } from '../shared/check-chip';
+import { counted, durationOrNull, formatDuration } from '../shared/formatting';
+import { RUN_LOOK } from '../shared/status-chip';
 
-export const NOT_RECORDED = 'Not recorded';
-
-export const CHECK_LABELS: Record<CheckStatus, string> = {
-  PASS: 'Passed',
-  WARN: 'Warning',
-  FAIL: 'Failed',
-  BLOCKED: 'Blocked',
-  NOT_REQUIRED: 'Not required',
-  SKIP: 'Skipped',
-  NO_DATA: NOT_RECORDED,
-};
-
-export const RUN_LABELS: Record<RunResult, string> = {
-  SUCCESS: 'Success',
-  UNSTABLE: 'Unstable',
-  FAILURE: 'Failed',
-  ABORTED: 'Aborted',
-  NOT_BUILT: 'Not built',
-  NO_DATA: 'No runs yet',
-  DISABLED: 'Key invalidated',
-};
+const NOT_RECORDED = 'Not recorded';
 
 export const SUITE_LABELS: Record<TestSuite, string> = {
   UNIT: 'Unit',
@@ -43,7 +25,7 @@ export const SUITE_LABELS: Record<TestSuite, string> = {
   PERFORMANCE: 'Performance',
 };
 
-export const EVIDENCE_SCANNERS: { scanner: EvidenceScanner; label: string }[] = [
+const EVIDENCE_SCANNERS: { scanner: EvidenceScanner; label: string }[] = [
   { scanner: 'SAST', label: 'SAST (HCL AppScan)' },
   { scanner: 'DAST', label: 'DAST (HCL AppScan)' },
   { scanner: 'SONARQUBE', label: 'SonarQube' },
@@ -112,7 +94,7 @@ export function evidenceText(
     '',
     'Pipeline',
     field('Type', `${pipelineTypeLabel(pipeline.type)} (${pipeline.type})`),
-    field('Status', RUN_LABELS[pipeline.status] ?? pipeline.status),
+    field('Status', RUN_LOOK[pipeline.status]?.label ?? pipeline.status),
     field('Jenkins job', pipeline.jenkinsJobUrl),
   ];
   if (!pipeline.enabled) {
@@ -128,15 +110,12 @@ export function evidenceText(
     '',
     'Jenkins build',
     field('Build', build.number === null ? null : `#${build.number}`),
-    field('Result', RUN_LABELS[build.result] ?? build.result),
+    field('Result', RUN_LOOK[build.result]?.label ?? build.result),
     field('Finished', formatUtc(build.finishedAt)),
     field('Branch', build.branch),
     field('Commit', build.commit),
     field('Artifact version', build.artifactVersion),
-    field(
-      'Duration',
-      build.durationSeconds === null ? null : formatDuration(build.durationSeconds),
-    ),
+    field('Duration', durationOrNull(build.durationSeconds)),
     field('Job', build.job),
     field('Build link', build.url),
     field('Pipeline report', build.reportUrl),
@@ -165,14 +144,19 @@ export function evidenceText(
     lines.push(`- ${NOT_RECORDED}`);
   }
   for (const stage of run.stages) {
-    const details = [
-      CHECK_LABELS[stage.status] ?? stage.status,
-      stage.durationSeconds === null ? null : formatDuration(stage.durationSeconds),
-      stage.reason,
-    ].filter((part): part is string => !!part);
-    lines.push(field(stage.name, details.join(', ')));
+    lines.push(field(stage.name, stageDetails(stage).join(', ')));
   }
   return lines.join('\n') + '\n';
+}
+
+export function stageDetails(stage: StageEvidence): string[] {
+  return [checkLabel(stage.status), durationOrNull(stage.durationSeconds), stage.reason].filter(
+    (part): part is string => !!part,
+  );
+}
+
+function checkLabel(status: CheckStatus): string {
+  return CHECK_LOOK[status]?.label ?? status;
 }
 
 function field(label: string, value: string | null | undefined): string {
@@ -184,7 +168,7 @@ function coverageLine(run: RunEvidence): string {
   if (!coverage || coverage.status === 'NO_DATA') {
     return field('Line coverage', null);
   }
-  const parts = [CHECK_LABELS[coverage.status] ?? coverage.status];
+  const parts = [checkLabel(coverage.status)];
   const percent = formatPercent(coverage.linePercent);
   if (percent) {
     const lines =
@@ -199,10 +183,10 @@ function coverageLine(run: RunEvidence): string {
 }
 
 function suiteText(suite: TestSuiteEvidence): string {
-  const parts = [CHECK_LABELS[suite.status] ?? suite.status];
+  const parts = [checkLabel(suite.status)];
   if (suite.total !== null) {
-    const counted = suite.suite === 'UNIT' ? 'tests' : 'jobs';
-    parts.push(`${suite.passed ?? 0} of ${suite.total} ${counted} passed`);
+    const unit = suite.suite === 'UNIT' ? 'tests' : 'jobs';
+    parts.push(`${suite.passed ?? 0} of ${suite.total} ${unit} passed`);
   }
   if (suite.failed) {
     parts.push(`${suite.failed} failed`);
@@ -220,7 +204,7 @@ function suiteText(suite: TestSuiteEvidence): string {
 }
 
 function scanText(scan: ScanEvidence): string {
-  const parts = [CHECK_LABELS[scan.status] ?? scan.status];
+  const parts = [checkLabel(scan.status)];
   if (scan.scanner === 'SONARQUBE' && (scan.qualityGate || !hasFindings(scan))) {
     parts.push(scan.qualityGate ? `quality gate ${scan.qualityGate}` : 'quality gate');
   }
@@ -253,9 +237,6 @@ function gateText(run: RunEvidence): string | null {
   if (gate.allowed) {
     return 'Release allowed';
   }
-  const violations =
-    gate.violations === null
-      ? ''
-      : `, ${gate.violations} ${gate.violations === 1 ? 'violation' : 'violations'}`;
+  const violations = gate.violations === null ? '' : `, ${counted(gate.violations, 'violation')}`;
   return `Release blocked${violations}${gate.reason ? `: ${gate.reason}` : ''}`;
 }

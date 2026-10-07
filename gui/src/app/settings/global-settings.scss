@@ -60,14 +60,8 @@
   }
 }
 
-.banner.conflict {
-  align-items: center;
-  background: var(--dso-danger-bg);
-  color: var(--dso-danger);
-
-  .banner-text {
-    flex: 1;
-  }
+.banner-text {
+  flex: 1;
 }
 
 .limits-head,
@@ -148,6 +142,10 @@
 
   .toc {
     position: static;
+
+    nav {
+      border-left: none;
+    }
   }
 
   .toc-item {

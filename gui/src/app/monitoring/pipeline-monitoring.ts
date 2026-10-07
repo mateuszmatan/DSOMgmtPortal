@@ -19,12 +19,19 @@ import { MonitoringApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { DoraSummary, PipelineMonitoring, pipelineTypeLabel } from '../core/models';
 import { DoraLevelBadge } from '../shared/dora-level';
-import { DurationPipe, RelativeTimePipe, formatDuration } from '../shared/formatting';
+import { BuildLink } from '../shared/build-link';
+import {
+  CountedPipe,
+  DurationPipe,
+  RelativeTimePipe,
+  counted,
+  formatDuration,
+} from '../shared/formatting';
 import { StatusChip } from '../shared/status-chip';
 import { ActivityChart } from './activity-chart';
 import { MetricsBanner } from './metrics-banner';
 
-export const RANGES = ['7d', '30d', '90d', '180d'];
+const RANGES = ['7d', '30d', '90d', '180d'];
 
 const moment = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',
@@ -44,6 +51,8 @@ const moment = new Intl.DateTimeFormat('en-GB', {
     MatTableModule,
     MatTooltipModule,
     ActivityChart,
+    BuildLink,
+    CountedPipe,
     DoraLevelBadge,
     DurationPipe,
     MetricsBanner,
@@ -109,7 +118,7 @@ export class PipelineMonitoringPage {
   }
 }
 
-export interface DoraTile {
+interface DoraTile {
   title: string;
   value: string;
   detail: string;
@@ -122,7 +131,7 @@ export function doraTiles(dora: DoraSummary): DoraTile[] {
     {
       title: 'Deployment frequency',
       value: frequency(dora.deploymentsPerWeek),
-      detail: `${dora.deployments} ${dora.deployments === 1 ? 'deployment' : 'deployments'} in ${dora.rangeDays} days`,
+      detail: `${counted(dora.deployments, 'deployment')} in ${counted(dora.rangeDays, 'day')}`,
       level: dora.deploymentFrequencyLevel,
     },
     {
@@ -137,13 +146,13 @@ export function doraTiles(dora: DoraSummary): DoraTile[] {
         dora.changeFailureRatePercent === null
           ? '–'
           : `${dora.changeFailureRatePercent.toFixed(1)}%`,
-      detail: `Of ${dora.deployments} ${dora.deployments === 1 ? 'deployment' : 'deployments'} in the range`,
+      detail: `Of ${counted(dora.deployments, 'deployment')} in the range`,
       level: dora.changeFailureRateLevel,
     },
     {
       title: 'Time to restore',
       value: formatDuration(dora.meanTimeToRestoreSeconds),
-      detail: `Mean of ${dora.restores} ${dora.restores === 1 ? 'recovery' : 'recoveries'} from a failed deployment`,
+      detail: `Mean of ${counted(dora.restores, 'recovery', 'recoveries')} from a failed deployment`,
       level: dora.timeToRestoreLevel,
       alert: dora.failingSince
         ? `Failing since ${moment.format(new Date(dora.failingSince))}`

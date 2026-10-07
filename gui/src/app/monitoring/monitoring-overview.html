@@ -80,10 +80,8 @@
             <dso-status-bar [counts]="product.statusCounts" />
             <div class="product-foot">
               <span
-                >{{ product.pipelineCount }}
-                {{ product.pipelineCount === 1 ? 'pipeline' : 'pipelines' }} ·
-                {{ product.serviceCount }}
-                {{ product.serviceCount === 1 ? 'service' : 'services' }}</span
+                >{{ product.pipelineCount | counted: 'pipeline' }} ·
+                {{ product.serviceCount | counted: 'service' }}</span
               >
               <span class="muted">{{
                 product.lastRunAt ? 'Last run ' + (product.lastRunAt | relative) : 'No runs yet'

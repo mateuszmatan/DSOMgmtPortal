@@ -54,7 +54,7 @@
           label="Product"
           [options]="modes"
           [value]="mode()"
-          (valueChange)="chooseMode($event)"
+          (valueChange)="chooseMode($event!)"
         />
         @if (departmentsError(); as error) {
           <p class="choice-error">The departments could not be loaded: {{ error }}</p>
@@ -78,7 +78,13 @@
             <ng-container [ngTemplateOutlet]="departmentField" />
             <mat-form-field>
               <mat-label>Product name</mat-label>
-              <input matInput formControlName="name" placeholder="CertScanner" autocomplete="off" />
+              <input
+                matInput
+                formControlName="name"
+                placeholder="CertScanner"
+                autocomplete="off"
+                required
+              />
               <mat-hint>{{
                 code() ? 'Its code will be ' + code() : 'The portal makes a unique code from it'
               }}</mat-hint>
@@ -109,6 +115,7 @@
                 formControlName="appScanKeyId"
                 placeholder="bbh_..."
                 autocomplete="off"
+                required
               />
               <mat-hint>The Application Security team gives it to you</mat-hint>
               <mat-error>{{ errorText(productForm.controls.appScanKeyId) }}</mat-error>
@@ -158,7 +165,7 @@
         <h2>Which services does {{ productName() }} have?</h2>
         <p class="lead">
           A service is a part of the product that is built on its own, for example its web front end
-          or its REST API. Each one gets its own {{ pipelineLabel(pipeline()!) }} pipeline.
+          or its REST API. Each one gets its own {{ pipelineLabel() }} pipeline.
         </p>
         @if (services().length) {
           <ol class="service-list">
@@ -177,7 +184,7 @@
                     <span class="muted">{{ service.description }}</span>
                   }
                 </div>
-                <button mat-button type="button" (click)="changeService(index)">Change</button>
+                <button mat-button type="button" (click)="openService(index)">Change</button>
                 @if (service.id === null) {
                   <button mat-button type="button" class="danger" (click)="removeService(index)">
                     Remove
@@ -189,20 +196,23 @@
         } @else {
           <p class="empty">No services yet. Add the first one.</p>
         }
-        <button mat-stroked-button type="button" (click)="addService()">Add a service</button>
+        <button mat-stroked-button type="button" (click)="openService(null)">Add a service</button>
         @if (checked() && !services().length) {
           <p class="choice-error">Add at least one service</p>
+        }
+        @if (checked() && unplaced().length) {
+          <p class="choice-error">Choose where these services run: {{ unplaced().join(', ') }}</p>
         }
       }
       @case (3) {
         <h2>Check and save</h2>
         <p class="lead">
           Saving {{ existing() ? 'updates' : 'adds' }} {{ productName() }} and gives every service a
-          {{ pipelineLabel(pipeline()!) }} pipeline with its own key, unless it has one already.
+          {{ pipelineLabel() }} pipeline with its own key, unless it has one already.
         </p>
         <dl class="rows">
           <dt>Pipeline</dt>
-          <dd>{{ pipelineLabel(pipeline()!) }}</dd>
+          <dd>{{ pipelineLabel() }}</dd>
           <dt>Product</dt>
           <dd>{{ productName() }} ({{ existing()?.code ?? code() }})</dd>
           <dt>Department</dt>
@@ -235,7 +245,7 @@
           <mat-progress-bar mode="indeterminate" />
         }
         @if (saveError(); as error) {
-          <div class="banner save-problem" role="alert">
+          <div class="banner danger save-problem" role="alert">
             <div>
               <strong>{{ error }}</strong>
               @if (saveProblems().length) {
@@ -275,7 +285,7 @@
                     }
                   </div>
                   @if (start.pipeline) {
-                    <pre class="code mono">{{ jenkinsfileOf(start) }}</pre>
+                    <pre class="code-block">{{ jenkinsfileOf(start) }}</pre>
                   } @else {
                     <p class="muted">Its pipeline is shown on the product page.</p>
                   }

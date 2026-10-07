@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { fieldOf, text } from '../testing/dom';
 import { department, globalSettings, product, productSummary, service } from '../testing/fixtures';
 import { Onboarding } from './onboarding';
+import { OnboardingService } from './onboarding-model';
 
 describe('Onboarding', () => {
   let fixture: ComponentFixture<Onboarding>;
@@ -113,6 +114,55 @@ describe('Onboarding', () => {
     await fixture.whenStable();
 
     expect(wizard()['step']()).toBe(4);
+  });
+
+  it('drops a product still loading once a new product is chosen', async () => {
+    wizard()['chooseMode']('existing');
+    wizard()['productId'].setValue(1);
+    const request = http.expectOne('/api/products/1');
+
+    wizard()['chooseMode']('new');
+    await fixture.whenStable();
+
+    expect(request.cancelled).toBe(true);
+    expect(wizard()['existing']()).toBeNull();
+    expect(wizard()['productId'].value).toBeNull();
+  });
+
+  it('asks where the services added for a static scan run once the pipeline deploys them', async () => {
+    const added: OnboardingService = {
+      id: null,
+      name: 'archive-api',
+      description: '',
+      appScanId: service().appScan.applicationId,
+      tool: 'GRADLE',
+      target: null,
+      openShiftProject: '',
+    };
+    wizard()['pipeline'].set('SECURITY');
+    wizard()['services'].set([added]);
+    wizard()['step'].set(2);
+    await next();
+
+    expect(wizard()['step']()).toBe(2);
+    expect(text(page().querySelector('.choice-error'))).toBe(
+      'Choose where these services run: archive-api',
+    );
+
+    wizard()['services'].set([{ ...added, target: 'OPENSHIFT' }]);
+    await next();
+    expect(wizard()['step']()).toBe(2);
+
+    wizard()['services'].set([{ ...added, target: 'OPENSHIFT', openShiftProject: 'ta-archive' }]);
+    await next();
+    expect(wizard()['step']()).toBe(3);
+    expect(text(page().querySelector('.review-services li'))).toContain(
+      'Gradle · runs on OpenShift · project ta-archive',
+    );
+
+    wizard()['pipeline'].set('SAST');
+    await fixture.whenStable();
+    expect(text(page().querySelector('.review-services li'))).toBe('archive-api · Gradle New');
   });
 
   it('keeps the department of a product in the portal', async () => {

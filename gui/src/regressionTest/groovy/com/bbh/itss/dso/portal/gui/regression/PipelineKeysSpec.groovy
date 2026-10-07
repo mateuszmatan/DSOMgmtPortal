@@ -79,7 +79,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
         when:
         buttonIn(serviceCard('gui'), 'Add pipeline', false).click()
-        dialogSelect('Pipeline type').click()
+        select(dialog(), 'Pipeline type').click()
 
         then:
         assertThat(dialog().locator('h2')).hasText('Add pipeline')
@@ -87,27 +87,27 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
         when:
         page.getByRole(AriaRole.OPTION, new Page.GetByRoleOptions().setName('Security')).click()
-        dialogInput('Jenkins agent labels').fill('linux-agent, docker')
-        dialogInput('Jenkins job').fill('DevSecOps/CERTSCANNER/gui-security')
-        dialogInput('Extended pipeline job').fill('DevSecOps/../gui-extended')
-        dialogInput('Description').fill('Nightly security scan')
+        input(dialog(), 'Jenkins agent labels').fill('linux-agent, docker')
+        input(dialog(), 'Jenkins job').fill('DevSecOps/CERTSCANNER/gui-security')
+        input(dialog(), 'Extended pipeline job').fill('DevSecOps/../gui-extended')
+        input(dialog(), 'Description').fill('Nightly security scan')
         dialogButton('Add pipeline').click()
 
         then:
-        assertThat(dialogError('Extended pipeline job')).hasText("A job path such as DevSecOps/CERT/backend-api-extended, without '..'")
+        assertThat(errorOf(dialog(), 'Extended pipeline job')).hasText("A job path such as DevSecOps/CERT/backend-api-extended, without '..'")
         api.requests('POST', '/api/services/1/pipelines').isEmpty()
 
         when:
-        dialogInput('Extended pipeline job').fill('DevSecOps/CERTSCANNER/gui-extended')
+        input(dialog(), 'Extended pipeline job').fill('DevSecOps/CERTSCANNER/gui-extended')
         dialogButton('Add pipeline').click()
 
         then:
-        assertThat(dialogError('Jenkins job')).hasText('another pipeline already runs in this Jenkins job')
+        assertThat(errorOf(dialog(), 'Jenkins job')).hasText('another pipeline already runs in this Jenkins job')
         assertThat(dialog()).isVisible()
 
         when:
         api.respond('POST', '/api/services/1/pipelines', created, 201)
-        dialogInput('Jenkins job').fill('DevSecOps/CERTSCANNER/gui-security-scan')
+        input(dialog(), 'Jenkins job').fill('DevSecOps/CERTSCANNER/gui-security-scan')
         dialogButton('Add pipeline').click()
 
         then:
@@ -183,11 +183,11 @@ class PipelineKeysSpec extends ProductPageSpecification {
         dialogButton('Invalidate key').click()
 
         then:
-        assertThat(dialogError('Reason')).hasText('Required')
+        assertThat(errorOf(dialog(), 'Reason')).hasText('Required')
         api.requests('POST', '/api/pipelines/2/keys/revoke').isEmpty()
 
         when:
-        dialogInput('Reason').fill('  Key printed in a build log  ')
+        input(dialog(), 'Reason').fill('  Key printed in a build log  ')
         dialogButton('Invalidate key').click()
 
         then:
@@ -281,12 +281,12 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
         then:
         assertThat(dialog().locator('h2')).hasText('Pipeline settings')
-        assertThat(dialogSelect('Pipeline type')).isDisabled()
-        assertThat(dialogInput('Jenkins job')).hasValue('DevSecOps/CERTSCANNER/gui-full')
+        assertThat(select(dialog(), 'Pipeline type')).isDisabled()
+        assertThat(input(dialog(), 'Jenkins job')).hasValue('DevSecOps/CERTSCANNER/gui-full')
 
         when:
-        dialogInput('Jenkins agent labels').fill('linux-agent, docker')
-        dialogInput('Description').fill('Main branch delivery')
+        input(dialog(), 'Jenkins agent labels').fill('linux-agent, docker')
+        input(dialog(), 'Description').fill('Main branch delivery')
         dialogButton('Save').click()
 
         then:

@@ -98,7 +98,7 @@
         <header class="card-header">
           <h2>Activity</h2>
           <span class="muted"
-            >{{ d.dora.runs }} runs · average duration
+            >{{ d.dora.runs | counted: 'run' }} · average duration
             {{ d.dora.averageDurationSeconds | duration }}</span
           >
         </header>
@@ -115,13 +115,7 @@
             <dd [title]="run.time | date: 'medium'">{{ run.time | relative }}</dd>
             <dt>Build</dt>
             <dd>
-              @if (run.buildUrl; as url) {
-                <a class="build-link" [href]="url" target="_blank" rel="noopener"
-                  >#{{ run.build }}</a
-                >
-              } @else {
-                {{ run.build !== null ? '#' + run.build : '–' }}
-              }
+              <dso-build-link [run]="run" />
             </dd>
             <dt>Branch</dt>
             <dd class="mono">{{ run.branch ?? '–' }}</dd>
@@ -201,13 +195,7 @@
             <ng-container matColumnDef="build">
               <th mat-header-cell *matHeaderCellDef>Build</th>
               <td mat-cell *matCellDef="let run">
-                @if (run.buildUrl; as url) {
-                  <a class="build-link" [href]="url" target="_blank" rel="noopener"
-                    >#{{ run.build }}</a
-                  >
-                } @else {
-                  {{ run.build !== null ? '#' + run.build : '–' }}
-                }
+                <dso-build-link [run]="run" />
               </td>
             </ng-container>
             <ng-container matColumnDef="branch">

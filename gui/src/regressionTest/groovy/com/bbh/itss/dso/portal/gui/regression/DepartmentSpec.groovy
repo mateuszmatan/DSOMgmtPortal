@@ -16,11 +16,11 @@ class DepartmentSpec extends ProductPageSpecification {
 
         then:
         assertThat(dialog().locator('h2')).hasText('Add department')
-        assertThat(dialogError('Name')).hasText('Required')
+        assertThat(errorOf(dialog(), 'Name')).hasText('Required')
         api.requests('POST', '/api/departments').isEmpty()
 
         when:
-        dialogInput('Name').fill('  Treasury ')
+        input(dialog(), 'Name').fill('  Treasury ')
         dialogButton('Save').click()
 
         then:
@@ -34,7 +34,7 @@ class DepartmentSpec extends ProductPageSpecification {
         when:
         api.respond('PUT', '/api/departments/6', StubResponse.problem(409, 'Conflict', 'A department named Custody already exists'))
         buttonIn(department('Treasury'), 'Rename').click()
-        dialogInput('Name').fill('custody')
+        input(dialog(), 'Name').fill('custody')
         dialogButton('Save').click()
 
         then:
@@ -47,10 +47,10 @@ class DepartmentSpec extends ProductPageSpecification {
         buttonIn(department('Capital Partners'), 'Rename').click()
 
         then:
-        assertThat(dialogInput('Name')).hasValue('Capital Partners')
+        assertThat(input(dialog(), 'Name')).hasValue('Capital Partners')
 
         when:
-        dialogInput('Name').fill('Capital Partners Group')
+        input(dialog(), 'Name').fill('Capital Partners Group')
         dialogButton('Save').click()
 
         then:

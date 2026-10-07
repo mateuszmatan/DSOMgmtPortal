@@ -1,17 +1,16 @@
 import { FormGroup } from '@angular/forms';
-import { revalidateAll } from '../shared/form-controls';
+import { applyFieldProblems, controlAt, revalidateAll } from '../shared/form-controls';
 import { ServiceDefaults } from '../core/models';
 import { anotherService, command, product, service } from '../testing/fixtures';
 import {
   NO_COMMAND,
   OPENSHIFT_RD_REQUIRED,
   PRODUCT_WIDE_FIELD,
+  SAME_APPLICATION,
   SAME_NAME,
   applyProductProblems,
   REMOTE_JENKINS_MESSAGE,
   SERVICE_SECTIONS,
-  applyFieldProblems,
-  controlAt,
   createNexusIqApplicationForm,
   createOpenShiftTargetForm,
   createProductForm,
@@ -731,6 +730,30 @@ describe('values unique within a product', () => {
 
     expect(second.controls.name.valid).toBe(true);
     expect(form.valid).toBe(true);
+  });
+
+  it('flags a Nexus IQ application the service already lists on the later entry only', () => {
+    const { form, first } = twoServices();
+    const applications = first.controls.nexusIqApplications;
+    applications.push(createNexusIqApplicationForm({ application: ' CERT-GUI ' }));
+    const [earlier, later] = applications.controls;
+    later.controls.application.updateValueAndValidity();
+
+    expect(later.controls.application.errors).toEqual({ rule: SAME_APPLICATION });
+    expect(earlier.controls.application.valid).toBe(true);
+
+    earlier.controls.application.setValue('cert-api');
+
+    expect(later.controls.application.valid).toBe(true);
+  });
+
+  it('rejects a product name and API key ID of spaces only', () => {
+    const form = createProductForm();
+    form.controls.name.setValue('   ');
+    form.controls.appScan.controls.keyId.setValue(' ');
+
+    expect(form.controls.name.hasError('required')).toBe(true);
+    expect(form.controls.appScan.controls.keyId.hasError('required')).toBe(true);
   });
 
   it('lets services share a metrics tag and a SonarQube key', () => {

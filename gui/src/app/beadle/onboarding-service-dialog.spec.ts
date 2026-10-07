@@ -115,7 +115,7 @@ describe('OnboardingServiceDialog', () => {
       expect.objectContaining({
         name: 'scanner',
         tool: 'GRADLE',
-        target: 'VM',
+        target: null,
         openShiftProject: '',
       }),
     );

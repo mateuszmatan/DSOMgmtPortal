@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { GoldenFixPolicy } from '../core/models';
-import { Field, Fields, area, check, choice, count, line, mono } from '../shared/fields';
+import { Field, Fields, area, check, choice, count, line, mono, tristate } from '../shared/fields';
 import {
   GOLDEN_FIX_ECOSYSTEMS,
   GlobalGoldenFixForm,
@@ -62,11 +62,7 @@ export class GoldenFixFields {
         : choice(
             'onlyDirectDependencies',
             'Dependencies',
-            [
-              { value: null, label: 'Global value' },
-              { value: true, label: 'Direct dependencies only' },
-              { value: false, label: 'Direct and transitive' },
-            ],
+            tristate('Global value', 'Direct dependencies only', 'Direct and transitive'),
             'onlyDirectDependencies',
             4,
             { hint: this.global(g?.onlyDirectDependencies) },
@@ -98,11 +94,7 @@ export class GoldenFixFields {
         : choice(
             'verifyEnabled',
             'Verification',
-            [
-              { value: null, label: 'Global value' },
-              { value: true, label: 'Build the fix first' },
-              { value: false, label: 'Do not build it' },
-            ],
+            tristate('Global value', 'Build the fix first', 'Do not build it'),
             'verify.enabled',
             4,
             { hint: this.global(g?.verifyEnabled) },

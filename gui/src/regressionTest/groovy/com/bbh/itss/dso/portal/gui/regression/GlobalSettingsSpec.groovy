@@ -172,7 +172,7 @@ class GlobalSettingsSpec extends GuiSpecification {
 
         then:
         assertThat(dialog().locator('h2')).hasText('Generated global configuration')
-        dialog().locator('pre.code').textContent() == StubApi.fixtureText('settings-config.yaml')
+        dialog().locator('pre.code-block').textContent() == StubApi.fixtureText('settings-config.yaml')
         awaitRequest('GET', '/api/settings/config').params() == [format: 'yaml']
 
         when:

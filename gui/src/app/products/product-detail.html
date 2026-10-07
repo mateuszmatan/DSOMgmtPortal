@@ -102,12 +102,8 @@
             <div class="service-heading">
               <div class="service-title row-wrap">
                 <h2 class="mono">{{ service.serviceName }}</h2>
-                <span class="tag">{{
-                  service.buildTool.charAt(0) + service.buildTool.slice(1).toLowerCase()
-                }}</span>
-                <span class="tag">{{
-                  service.deployTarget === 'VM' ? 'Virtual machine' : 'OpenShift'
-                }}</span>
+                <span class="tag">{{ toolLabels[service.buildTool] }}</span>
+                <span class="tag">{{ targetLabels[service.deployTarget] }}</span>
                 @if (generated().includes(service.serviceName)) {
                   <span class="tag new">New</span>
                 }

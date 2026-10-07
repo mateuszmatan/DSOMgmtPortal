@@ -6,7 +6,7 @@ import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { Department, ProductSummary } from '../core/models';
 import { ConfirmDialog } from '../shared/confirm-dialog';
-import { text } from '../testing/dom';
+import { buttonOf, text } from '../testing/dom';
 import { department, productSummary } from '../testing/fixtures';
 import { DepartmentDialog } from './department-dialog';
 import { ProductList } from './product-list';
@@ -40,10 +40,6 @@ describe('ProductList', () => {
   const cards = () => [...page().querySelectorAll<HTMLElement>('section.department')];
   const card = (name: string) =>
     cards().find((section) => text(section.querySelector('h2')) === name)!;
-  const button = (label: string, root: ParentNode = page()) =>
-    [...root.querySelectorAll<HTMLButtonElement>('button')].find(
-      (element) => text(element) === label,
-    )!;
   const snack = () =>
     [...document.querySelectorAll('mat-snack-bar-container')].map((bar) => text(bar)).join(' ');
 
@@ -99,11 +95,11 @@ describe('ProductList', () => {
 
     expect(text(addProduct)).toBe('Add product');
     expect(addProduct.getAttribute('href')).toBe('/products/new?department=5');
-    expect(button('Delete', card('Corporate Technology')).disabled).toBe(true);
+    expect(buttonOf(card('Corporate Technology'), 'Delete').disabled).toBe(true);
     expect(card('Corporate Technology').querySelector('.delete')?.getAttribute('title')).toBe(
       'Corporate Technology still has 1 product. Move them to another department first.',
     );
-    expect(button('Delete', card('Fund Services')).disabled).toBe(false);
+    expect(buttonOf(card('Fund Services'), 'Delete').disabled).toBe(false);
     expect(card('Fund Services').querySelector('.delete')?.hasAttribute('title')).toBe(false);
   });
 
@@ -243,7 +239,7 @@ describe('ProductList', () => {
     const added = department({ id: 6, name: 'Treasury', productCount: 0 });
     const open = dialogClosing(added, { ...fundServices, name: 'Fund Administration' }, undefined);
 
-    button('Add department').click();
+    buttonOf(page(), 'Add department').click();
     fixture.detectChanges();
     http.expectOne('/api/departments').flush([department(), fundServices, added]);
     await fixture.whenStable();
@@ -253,7 +249,7 @@ describe('ProductList', () => {
     expect(snack()).toContain('Treasury added');
     expect(text(cards().at(-1)!.querySelector('h2'))).toBe('Treasury');
 
-    button('Rename', card('Fund Services')).click();
+    buttonOf(card('Fund Services'), 'Rename').click();
     fixture.detectChanges();
     http.expectOne('/api/departments').flush([department(), fundServices, added]);
     await fixture.whenStable();
@@ -261,7 +257,7 @@ describe('ProductList', () => {
     expect(open.mock.calls[1][1]?.data).toEqual(fundServices);
     expect(snack()).toContain('Fund Services renamed to Fund Administration');
 
-    button('Rename', card('Fund Services')).click();
+    buttonOf(card('Fund Services'), 'Rename').click();
     fixture.detectChanges();
     http.expectNone('/api/departments');
   });
@@ -270,7 +266,7 @@ describe('ProductList', () => {
     await load();
     const open = dialogClosing(true, false, true);
 
-    button('Delete', card('Fund Services')).click();
+    buttonOf(card('Fund Services'), 'Delete').click();
     expect(open.mock.calls[0][0]).toBe(ConfirmDialog);
     expect(open.mock.calls[0][1]?.data).toMatchObject({ title: 'Delete Fund Services?' });
     http.expectOne({ method: 'DELETE', url: '/api/departments/5' }).flush(null);

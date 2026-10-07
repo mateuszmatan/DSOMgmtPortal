@@ -8,7 +8,8 @@ import { Router, RouterLink } from '@angular/router';
 import { MonitoringApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { PipelineHealth, RunResult, pipelineTypeLabel } from '../core/models';
-import { DurationPipe, RelativeTimePipe } from '../shared/formatting';
+import { BuildLink } from '../shared/build-link';
+import { CountedPipe, DurationPipe, RelativeTimePipe } from '../shared/formatting';
 import { StatusChip } from '../shared/status-chip';
 import { MetricsBanner } from './metrics-banner';
 import { StatusBar } from './status-bar';
@@ -21,6 +22,8 @@ import { StatusBar } from './status-bar';
     MatProgressBarModule,
     MatTableModule,
     MatTooltipModule,
+    BuildLink,
+    CountedPipe,
     DurationPipe,
     MetricsBanner,
     RelativeTimePipe,

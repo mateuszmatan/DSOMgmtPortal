@@ -1,7 +1,3 @@
-.actions {
-  align-items: center;
-}
-
 .loading {
   margin: -8px 0 8px;
 }
@@ -81,16 +77,12 @@
   }
 }
 
-.small {
-  margin-top: 2px;
-  font-size: 11.5px;
-}
-
 .stage-bar {
   display: flex;
   gap: 2px;
   height: 6px;
   overflow: hidden;
+  margin-bottom: 2px;
   background: var(--dso-neutral-bg);
 
   span {
@@ -112,10 +104,6 @@
   height: 640px;
   border: 1px solid var(--dso-border);
   background: #fafbfc;
-}
-
-.banner code {
-  font-size: 11.5px;
 }
 
 td.mat-mdc-cell {

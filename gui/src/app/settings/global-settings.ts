@@ -43,7 +43,7 @@ import {
   toSettingsRequest,
 } from './settings-form-model';
 
-export const SCANNER_INFO: Record<
+const SCANNER_INFO: Record<
   Scanner,
   { label: string; tool: string; gateKey: string; path: string }
 > = {
@@ -133,10 +133,6 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
       ?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   }
 
-  protected reload(): void {
-    this.load();
-  }
-
   protected save(): void {
     this.submitted.set(true);
     this.saveError.set(null);
@@ -197,7 +193,7 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
       });
   }
 
-  private load(): void {
+  protected load(): void {
     this.loading.set(true);
     this.loadError.set(null);
     this.api
