@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
-import { BEADLE, CHANGES, ONBOARDING } from '../core/sections';
+import { BEADLE, BEADLE_ADMIN, CHANGES } from '../core/sections';
 
 @Component({
   selector: 'dso-beadle-overview',
@@ -16,22 +16,22 @@ import { BEADLE, CHANGES, ONBOARDING } from '../core/sections';
         </div>
       </header>
       <div class="card feature">
-        <h3>{{ onboarding.heading }}</h3>
-        <p>
-          Set up DevSecOps for your product in five short steps: choose a pipeline, describe the
-          product and its services, and get the Jenkinsfile for each service. No DevSecOps knowledge
-          needed.
-        </p>
-        <a mat-flat-button [routerLink]="onboarding.path">Start</a>
-      </div>
-      <div class="card feature">
         <h3>{{ changes.heading }}</h3>
         <p>
-          Raise a ServiceNow change for a production release: choose the department, the product
-          and its services, the Jira epics and stories and the change window. The portal writes the
+          Raise a ServiceNow change for a production release: choose the product, the Jira
+          FixVersion with its epics and stories, the services and the installation date. The
+          ServiceNow defaults of the product are filled in and can be changed. The portal writes the
           change and one change task per service.
         </p>
         <a mat-flat-button [routerLink]="changes.path">Open</a>
+      </div>
+      <div class="card feature">
+        <h3>{{ admin.heading }}</h3>
+        <p>
+          Keep the departments, products and services and the defaults of their ServiceNow changes,
+          which every production change starts from.
+        </p>
+        <a mat-flat-button [routerLink]="admin.path">Open</a>
       </div>
     </div>
   `,
@@ -55,6 +55,6 @@ import { BEADLE, CHANGES, ONBOARDING } from '../core/sections';
 })
 export class BeadleOverview {
   protected readonly section = BEADLE;
-  protected readonly onboarding = ONBOARDING;
+  protected readonly admin = BEADLE_ADMIN;
   protected readonly changes = CHANGES;
 }

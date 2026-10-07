@@ -11,7 +11,7 @@ class ProductCatalogueSpec extends ProductPageSpecification {
 
     def "the catalogue lists the products by department with the tally of each department's pipelines"() {
         when:
-        open('/products')
+        open('/admin/products')
 
         then:
         assertThat(departmentNames()).hasText(DEPARTMENTS as String[])
@@ -40,7 +40,7 @@ class ProductCatalogueSpec extends ProductPageSpecification {
         api.respond('GET', '/api/products', [products[0], products[1] + [departmentId: null, departmentName: null]])
 
         when:
-        open('/products')
+        open('/admin/products')
 
         then:
         assertThat(departmentNames()).hasText((DEPARTMENTS + 'Not in a department') as String[])
@@ -53,7 +53,7 @@ class ProductCatalogueSpec extends ProductPageSpecification {
 
     def "searching asks the API for the trimmed term and says when nothing matches"() {
         given:
-        open('/products')
+        open('/admin/products')
 
         when:
         search().fill('  Payments  ')
@@ -92,16 +92,16 @@ class ProductCatalogueSpec extends ProductPageSpecification {
 
     def "a product opens from its row or its name and the breadcrumb leads back"() {
         given:
-        open('/products')
+        open('/admin/products')
 
         when:
         row('Payments Hub').locator('td').nth(1).click()
-        page.waitForURL('**/products/2')
+        page.waitForURL('**/admin/products/2')
 
         then:
         assertThat(page.locator('h1')).hasText('Payments Hub')
         assertThat(page.locator('.breadcrumb > :not(.sep)'))
-                .hasText(['DevSecOps Product Management', 'Fund Services', 'Payments Hub'] as String[])
+                .hasText(['DevSecOps Admin', 'Products', 'Fund Services', 'Payments Hub'] as String[])
         assertThat(holding(page.locator('.page-header .meta div'), "dt:text-is('Department')").locator('dd')).hasText('Fund Services')
         assertThat(page.locator('.page-header .code')).hasText('PAYHUB')
         assertThat(serviceCard('mobile-app').locator('.tag').first()).hasText('Flutter')
@@ -113,10 +113,10 @@ class ProductCatalogueSpec extends ProductPageSpecification {
         assertThat(stat('Invalidated keys')).hasText('1')
 
         when:
-        page.locator('.breadcrumb a').click()
-        page.waitForURL('**/products')
+        page.locator(".breadcrumb a:text-is('Products')").click()
+        page.waitForURL('**/admin/products')
         row('CertScanner').locator('a.name').click()
-        page.waitForURL('**/products/1')
+        page.waitForURL('**/admin/products/1')
 
         then:
         assertThat(page.locator('h1')).hasText('CertScanner')

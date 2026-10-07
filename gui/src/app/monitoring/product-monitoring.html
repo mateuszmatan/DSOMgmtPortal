@@ -24,7 +24,7 @@
           <button mat-stroked-button (click)="product.reload()" [disabled]="product.isLoading()">
             Refresh
           </button>
-          <a mat-stroked-button [routerLink]="['/products', p.productId]">Manage product</a>
+          <a mat-stroked-button [routerLink]="['/admin/products', p.productId]">Manage product</a>
         </div>
       </header>
 
@@ -44,7 +44,7 @@
           <div class="empty-state">
             <h3>No pipelines yet</h3>
             <p>Add pipelines to the services of {{ p.name }} to see their status here.</p>
-            <a mat-flat-button [routerLink]="['/products', p.productId]">Add pipelines</a>
+            <a mat-flat-button [routerLink]="['/admin/products', p.productId]">Add pipelines</a>
           </div>
         } @else {
           <div class="table-scroll">

@@ -9,7 +9,8 @@ import spock.lang.Requires
 import spock.lang.Shared
 import spock.lang.Specification
 
-import java.time.LocalDate
+import static java.net.URLEncoder.encode
+import static java.nio.charset.StandardCharsets.UTF_8
 
 class PortalSmokeSpec extends Specification {
 
@@ -102,21 +103,26 @@ class PortalSmokeSpec extends Specification {
         (new Yaml().load(config.body) as Map).keySet() == ['platform', 'defaults'] as Set
     }
 
-    def "every product's ServiceNow change template and Jira epics can be read for a production change"() {
+    def "every product's ServiceNow change template and Jira FixVersions and epics can be read for a production change"() {
         given:
         def products = api.get('/api/products').json.take(5)
-        def range = "from=${LocalDate.now().minusDays(90)}&to=${LocalDate.now()}"
 
         expect:
         api.get('/api/changes').status == 200
         api.get('/api/changes/integrations').json.keySet() == ['jiraConnected', 'serviceNowConnected'] as Set
+        api.get('/api/change-profiles').status == 200
+        !started || api.get('/api/change-profiles').json.size() >= products.size()
         products.every { product ->
             def profile = api.get("/api/products/$product.id/change-profile")
             assert profile.status == 200: profile
             assert !started || profile.json.version != null
             if (profile.json.version != null) {
-                def epics = api.get("/api/products/$product.id/jira/epics?$range")
-                assert epics.status == 200: epics
+                def versions = api.get("/api/products/$product.id/jira/versions")
+                assert versions.status == 200: versions
+                versions.json.take(1).each { version ->
+                    def epics = api.get("/api/products/$product.id/jira/epics?fixVersion=${encode(version.name, UTF_8)}")
+                    assert epics.status == 200: epics
+                }
             }
             true
         }
@@ -146,7 +152,8 @@ class PortalSmokeSpec extends Specification {
     @Requires({ PortalSmokeSpec.uiExpected() })
     def "the web UI is served, also for links into the app"() {
         expect:
-        ['/', '/products', '/monitoring', '/evidence', '/settings', '/beadle/changes/new'].every { path ->
+        ['/', '/self-service', '/admin/products', '/monitoring', '/evidence', '/admin/settings',
+         '/beadle/changes/new'].every { path ->
             def page = api.get(path)
             assert page.status == 200: "$path: $page.status"
             assert page.header('Content-Type').startsWith('text/html')

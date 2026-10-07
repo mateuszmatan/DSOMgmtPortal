@@ -1,0 +1,427 @@
+<div class="page wizard">
+  <header class="page-header">
+    <div>
+      <h1>{{ section.heading }}</h1>
+      <p class="page-description">{{ section.description }}</p>
+    </div>
+  </header>
+
+  <ol class="step-bar" aria-label="Steps">
+    @for (label of steps; track label; let index = $index) {
+      <li [class.done]="index < step()" [class.current]="index === step()">
+        <button
+          type="button"
+          [disabled]="!canRevisit(index)"
+          [attr.aria-current]="index === step() ? 'step' : null"
+          (click)="goTo(index)"
+        >
+          <span class="number">{{ index + 1 }}</span>
+          <span class="step-label">{{ label }}</span>
+        </button>
+      </li>
+    }
+  </ol>
+
+  <section class="card step">
+    @switch (step()) {
+      @case (0) {
+        <h2>Which product is it?</h2>
+        <p class="lead">
+          Choose its department, then start a new product or pick one that is already in the portal.
+        </p>
+        <div class="fields">
+          <mat-form-field>
+            <mat-label>Department</mat-label>
+            <mat-select [formControl]="productForm.controls.departmentId">
+              @for (department of departments(); track department.id) {
+                <mat-option [value]="department.id">{{ department.name }}</mat-option>
+              }
+            </mat-select>
+            @if (needsDepartment()) {
+              <mat-hint>Saving moves the product into this department</mat-hint>
+            }
+            <mat-error>{{ errorText(productForm.controls.departmentId) }}</mat-error>
+          </mat-form-field>
+        </div>
+        @if (departmentsError(); as error) {
+          <p class="choice-error">The departments could not be loaded: {{ error }}</p>
+        }
+        @if (catalogue.error(); as error) {
+          <p class="choice-error">The products could not be loaded: {{ errorMessage(error) }}</p>
+        }
+        <dso-choice-tiles
+          label="Product"
+          [options]="modes"
+          [value]="mode()"
+          (valueChange)="chooseMode($event!)"
+        />
+        @if (mode() === 'new') {
+          <form class="fields" [formGroup]="productForm" novalidate>
+            <mat-form-field>
+              <mat-label>Product name</mat-label>
+              <input
+                matInput
+                formControlName="name"
+                placeholder="CertScanner"
+                autocomplete="off"
+                required
+              />
+              <mat-hint>{{
+                code() ? 'Its code will be ' + code() : 'The portal makes a unique code from it'
+              }}</mat-hint>
+              <mat-error>{{ errorText(productForm.controls.name) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Owner team</mat-label>
+              <input matInput formControlName="ownerTeam" placeholder="Technology Architecture" />
+              <mat-hint>Optional</mat-hint>
+              <mat-error>{{ errorText(productForm.controls.ownerTeam) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Contact e-mail</mat-label>
+              <input
+                matInput
+                type="email"
+                formControlName="contactEmail"
+                placeholder="team@bbh.com"
+              />
+              <mat-hint>Optional</mat-hint>
+              <mat-error>{{ errorText(productForm.controls.contactEmail) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>AppScan API key ID</mat-label>
+              <input
+                matInput
+                class="mono"
+                formControlName="appScanKeyId"
+                placeholder="bbh_..."
+                autocomplete="off"
+                required
+              />
+              <mat-hint>The Application Security team gives it to you</mat-hint>
+              <mat-error>{{ errorText(productForm.controls.appScanKeyId) }}</mat-error>
+            </mat-form-field>
+          </form>
+        } @else {
+          <div class="fields">
+            <mat-form-field>
+              <mat-label>Product</mat-label>
+              <mat-select [formControl]="productId">
+                @for (group of productGroups(); track group.name) {
+                  <mat-optgroup [label]="group.name">
+                    @for (product of group.products; track product.id) {
+                      <mat-option [value]="product.id"
+                        >{{ product.name }} ({{ product.code }})</mat-option
+                      >
+                    }
+                  </mat-optgroup>
+                }
+              </mat-select>
+              <mat-hint>{{ choosable() }} to choose from</mat-hint>
+            </mat-form-field>
+          </div>
+          @if (productError(); as error) {
+            <p class="choice-error">The product could not be loaded: {{ error }}</p>
+          } @else if (existing(); as product) {
+            <dl class="rows">
+              <dt>Owner team</dt>
+              <dd>{{ product.ownerTeam ?? 'not set' }}</dd>
+              <dt>Services</dt>
+              <dd>{{ product.services.length }}</dd>
+            </dl>
+          } @else if (productId.value !== null) {
+            <mat-progress-bar mode="indeterminate" />
+            @if (checked()) {
+              <p class="choice-error">Wait until the product is loaded</p>
+            }
+          } @else if (checked()) {
+            <p class="choice-error">Choose the product</p>
+          }
+        }
+      }
+      @case (1) {
+        <h2>Which pipeline does {{ productName() }} need?</h2>
+        <p class="lead">
+          A pipeline checks your code automatically every time it runs.
+          @if (existing()) {
+            Choosing one adds it to every service that lacks it and keeps the other pipelines.
+          } @else {
+            Choose one for the whole product; every service gets its own.
+          }
+        </p>
+        @if (existing()) {
+          @if (current.isLoading()) {
+            <mat-progress-bar mode="indeterminate" />
+          }
+          @if (current.error(); as error) {
+            <p class="choice-error">Its pipelines could not be loaded: {{ errorMessage(error) }}</p>
+          } @else if (current.hasValue()) {
+            <div class="today">
+              <h3>Pipelines today</h3>
+              <ul>
+                @for (service of current.value(); track service.serviceId) {
+                  <li>
+                    <strong>{{ service.serviceName }}</strong> ·
+                    {{ pipelineNames(service) || 'no pipeline yet' }}
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+        }
+        <dso-choice-tiles label="Pipeline" [options]="pipelines()" [(value)]="pipeline" />
+        @if (checked() && !pipeline()) {
+          <p class="choice-error">Choose a pipeline to continue</p>
+        }
+        @if (pipeline(); as chosen) {
+          <div class="prepare">
+            <h3>Have these at hand</h3>
+            <ul>
+              @for (need of preparation(chosen); track need) {
+                <li>{{ need }}</li>
+              }
+            </ul>
+          </div>
+        } @else {
+          <p class="hint">Not sure? Start with Security. You can add another pipeline later.</p>
+        }
+      }
+      @case (2) {
+        <h2>Which services does {{ productName() }} have?</h2>
+        <p class="lead">
+          A service is a part of the product that is built on its own, for example its web front end
+          or its REST API. Each one gets its own {{ pipelineLabel() }} pipeline.
+        </p>
+        @if (services().length) {
+          <ol class="service-list">
+            @for (service of services(); track $index; let index = $index) {
+              <li [class.removed]="isRemoved(service)">
+                <span class="index">{{ index + 1 }}</span>
+                <div class="service-text">
+                  <div class="row-wrap">
+                    <strong>{{ service.name }}</strong>
+                    @if (service.id === null) {
+                      <span class="tag new">New</span>
+                    } @else if (isRemoved(service)) {
+                      <span class="tag error">Removed</span>
+                    } @else if (isChanged(service)) {
+                      <span class="tag">Changed</span>
+                    }
+                  </div>
+                  <span class="muted">{{ serviceSummary(service) }}</span>
+                  @if (service.description) {
+                    <span class="muted">{{ service.description }}</span>
+                  }
+                  @if (isRemoved(service)) {
+                    <span class="removal">{{ removalText(service) }}</span>
+                  }
+                </div>
+                @if (isRemoved(service)) {
+                  <button
+                    mat-button
+                    type="button"
+                    [attr.aria-label]="'Undo removing ' + service.name"
+                    (click)="keepService(service)"
+                  >
+                    Undo
+                  </button>
+                } @else {
+                  <button
+                    mat-button
+                    type="button"
+                    [attr.aria-label]="'Change ' + service.name"
+                    (click)="openService(index)"
+                  >
+                    Change
+                  </button>
+                  <button
+                    mat-button
+                    type="button"
+                    class="danger"
+                    [attr.aria-label]="'Remove ' + service.name"
+                    (click)="removeService(index)"
+                  >
+                    Remove
+                  </button>
+                }
+              </li>
+            }
+          </ol>
+        } @else {
+          <p class="empty">No services yet. Add the first one.</p>
+        }
+        <button mat-stroked-button type="button" (click)="openService(null)">Add a service</button>
+        @if (checked() && !kept().length) {
+          <p class="choice-error">
+            {{ services().length ? 'Keep at least one service' : 'Add at least one service' }}
+          </p>
+        }
+        @if (checked() && unplaced().length) {
+          <p class="choice-error">Choose where these services run: {{ unplaced().join(', ') }}</p>
+        }
+      }
+      @case (3) {
+        <h2>Check and save</h2>
+        <p class="lead">
+          Saving {{ existing() ? 'updates' : 'adds' }} {{ productName() }} and gives every service a
+          {{ pipelineLabel() }} pipeline with its own key, unless it has one already.
+        </p>
+        <dl class="rows">
+          <dt>Product</dt>
+          <dd>{{ productName() }} ({{ existing()?.code ?? code() }})</dd>
+          <dt>Department</dt>
+          <dd>{{ departmentName() }}</dd>
+          @if (!existing()) {
+            <dt>Owner team</dt>
+            <dd>{{ productForm.controls.ownerTeam.value || 'not set' }}</dd>
+            <dt>Contact e-mail</dt>
+            <dd>{{ productForm.controls.contactEmail.value || 'not set' }}</dd>
+          }
+          <dt>Pipeline</dt>
+          <dd>{{ reach() }}</dd>
+          @for (group of review(); track group.label) {
+            <dt>{{ group.label }}</dt>
+            <dd>
+              <ul class="review-services">
+                @for (entry of group.services; track $index) {
+                  <li>
+                    <strong>{{ entry.name }}</strong> · {{ entry.text }}
+                  </li>
+                }
+              </ul>
+            </dd>
+          }
+        </dl>
+        @if (doomed().length) {
+          <div class="banner danger removal-warning" role="alert">
+            <div>
+              <strong
+                >Saving deletes these pipelines and their keys. Jenkins jobs that use these keys
+                stop working.</strong
+              >
+              <ul class="problems">
+                @for (line of doomed(); track line) {
+                  <li>{{ line }}</li>
+                }
+              </ul>
+            </div>
+          </div>
+        }
+        <p class="note">
+          The portal fills in everything else from the BBH library defaults. The DevSecOps team can
+          fine-tune it in {{ admin }}.
+        </p>
+        @if (saving()) {
+          <mat-progress-bar mode="indeterminate" />
+        }
+        @if (saveError(); as error) {
+          <div class="banner danger save-problem" role="alert">
+            <div>
+              <strong>{{ error }}</strong>
+              @if (saveProblems().length) {
+                <ul class="problems">
+                  @for (problem of saveProblems(); track problem) {
+                    <li>{{ problem }}</li>
+                  }
+                </ul>
+              }
+            </div>
+          </div>
+        }
+      }
+      @case (4) {
+        @if (result(); as done) {
+          <h2>{{ done.product.name }} is ready. Do these steps in order</h2>
+          <ol class="next-steps">
+            <li>
+              <h3>Put the Jenkinsfile in each repository</h3>
+              <p>
+                Save the text below as a file named <code>Jenkinsfile</code> in the top folder of
+                the service's Bitbucket repository and merge it.
+              </p>
+              @for (start of done.starts; track start.serviceName) {
+                <div class="jenkinsfile">
+                  <div class="jenkinsfile-head">
+                    <strong>{{ start.serviceName }}</strong>
+                    @if (start.pipeline) {
+                      <button
+                        mat-button
+                        type="button"
+                        [attr.aria-label]="'Copy the Jenkinsfile of ' + start.serviceName"
+                        [cdkCopyToClipboard]="jenkinsfileOf(start)"
+                        (cdkCopyToClipboardCopied)="copied()"
+                      >
+                        Copy
+                      </button>
+                    }
+                  </div>
+                  @if (start.pipeline) {
+                    <pre class="code-block">{{ jenkinsfileOf(start) }}</pre>
+                  } @else {
+                    <p class="muted">Its pipeline is shown on the product page.</p>
+                  }
+                </div>
+              } @empty {
+                <p class="muted">Open the product page to see the keys of its pipelines.</p>
+              }
+            </li>
+            <li>
+              <h3>Create a Jenkins job for each service</h3>
+              <p>
+                Ask your Jenkins administrator for a Pipeline job that reads the Jenkinsfile from
+                the repository (Pipeline script from SCM).
+                @if (done.starts[0]?.pipeline; as first) {
+                  A good name is <code>{{ jobName(first) }}</code
+                  >.
+                }
+              </p>
+            </li>
+            <li>
+              <h3>Run each job once</h3>
+              <p>
+                Choose Build with Parameters and an agent. The pipeline reads all its settings from
+                this portal through its key.
+              </p>
+            </li>
+            @if (pipeline() === 'FULL') {
+              <li>
+                <h3>Connect your tests and deployment</h3>
+                <p>
+                  Add the smoke, regression and performance test jobs and the deployment details of
+                  each service in {{ admin }}, or ask the DevSecOps team to do it.
+                </p>
+              </li>
+            }
+            <li>
+              <h3>Follow the results</h3>
+              <p>
+                <a [routerLink]="['/monitoring/products', done.product.id]">Pipeline Monitoring</a>
+                shows every run, and
+                <a routerLink="/evidence">Change Evidence</a> collects the results for ServiceNow
+                changes.
+              </p>
+            </li>
+          </ol>
+        }
+      }
+    }
+
+    <div class="step-actions">
+      @if (step() === 4) {
+        @if (result(); as done) {
+          <a mat-button [routerLink]="adminProduct(done.product.id)">Open in {{ admin }}</a>
+        }
+        <span class="spacer"></span>
+        <button mat-flat-button type="button" (click)="restart()">Start again</button>
+      } @else {
+        @if (step() > 0) {
+          <button mat-button type="button" [disabled]="saving()" (click)="back()">Back</button>
+        }
+        <span class="spacer"></span>
+        <button mat-flat-button type="button" [disabled]="saving()" (click)="next()">
+          {{ nextLabel() }}
+        </button>
+      }
+    </div>
+  </section>
+</div>

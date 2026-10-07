@@ -27,15 +27,16 @@ class ApiFailureSpec extends EditorSpecification {
 
         where:
         path                      | endpoint
-        '/products'               | '/api/products'
-        '/products'               | '/api/departments'
-        '/products/1'             | '/api/products/1'
-        '/products/1/edit'        | '/api/products/1/pipelines'
+        '/admin/departments'      | '/api/departments'
+        '/admin/products'         | '/api/products'
+        '/admin/products'         | '/api/departments'
+        '/admin/products/1'       | '/api/products/1'
+        '/admin/products/1/edit'  | '/api/products/1/pipelines'
         '/monitoring'             | '/api/monitoring/products'
         '/monitoring/products/1'  | '/api/monitoring/products/1'
         '/monitoring/pipelines/1' | '/api/monitoring/pipelines/1'
         '/evidence'               | '/api/products'
-        '/settings'               | '/api/settings'
+        '/admin/settings'         | '/api/settings'
     }
 
     def "an error without a problem body still names the status"() {
@@ -55,15 +56,15 @@ class ApiFailureSpec extends EditorSpecification {
         api.respond('GET', '/api/settings', problem(503, 'Service Unavailable', DETAIL))
 
         when:
-        open('/products/1')
+        open('/admin/products/1')
 
         then:
         assertThat(page.locator('.banner')).hasText('Product 1 was not found')
 
         when:
         link('Back to products', true).click()
-        page.waitForURL('**/products')
-        open('/settings')
+        page.waitForURL('**/admin/products')
+        open('/admin/settings')
 
         then:
         assertThat(page.locator('.banner')).hasText(DETAIL)
@@ -73,7 +74,7 @@ class ApiFailureSpec extends EditorSpecification {
         button('Try again', true).click()
 
         then:
-        assertThat(page.locator('.page-header .meta')).containsText('Version 1')
+        assertThat(page.locator('.tab-header .meta')).containsText('Version 1')
         assertThat(field('Jenkins URL')).hasValue('https://jenkins.bbh.com')
     }
 
@@ -81,7 +82,7 @@ class ApiFailureSpec extends EditorSpecification {
         given:
         ProductStore.recorded(api, 1)
         api.respond('PUT', '/api/products/1', problem(500, 'Internal Server Error', DETAIL))
-        open('/products/1/edit')
+        open('/admin/products/1/edit')
 
         when:
         input(productFields(), 'Name').fill('CertScanner 2')
@@ -89,7 +90,7 @@ class ApiFailureSpec extends EditorSpecification {
 
         then:
         assertThat(saveError()).hasText(DETAIL)
-        page.url().endsWith('/products/1/edit')
+        page.url().endsWith('/admin/products/1/edit')
         assertThat(input(productFields(), 'Name')).hasValue('CertScanner 2')
         assertThat(button('Save changes', true)).isEnabled()
     }
@@ -97,7 +98,7 @@ class ApiFailureSpec extends EditorSpecification {
     def "a save over a newer product is refused with the conflict the API reports"() {
         given:
         def store = ProductStore.recorded(api, 1)
-        open('/products/1/edit')
+        open('/admin/products/1/edit')
         store.product.version = 5
 
         when:
@@ -107,7 +108,7 @@ class ApiFailureSpec extends EditorSpecification {
         then:
         assertThat(saveError()).hasText('The product was changed by someone else; reload it and try again')
         awaitRequest('PUT', '/api/products/1').json().version == 0
-        page.url().endsWith('/products/1/edit')
+        page.url().endsWith('/admin/products/1/edit')
     }
 
     def "a portal API that cannot be reached is named"() {
@@ -115,7 +116,7 @@ class ApiFailureSpec extends EditorSpecification {
         context.route('**/api/products', { Route route -> route.abort('connectionrefused') } as Consumer<Route>)
 
         when:
-        open('/products')
+        open('/admin/products')
 
         then:
         assertThat(page.locator('.banner')).hasText('The portal API cannot be reached.')

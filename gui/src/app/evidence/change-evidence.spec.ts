@@ -176,11 +176,11 @@ describe('ChangeEvidencePage', () => {
     expect(page().querySelector('mat-accordion')).toBeNull();
   });
 
-  it('leads to Product Management while there are no products', async () => {
+  it('leads to the Admin products while there are no products', async () => {
     await list([]);
 
     expect(page().querySelector('.empty-state h3')?.textContent).toBe('No products yet');
-    expect(page().querySelector('.empty-state a')?.getAttribute('href')).toBe('/products');
+    expect(page().querySelector('.empty-state a')?.getAttribute('href')).toBe('/admin/products');
   });
 
   it('finds products by the trimmed search term and says when none matches', async () => {

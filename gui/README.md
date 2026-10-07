@@ -18,11 +18,14 @@ Gradle downloads Node.js 24 into `gui/.gradle/nodejs`.
 | Folder        | Holds |
 |---------------|-------|
 | `core/`       | API clients, models mirroring the backend DTOs, error handling, the portal sections and the header menus |
-| `beadle/`     | Beadle: the overview page of the new features and the Product Onboarding wizard, whose answers `onboarding-model.ts` turns into a product request with BBH defaults (build tasks, Nexus delivery, OpenShift project names) |
-| `products/`   | Product Management: departments with the tally of their pipelines, the product list grouped by department, product editor, product page with pipelines and keys |
+| `self-service/` | Self-service: the step-by-step wizard that sets up or changes the pipelines of a product, whose answers `self-service-model.ts` turns into a product request with BBH defaults (build tasks, Nexus delivery, OpenShift project names) |
+| `admin/`      | the Admin page with its tab bar, shared by DevSecOps Admin and Beadle Admin, and the Departments tab |
+| `products/`   | DevSecOps Admin products: the product list grouped by department, product editor, product page with pipelines and keys |
 | `monitoring/` | Pipeline Monitoring: overview, product pipelines, pipeline details with DORA and Grafana |
 | `evidence/`   | Change Evidence: builds, tests and scans of each pipeline for ServiceNow changes |
-| `settings/`   | Global Settings: tools, policy and defaults of every pipeline |
+| `settings/`   | Admin > Library defaults: tools, policy and defaults of every pipeline |
+| `beadle/`     | Beadle: the overview page, the Beadle Admin products list and the product page with its facts, services and ServiceNow defaults |
+| `changes/`    | Production Change: the change wizard, the ServiceNow fields form shared with Beadle Admin, the change list and page |
 | `shared/`     | field definitions and the field component, form controls, dialogs, formatting, Bitbucket links |
 | `testing/`    | fixtures for the unit tests |
 
@@ -33,7 +36,7 @@ A form field is written once, as data. `shared/fields.ts` holds the `Field` inte
 options and number range) with the small builders `line`, `mono`, `area`, `check`, `count` and `choice`, and the
 `dso-fields` component that renders a list of them into a `.form-fields` grid: a Material field or checkbox per
 entry, bound to the control of that key in the group it is given. The service editor
-(`products/service-fields.ts`), its child editors and the Global Settings page (`settings/settings-fields.ts`)
+(`products/service-fields.ts`), its child editors and the Library defaults tab (`settings/settings-fields.ts`)
 therefore describe their sections as lists of fields; only the parts that are not a plain field (the tool command
 blocks, the test job list, the UrbanCode applications, the OpenShift targets and the toggle groups) have markup of
 their own. Labels and hints go through `chips()`, which turns `` `path` `` into a code chip.
@@ -52,14 +55,17 @@ API answers recorded from the backend (`src/testFixtures/resources/.../api`) and
 specification checks both what the page shows and the exact JSON the gui sends. Screenshots of the last state of
 every feature land in `build/reports/gui/screenshots`.
 
-- Regression (`src/regressionTest`): the products grouped by department with their pipeline tallies, and adding,
-  renaming and deleting departments; searching and opening products; adding a product with two services, through
+- Regression (`src/regressionTest`): the tabs of both Admin pages; the departments with their pipeline tallies, and
+  adding, renaming and deleting them; the products grouped by department; searching and opening products; adding a product with two services, through
   the browser's required-field checks and the server's field errors, to the request it sends; saving unchanged
   products, which sends back what was loaded with its version; the unsaved-changes guard; moving, duplicating and
   removing services; Bitbucket fields, GoldenFix default and test job parameters; adding pipelines, replacing,
   invalidating and regenerating keys, and the keys generated for new services; config previews and their problem
-  details; global settings with a version conflict; change evidence and its ServiceNow text; monitoring ranges,
-  Jenkins and build links, InfluxDB missing or unreachable; and failing API calls.
+  details; library defaults with a version conflict; the Self-service wizard for a new product and for one in the portal
+  (adding a pipeline, changing and removing services); Beadle Admin products, their services and their ServiceNow
+  defaults with privileged users and a version conflict; the production change by FixVersion from the product to the
+  raised change; change evidence and its ServiceNow text; monitoring ranges, Jenkins and build links, InfluxDB missing
+  or unreachable; and failing API calls.
 - Performance (`src/performanceTest`): the stub serves 25 products with 16 services and 4 pipelines each, with
   monitoring and evidence for all of them. The suite times the cold product list, the product page, the editor and
   a service expansion, the monitoring overview, a product's monitoring and a product's evidence in the browser, from
@@ -69,10 +75,12 @@ every feature land in `build/reports/gui/screenshots`.
 
 ## Look and layout
 
-- The header holds two menus, each opening a compact dropdown of short labels: Beadle, for the new features of the
-  portal, and DevSecOps Management with Product Management, Pipeline Monitoring, Change Evidence and Global
-  Settings. A new feature is a `PortalSection` added to the Beadle entry of `MENUS` in `core/sections.ts`, next to
-  its Overview page, and to `MENUS` in `GuiSpecification`, which `menuLink` uses to open the right menu. The menu
+- The header holds two menus, each opening a compact dropdown of short labels: Beadle (Overview, Production Change,
+  Admin), for the new features of the portal, and DevSecOps Management (Self-service, Pipeline Monitoring, Change
+  Evidence, Admin). A new feature is a `PortalSection` added to the Beadle entry of `MENUS` in `core/sections.ts`, next
+  to its Overview page, and to `MENUS` in `GuiSpecification`, whose `menuLink(menu, label)` opens the right menu (both
+  menus have an Admin item). An Admin page is an `AdminArea` of tabs in `core/sections.ts`, routed as children of
+  `AdminPage`; its tabs render without their own page heading. The menu
   holding the current page is underlined. Each page starts with the full name of its section as the heading and the
   section description under it.
 - The pages show no icons. The only icons are those of the vertical section menu in the service editor.
@@ -127,7 +135,7 @@ uses the build, report, test and artifact links the API sends.
 ## GoldenFix switch of a service
 
 "Run GoldenFix" in the GoldenFix section of a service is a select with Global default, On and Off. Global default
-sends `goldenFix.enabled: null`, so the service follows "GoldenFix runs by default" of the Global Settings, and is
+sends `goldenFix.enabled: null`, so the service follows "GoldenFix runs by default" of the library defaults, and is
 where every new service starts. Selects whose first option means "not set" (Global default, Library default,
 Detected from the URL, Global value) show that option for a `null` value.
 
@@ -149,7 +157,7 @@ sent. The API problems still land on their fields when a rule only the backend k
 - UrbanCode: every application has at least one component, and every component its base folder and include patterns.
 - OpenShift: the RD region needs the image build fields (build project, BuildConfig file, Dockerfile, build context),
   the image push target and the Nexus auth file.
-- Global Settings: the minimum line coverage is 1 to 100 and the release gate checks at least one scanner.
+- Library defaults: the minimum line coverage is 1 to 100 and the release gate checks at least one scanner.
 - Lists: besides the number of entries and the length of each, the entries joined as stored must fit their column
   (for example 2000 characters for build flags, 4000 for variables, 1000 for agent labels).
 

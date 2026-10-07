@@ -21,7 +21,6 @@ import { SettingsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
 import { FieldProblem, GlobalSettings, Scanner, SCANNERS } from '../core/models';
 import { Notifier } from '../core/notifier';
-import { SETTINGS } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { GoldenFixFields } from '../products/golden-fix-fields';
 import { CodeDialog, CodeDialogData } from '../shared/code-dialog';
@@ -81,7 +80,6 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly page = SETTINGS;
   protected readonly form = createSettingsForm();
   protected readonly settings = signal<GlobalSettings | null>(null);
   protected readonly loading = signal(false);
@@ -153,7 +151,7 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
       .subscribe({
         next: (settings) => {
           this.apply(settings);
-          this.notifier.success('DevSecOps Global Settings saved');
+          this.notifier.success('The DSOEnhanced library defaults are saved');
         },
         error: (error) => this.showSaveError(error),
       });

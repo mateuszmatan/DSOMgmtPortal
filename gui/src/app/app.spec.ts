@@ -41,13 +41,13 @@ describe('App', () => {
   it.each([
     [
       'Beadle',
-      ['Overview', 'Product Onboarding', 'Production Change'],
-      ['/beadle', '/beadle/onboarding', '/beadle/changes'],
+      ['Overview', 'Production Change', 'Admin'],
+      ['/beadle', '/beadle/changes', '/beadle/admin'],
     ],
     [
       'DevSecOps Management',
-      ['Product Management', 'Pipeline Monitoring', 'Change Evidence', 'Global Settings'],
-      ['/products', '/monitoring', '/evidence', '/settings'],
+      ['Self-service', 'Pipeline Monitoring', 'Change Evidence', 'Admin'],
+      ['/self-service', '/monitoring', '/evidence', '/admin'],
     ],
   ])('opens %s with the links of its sections in order', async (label, labels, paths) => {
     const panel = await open(label);
@@ -62,10 +62,10 @@ describe('App', () => {
     const panel = await open('DevSecOps Management');
 
     expect(SECTIONS.map((section) => section.description)).toEqual([
-      'Products, services, pipelines and keys',
+      'Set up or change the DevSecOps pipelines of your product, step by step',
       'Pipeline status and DORA metrics',
       'Builds, tests and scans for ServiceNow changes',
-      'Tools, policy and defaults of every pipeline',
+      'Departments, products, services and the DSOEnhanced library defaults',
     ]);
     expect(SECTIONS.some((section) => text(panel).includes(section.description))).toBe(false);
     expect(page().querySelector('header mat-icon, header .material-icons')).toBeNull();
@@ -81,19 +81,27 @@ describe('App', () => {
       'Pipeline Monitoring',
     );
 
-    await TestBed.inject(Router).navigateByUrl('/beadle/onboarding');
+    await TestBed.inject(Router).navigateByUrl('/beadle/admin/products/2');
     await fixture.whenStable();
 
     expect(text(page().querySelector('.menu-group.active'))).toBe('Beadle');
-    expect(text((await open('Beadle')).querySelector('a.active'))).toBe('Product Onboarding');
+    expect(text((await open('Beadle')).querySelector('a.active'))).toBe('Admin');
+  });
+
+  it('marks Admin of DevSecOps Management on the product pages', async () => {
+    await TestBed.inject(Router).navigateByUrl('/admin/products/2/edit');
+    await fixture.whenStable();
+
+    expect(text(page().querySelector('.menu-group.active'))).toBe('DevSecOps Management');
+    expect(text((await open('DevSecOps Management')).querySelector('a.active'))).toBe('Admin');
   });
 
   it('gives every section the full DevSecOps name as its page heading', () => {
     expect(SECTIONS.map((section) => section.heading)).toEqual([
-      'DevSecOps Product Management',
+      'DevSecOps Self-service',
       'DevSecOps Pipeline Monitoring',
       'DevSecOps Change Evidence',
-      'DevSecOps Global Settings',
+      'DevSecOps Admin',
     ]);
   });
 

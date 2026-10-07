@@ -292,7 +292,7 @@ describe('ServiceFields', () => {
 
       expect(hints()).toContain('goldenFix.enabled');
       expect(pane().querySelector('.note')?.textContent).toBe(
-        'The service follows the GoldenFix defaults of the DevSecOps Global Settings.',
+        'The service follows the GoldenFix defaults of the DSOEnhanced library.',
       );
     });
   });

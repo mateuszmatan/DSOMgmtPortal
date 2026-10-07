@@ -36,12 +36,12 @@ describe('GlobalSettingsPage', () => {
     await fixture.whenStable();
   }
 
-  it('describes the section, says what a service may replace and lists its sections', async () => {
+  it('says what the library applies and a service may replace and lists its sections', async () => {
     await load();
 
-    expect(page().querySelector('h1')?.textContent).toBe('DevSecOps Global Settings');
-    expect(page().querySelector('.page-description')?.textContent).toBe(
-      'Tools, policy and defaults of every pipeline',
+    expect(page().querySelector('h1')).toBeNull();
+    expect(page().querySelector('.meta')?.textContent).toContain(
+      'The tools, policy and defaults the DSOEnhanced library applies to every pipeline.',
     );
     expect(page().querySelector('.meta')?.textContent).toContain(
       'A service can replace only the deployment, service and GoldenFix defaults.',
@@ -190,7 +190,7 @@ describe('GlobalSettingsPage', () => {
     await load();
     const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
 
-    page().querySelector<HTMLButtonElement>('.page-header .actions button')!.click();
+    page().querySelector<HTMLButtonElement>('.tab-header button')!.click();
     await fixture.whenStable();
     const request = http.expectOne((r) => r.url === '/api/settings/config');
     expect(request.request.params.get('format')).toBe('yaml');

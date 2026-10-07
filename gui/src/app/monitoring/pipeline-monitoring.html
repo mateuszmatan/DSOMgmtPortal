@@ -50,7 +50,7 @@
         >
           Refresh
         </button>
-        <a mat-stroked-button [routerLink]="['/products', d.pipeline.productId]">Manage</a>
+        <a mat-stroked-button [routerLink]="['/admin/products', d.pipeline.productId]">Manage</a>
         @if (d.pipeline.jenkinsJobUrl; as job) {
           <a
             mat-stroked-button

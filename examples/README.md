@@ -16,7 +16,7 @@ use. Every pipeline key in these files is a placeholder: take the real one from 
 | [jenkins/multi-service/payhub-full.Jenkinsfile](jenkins/multi-service/payhub-full.Jenkinsfile) | one full run that builds every Payments Hub service, `gateway` first |
 | [api/list-departments.sh](api/list-departments.sh) | the departments with their product, service and pipeline counts |
 | [api/list-products.sh](api/list-products.sh) | the products, optionally filtered by a search text |
-| [api/create-product.sh](api/create-product.sh) with [api/new-product.json](api/new-product.json) | a new product with two services, as the onboarding wizard creates it |
+| [api/create-product.sh](api/create-product.sh) with [api/new-product.json](api/new-product.json) | a new product with two services, as the Self-service wizard creates it |
 | [api/product-pipelines.sh](api/product-pipelines.sh) | the services of a product with their pipelines and active keys |
 | [api/pipeline-key.sh](api/pipeline-key.sh) | the active key of one pipeline, found by product code, service and type |
 | [api/rotate-key.sh](api/rotate-key.sh) | a new key for a pipeline |
@@ -28,13 +28,13 @@ use. Every pipeline key in these files is a placeholder: take the real one from 
 
 ## Jenkinsfiles
 
-Each file is the whole Jenkinsfile of one Jenkins job, in the form the onboarding wizard and the product page
-generate: the `@Library` line loads the shared library named in the Global Settings (`platform.jenkinsLibrary`,
+Each file is the whole Jenkinsfile of one Jenkins job, in the form the Self-service wizard and the product page
+generate: the `@Library` line loads the shared library named in the library defaults (`platform.jenkinsLibrary`,
 `DevSecOpsJenkinsLibrary` by default), and the entry point of the pipeline type receives the pipeline key as a string.
 Nothing else is in the file: no `config.yaml`, no credentials ID and no tool server. The library reads everything else
 from the portal by the key, at `DSO_PORTAL_URL`, as described in
 [How the library reads its configuration](../README.md#how-the-library-reads-its-configuration). During the cutover,
-pin the portal-integrated version in the `@Library` line and in the Global Settings, for example
+pin the portal-integrated version in the `@Library` line and in the library defaults, for example
 `DevSecOpsJenkinsLibrary@main`.
 
 Save a file as `Jenkinsfile` in the top folder of the service's Bitbucket repository and point a Pipeline job (Pipeline
@@ -80,7 +80,7 @@ examples/api/dso-config.sh "$KEY"
 - `list-departments.sh` calls `GET /api/departments`.
 - `list-products.sh [SEARCH]` calls `GET /api/products?search=`; the search also matches the department name.
 - `create-product.sh [DEPARTMENT]` looks up the department's ID by name (`Custody` by default), puts it into
-  `new-product.json` and posts that to `POST /api/products?pipelineType=FULL`, as the onboarding wizard does after the
+  `new-product.json` and posts that to `POST /api/products?pipelineType=FULL`, as the Self-service wizard does after the
   choice of a full pipeline. The body is the product Trade Archive with `archive-api`, a Maven build on OpenShift with
   the RD and QC targets the wizard derives from the OpenShift project `cus-archive`, and `archive-gui`, a Gradle build
   on virtual machines. It carries the values the wizard fills in; the fields the wizard sends empty (`null`, `[]` or
@@ -109,13 +109,14 @@ revoking a key changes nothing in Jenkins, since no job uses those keys.
 pipeline of Payments Hub `gateway`, generated from a freshly started demo portal with the two requests of
 `dso-config.sh`. The JSON is the same document as the YAML, pretty-printed; the key itself does not appear in either.
 The document has four parts: `pipeline` (type, entry point, product, the service in `projectNames` and the agent
-labels), `platform` and `defaults` (from the Global Settings) and `projects.gateway` (the service's build, scans, tests,
+labels), `platform` and `defaults` (from the library defaults) and `projects.gateway` (the service's build, scans, tests,
 OpenShift targets, Bitbucket repository and InfluxDB tags). It names Jenkins credentials IDs, never their secrets.
 `platform.jenkinsUrl` is the URL the demo data sets. Run `api/dso-config.sh` to see the configuration of the portal
 you run.
 
 ## Screenshots
 
-`screenshots/v1` to `screenshots/v9` hold screenshots of the GUI, one folder per version: v7 shows the departments,
-v8 the ten demo integrations with the charts of Product Management and Pipeline Monitoring, and v9 the ServiceNow
-production change raised from Beadle.
+`screenshots/v1` to `screenshots/v10` hold screenshots of the GUI, one folder per version: v7 shows the
+departments, v8 the ten demo integrations with the charts of Product Management and Pipeline Monitoring, v9 the
+ServiceNow production change raised from Beadle, and v10 the Self-service wizard and the Admin tabs of DevSecOps
+Management, Beadle Admin with the ServiceNow defaults of a product, and the production change by FixVersion.
