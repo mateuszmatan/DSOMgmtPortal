@@ -1,13 +1,14 @@
 package com.bbh.itss.dso.portal.adapter.out.grafana;
 
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 @ConfigurationProperties("dso.grafana")
 public record GrafanaProperties(String dashboardUrl, String securityDashboardUrl) {
 
     public GrafanaProperties {
-        dashboardUrl = Text.trimToNull(dashboardUrl);
-        securityDashboardUrl = Text.trimToNull(securityDashboardUrl);
+        dashboardUrl = trimToNull(dashboardUrl);
+        securityDashboardUrl = trimToNull(securityDashboardUrl);
     }
 }

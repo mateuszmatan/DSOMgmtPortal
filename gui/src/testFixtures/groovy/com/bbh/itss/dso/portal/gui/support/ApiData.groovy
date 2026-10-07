@@ -1,5 +1,7 @@
 package com.bbh.itss.dso.portal.gui.support
 
+import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
+
 class ApiData {
 
     static final String ISSUED_AT = '2026-10-05T09:00:00Z'
@@ -23,7 +25,7 @@ class ApiData {
     }
 
     static Map pipeline(Map overrides) {
-        (StubApi.fixture('pipeline-1.json') as Map) + [keys: null] + overrides
+        (fixture('pipeline-1.json') as Map) + [keys: null] + overrides
     }
 
     static final Map<String, String> ENTRY_POINTS = [FULL    : 'devSecOpsPipeline', SECURITY: 'devSecOpsSecurityPipeline',
@@ -48,7 +50,7 @@ class ApiData {
     }
 
     static Map noFlutterSettings() {
-        ((StubApi.fixture('product-1.json') as Map).services as List<Map>)[0].flutter as Map
+        ((fixture('product-1.json') as Map).services as List<Map>)[0].flutter as Map
     }
 
     static Map withoutResponseFields(Map product) {

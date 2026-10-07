@@ -20,7 +20,7 @@ class IssuedKeySpec extends Specification {
         new IssuedKey(20L, revoked).authorize()
 
         then:
-        def e = thrown(KeyRevokedException)
+        def e = thrown(SecurityException)
         e.message == "The DevSecOps pipeline key was invalidated on ${revoked.revokedAt()}: Service retired"
     }
 

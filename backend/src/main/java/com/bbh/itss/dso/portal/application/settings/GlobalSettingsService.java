@@ -6,20 +6,19 @@ import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettings
 import com.bbh.itss.dso.portal.application.settings.port.out.GlobalSettingsRepositoryPort;
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettings;
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues;
-import com.bbh.itss.dso.portal.domain.settings.MissingGlobalSettingsException;
+import lombok.RequiredArgsConstructor;
+
+import static com.bbh.itss.dso.portal.domain.settings.GlobalSettings.bbhDefaults;
 
 @UseCase
+@RequiredArgsConstructor
 public class GlobalSettingsService implements ManageGlobalSettingsUseCase {
 
     private final GlobalSettingsRepositoryPort repository;
 
-    public GlobalSettingsService(GlobalSettingsRepositoryPort repository) {
-        this.repository = repository;
-    }
-
     @Override
     public GlobalSettings ensureExists() {
-        return repository.load().orElseGet(() -> repository.save(GlobalSettings.bbhDefaults()));
+        return repository.load().orElseGet(() -> repository.save(bbhDefaults()));
     }
 
     @Override
@@ -34,6 +33,7 @@ public class GlobalSettingsService implements ManageGlobalSettingsUseCase {
     }
 
     private GlobalSettings load() {
-        return repository.load().orElseThrow(MissingGlobalSettingsException::new);
+        return repository.load().orElseThrow(() -> new IllegalArgumentException(
+                "The global settings are missing; the portal creates them at start-up"));
     }
 }

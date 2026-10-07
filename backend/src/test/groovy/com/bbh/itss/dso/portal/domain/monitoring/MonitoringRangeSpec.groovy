@@ -22,8 +22,8 @@ class MonitoringRangeSpec extends Specification {
 
         then:
         def e = thrown(InvalidRequestException)
-        e.problems*.field == ['range']
-        e.problems*.message == [message]
+        e.problems()*.field == ['range']
+        e.problems()*.message == [message]
 
         where:
         range    || message

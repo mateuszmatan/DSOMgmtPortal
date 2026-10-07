@@ -1,15 +1,17 @@
 package com.bbh.itss.dso.portal.adapter.out.influx;
 
+import lombok.NoArgsConstructor;
+
 import java.util.Collection;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
+import static java.util.stream.Collectors.joining;
+import static lombok.AccessLevel.PRIVATE;
+
+@NoArgsConstructor(access = PRIVATE)
 final class Flux {
 
     private static final Pattern DURATION = Pattern.compile("^([1-9][0-9]*(ns|us|µs|ms|s|m|h|d|w|mo|y))+$");
-
-    private Flux() {
-    }
 
     static String string(String value) {
         if (value == null) {
@@ -19,7 +21,7 @@ final class Flux {
     }
 
     static String strings(Collection<String> values) {
-        return values.stream().distinct().map(Flux::string).collect(Collectors.joining(", "));
+        return values.stream().distinct().map(Flux::string).collect(joining(", "));
     }
 
     static String duration(String value) {

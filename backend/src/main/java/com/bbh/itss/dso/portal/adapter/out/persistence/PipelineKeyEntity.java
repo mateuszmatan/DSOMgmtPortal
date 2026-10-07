@@ -5,34 +5,41 @@ import com.bbh.itss.dso.portal.domain.pipeline.KeyStatus;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineKey;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 
+import static jakarta.persistence.EnumType.STRING;
+import static jakarta.persistence.FetchType.LAZY;
+import static jakarta.persistence.GenerationType.IDENTITY;
+import static lombok.AccessLevel.PACKAGE;
+import static lombok.AccessLevel.PROTECTED;
+
 @Entity
 @Table(name = "DSO_PIPELINE_KEY")
+@NoArgsConstructor(access = PROTECTED)
 public class PipelineKeyEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = IDENTITY)
+    @Getter(PACKAGE)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = LAZY, optional = false)
     @JoinColumn(name = "PIPELINE_ID")
     private PipelineEntity pipeline;
 
     @Column(name = "KEY_VALUE", updatable = false)
     private String value;
 
-    @Enumerated(EnumType.STRING)
+    @Enumerated(STRING)
     private KeyStatus status;
 
     @Column(updatable = false)
@@ -41,9 +48,6 @@ public class PipelineKeyEntity {
     private Instant revokedAt;
     private String revokeReason;
     private Instant lastUsedAt;
-
-    protected PipelineKeyEntity() {
-    }
 
     PipelineKeyEntity(PipelineEntity pipeline, String value, Instant issuedAt) {
         this.pipeline = pipeline;
@@ -55,10 +59,6 @@ public class PipelineKeyEntity {
         this.status = status;
         this.revokedAt = revokedAt;
         this.revokeReason = revokeReason;
-    }
-
-    Long getId() {
-        return id;
     }
 
     PipelineKey toDomain() {

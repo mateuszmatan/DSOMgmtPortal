@@ -1,14 +1,14 @@
 package com.bbh.itss.dso.portal.adapter.in.web
 
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import spock.lang.Specification
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup
 
 class SinglePageAppControllerSpec extends Specification {
 
-    MockMvc mvc = MockMvcBuilders.standaloneSetup(new SinglePageAppController()).build()
+    MockMvc mvc = standaloneSetup(new SinglePageAppController()).build()
 
     def "the app's page #path is served by the Angular index page"() {
         when:

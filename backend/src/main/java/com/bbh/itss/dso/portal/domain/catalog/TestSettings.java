@@ -1,21 +1,24 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import lombok.Builder;
 
 import java.util.List;
 
+import static org.apache.commons.lang3.BooleanUtils.isNotFalse;
+
+@Builder
 public record TestSettings(Integer maxParallel, Integer smokeMaxParallel, Integer regressionMaxParallel,
                            Integer performanceMaxParallel, Boolean smokeRequired, Boolean regressionRequired,
                            Boolean performanceRequired, Integer smokePollIntervalSec,
                            Integer regressionPollIntervalSec, Integer performancePollIntervalSec) {
 
-    public static final TestSettings DEFAULTS = new TestSettings(null, null, null, null, true, true, true, null, null,
-            null);
+    public static final TestSettings DEFAULTS = builder().build();
 
     public TestSettings {
-        smokeRequired = !Boolean.FALSE.equals(smokeRequired);
-        regressionRequired = !Boolean.FALSE.equals(regressionRequired);
-        performanceRequired = !Boolean.FALSE.equals(performanceRequired);
+        smokeRequired = isNotFalse(smokeRequired);
+        regressionRequired = isNotFalse(regressionRequired);
+        performanceRequired = isNotFalse(performanceRequired);
     }
 
     public void writeTo(ConfigTree config, List<TestJob> jobs) {

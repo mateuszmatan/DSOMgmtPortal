@@ -1,14 +1,20 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+import lombok.Builder;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import static com.bbh.itss.dso.portal.domain.shared.Text.clean;
+import static java.util.Collections.unmodifiableList;
+import static org.apache.commons.collections4.ListUtils.emptyIfNull;
+import static org.apache.commons.lang3.StringUtils.trim;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
+@Builder
 public record UrbanCodeApplicationSettings(String applicationName, Integer order, List<String> environments,
                                            String snapshotName, String siteName, String deployProcess,
                                            Boolean skipWait, Boolean deployWithSnapshot,
@@ -17,21 +23,21 @@ public record UrbanCodeApplicationSettings(String applicationName, Integer order
                                            String requestProperties, List<UrbanCodeComponent> components) {
 
     public UrbanCodeApplicationSettings {
-        applicationName = applicationName == null ? null : applicationName.trim();
-        environments = Text.clean(environments);
-        snapshotName = Text.trimToNull(snapshotName);
-        siteName = Text.trimToNull(siteName);
-        deployProcess = Text.trimToNull(deployProcess);
-        deployDescription = Text.trimToNull(deployDescription);
-        description = Text.trimToNull(description);
-        requestProperties = Text.trimToNull(requestProperties);
-        components = components == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(components));
+        applicationName = trim(applicationName);
+        environments = clean(environments);
+        snapshotName = trimToNull(snapshotName);
+        siteName = trimToNull(siteName);
+        deployProcess = trimToNull(deployProcess);
+        deployDescription = trimToNull(deployDescription);
+        description = trimToNull(description);
+        requestProperties = trimToNull(requestProperties);
+        components = unmodifiableList(new ArrayList<>(emptyIfNull(components)));
     }
 
     public static UrbanCodeApplicationSettings of(String applicationName, Integer order, List<String> environments,
                                                   String snapshotName, List<UrbanCodeComponent> components) {
-        return new UrbanCodeApplicationSettings(applicationName, order, environments, snapshotName, null, null, null,
-                null, null, null, null, null, null, null, components);
+        return builder().applicationName(applicationName).order(order).environments(environments)
+                .snapshotName(snapshotName).components(components).build();
     }
 
     public void validate(ValidationProblems problems) {

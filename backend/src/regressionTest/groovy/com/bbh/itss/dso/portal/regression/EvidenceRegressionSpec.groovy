@@ -1,14 +1,15 @@
 package com.bbh.itss.dso.portal.regression
 
-import com.bbh.itss.dso.portal.support.Fixtures
 import com.bbh.itss.dso.portal.support.PortalSpecification
 
-import java.time.Duration
 import java.time.Instant
 
 import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
+import static com.bbh.itss.dso.portal.support.Fixtures.APP_ID
+import static java.time.Duration.ofHours
+import static java.time.Duration.ofSeconds
 
 class EvidenceRegressionSpec extends PortalSpecification {
 
@@ -35,7 +36,7 @@ class EvidenceRegressionSpec extends PortalSpecification {
         guiSast = pipelineFor(evidenced.services[0].id as long, pipeline(type: 'SAST'))
         api.post("/api/pipelines/$guiSast.id/keys/revoke", [reason: 'SAST runs inside the full pipeline'])
 
-        finished = Instant.now().minus(Duration.ofHours(1))
+        finished = Instant.now().minus(ofHours(1))
         String project = "$code-gui"
         influx.addRun(project: project, time: finished, result: 'UNSTABLE', build: 42, durationSeconds: 900)
         def point = { Map args -> influx.addPoint([project: project, time: finished] + args) }
@@ -61,13 +62,13 @@ class EvidenceRegressionSpec extends PortalSpecification {
                 config_rendered_at: '2026-10-05T08:15:00.000Z', config_sha256: '3b7e1f0a9c2d4e5f')
         point(measurement: 'release_gate', allowed: 'no', violations: '1', reason: 'Nexus IQ: 1 high finding, limit 0')
         point(measurement: 'stage_event', stage: 'Build', status: 'pass', order: '1', duration_s: '120',
-                time: finished - Duration.ofSeconds(780))
+                time: finished - ofSeconds(780))
         point(measurement: 'stage_event', stage: 'Smoke Tests', status: 'pass', order: '2', duration_s: '40',
-                time: finished - Duration.ofSeconds(400))
+                time: finished - ofSeconds(400))
         point(measurement: 'stage_event', stage: 'Regression Tests', status: 'warn', order: '3', duration_s: '70',
-                time: finished - Duration.ofSeconds(200), reason: '2 tests failed')
+                time: finished - ofSeconds(200), reason: '2 tests failed')
         point(measurement: 'security_findings', module: 'gui', scanner: 'dast', critical: '5', high: '5', medium: '5',
-                low: '5', status: 'fail', time: finished - Duration.ofSeconds(300))
+                low: '5', status: 'fail', time: finished - ofSeconds(300))
     }
 
     def cleanup() {
@@ -93,7 +94,7 @@ class EvidenceRegressionSpec extends PortalSpecification {
             description == 'Treasury web client'
             repositoryUrl == 'https://bitbucket.bbh.com/projects/TRE/repos/gui'
             artifactName == 'gui.war'
-            appScanApplicationId == Fixtures.APP_ID
+            appScanApplicationId == APP_ID
             sonarProjectKey == gui
             nexusIqApplication == gui
             pipelines*.type == ['FULL', 'SAST']
@@ -137,7 +138,7 @@ class EvidenceRegressionSpec extends PortalSpecification {
                               link    : "${JOB}42/artifact/appscan/sast-report.html"]
         full.run.scans[1].status == 'NO_DATA'
         full.run.scans[1].critical == null
-        full.run.scans[1].link == "https://bbh.cloud.appscan.com/main/myapps/$Fixtures.APP_ID/scans"
+        full.run.scans[1].link == "https://bbh.cloud.appscan.com/main/myapps/$APP_ID/scans"
         full.run.scans[2] == [scanner : 'SONARQUBE', status: 'WARN', critical: 0, high: 0, medium: 4, low: 12,
                               maxCritical: null, maxHigh: null, maxMedium: null, qualityGate: 'WARN',
                               link    : "https://tools.bbh.com/sonar/dashboard?id=$code-gui"]

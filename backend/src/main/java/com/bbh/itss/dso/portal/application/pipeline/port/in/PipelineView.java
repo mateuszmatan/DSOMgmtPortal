@@ -6,19 +6,20 @@ import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 
-import java.util.Objects;
+import static java.util.Objects.requireNonNull;
 
 public record PipelineView(Product product, Service service, Pipeline pipeline, String jenkinsUrl) {
 
     public PipelineView {
-        Objects.requireNonNull(product, "a pipeline view needs the product");
-        Objects.requireNonNull(service, "a pipeline view needs the service");
-        Objects.requireNonNull(pipeline, "a pipeline view needs the pipeline");
+        requireNonNull(product, "a pipeline view needs the product");
+        requireNonNull(service, "a pipeline view needs the service");
+        requireNonNull(pipeline, "a pipeline view needs the pipeline");
     }
 
     public static PipelineView of(Product product, Pipeline pipeline, String jenkinsUrl) {
-        Service service = product.service(pipeline.service().serviceId()).orElseThrow(() -> new IllegalStateException(
-                "pipeline " + pipeline.id() + " belongs to no service of product " + product.id()));
+        Service service = product.service(pipeline.service().serviceId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "pipeline " + pipeline.id() + " belongs to no service of product " + product.id()));
         return new PipelineView(product, service, pipeline, jenkinsUrl);
     }
 

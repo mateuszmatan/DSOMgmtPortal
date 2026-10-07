@@ -3,18 +3,19 @@ package com.bbh.itss.dso.portal.adapter.out.localmetrics
 import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringTargets
 import com.bbh.itss.dso.portal.application.monitoring.port.in.ReadMonitoringTargetsUseCase
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView
-import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import spock.lang.Specification
 
-import java.time.Clock
-import java.time.Duration
 import java.time.Instant
-import java.time.ZoneOffset
 
+import static com.bbh.itss.dso.portal.adapter.out.localmetrics.DemoRunHistory.HISTORY
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.revokedKey
 import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
+import static java.time.Clock.fixed
+import static java.time.Duration.ofDays
+import static java.time.ZoneOffset.UTC
 
 class DemoRunHistorySpec extends Specification {
 
@@ -22,14 +23,14 @@ class DemoRunHistorySpec extends Specification {
 
     LocalMetricsStore store = Mock()
     ReadMonitoringTargetsUseCase targets = Stub()
-    def history = new DemoRunHistory(store, targets, Clock.fixed(NOW, ZoneOffset.UTC))
+    def history = new DemoRunHistory(store, targets, fixed(NOW, UTC))
 
     def certScanner = product(id: 1L, code: 'CERT', services: [[name: 'gui', id: 10L], [name: 'backend-api', id: 11L]])
 
     def setup() {
         targets.everything() >> new MonitoringTargets([certScanner], [
                 view(pipeline(id: 100L, serviceId: 10L, jenkinsJob: 'DevSecOps/CERT/gui-full')),
-                view(pipeline(id: 101L, serviceId: 10L, type: PipelineType.SAST, jenkinsJob: 'DevSecOps/CERT/gui-sast',
+                view(pipeline(id: 101L, serviceId: 10L, type: SAST, jenkinsJob: 'DevSecOps/CERT/gui-sast',
                         keys: [revokedKey()])),
                 view(pipeline(id: 102L, serviceId: 11L, jenkinsJob: 'DevSecOps/CERT/api-full'))],
                 storedSettings('https://jenkins.test').platform(), [] as Set)
@@ -59,9 +60,9 @@ class DemoRunHistorySpec extends Specification {
         saved[0] == saved[1]
         def runs = saved[0].findAll { it.measurement() == 'pipeline_run' }.groupBy { it.job() }
         runs.keySet() == ['DevSecOps/CERT/gui-full', 'DevSecOps/CERT/gui-sast', 'DevSecOps/CERT/api-full'] as Set
-        runs.values().flatten().every { it.time().isAfter(NOW - DemoRunHistory.HISTORY) && !it.time().isAfter(NOW) }
-        runs['DevSecOps/CERT/gui-sast']*.time().max().isBefore(NOW - Duration.ofDays(9))
-        runs['DevSecOps/CERT/gui-full']*.time().max().isAfter(NOW - Duration.ofDays(5))
+        runs.values().flatten().every { it.time().isAfter(NOW - HISTORY) && !it.time().isAfter(NOW) }
+        runs['DevSecOps/CERT/gui-sast']*.time().max().isBefore(NOW - ofDays(9))
+        runs['DevSecOps/CERT/gui-full']*.time().max().isAfter(NOW - ofDays(5))
         runs['DevSecOps/CERT/gui-full']*.tag().unique()*.project() == ['CERT-gui']
         runs['DevSecOps/CERT/gui-sast']*.tag().unique()*.project() == ['CERT-guisast']
     }

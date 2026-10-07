@@ -4,7 +4,9 @@ import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Locale;
+
+import static java.util.Locale.ROOT;
+import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
 public enum RunResult {
     SUCCESS, UNSTABLE, FAILURE, ABORTED, NOT_BUILT, NO_DATA, DISABLED;
@@ -13,10 +15,7 @@ public enum RunResult {
             DISABLED);
 
     public static RunResult fromTag(String tag) {
-        if (tag == null) {
-            return NO_DATA;
-        }
-        return switch (tag.trim().toUpperCase(Locale.ROOT)) {
+        return switch (trimToEmpty(tag).toUpperCase(ROOT)) {
             case "SUCCESS" -> SUCCESS;
             case "UNSTABLE" -> UNSTABLE;
             case "FAILURE" -> FAILURE;

@@ -4,20 +4,23 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+
+import static java.time.Duration.ofDays;
+import static java.time.ZoneOffset.UTC;
+import static java.time.format.DateTimeFormatter.ofPattern;
+import static org.apache.commons.lang3.ObjectUtils.anyNull;
 
 public record ChangeWindow(Instant start, Instant end) {
 
-    static final Duration LONGEST = Duration.ofDays(7);
-    private static final DateTimeFormatter DAY_AND_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-            .withZone(ZoneOffset.UTC);
-    private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneOffset.UTC);
+    static final Duration LONGEST = ofDays(7);
+    private static final DateTimeFormatter DAY_AND_TIME = ofPattern("yyyy-MM-dd HH:mm").withZone(UTC);
+    private static final DateTimeFormatter TIME = ofPattern("HH:mm").withZone(UTC);
 
     public void check(Instant now, ValidationProblems problems) {
         problems.require("start", start, "choose when the change starts");
         problems.require("end", end, "choose when the change ends");
-        if (start == null || end == null) {
+        if (anyNull(start, end)) {
             return;
         }
         if (!start.isAfter(now)) {

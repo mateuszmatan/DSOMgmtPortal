@@ -36,6 +36,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-liquibase'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.yaml:snakeyaml'
+    implementation 'org.apache.commons:commons-lang3'
+    implementation libs.commons.collections4
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
     runtimeOnly 'com.oracle.database.jdbc:ojdbc11'
     runtimeOnly 'com.h2database:h2'
 

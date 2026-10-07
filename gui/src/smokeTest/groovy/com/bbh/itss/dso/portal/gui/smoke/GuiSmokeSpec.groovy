@@ -1,14 +1,12 @@
 package com.bbh.itss.dso.portal.gui.smoke
 
 import com.bbh.itss.dso.portal.gui.support.GuiSpecification
-import com.bbh.itss.dso.portal.gui.support.StubApi
 import com.microsoft.playwright.Page
-import com.microsoft.playwright.options.AriaRole
 import spock.lang.IgnoreIf
 
-import java.util.regex.Pattern
-
+import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
+import static com.microsoft.playwright.options.AriaRole.MENUITEM
 
 class GuiSmokeSpec extends GuiSpecification {
 
@@ -42,7 +40,7 @@ class GuiSmokeSpec extends GuiSpecification {
         MENUS.every { name, labels ->
             menuButton(name).click()
             def panel = page.locator('.mat-mdc-menu-panel')
-            assertThat(panel.getByRole(AriaRole.MENUITEM)).hasText(labels as String[])
+            assertThat(panel.getByRole(MENUITEM)).hasText(labels as String[])
             assert SECTIONS.every { section -> !panel.textContent().contains(section.description) }
             page.keyboard().press('Escape')
             assertThat(panel).hasCount(0)
@@ -59,8 +57,8 @@ class GuiSmokeSpec extends GuiSpecification {
         then:
         assertThat(page.locator('section.department h2').first()).isVisible()
         assertThat(page.locator('section.department .tally').first())
-                .hasText(Pattern.compile('^\\d+ DevSecOps pipelines? for \\d+ products?( · \\d+ active)?$'))
-        assertThat(page.locator('.toolbar .count')).hasText(Pattern.compile('^\\d+ products? in \\d+ departments?$'))
+                .hasText(~/^\d+ DevSecOps pipelines? for \d+ products?( · \d+ active)?$/)
+        assertThat(page.locator('.toolbar .count')).hasText(~/^\d+ products? in \d+ departments?$/)
         ownErrors().isEmpty()
     }
 
@@ -159,7 +157,7 @@ class GuiSmokeSpec extends GuiSpecification {
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
     def "an invalidated pipeline key is regenerated with a visible text button"() {
         given:
-        api.respond('POST', '/api/pipelines/9/keys', StubApi.fixture('pipeline-9-regenerated.json'))
+        api.respond('POST', '/api/pipelines/9/keys', fixture('pipeline-9-regenerated.json'))
 
         when:
         open('/products/2')
@@ -185,14 +183,14 @@ class GuiSmokeSpec extends GuiSpecification {
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
     def "saving a new service shows the pipeline key generated for it on the product page"() {
         given:
-        def saved = StubApi.fixture('product-1.json') as Map
+        def saved = fixture('product-1.json') as Map
         def services = saved.services as List<Map>
         saved.services = [services[0], services[0] + [id: 7, name: 'gui-copy'], services[1]]
         saved.version = (saved.version as int) + 1
         api.on('PUT', '/api/products/1') { saved }
-        api.get('/api/products/1') { productSaved() ? saved : StubApi.fixture('product-1.json') }
+        api.get('/api/products/1') { productSaved() ? saved : fixture('product-1.json') }
         api.get('/api/products/1/pipelines') {
-            StubApi.fixture(productSaved() ? 'product-1-pipelines-with-new-service.json' : 'product-1-pipelines.json')
+            fixture(productSaved() ? 'product-1-pipelines-with-new-service.json' : 'product-1-pipelines.json')
         }
 
         when:

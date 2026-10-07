@@ -1,14 +1,19 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.StoredList;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+import lombok.Builder;
 
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Stream;
 
+import static com.bbh.itss.dso.portal.domain.catalog.BitbucketAuthType.BASIC;
+import static com.bbh.itss.dso.portal.domain.shared.StoredList.COMMAS_2000;
+import static com.bbh.itss.dso.portal.domain.shared.Text.clean;
+import static org.apache.commons.lang3.ObjectUtils.anyNotNull;
+import static org.apache.commons.lang3.ObjectUtils.getIfNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
+@Builder
 public record ScmSettings(String repositoryUrl, String credentialsId, BitbucketAuthType authType, BitbucketType type,
                           String targetBranch, String cloneUrl, List<String> reviewers, String apiUrl, String workspace,
                           String projectKey, String repoSlug) {
@@ -16,21 +21,20 @@ public record ScmSettings(String repositoryUrl, String credentialsId, BitbucketA
     public static final ScmSettings NONE = of(null, null);
 
     public ScmSettings {
-        repositoryUrl = Text.trimToNull(repositoryUrl);
-        credentialsId = Text.trimToNull(credentialsId);
-        authType = authType == null ? BitbucketAuthType.BASIC : authType;
-        targetBranch = Text.trimToNull(targetBranch);
-        cloneUrl = Text.trimToNull(cloneUrl);
-        reviewers = Text.clean(reviewers);
-        apiUrl = Text.trimToNull(apiUrl);
-        workspace = Text.trimToNull(workspace);
-        projectKey = Text.trimToNull(projectKey);
-        repoSlug = Text.trimToNull(repoSlug);
+        repositoryUrl = trimToNull(repositoryUrl);
+        credentialsId = trimToNull(credentialsId);
+        authType = getIfNull(authType, BASIC);
+        targetBranch = trimToNull(targetBranch);
+        cloneUrl = trimToNull(cloneUrl);
+        reviewers = clean(reviewers);
+        apiUrl = trimToNull(apiUrl);
+        workspace = trimToNull(workspace);
+        projectKey = trimToNull(projectKey);
+        repoSlug = trimToNull(repoSlug);
     }
 
     public static ScmSettings of(String repositoryUrl, String credentialsId) {
-        return new ScmSettings(repositoryUrl, credentialsId, BitbucketAuthType.BASIC, null, null, null, List.of(),
-                null, null, null, null);
+        return builder().repositoryUrl(repositoryUrl).credentialsId(credentialsId).build();
     }
 
     public void writeTo(ConfigTree config) {
@@ -58,10 +62,10 @@ public record ScmSettings(String repositoryUrl, String credentialsId, BitbucketA
             problems.add("repositoryUrl",
                     "is required when the Bitbucket API URL, workspace, project key or repository slug is set");
         }
-        StoredList.COMMAS_2000.check(problems, "reviewers", reviewers);
+        COMMAS_2000.check(problems, "reviewers", reviewers);
     }
 
     private boolean namesRepository() {
-        return Stream.of(apiUrl, workspace, projectKey, repoSlug).anyMatch(Objects::nonNull);
+        return anyNotNull(apiUrl, workspace, projectKey, repoSlug);
     }
 }

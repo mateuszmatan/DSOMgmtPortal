@@ -1,7 +1,6 @@
 package com.bbh.itss.dso.portal.domain.evidence
 
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun
-import com.bbh.itss.dso.portal.domain.monitoring.RunResult
 import spock.lang.Specification
 
 import java.time.Instant
@@ -17,6 +16,13 @@ import static com.bbh.itss.dso.portal.domain.evidence.EvidenceScanner.DAST
 import static com.bbh.itss.dso.portal.domain.evidence.EvidenceScanner.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.evidence.EvidenceScanner.SAST
 import static com.bbh.itss.dso.portal.domain.evidence.EvidenceScanner.SONARQUBE
+import static com.bbh.itss.dso.portal.domain.evidence.RunEvidence.MEASUREMENTS
+import static com.bbh.itss.dso.portal.domain.evidence.TestSuite.PERFORMANCE
+import static com.bbh.itss.dso.portal.domain.evidence.TestSuite.REGRESSION
+import static com.bbh.itss.dso.portal.domain.evidence.TestSuite.SMOKE
+import static com.bbh.itss.dso.portal.domain.evidence.TestSuite.UNIT
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.SUCCESS
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.UNSTABLE
 
 class RunEvidenceSpec extends Specification {
 
@@ -40,14 +46,14 @@ class RunEvidenceSpec extends Specification {
         new RunEvidence([point('release_gate', allowed: 'yes')]).stages() == []
         new RunEvidence([point('stage_event', stage: 'Build')]).releaseGate() == null
         RunEvidence.none().stages() == []
-        RunEvidence.MEASUREMENTS == ['security_findings', 'policy_status', 'code_coverage', 'test_execution',
-                                   'release_gate', 'vulnerabilities', 'stage_event', 'build_evidence']
+        MEASUREMENTS == ['security_findings', 'policy_status', 'code_coverage', 'test_execution', 'release_gate',
+                         'vulnerabilities', 'stage_event', 'build_evidence']
     }
 
     def "coverage met #met, measured #measured and policy status #policy is #status"() {
         given:
         List<EvidencePoint> rows = [point('code_coverage', [module: 'gui', line_pct: '70', required: '60'] +
-                (met == null ? [:] : [met: met]) + (measured == null ? [:] : [measured: measured]))]
+                [met: met, measured: measured].findAll { it.value != null })]
         if (policy != null) {
             rows << point('policy_status', scanner: 'coverage', status: policy)
         }
@@ -112,10 +118,10 @@ class RunEvidenceSpec extends Specification {
 
         expect:
         points.testSuites('gui') == [
-                new TestSuiteEvidence(TestSuite.UNIT, NO_DATA, null, null, null, null, null, null),
-                new TestSuiteEvidence(TestSuite.SMOKE, PASS, 5L, 4L, 0L, null, 1L, 12345L),
-                new TestSuiteEvidence(TestSuite.REGRESSION, WARN, 10L, 8L, 2L, null, 0L, 600000L),
-                new TestSuiteEvidence(TestSuite.PERFORMANCE, SKIP, null, null, null, null, null, null)]
+                TestSuiteEvidence.builder().suite(UNIT).status(NO_DATA).build(),
+                new TestSuiteEvidence(SMOKE, PASS, 5L, 4L, 0L, null, 1L, 12345L),
+                new TestSuiteEvidence(REGRESSION, WARN, 10L, 8L, 2L, null, 0L, 600000L),
+                TestSuiteEvidence.builder().suite(PERFORMANCE).status(SKIP).build()]
     }
 
     def "the unit tests are read from the module's unit suite and the stage that ran them"() {
@@ -127,7 +133,7 @@ class RunEvidenceSpec extends Specification {
                 point('stage_event', stage: 'Unit tests', status: 'WARN', order: '2')])
 
         expect:
-        points.testSuites('gui')[0] == new TestSuiteEvidence(TestSuite.UNIT, WARN, 120L, 115L, 2L, 3L, 0L, 45000L)
+        points.testSuites('gui')[0] == new TestSuiteEvidence(UNIT, WARN, 120L, 115L, 2L, 3L, 0L, 45000L)
         points.testSuites('backend-api')[0].with { [status(), total(), skipped()] } == [WARN, 80L, null]
         new RunEvidence([point('test_execution', module: 'gui', suite: 'unit', total: '4', passed: '4', failed: '0',
                 skipped: '0')]).testSuites('gui')[0].status() == PASS
@@ -168,22 +174,22 @@ class RunEvidenceSpec extends Specification {
                 point('test_execution', suite: 'Regression tests', total: '7', passed: '7', failed: '0'),
                 point('test_execution', module: 'backend-api', suite: 'unit', total: '80', passed: '80')])
 
-        def none = TestSuite.values().collect { new TestSuiteEvidence(it, NO_DATA, null, null, null, null, null, null) }
+        def none = TestSuite.values().collect { TestSuiteEvidence.builder().suite(it).status(NO_DATA).build() }
 
         expect:
         new RunEvidence([]).testSuites('gui') == none
         points.testSuites('gui') == [none[0], none[1],
-                                     new TestSuiteEvidence(TestSuite.REGRESSION, PASS, 7L, 7L, 0L, null, null, null),
+                                     new TestSuiteEvidence(REGRESSION, PASS, 7L, 7L, 0L, null, null, null),
                                      none[3]]
     }
 
     def "a run without scans reports each scanner without data, with its link, unless the policy did not require it"() {
         expect:
         new RunEvidence([]).scans('gui', links) == [
-                new ScanEvidence(SAST, NO_DATA, null, null, null, null, null, null, null, null, APPSCAN),
-                new ScanEvidence(DAST, NO_DATA, null, null, null, null, null, null, null, null, APPSCAN),
-                new ScanEvidence(SONARQUBE, NO_DATA, null, null, null, null, null, null, null, null, SONAR),
-                new ScanEvidence(NEXUS_IQ, NO_DATA, null, null, null, null, null, null, null, null, NEXUS_IQ_URL)]
+                ScanEvidence.builder().scanner(SAST).status(NO_DATA).link(APPSCAN).build(),
+                ScanEvidence.builder().scanner(DAST).status(NO_DATA).link(APPSCAN).build(),
+                ScanEvidence.builder().scanner(SONARQUBE).status(NO_DATA).link(SONAR).build(),
+                ScanEvidence.builder().scanner(NEXUS_IQ).status(NO_DATA).link(NEXUS_IQ_URL).build()]
         new RunEvidence([]).scans('gui', EvidenceLinks.of(null, null, null, null, null, null))*.link() ==
                 [null, null, null, null]
         new RunEvidence([point('policy_status', scanner: 'dast', status: 'NOT_REQUIRED'),
@@ -233,7 +239,7 @@ class RunEvidenceSpec extends Specification {
         def other = new RunEvidence([point('build_evidence', module: 'backend-api', artifact_version: '2.0.1',
                 sonar_quality_gate: 'ERROR', config_sha256: '0123456789abcdef'),
                 point('test_execution', module: 'backend-api', suite: 'unit', total: '80', passed: '80')])
-        def run = new PipelineRun(Instant.parse('2026-10-04T10:00:00Z'), RunResult.SUCCESS, 'develop', 42, 600,
+        def run = new PipelineRun(Instant.parse('2026-10-04T10:00:00Z'), SUCCESS, 'develop', 42, 600,
                 'a1b2c3d4e5f6', 'DevSecOps/CertScanner-pipeline', null, null, null, null, null, null)
 
         expect:
@@ -244,7 +250,8 @@ class RunEvidenceSpec extends Specification {
 
     def "the Sonar quality gate #gate with policy status #policy reads as #status"() {
         given:
-        List<EvidencePoint> rows = [point('build_evidence', [module: 'gui'] + (gate == null ? [:] : [sonar_quality_gate: gate]))]
+        List<EvidencePoint> rows = [point('build_evidence',
+                [module: 'gui', sonar_quality_gate: gate].findAll { it.value != null })]
         if (policy != null) {
             rows << point('policy_status', scanner: 'sonar', status: policy)
         }
@@ -314,7 +321,7 @@ class RunEvidenceSpec extends Specification {
 
     def "the report of a run holds its build with links and every kind of evidence of the module"() {
         given:
-        def run = new PipelineRun(Instant.parse('2026-10-01T10:00:00Z'), RunResult.UNSTABLE, 'main', 42L, 900L,
+        def run = new PipelineRun(Instant.parse('2026-10-01T10:00:00Z'), UNSTABLE, 'main', 42L, 900L,
                 'abc123', 'CERT/gui', 10L, 8L, 1L, 1L, 0L, 0L)
         def evidence = new RunEvidence([
                 point('code_coverage', module: 'gui', line_pct: '82.5', required: '60', met: '1', covered: '825',
@@ -326,7 +333,7 @@ class RunEvidenceSpec extends Specification {
         def report = evidence.report(run, 'gui', links)
 
         then:
-        report.build() == new BuildEvidence(42L, run.time(), RunResult.UNSTABLE, 'main', 'abc123', null, 900L,
+        report.build() == new BuildEvidence(42L, run.time(), UNSTABLE, 'main', 'abc123', null, 900L,
                 'CERT/gui', 'https://jenkins.test/job/gui/42/', 'https://jenkins.test/job/gui/42/Pipeline_20Report/',
                 'https://jenkins.test/job/gui/42/testReport/', 'https://jenkins.test/job/gui/42/artifact/', null, null)
         report.coverage() == evidence.coverage('gui')
@@ -338,7 +345,7 @@ class RunEvidenceSpec extends Specification {
 
     def "the build names the artifact version and the portal configuration it ran with"() {
         given:
-        def run = new PipelineRun(Instant.parse('2026-10-01T10:00:00Z'), RunResult.SUCCESS, 'main', 43L, 600L,
+        def run = new PipelineRun(Instant.parse('2026-10-01T10:00:00Z'), SUCCESS, 'main', 43L, 600L,
                 'def456', 'CERT/gui', 10L, 10L, 0L, 0L, 0L, 0L)
         def evidence = new RunEvidence([
                 point('build_evidence', module: 'gui', artifact_version: '1.4.2-43', sonar_quality_gate: 'OK',

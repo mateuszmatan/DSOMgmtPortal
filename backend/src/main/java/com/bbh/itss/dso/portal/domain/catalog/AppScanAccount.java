@@ -1,13 +1,14 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.Text;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public record AppScanAccount(String keyId, String secretCredentialsId) {
 
     public AppScanAccount {
-        keyId = Text.trimToNull(keyId);
-        secretCredentialsId = Text.trimToNull(secretCredentialsId);
+        keyId = trimToNull(keyId);
+        secretCredentialsId = trimToNull(secretCredentialsId);
     }
 
     public void writeTo(ConfigTree config) {

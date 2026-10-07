@@ -16,7 +16,6 @@ import com.bbh.itss.dso.portal.application.monitoring.port.out.DashboardLinksPor
 import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
-import com.bbh.itss.dso.portal.domain.monitoring.DoraCalculator;
 import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint;
 import com.bbh.itss.dso.portal.domain.monitoring.DoraSummary;
 import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns;
@@ -26,6 +25,7 @@ import com.bbh.itss.dso.portal.domain.monitoring.MonitoringRange;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
+import lombok.RequiredArgsConstructor;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -33,9 +33,16 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
+
+import static com.bbh.itss.dso.portal.domain.monitoring.DoraCalculator.summarize;
+import static com.bbh.itss.dso.portal.domain.monitoring.DoraCalculator.summarizeAll;
+import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.worst;
+import static java.time.Instant.now;
+import static java.util.stream.Collectors.groupingBy;
+import static org.apache.commons.lang3.ObjectUtils.max;
 
 @UseCase
+@RequiredArgsConstructor
 public class PipelineMonitoringService implements MonitorPipelinesUseCase {
 
     static final int RECENT_RUNS = 25;
@@ -44,14 +51,6 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
     private final PipelineRunsPort runs;
     private final DashboardLinksPort dashboards;
     private final Clock clock;
-
-    public PipelineMonitoringService(ReadMonitoringTargetsUseCase targets, PipelineRunsPort runs,
-                                     DashboardLinksPort dashboards, Clock clock) {
-        this.targets = targets;
-        this.runs = runs;
-        this.dashboards = dashboards;
-        this.clock = clock;
-    }
 
     @Override
     @WithoutTransaction
@@ -70,7 +69,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         List<PipelineView> views = monitored.pipelines();
         MetricsReading<LatestRuns> latest = latestRuns(monitored);
         Map<Long, List<PipelineView>> byProduct = views.stream()
-                .collect(Collectors.groupingBy(view -> view.product().id()));
+                .collect(groupingBy(view -> view.product().id()));
         List<ProductHealth> health = monitored.products().stream()
                 .map(product -> health(product, byProduct.getOrDefault(product.id(), List.of()), latest.value()))
                 .toList();
@@ -90,8 +89,8 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
                     return new PipelineHealth(view, RunResult.of(view.pipeline(), run), run);
                 })
                 .toList();
-        return new ProductMonitoring(product, RunResult.worst(health.stream().map(PipelineHealth::status).toList()),
-                health, latest.error());
+        return new ProductMonitoring(product, worst(health.stream().map(PipelineHealth::status).toList()), health,
+                latest.error());
     }
 
     @Override
@@ -117,7 +116,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         if (last == null && attributable && !recent.failed()) {
             last = latestRuns(monitored).value().of(tag, pipeline);
         }
-        DoraSummary dora = DoraCalculator.summarize(points.value(), days, Instant.now(clock));
+        DoraSummary dora = summarize(points.value(), days, now(clock));
         return new PipelineMonitoring(view, RunResult.of(pipeline, last), last, dora, recentRuns,
                 dashboards.dashboardUrl(tag, pipeline.type(), days).orElse(null), points.error());
     }
@@ -130,7 +129,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         MetricsReading<Map<MetricsTag, List<DoraPoint>>> points =
                 MetricsReading.of(() -> runs.doraPoints(monitored.tags(), days), Map.of());
         return new PortfolioActivity(monitored.pipelines().size(),
-                DoraCalculator.summarizeAll(points.value().values(), days, Instant.now(clock)), points.error());
+                summarizeAll(points.value().values(), days, now(clock)), points.error());
     }
 
     private boolean ping() {
@@ -148,11 +147,10 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         for (PipelineView view : productPipelines) {
             PipelineRun run = latest.of(view.metricsTag(), view.pipeline());
             counts.merge(RunResult.of(view.pipeline(), run), 1, Integer::sum);
-            if (run != null && (lastRunAt == null || run.time().isAfter(lastRunAt))) {
-                lastRunAt = run.time();
+            if (run != null) {
+                lastRunAt = max(lastRunAt, run.time());
             }
         }
-        return new ProductHealth(product, productPipelines.size(), RunResult.worst(counts.keySet()), counts,
-                lastRunAt);
+        return new ProductHealth(product, productPipelines.size(), worst(counts.keySet()), counts, lastRunAt);
     }
 }

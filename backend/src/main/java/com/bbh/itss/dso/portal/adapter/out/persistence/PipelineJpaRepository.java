@@ -1,7 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
-import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -9,6 +8,8 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+
+import static jakarta.persistence.LockModeType.PESSIMISTIC_WRITE;
 
 public interface PipelineJpaRepository extends JpaRepository<PipelineEntity, Long> {
 
@@ -25,7 +26,7 @@ public interface PipelineJpaRepository extends JpaRepository<PipelineEntity, Lon
     @Query("select p from PipelineEntity p join fetch p.service s join fetch s.product where p.id = :id")
     Optional<PipelineEntity> findWithServiceById(@Param("id") Long id);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Lock(PESSIMISTIC_WRITE)
     @Query("select p from PipelineEntity p where p.id = :id")
     Optional<PipelineEntity> findForUpdate(@Param("id") Long id);
 

@@ -1,21 +1,29 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+import lombok.Builder;
 
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
+import static org.apache.commons.lang3.BooleanUtils.isTrue;
+import static org.apache.commons.lang3.ObjectUtils.anyNotNull;
+import static org.apache.commons.lang3.ObjectUtils.getIfNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+
+@Builder
 public record UnitTestSettings(ToolCommand command, String resultPattern, String rootDir, String reportOutDir,
                                Boolean allowEmptyResults, String coverageReportPath) {
 
-    public static final UnitTestSettings NONE = new UnitTestSettings(null, null, null, null, false, null);
+    public static final UnitTestSettings NONE = builder().build();
 
     public UnitTestSettings {
-        command = command == null ? ToolCommand.NONE : command;
-        resultPattern = Text.trimToNull(resultPattern);
-        rootDir = Text.trimToNull(rootDir);
-        reportOutDir = Text.trimToNull(reportOutDir);
-        allowEmptyResults = Boolean.TRUE.equals(allowEmptyResults);
-        coverageReportPath = Text.trimToNull(coverageReportPath);
+        command = getIfNull(command, ToolCommand.NONE);
+        resultPattern = trimToNull(resultPattern);
+        rootDir = trimToNull(rootDir);
+        reportOutDir = trimToNull(reportOutDir);
+        allowEmptyResults = isTrue(allowEmptyResults);
+        coverageReportPath = trimToNull(coverageReportPath);
     }
 
     public void writeTo(ConfigTree config, BuildTool tool) {
@@ -28,10 +36,9 @@ public record UnitTestSettings(ToolCommand command, String resultPattern, String
     }
 
     public void validate(ValidationProblems problems, BuildTool tool) {
-        boolean configured = !command.isEmpty() || resultPattern != null || rootDir != null || reportOutDir != null
-                || allowEmptyResults;
-        if (tool != BuildTool.FLUTTER && configured && command.tasks().isEmpty()) {
-            problems.add("command.tasks", tool == BuildTool.MAVEN
+        boolean configured = !command.isEmpty() || anyNotNull(resultPattern, rootDir, reportOutDir) || allowEmptyResults;
+        if (tool != FLUTTER && configured && command.tasks().isEmpty()) {
+            problems.add("command.tasks", tool == MAVEN
                     ? "add the Maven goals of the unit tests, for example test jacoco:report"
                     : "add the Gradle tasks of the unit tests, for example test jacocoTestReport");
         }

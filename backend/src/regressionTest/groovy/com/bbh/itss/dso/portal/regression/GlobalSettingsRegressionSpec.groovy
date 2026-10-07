@@ -1,16 +1,14 @@
 package com.bbh.itss.dso.portal.regression
 
-import com.bbh.itss.dso.portal.support.ApiJson
 import com.bbh.itss.dso.portal.support.PortalSpecification
 import org.yaml.snakeyaml.Yaml
 
-
+import static com.bbh.itss.dso.portal.support.ApiJson.fullOpenShiftService
 import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 
 class GlobalSettingsRegressionSpec extends PortalSpecification {
-
 
     Map original
 
@@ -85,7 +83,7 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
         def created = createProduct(product(code: code, name: "Product $code", services: [
                 service(name: 'plain'),
                 service(name: 'own-rd', sshTargets: [RD: [host: 'own-rd.testbbh.com', deployDir: '/opt/own']]),
-                ApiJson.fullOpenShiftService(name: 'cloud', sonar: null, nexusIq: null,
+                fullOpenShiftService(name: 'cloud', sonar: null, nexusIq: null,
                         metrics: [influxProject: "$code-cloud".toString(), influxEnv: 'test'])]))
         def full = pipelineFor(created.services[0].id as long, pipeline())
 

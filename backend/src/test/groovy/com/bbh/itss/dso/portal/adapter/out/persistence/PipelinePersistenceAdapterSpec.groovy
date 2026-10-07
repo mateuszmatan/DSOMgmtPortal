@@ -5,12 +5,9 @@ import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator
-import com.bbh.itss.dso.portal.domain.pipeline.KeyStatus
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import com.bbh.itss.dso.portal.domain.pipeline.ServiceRef
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
@@ -22,6 +19,9 @@ import spock.lang.Specification
 
 import java.time.Instant
 
+import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.ACTIVE
+import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.REVOKED
+import static com.bbh.itss.dso.portal.domain.pipeline.Pipeline.REPLACED_REASON
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
@@ -29,11 +29,12 @@ import static com.bbh.itss.dso.portal.support.Fixtures.account
 import static com.bbh.itss.dso.portal.support.Fixtures.details
 import static com.bbh.itss.dso.portal.support.Fixtures.pipelineSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.settings
+import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 
 @DataJpaTest(properties = [
         'spring.datasource.url=jdbc:h2:mem:pipeline-adapter;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa'])
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@AutoConfigureTestDatabase(replace = NONE)
 @Import([PipelinePersistenceAdapter, ProductPersistenceAdapter])
 class PipelinePersistenceAdapterSpec extends Specification {
 
@@ -79,7 +80,7 @@ class PipelinePersistenceAdapterSpec extends Specification {
                 description: 'Main')
         loaded.keys() == saved.keys()
         loaded.keys()*.value() == ['key-1']
-        loaded.keys()[0].status() == KeyStatus.ACTIVE
+        loaded.keys()[0].status() == ACTIVE
         loaded.keys()[0].issuedAt() == ISSUED
         jdbc.queryForMap('SELECT PIPELINE_TYPE, AGENT_LABELS, EXTENDED_PIPELINE_JOB, JENKINS_JOB FROM DSO_PIPELINE') ==
                 [PIPELINE_TYPE: 'FULL', AGENT_LABELS: 'linux,docker', EXTENDED_PIPELINE_JOB: null,
@@ -118,10 +119,10 @@ class PipelinePersistenceAdapterSpec extends Specification {
         then:
         loaded.keys() == saved.keys()
         loaded.keys()*.value() == ['key-2', 'key-1']
-        loaded.keys()*.status() == [KeyStatus.ACTIVE, KeyStatus.REVOKED]
+        loaded.keys()*.status() == [ACTIVE, REVOKED]
         loaded.keys()[1].id() == stored.keys()[0].id()
         loaded.keys()[1].revokedAt() == REISSUED
-        loaded.keys()[1].revokeReason() == Pipeline.REPLACED_REASON
+        loaded.keys()[1].revokeReason() == REPLACED_REASON
         loaded.keys()[0].issuedAt() == REISSUED
         ['key-1', 'key-2'].collect { adapter.findKey(it).get() }*.pipelineId() == [stored.id()] * 2
         adapter.findKey('key-2').get().key() == saved.keys()[0]
@@ -145,7 +146,7 @@ class PipelinePersistenceAdapterSpec extends Specification {
         then:
         recorded == [true, false, false]
         loaded.keys()*.lastUsedAt() == [USED, null]
-        loaded.keys()*.status() == [KeyStatus.ACTIVE, KeyStatus.REVOKED]
+        loaded.keys()*.status() == [ACTIVE, REVOKED]
         loaded.version() == saved.version()
     }
 
@@ -183,7 +184,7 @@ class PipelinePersistenceAdapterSpec extends Specification {
         !enabled
         latest.revokeReason() == 'Service retired'
         latest.revokedAt() == USED
-        adapter.load(pipeline.id()).get().keys()*.status().countBy { it } == [(KeyStatus.ACTIVE): 1, (KeyStatus.REVOKED): 2]
+        adapter.load(pipeline.id()).get().keys()*.status().countBy { it } == [(ACTIVE): 1, (REVOKED): 2]
         jdbc.queryForObject("SELECT COUNT(*) FROM DSO_PIPELINE_KEY WHERE STATUS = 'ACTIVE'", Integer) == 1
     }
 
@@ -245,10 +246,10 @@ class PipelinePersistenceAdapterSpec extends Specification {
         problem.message.contains(message)
 
         where:
-        change                                | versionShift | deleted | service                      || failure            | message
-        'read at another version than stored' | 1            | false   | null                         || ConflictException  | 'changed by someone else'
-        'deleted in the meantime'             | 0            | true    | null                         || ConflictException  | 'changed by someone else'
-        'of a service that was never stored'  | 0            | false   | new ServiceRef(1L, 999_999L) || NotFoundException  | '999999'
+        change                                | versionShift | deleted | service                      || failure                | message
+        'read at another version than stored' | 1            | false   | null                         || IllegalStateException  | 'changed by someone else'
+        'deleted in the meantime'             | 0            | true    | null                         || IllegalStateException  | 'changed by someone else'
+        'of a service that was never stored'  | 0            | false   | new ServiceRef(1L, 999_999L) || NoSuchElementException | '999999'
     }
 
     def "deleting a pipeline removes its keys"() {

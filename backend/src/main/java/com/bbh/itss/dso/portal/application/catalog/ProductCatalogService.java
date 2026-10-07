@@ -9,27 +9,25 @@ import com.bbh.itss.dso.portal.application.catalog.port.out.PipelineCountsPort;
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
-import com.bbh.itss.dso.portal.domain.catalog.ProductCode;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
+import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.bbh.itss.dso.portal.domain.catalog.ProductCode.suggest;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL;
+import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
+import static org.apache.commons.lang3.ObjectUtils.getIfNull;
+
 @UseCase
+@RequiredArgsConstructor
 public class ProductCatalogService implements ProductsUseCase {
 
     private final ProductRepositoryPort products;
     private final PipelineCountsPort pipelineCounts;
     private final PipelinesUseCase pipelines;
-
-    public ProductCatalogService(ProductRepositoryPort products, PipelineCountsPort pipelineCounts,
-                                 PipelinesUseCase pipelines) {
-        this.products = products;
-        this.pipelineCounts = pipelineCounts;
-        this.pipelines = pipelines;
-    }
 
     @Override
     @ReadOnly
@@ -75,17 +73,17 @@ public class ProductCatalogService implements ProductsUseCase {
     @Override
     @ReadOnly
     public String suggestCode(String name) {
-        return ProductCode.suggest(name, products);
+        return suggest(name, products);
     }
 
     private Product withPipelines(Product saved, Set<Long> known, PipelineType type) {
         pipelines.createMissing(saved.id(), saved.serviceIds().stream()
                 .filter(serviceId -> type != null || !known.contains(serviceId))
-                .toList(), type == null ? PipelineType.FULL : type);
+                .toList(), getIfNull(type, FULL));
         return saved;
     }
 
     private Product find(long id) {
-        return products.load(id).orElseThrow(() -> NotFoundException.of("Product", id));
+        return products.load(id).orElseThrow(() -> notFound("Product", id));
     }
 }

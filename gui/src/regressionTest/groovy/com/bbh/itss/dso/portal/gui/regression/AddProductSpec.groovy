@@ -1,14 +1,12 @@
 package com.bbh.itss.dso.portal.gui.regression
 
 import com.bbh.itss.dso.portal.gui.support.ProductStore
-import com.bbh.itss.dso.portal.gui.support.StubResponse
 import com.microsoft.playwright.Locator
-import com.microsoft.playwright.options.AriaRole
 import groovy.json.JsonSlurper
 
-import java.util.regex.Pattern
-
+import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
+import static com.microsoft.playwright.options.AriaRole.LINK
 
 class AddProductSpec extends EditorSpecification {
 
@@ -65,10 +63,10 @@ class AddProductSpec extends EditorSpecification {
         when:
         open('/products')
         holding(page.locator('section.department'), "h2:text-is('Custody')")
-                .getByRole(AriaRole.LINK, new Locator.GetByRoleOptions().setName('Add product').setExact(true)).click()
+                .getByRole(LINK, new Locator.GetByRoleOptions().setName('Add product').setExact(true)).click()
 
         then:
-        assertThat(page).hasURL(Pattern.compile('/products/new\\?department=4$'))
+        assertThat(page).hasURL(~'/products/new\\?department=4$')
         assertThat(select(dialog(), 'Department')).hasText('Custody')
 
         when:
@@ -120,7 +118,7 @@ class AddProductSpec extends EditorSpecification {
 
     def "a product with two services is added after the server's field errors are corrected"() {
         given:
-        api.respond('POST', '/api/products', StubResponse.problem(400, 'Bad Request', 'Some values are not valid', [errors: [
+        api.respond('POST', '/api/products', problem(400, 'Bad Request', 'Some values are not valid', [errors: [
                 [field: 'code', message: 'another product already uses this code'],
                 [field: 'services[1].appScan.applicationId', message: 'the AppScan application belongs to CertScanner'],
                 [field: 'version', message: 'must be empty for a new product']]]))
@@ -192,7 +190,7 @@ class AddProductSpec extends EditorSpecification {
         assertThat(page.locator('.generated')).containsText('Pipeline keys generated for 2 new services: gui, backend-api.')
         store.generatedKeys.keySet() == ['gui', 'backend-api'] as Set
         store.generatedKeys.values().every { key ->
-                assertThat(holdingText(page.locator('.key-value'), key as String)).isVisible()
+            assertThat(holdingText(page.locator('.key-value'), key as String)).isVisible()
             true
         }
         assertThat(page.locator('.service .tag.new')).hasCount(2)

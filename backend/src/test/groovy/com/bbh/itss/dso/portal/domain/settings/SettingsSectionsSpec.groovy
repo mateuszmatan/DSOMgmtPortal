@@ -1,14 +1,17 @@
 package com.bbh.itss.dso.portal.domain.settings
 
-import com.bbh.itss.dso.portal.domain.catalog.BuildTool
-import com.bbh.itss.dso.portal.domain.catalog.DeployTarget
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
+import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT
+import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM
+import static com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues.bbhDefaults
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.DAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SCA
+import static com.bbh.itss.dso.portal.domain.settings.SeverityLimits.ZERO
 import static com.bbh.itss.dso.portal.domain.shared.Sections.written
 
 class SettingsSectionsSpec extends Specification {
@@ -16,7 +19,7 @@ class SettingsSectionsSpec extends Specification {
     static final String SCRIPT = 'scripts/deployment/zero-downtime-deployment.sh'
     static final String VERSION = 'scripts/deployment/version.properties'
 
-    def deployment = GlobalSettingsValues.bbhDefaults().deployment()
+    def deployment = bbhDefaults().deployment()
 
     def "the #scanner scanner is #gateKey in the release gate and keeps its limits under #path"() {
         expect:
@@ -35,8 +38,8 @@ class SettingsSectionsSpec extends Specification {
         expect:
         written { new SeverityLimits(1, 2, 3).writeTo(it, 'tools.nexusIq') } ==
                 [tools: [nexusIq: [maxCritical: 1, maxHigh: 2, maxMedium: 3]]]
-        SeverityLimits.ZERO == new SeverityLimits(0, 0, 0)
-        written { new ServiceDefaults(BuildTool.MAVEN, DeployTarget.OPENSHIFT, 'src', 4).writeTo(it) } ==
+        ZERO == new SeverityLimits(0, 0, 0)
+        written { new ServiceDefaults(MAVEN, OPENSHIFT, 'src', 4).writeTo(it) } ==
                 [buildTool: 'maven', deployTarget: 'openshift', sourceDir: 'src', tests: [maxParallel: 4]]
         written { new ScanSettings(80, 10, 20, 15, false, 25, 35, 45, 55, 65, 75, false, 9).writeTo(it) } ==
                 [coverage: [minLine: 80],
@@ -48,7 +51,7 @@ class SettingsSectionsSpec extends Specification {
 
     def "service defaults use the source root #expected for #sourceDir"() {
         expect:
-        new ServiceDefaults(BuildTool.MAVEN, DeployTarget.OPENSHIFT, sourceDir, 4).sourceDir() == expected
+        new ServiceDefaults(MAVEN, OPENSHIFT, sourceDir, 4).sourceDir() == expected
 
         where:
         sourceDir || expected
@@ -73,16 +76,16 @@ class SettingsSectionsSpec extends Specification {
 
     def "deployment defaults add nothing to OpenShift services or when no value is known"() {
         expect:
-        written { it.set('deployTarget', 'openshift'); deployment.fillIn(it, DeployTarget.OPENSHIFT) } ==
+        written { it.set('deployTarget', 'openshift'); deployment.fillIn(it, OPENSHIFT) } ==
                 [deployTarget: 'openshift']
-        written { new DeploymentDefaults(null, null, null, null, null, null, null).fillIn(it, DeployTarget.VM) } == [:]
+        written { DeploymentDefaults.builder().build().fillIn(it, VM) } == [:]
         new DeploymentDefaults(' site ', ' process ', ' rd.bbh.com ', ' qc.bbh.com ', ' user ', ' ', null) ==
                 new DeploymentDefaults('site', 'process', 'rd.bbh.com', 'qc.bbh.com', 'user', null, null)
     }
 
     def "a VM service without SSH values of its own deploys to the global RD and QC hosts"() {
         expect:
-        written { deployment.fillIn(it, DeployTarget.VM) } ==
+        written { deployment.fillIn(it, VM) } ==
                 [deploy: [vm: [rd: [host: 'rdltaapps1.testbbh.com', user: 'taadmin', deployScript: SCRIPT, versionFile: VERSION],
                                qc: [host: 'qcltaapps1.testbbh.com', user: 'taadmin', deployScript: SCRIPT, versionFile: VERSION]]]]
     }
@@ -92,7 +95,7 @@ class SettingsSectionsSpec extends Specification {
         def moved = new DeploymentDefaults('BBH', 'process', 'rdnew.testbbh.com', 'qcnew.testbbh.com', 'dsoadm', null, null)
 
         expect:
-        written { it.set('deploy.vm.qc.host', 'own-qc.testbbh.com'); moved.fillIn(it, DeployTarget.VM) } ==
+        written { it.set('deploy.vm.qc.host', 'own-qc.testbbh.com'); moved.fillIn(it, VM) } ==
                 [deploy: [vm: [qc: [host: 'own-qc.testbbh.com', user: 'dsoadm'], rd: [host: 'rdnew.testbbh.com', user: 'dsoadm']]]]
     }
 
@@ -105,7 +108,7 @@ class SettingsSectionsSpec extends Specification {
                 .set('deploy.vm.qc.deployDir', '/opt/app')
 
         when:
-        deployment.fillIn(tree, DeployTarget.VM)
+        deployment.fillIn(tree, VM)
 
         then:
         tree.get('deploy.vm.dod') == [siteName: 'own-site', deployProcess: 'tomcat-app-process']

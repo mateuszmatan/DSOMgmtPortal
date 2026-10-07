@@ -1,7 +1,8 @@
 package com.bbh.itss.dso.portal.domain.shared
 
-import com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform
 import spock.lang.Specification
+
+import static com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform.APPBUNDLE
 
 class ConfigTreeSpec extends Specification {
 
@@ -15,7 +16,7 @@ class ConfigTreeSpec extends Specification {
                 .set('tests.maxParallel', 2).set('tests.maxParallel', 0).set('tests.maxParallel', null)
                 .set('tests.smoke.jobs', [[job: 'CERT/smoke']])
                 .set('build.gradle.env', [CI: 'true'])
-                .set('flutter.platform', FlutterPlatform.APPBUNDLE)
+                .set('flutter.platform', APPBUNDLE)
                 .flag('flutter.sonar', true)
                 .flag('flutter.skipped', false)
                 .set('influx', 'on').set('influx.enabled', true)

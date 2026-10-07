@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.adapter.out.influx
 
-import com.bbh.itss.dso.portal.domain.monitoring.MetricsUnavailableException
 import com.bbh.itss.dso.portal.support.FakeInfluxDb
 import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestClient
@@ -56,7 +55,7 @@ class InfluxQueryClientSpec extends Specification {
         client.read { client.query('buckets()') }
 
         then:
-        def e = thrown(MetricsUnavailableException)
+        def e = thrown(UncheckedIOException)
         e.message.startsWith('InfluxDB could not be read: 401 Unauthorized')
     }
 
@@ -71,21 +70,21 @@ class InfluxQueryClientSpec extends Specification {
         then:
         !client.configured()
         !new InfluxProperties(url, 'DevSecOps', 'DORA-metrics', null, '365d').configured()
-        thrown(IllegalStateException)
+        thrown(UncheckedIOException)
 
         when:
         client.read { reads++ }
 
         then:
         reads == 0
-        def e = thrown(MetricsUnavailableException)
+        def e = thrown(UncheckedIOException)
         e.message == 'InfluxDB is not configured for the portal'
 
         when:
         client.requireConfigured()
 
         then:
-        thrown(MetricsUnavailableException)
+        thrown(UncheckedIOException)
 
         where:
         url << [null, ' ']
@@ -105,16 +104,16 @@ class InfluxQueryClientSpec extends Specification {
         client.read { throw failure }
 
         then:
-        def e = thrown(MetricsUnavailableException)
+        def e = thrown(UncheckedIOException)
         e.message == error
 
         where:
-        failure                                       || error
-        new IllegalStateException('401 Unauthorized') || 'InfluxDB could not be read: 401 Unauthorized'
-        new IllegalStateException('x' * 300)          || 'InfluxDB could not be read: ' + 'x' * 300
-        new IllegalStateException('0123456789' * 40)  || 'InfluxDB could not be read: ' + ('0123456789' * 30)
-        new RuntimeException()                        || 'InfluxDB could not be read: RuntimeException'
-        new MetricsUnavailableException('kept')       || 'kept'
+        failure                                             || error
+        new IllegalStateException('401 Unauthorized')       || 'InfluxDB could not be read: 401 Unauthorized'
+        new IllegalStateException('x' * 300)                || 'InfluxDB could not be read: ' + 'x' * 300
+        new IllegalStateException('0123456789' * 40)        || 'InfluxDB could not be read: ' + ('0123456789' * 30)
+        new RuntimeException()                              || 'InfluxDB could not be read: RuntimeException'
+        new UncheckedIOException('kept', new IOException()) || 'kept'
     }
 
     def "the look-back for the latest runs must be a Flux duration"() {

@@ -5,8 +5,8 @@ import com.bbh.itss.dso.portal.support.PortalClient
 import com.bbh.itss.dso.portal.support.PortalSpecification
 
 import java.util.concurrent.Callable
-import java.util.concurrent.Executors
 
+import static com.bbh.itss.dso.portal.support.ApiJson.APP_ID
 import static com.bbh.itss.dso.portal.support.ApiJson.build
 import static com.bbh.itss.dso.portal.support.ApiJson.fullFlutterService
 import static com.bbh.itss.dso.portal.support.ApiJson.fullMavenService
@@ -15,6 +15,8 @@ import static com.bbh.itss.dso.portal.support.ApiJson.mavenService
 import static com.bbh.itss.dso.portal.support.ApiJson.openShiftTarget
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
+import static com.bbh.itss.dso.portal.support.ApiJson.toJson
+import static java.util.concurrent.Executors.newFixedThreadPool
 
 class ProductCatalogRegressionSpec extends PortalSpecification {
 
@@ -187,10 +189,10 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         long id = created.id as long
         def read = api.get("/api/products/$id").json
         List<Map> requests = (1..8).collect { editor ->
-            ApiJson.parse(ApiJson.toJson(product(code: code, name: "Product $code", version: read.version,
+            ApiJson.parse(toJson(product(code: code, name: "Product $code", version: read.version,
                     services: [read.services[0] + [description: "Edited by $editor".toString()], read.services[1]]))) as Map
         }
-        def pool = Executors.newFixedThreadPool(requests.size())
+        def pool = newFixedThreadPool(requests.size())
 
         when:
         def responses = pool.invokeAll(requests.collect { request ->
@@ -269,7 +271,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                 service(name: 'gui', build: [tool: 'GRADLE']),
                 service(name: 'api', deployment: [target: 'OPENSHIFT'], sonar: [projectKey: "sonar-$code"]),
                 mavenService(name: 'batch', delivery: null,
-                        appScan: [applicationId: com.bbh.itss.dso.portal.support.Fixtures.APP_ID, dastEnabled: true],
+                        appScan: [applicationId: APP_ID, dastEnabled: true],
                         scm: [repositoryUrl: 'https://bitbucket.bbh.com/projects/X/repos/batch'],
                         testJobs: [[stage: 'REGRESSION', type: 'REMOTE', job: 'batch/regression']]),
                 service(name: 'gui', metrics: [influxProject: other.services[0].metrics.influxProject])]))
@@ -312,7 +314,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         'OpenShift needs RD'         | fullOpenShiftService(openShiftTargets: [RD: openShiftTarget('x') + [nexusAuthFile: null, buildContext: ' ']]) || ['services[0].openShiftTargets[RD].buildContext', 'services[0].openShiftTargets[RD].nexusAuthFile']
         'UrbanCode needs components' | service(urbanCodeApplications: [[applicationName: 'LEDGER', components: []], [applicationName: 'BATCH', components: [[componentName: 'batch']]]]) || ['services[0].urbanCodeApplications[0].components', 'services[0].urbanCodeApplications[1].components[0].baseDir', 'services[0].urbanCodeApplications[1].components[0].fileIncludePatterns']
         'test job parameters'        | service(testJobs: [[stage: 'SMOKE', job: 'smoke', parameters: 'ENV=rd\nSUITE critical']])  || ['services[0].testJobs[0].parameters']
-        'lists fit their columns'    | service(build: build(command: [tasks: ['build'], flags: (1..12).collect { "-Dp$it=${'v' * 200}".toString() }]), appScan: [applicationId: ApiJson.APP_ID, includedDirs: (1..20).collect { "${'d' * 150}/$it".toString() }]) || ['services[0].build.command.flags', 'services[0].appScan.includedDirs']
+        'lists fit their columns'    | service(build: build(command: [tasks: ['build'], flags: (1..12).collect { "-Dp$it=${'v' * 200}".toString() }]), appScan: [applicationId: APP_ID, includedDirs: (1..20).collect { "${'d' * 150}/$it".toString() }]) || ['services[0].build.command.flags', 'services[0].appScan.includedDirs']
     }
 
     def "test job parameters are stored one NAME=value per line as they were entered"() {

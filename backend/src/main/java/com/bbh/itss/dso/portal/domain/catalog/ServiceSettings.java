@@ -2,51 +2,60 @@ package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+import lombok.Builder;
+import lombok.With;
 
-import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Predicate;
 
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
+import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT;
+import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM;
+import static com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy.INHERITED;
+import static com.bbh.itss.dso.portal.domain.catalog.OpenShiftTarget.NONE;
+import static com.bbh.itss.dso.portal.domain.catalog.Region.RD;
+import static com.bbh.itss.dso.portal.domain.catalog.TestSettings.DEFAULTS;
+import static java.util.Collections.unmodifiableMap;
+import static java.util.Objects.requireNonNull;
+import static lombok.AccessLevel.PRIVATE;
+import static org.apache.commons.collections4.ListUtils.emptyIfNull;
+import static org.apache.commons.lang3.ObjectUtils.getIfNull;
+
+@Builder
 public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, TestSettings tests,
                               List<TestJob> testJobs, DeploymentSettings deployment, ToolCommand delivery,
                               UrbanCodeSettings urbanCode, List<UrbanCodeApplicationSettings> urbanCodeApplications,
                               Map<Region, SshTarget> sshTargets, Map<Region, OpenShiftTarget> openShiftTargets,
                               AppScanSettings appScan, SonarSettings sonar, NexusIqSettings nexusIq,
                               List<NexusIqApplication> nexusIqApplications, ScmSettings scm, GoldenFixPolicy goldenFix,
-                              MetricsSettings metrics, FlutterSettings flutter) {
+                              @With(PRIVATE) MetricsSettings metrics, FlutterSettings flutter) {
 
     public ServiceSettings {
-        Objects.requireNonNull(build, "a service needs its build settings");
-        Objects.requireNonNull(deployment, "a service needs its deployment settings");
-        Objects.requireNonNull(appScan, "a service needs its AppScan settings");
-        unitTests = unitTests == null ? UnitTestSettings.NONE : unitTests;
-        tests = tests == null ? TestSettings.DEFAULTS : tests;
-        testJobs = testJobs == null ? List.of() : List.copyOf(testJobs);
-        delivery = delivery == null ? ToolCommand.NONE : delivery;
-        urbanCode = urbanCode == null ? UrbanCodeSettings.DEFAULTS : urbanCode;
-        urbanCodeApplications = urbanCodeApplications == null ? List.of() : List.copyOf(urbanCodeApplications);
+        requireNonNull(build, "a service needs its build settings");
+        requireNonNull(deployment, "a service needs its deployment settings");
+        requireNonNull(appScan, "a service needs its AppScan settings");
+        unitTests = getIfNull(unitTests, UnitTestSettings.NONE);
+        tests = getIfNull(tests, DEFAULTS);
+        testJobs = List.copyOf(emptyIfNull(testJobs));
+        delivery = getIfNull(delivery, ToolCommand.NONE);
+        urbanCode = getIfNull(urbanCode, UrbanCodeSettings.DEFAULTS);
+        urbanCodeApplications = List.copyOf(emptyIfNull(urbanCodeApplications));
         sshTargets = withoutEmpty(sshTargets, SshTarget::isEmpty);
         openShiftTargets = withoutEmpty(openShiftTargets, OpenShiftTarget::isEmpty);
-        sonar = sonar == null ? SonarSettings.NONE : sonar;
-        nexusIq = nexusIq == null ? NexusIqSettings.NONE : nexusIq;
-        nexusIqApplications = nexusIqApplications == null ? List.of() : List.copyOf(nexusIqApplications);
-        scm = scm == null ? ScmSettings.NONE : scm;
-        goldenFix = goldenFix == null ? GoldenFixPolicy.INHERITED : goldenFix;
-        metrics = metrics == null ? MetricsSettings.DEFAULTS : metrics;
-        flutter = flutter == null ? FlutterSettings.NONE : flutter;
+        sonar = getIfNull(sonar, SonarSettings.NONE);
+        nexusIq = getIfNull(nexusIq, NexusIqSettings.NONE);
+        nexusIqApplications = List.copyOf(emptyIfNull(nexusIqApplications));
+        scm = getIfNull(scm, ScmSettings.NONE);
+        goldenFix = getIfNull(goldenFix, INHERITED);
+        metrics = getIfNull(metrics, MetricsSettings.DEFAULTS);
+        flutter = getIfNull(flutter, FlutterSettings.NONE);
     }
 
     public ServiceSettings withDefaultMetricsProject(String productCode, String serviceName) {
-        MetricsSettings defaulted = metrics.withDefaultProject(productCode, serviceName);
-        if (defaulted == metrics) {
-            return this;
-        }
-        return new ServiceSettings(build, unitTests, tests, testJobs, deployment, delivery, urbanCode,
-                urbanCodeApplications, sshTargets, openShiftTargets, appScan, sonar, nexusIq, nexusIqApplications, scm,
-                goldenFix, defaulted, flutter);
+        return withMetrics(metrics.withDefaultProject(productCode, serviceName));
     }
 
     public void writeTo(ConfigTree config) {
@@ -61,9 +70,9 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
         scm.writeTo(config);
         goldenFix.writeTo(config);
         tests.writeTo(config, testJobs);
-        if (deployment.target() == DeployTarget.VM) {
-            if (tool == BuildTool.MAVEN) {
-                delivery.writeTo(config, "delivery", BuildTool.MAVEN);
+        if (deployment.target() == VM) {
+            if (tool == MAVEN) {
+                delivery.writeTo(config, "delivery", MAVEN);
             }
             urbanCode.writeTo(config, urbanCodeApplications);
             sshTargets.forEach((region, target) -> config.set("deploy.vm." + region.configKey(), target.toConfig()));
@@ -71,7 +80,7 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
             openShiftTargets.forEach((region, target) ->
                     config.set("deploy.openshift." + region.configKey(), target.toConfig()));
         }
-        if (tool == BuildTool.FLUTTER) {
+        if (tool == FLUTTER) {
             flutter.writeTo(config);
         }
     }
@@ -82,19 +91,19 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
         build.validate(problems.at("build"));
         unitTests.validate(problems.at("unitTests"), tool);
         deployment.validate(problems.at("deployment"));
-        if (target == DeployTarget.OPENSHIFT) {
-            openShiftTargets.getOrDefault(Region.RD, OpenShiftTarget.NONE)
-                    .validateImageBuild(problems.at("openShiftTargets[" + Region.RD.name() + "]"));
+        if (target == OPENSHIFT) {
+            openShiftTargets.getOrDefault(RD, NONE)
+                    .validateImageBuild(problems.at("openShiftTargets[" + RD.name() + "]"));
         }
         appScan.validate(problems.at("appScan"), tool);
         sonar.validate(problems.at("sonar"), tool);
         nexusIq.validate(problems, nexusIqApplications);
         scm.validate(problems.at("scm"));
         goldenFix.validate(problems.at("goldenFix"));
-        if (tool == BuildTool.FLUTTER) {
+        if (tool == FLUTTER) {
             flutter.validate(problems.at("flutter"), target);
         }
-        if (target == DeployTarget.VM && tool == BuildTool.MAVEN) {
+        if (target == VM && tool == MAVEN) {
             problems.require("build.buildPath", build.buildPath(),
                     "is required for Maven on VMs: the Nexus delivery publishes the artifact found there");
             problems.require("delivery.tasks", delivery.tasks(),
@@ -119,6 +128,6 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
                 kept.put(region, target);
             }
         });
-        return Collections.unmodifiableMap(kept);
+        return unmodifiableMap(kept);
     }
 }

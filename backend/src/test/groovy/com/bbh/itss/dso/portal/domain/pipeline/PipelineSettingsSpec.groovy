@@ -3,6 +3,9 @@ package com.bbh.itss.dso.portal.domain.pipeline
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.forNewService
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.jobUrl
+
 class PipelineSettingsSpec extends Specification {
 
     static final String JENKINS = 'https://jenkins.test'
@@ -11,7 +14,7 @@ class PipelineSettingsSpec extends Specification {
 
     def "blank settings are stored as null, agent labels cleaned, and a new service starts on the default agent"() {
         expect:
-        PipelineSettings.forNewService() == new PipelineSettings(['linux-agent'], null, null, null, null)
+        forNewService() == new PipelineSettings(['linux-agent'], null, null, null, null)
         new PipelineSettings([' linux ', '', 'linux', 'docker'], ' ', '  ', ' DevSecOps/gui ', '\t') ==
                 new PipelineSettings(['linux', 'docker'], null, null, 'DevSecOps/gui', null)
         new PipelineSettings(null, null, null, null, null).agentLabels() == []
@@ -36,7 +39,7 @@ class PipelineSettingsSpec extends Specification {
 
     def "the job #job under Jenkins #jenkinsUrl is linked as #url"() {
         expect:
-        PipelineSettings.jobUrl(job, jenkinsUrl) == url
+        jobUrl(job, jenkinsUrl) == url
 
         where:
         job                                         | jenkinsUrl                || url

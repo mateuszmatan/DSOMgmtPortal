@@ -2,7 +2,9 @@ package com.bbh.itss.dso.portal.domain.settings;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+import lombok.Builder;
 
+@Builder
 public record ScanSettings(Integer coverageMinLine, Integer sastPrepareTimeoutMinutes, Integer sastPollTimeoutMinutes,
                            Integer sastPollIntervalSeconds, Boolean scaEnabled, Integer scaPollTimeoutMinutes,
                            Integer scaPollIntervalSeconds, Integer dastPollTimeoutMinutes,

@@ -5,6 +5,9 @@ import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static java.lang.Integer.parseInt;
+import static org.apache.commons.lang3.StringUtils.trimToEmpty;
+
 public record MonitoringRange(int days) {
 
     public static final int MAX_DAYS = 730;
@@ -21,10 +24,10 @@ public record MonitoringRange(int days) {
     }
 
     public static MonitoringRange parse(String range) {
-        Matcher matcher = DAYS.matcher(range == null ? "" : range.trim());
+        Matcher matcher = DAYS.matcher(trimToEmpty(range));
         if (!matcher.matches()) {
             throw InvalidRequestException.of("range", USAGE);
         }
-        return new MonitoringRange(Integer.parseInt(matcher.group(1)));
+        return new MonitoringRange(parseInt(matcher.group(1)));
     }
 }

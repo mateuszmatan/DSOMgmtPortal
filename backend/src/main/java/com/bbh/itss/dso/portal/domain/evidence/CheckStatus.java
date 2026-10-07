@@ -1,18 +1,14 @@
 package com.bbh.itss.dso.portal.domain.evidence;
 
-import java.util.Locale;
+import static java.util.Locale.ROOT;
+import static org.apache.commons.lang3.EnumUtils.getEnum;
+import static org.apache.commons.lang3.StringUtils.trim;
+import static org.apache.commons.lang3.StringUtils.upperCase;
 
 public enum CheckStatus {
     PASS, WARN, FAIL, BLOCKED, NOT_REQUIRED, SKIP, NO_DATA;
 
     public static CheckStatus fromTag(String tag) {
-        if (tag == null || tag.isBlank()) {
-            return NO_DATA;
-        }
-        try {
-            return valueOf(tag.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException e) {
-            return NO_DATA;
-        }
+        return getEnum(CheckStatus.class, upperCase(trim(tag), ROOT), NO_DATA);
     }
 }

@@ -5,6 +5,7 @@ import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPor
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductSummary;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -13,18 +14,16 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.bbh.itss.dso.portal.adapter.out.persistence.AuditedEntity.current;
+import static com.bbh.itss.dso.portal.adapter.out.persistence.Counts.perProduct;
+
 @Component
+@RequiredArgsConstructor
 class ProductPersistenceAdapter implements ProductRepositoryPort {
 
     private final ProductJpaRepository products;
     private final ServiceJpaRepository services;
     private final DepartmentJpaRepository departments;
-    ProductPersistenceAdapter(ProductJpaRepository products, ServiceJpaRepository services,
-                              DepartmentJpaRepository departments) {
-        this.products = products;
-        this.services = services;
-        this.departments = departments;
-    }
 
     @Override
     public Optional<Product> load(long id) {
@@ -49,18 +48,18 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
 
     @Override
     public Map<Long, Long> servicesPerProduct() {
-        return Counts.perProduct(services.countByProduct());
+        return perProduct(services.countByProduct());
     }
 
     @Override
     public Product save(Product product) {
         ProductEntity entity = product.id() == null ? new ProductEntity()
-                : AuditedEntity.current(products.findById(product.id()), product.version());
+                : current(products.findById(product.id()), product.version());
         entity.apply(product);
         if (product.id() != null) {
             entity.touch();
             Set<Long> kept = product.serviceIds();
-            entity.services().stream().filter(service -> !kept.contains(service.getId())).forEach(entity::removeService);
+            entity.services().stream().filter(service -> !kept.contains(service.id())).forEach(entity::removeService);
             products.flush();
             updateKeptServices(product, entity);
         }
@@ -104,8 +103,7 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
         return departments.existsById(id);
     }
 
-
     private static ProductIdentity identity(ProductEntity product) {
-        return new ProductIdentity(product.getId(), product.name());
+        return new ProductIdentity(product.id(), product.name());
     }
 }
