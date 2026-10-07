@@ -135,7 +135,7 @@ class GuiSmokeSpec extends GuiSpecification {
         '/admin/products/2/edit'   | 'Edit Payments Hub'
         '/monitoring/products/1'   | 'CertScanner'
         '/monitoring/pipelines/1'  | 'Full pipeline'
-        '/beadle/admin/products/1' | 'ServiceNow change template of CertScanner'
+        '/beadle/admin/products/1' | 'CertScanner'
         '/beadle/changes/1'        | 'CHG0031001'
     }
 
