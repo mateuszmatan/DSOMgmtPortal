@@ -131,11 +131,11 @@ class InfluxPipelineRunsAdapterSpec extends Specification {
         when:
         adapter.latestRuns([new MetricsTag('CERT-"gui"${x}\\', 'test')], [] as Set)
         adapter.recentRuns(new MetricsTag('CERT-gui" or true or "', 'te"st'), null, 30, 25)
-        adapter.doraPoints(new MetricsTag('CERT-gui" or true or "', 'te"st'), 30)
+        adapter.doraPoints([new MetricsTag('CERT-"gui"${x}\\', 'test')], 30)
 
         then:
-        1 * influx.query({ String flux -> flux.contains('set: ["CERT-\\"gui\\"\\${x}\\\\"]') }) >> []
-        2 * influx.query({ String flux ->
+        2 * influx.query({ String flux -> flux.contains('set: ["CERT-\\"gui\\"\\${x}\\\\"]') }) >> []
+        1 * influx.query({ String flux ->
             flux.contains('r.project == "CERT-gui\\" or true or \\"" and r.env == "te\\"st"')
         }) >> []
     }
@@ -156,27 +156,31 @@ class InfluxPipelineRunsAdapterSpec extends Specification {
         -1   | 25
     }
 
-    def "DORA points are read from the dora measurement"() {
+    def "DORA points are read from the dora measurement of every tag asked for"() {
         when:
-        def points = adapter.doraPoints(gui, 90)
+        def points = adapter.doraPoints([gui, guiSast], 90)
 
         then:
         1 * influx.query('''\
             from(bucket: "DORA-metrics")
               |> range(start: -90d)
               |> filter(fn: (r) => r._measurement == "dora")
-              |> filter(fn: (r) => r.project == "CERT-gui" and r.env == "test")
+              |> filter(fn: (r) => contains(value: r.project, set: ["CERT-gui", "CERT-guisast"]))
               |> filter(fn: (r) => r._field == "deployment" or r._field == "change_failure" or r._field == "lead_time_s" or r._field == "duration_s")
               |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
               |> group()
               |> sort(columns: ["_time"])
             '''.stripIndent()) >> [
-                [_time: '2026-10-01T10:00:00Z', deployment: '1', change_failure: '0', lead_time_s: '3600',
-                 duration_s: '600.0'],
-                [_time: '2026-10-02T10:00:00Z', change_failure: '1'],
-                [deployment: '1']]
-        points == [new DoraPoint(Instant.parse('2026-10-01T10:00:00Z'), true, false, 3600, 600),
-                   new DoraPoint(Instant.parse('2026-10-02T10:00:00Z'), false, true, 0, 0)]
+                [_time: '2026-10-01T10:00:00Z', project: 'CERT-gui', env: 'test', deployment: '1',
+                 change_failure: '0', lead_time_s: '3600', duration_s: '600.0'],
+                [_time: '2026-10-02T10:00:00Z', project: 'CERT-gui', env: 'test', change_failure: '1'],
+                [_time: '2026-10-02T11:00:00Z', project: 'CERT-guisast', env: 'test', deployment: '0'],
+                [_time: '2026-10-02T12:00:00Z', project: 'CERT-gui', env: 'prod', deployment: '1'],
+                [project: 'CERT-gui', env: 'test', deployment: '1']]
+        points == [(gui)    : [new DoraPoint(Instant.parse('2026-10-01T10:00:00Z'), true, false, 3600, 600),
+                               new DoraPoint(Instant.parse('2026-10-02T10:00:00Z'), false, true, 0, 0)],
+                   (guiSast): [new DoraPoint(Instant.parse('2026-10-02T11:00:00Z'), false, false, 0, 0)]]
+        adapter.doraPoints([], 90) == [:]
     }
 
     def "without InfluxDB nothing is read and the reason is given"() {
@@ -195,7 +199,8 @@ class InfluxPipelineRunsAdapterSpec extends Specification {
         where:
         reading << [{ it.latestRuns([], [] as Set) }, { it.latestRuns([new MetricsTag('CERT-gui', 'test')], [] as Set) },
                     { it.recentRuns(new MetricsTag('CERT-gui', 'test'), null, 30, 25) },
-                    { it.doraPoints(new MetricsTag('CERT-gui', 'test'), 30) }, { it.ping() }]
+                    { it.doraPoints([new MetricsTag('CERT-gui', 'test')], 30) }, { it.doraPoints([], 30) },
+                    { it.ping() }]
     }
 
     private InfluxQueryClient unconfigured() {

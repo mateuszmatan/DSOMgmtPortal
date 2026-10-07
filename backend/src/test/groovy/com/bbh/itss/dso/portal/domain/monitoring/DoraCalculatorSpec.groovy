@@ -98,6 +98,29 @@ class DoraCalculatorSpec extends Specification {
         summary.changeFailureRatePercent() == 50.0d
     }
 
+    def "the runs of several pipelines add up, and an outage ends only with a deployment of the same pipeline"() {
+        given:
+        def gui = [point('2026-10-01T10:00:00Z', true, true, 600, 60),
+                   point('2026-10-01T14:00:00Z', true, false, 1200, 60)]
+        def api = [point('2026-10-01T12:00:00Z', true, false, 1800, 120),
+                   point('2026-10-02T09:00:00Z', true, true, 2400, 120)]
+
+        when:
+        def summary = DoraCalculator.summarizeAll([gui, api], 7, NOW)
+
+        then:
+        summary.runs() == 4
+        summary.deployments() == 4
+        summary.changeFailureRatePercent() == 50.0d
+        summary.restores() == 1
+        summary.meanTimeToRestoreSeconds() == 14_400
+        summary.failingSince() == Instant.parse('2026-10-02T09:00:00Z')
+        summary.leadTimeMedianSeconds() == 1500
+        summary.averageDurationSeconds() == 90
+        day(summary, '2026-10-01') == [3, 1, 3]
+        DoraCalculator.summarizeAll([], 7, NOW).runs() == 0
+    }
+
     def "runs before the range count only in the totals, a range without days has no rate, and an odd count has the middle median"() {
         given:
         def old = DoraCalculator.summarize([point('2026-08-01T10:00:00Z', true, false, 60, 60)], 7, NOW)

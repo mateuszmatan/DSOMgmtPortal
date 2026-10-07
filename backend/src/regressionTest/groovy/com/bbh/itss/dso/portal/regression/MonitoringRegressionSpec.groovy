@@ -105,6 +105,19 @@ class MonitoringRegressionSpec extends PortalSpecification {
         details.grafana == [dashboardUrl: "$PIPELINE_DASHBOARD&var-project=$code-gui&from=now-30d&to=now".toString()]
     }
 
+    def "the activity of all pipelines adds up their DORA points"() {
+        when:
+        def activity = api.get('/api/monitoring/activity?range=7d').json
+
+        then:
+        activity.metricsError == null
+        activity.pipelines >= 3
+        activity.dora.runs == 5
+        activity.dora.deployments == 1
+        activity.dora.daily.size() == 7
+        activity.dora.daily*.runs.sum() == 5
+    }
+
     def "security and SAST pipelines link the security dashboard"() {
         when:
         def details = api.get("/api/monitoring/pipelines/$guiSast.id?range=7d").json
@@ -136,8 +149,11 @@ class MonitoringRegressionSpec extends PortalSpecification {
         def status = api.get('/api/monitoring/status').json
         def overview = api.get('/api/monitoring/products').json
         def details = api.get("/api/monitoring/pipelines/$guiFull.id").json
+        def activity = api.get('/api/monitoring/activity').json
 
         then:
+        activity.metricsError.startsWith('InfluxDB could not be read')
+        activity.dora.runs == 0
         !status.influxReachable
         status.influxError.startsWith('InfluxDB could not be read: 500')
         overview.metricsError.startsWith('InfluxDB could not be read')
@@ -167,6 +183,7 @@ class MonitoringRegressionSpec extends PortalSpecification {
     def "a range that is not a number of days is refused"() {
         expect:
         api.get("/api/monitoring/pipelines/$guiFull.id?range=1y").status == 400
+        api.get('/api/monitoring/activity?range=0d').status == 400
         api.get('/api/monitoring/pipelines/999999').status == 404
     }
 }

@@ -3,6 +3,7 @@ package com.bbh.itss.dso.portal.adapter.out.influx;
 import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort;
 import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint;
 import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns;
+import com.bbh.itss.dso.portal.domain.monitoring.MetricsRow;
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import org.springframework.stereotype.Component;
@@ -12,7 +13,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 @Component
@@ -71,9 +71,9 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort {
                 """.formatted(influx.bucket(), influx.lastRunLookback(),
                 Flux.strings(tags.stream().map(MetricsTag::project).toList()), grouping);
         for (Map<String, String> row : influx.query(flux)) {
-            MetricsTag tag = InfluxRows.tag(row);
+            MetricsTag tag = MetricsRow.tag(row);
             if (tags.contains(tag)) {
-                runs.computeIfAbsent(tag, ignored -> new ArrayList<>()).add(InfluxRows.run(row));
+                runs.computeIfAbsent(tag, ignored -> new ArrayList<>()).add(MetricsRow.run(row));
             }
         }
     }
@@ -94,24 +94,37 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort {
                   |> limit(n: %d)
                 """.formatted(job == null ? "" : "import \"strings\"\n\n", influx.bucket(), Flux.positive(days),
                 Flux.string(tag.project()), Flux.string(tag.env()), byJob, Flux.positive(limit));
-        return influx.read(() -> influx.query(flux).stream().map(InfluxRows::run).toList());
+        return influx.read(() -> influx.query(flux).stream().map(MetricsRow::run).toList());
     }
 
     @Override
-    public List<DoraPoint> doraPoints(MetricsTag tag, int days) {
+    public Map<MetricsTag, List<DoraPoint>> doraPoints(Collection<MetricsTag> tags, int days) {
+        if (tags.isEmpty()) {
+            influx.requireConfigured();
+            return Map.of();
+        }
         String flux = """
                 from(bucket: %s)
                   |> range(start: -%dd)
                   |> filter(fn: (r) => r._measurement == "dora")
-                  |> filter(fn: (r) => r.project == %s and r.env == %s)
+                  |> filter(fn: (r) => contains(value: r.project, set: [%s]))
                   |> filter(fn: (r) => r._field == "deployment" or r._field == "change_failure" \
                 or r._field == "lead_time_s" or r._field == "duration_s")
                   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
                   |> group()
                   |> sort(columns: ["_time"])
-                """.formatted(influx.bucket(), Flux.positive(days), Flux.string(tag.project()),
-                Flux.string(tag.env()));
-        return influx.read(() -> influx.query(flux).stream().map(InfluxRows::doraPoint).filter(Objects::nonNull)
-                .toList());
+                """.formatted(influx.bucket(), Flux.positive(days),
+                Flux.strings(tags.stream().map(MetricsTag::project).toList()));
+        return influx.read(() -> {
+            Map<MetricsTag, List<DoraPoint>> points = new HashMap<>();
+            for (Map<String, String> row : influx.query(flux)) {
+                MetricsTag tag = MetricsRow.tag(row);
+                DoraPoint point = MetricsRow.doraPoint(row);
+                if (point != null && tags.contains(tag)) {
+                    points.computeIfAbsent(tag, ignored -> new ArrayList<>()).add(point);
+                }
+            }
+            return points;
+        });
     }
 }

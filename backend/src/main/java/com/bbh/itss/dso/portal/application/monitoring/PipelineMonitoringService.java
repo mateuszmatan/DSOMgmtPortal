@@ -8,6 +8,7 @@ import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringStatus;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringTargets;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.PipelineHealth;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.PipelineMonitoring;
+import com.bbh.itss.dso.portal.application.monitoring.port.in.PortfolioActivity;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.ProductHealth;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.ProductMonitoring;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.ReadMonitoringTargetsUseCase;
@@ -110,7 +111,8 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
                 : MetricsReading.of(List::of, List.of());
         MetricsReading<List<DoraPoint>> points = recent.failed()
                 ? MetricsReading.unavailable(List.of(), recent.error())
-                : MetricsReading.of(() -> runs.doraPoints(tag, days), List.of());
+                : MetricsReading.of(() -> attributable
+                        ? runs.doraPoints(List.of(tag), days).getOrDefault(tag, List.of()) : List.of(), List.of());
         List<PipelineRun> recentRuns = recent.value();
         PipelineRun last = recentRuns.isEmpty() ? null : recentRuns.getFirst();
         if (last == null && attributable && !points.failed()) {
@@ -119,6 +121,17 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         DoraSummary dora = DoraCalculator.summarize(points.value(), days, Instant.now(clock));
         return new PipelineMonitoring(view, RunResult.of(pipeline, last), last, dora, recentRuns,
                 dashboards.dashboardUrl(tag, pipeline.type(), days).orElse(null), points.error());
+    }
+
+    @Override
+    @WithoutTransaction
+    public PortfolioActivity activity(String range) {
+        int days = MonitoringRange.parse(range).days();
+        MonitoringTargets monitored = targets.everything();
+        MetricsReading<Map<MetricsTag, List<DoraPoint>>> points =
+                MetricsReading.of(() -> runs.doraPoints(monitored.tags(), days), Map.of());
+        return new PortfolioActivity(monitored.pipelines().size(),
+                DoraCalculator.summarizeAll(points.value().values(), days, Instant.now(clock)), points.error());
     }
 
     private boolean ping() {

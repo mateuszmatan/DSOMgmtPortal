@@ -3,6 +3,7 @@ package com.bbh.itss.dso.portal.domain.evidence;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import com.bbh.itss.dso.portal.domain.shared.Text;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -14,10 +15,16 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 
+import static com.bbh.itss.dso.portal.domain.monitoring.MetricsRow.decimal;
+import static com.bbh.itss.dso.portal.domain.monitoring.MetricsRow.number;
+import static com.bbh.itss.dso.portal.domain.monitoring.MetricsRow.positive;
+import static com.bbh.itss.dso.portal.domain.shared.Text.trimToNull;
+
 public final class RunEvidence {
 
     public static final List<String> MEASUREMENTS = List.of("security_findings", "policy_status", "code_coverage",
             "test_execution", "release_gate", "vulnerabilities", "stage_event", "build_evidence");
+    private static final Duration TOLERANCE = Duration.ofSeconds(2);
 
     private final List<EvidencePoint> points;
 
@@ -27,6 +34,20 @@ public final class RunEvidence {
 
     public static RunEvidence none() {
         return new RunEvidence(List.of());
+    }
+
+    public static Instant windowStart(PipelineRun run) {
+        long seconds = run.durationSeconds() == null ? 0 : run.durationSeconds();
+        return run.time().minusSeconds(seconds).minus(TOLERANCE).minus(TOLERANCE);
+    }
+
+    public static Instant windowEnd(PipelineRun run) {
+        return run.time().plus(TOLERANCE);
+    }
+
+    public static boolean recordedDuring(PipelineRun run, String measurement, Instant at) {
+        Instant earliest = "stage_event".equals(measurement) ? windowStart(run) : run.time().minus(TOLERANCE);
+        return !at.isBefore(earliest) && !at.isAfter(windowEnd(run));
     }
 
     public boolean isEmpty() {
@@ -41,9 +62,9 @@ public final class RunEvidence {
     public BuildEvidence build(PipelineRun run, String module, EvidenceLinks links) {
         EvidencePoint recorded = recorded(module);
         return new BuildEvidence(run.build(), run.time(), run.result(), run.branch(), run.commit(),
-                text(recorded.value("artifact_version")), run.durationSeconds(), run.job(), links.buildUrl(),
+                trimToNull(recorded.value("artifact_version")), run.durationSeconds(), run.job(), links.buildUrl(),
                 links.reportUrl(), links.testReportUrl(), links.artifactsUrl(),
-                instant(recorded.value("config_rendered_at")), text(recorded.value("config_sha256")));
+                instant(recorded.value("config_rendered_at")), trimToNull(recorded.value("config_sha256")));
     }
 
     public CoverageEvidence coverage(String module) {
@@ -56,7 +77,7 @@ public final class RunEvidence {
         boolean measured = !"no".equals(coverage.value("measured"));
         CheckStatus status = policy != CheckStatus.NO_DATA ? policy
                 : !measured ? CheckStatus.SKIP
-                : flag(coverage.value("met")) ? CheckStatus.PASS : CheckStatus.WARN;
+                : positive(coverage.value("met")) ? CheckStatus.PASS : CheckStatus.WARN;
         return new CoverageEvidence(status, measured ? decimal(coverage.value("line_pct")) : null,
                 decimal(coverage.value("required")), measured ? number(coverage.value("covered")) : null,
                 measured ? number(coverage.value("total")) : null);
@@ -88,7 +109,7 @@ public final class RunEvidence {
 
     public List<ScanEvidence> scans(String module, EvidenceLinks links) {
         EvidencePoint recorded = recorded(module);
-        String qualityGate = text(recorded.value("sonar_quality_gate"));
+        String qualityGate = trimToNull(recorded.value("sonar_quality_gate"));
         CheckStatus sonar = policyStatus("sonar");
         return List.of(
                 appScan(EvidenceScanner.SAST, "sast", module, link(recorded, "sast", links.appScanUrl())),
@@ -103,8 +124,8 @@ public final class RunEvidence {
     public ReleaseGateEvidence releaseGate() {
         return points("release_gate").stream().findFirst()
                 .map(point -> new ReleaseGateEvidence(
-                        "yes".equals(point.value("allowed")) || flag(point.value("allowed")),
-                        number(point.value("violations")), text(point.value("reason"))))
+                        "yes".equals(point.value("allowed")) || positive(point.value("allowed")),
+                        number(point.value("violations")), trimToNull(point.value("reason"))))
                 .orElse(null);
     }
 
@@ -113,7 +134,7 @@ public final class RunEvidence {
                 .sorted(Comparator.comparing((EvidencePoint point) -> number(point.value("order")),
                         Comparator.nullsLast(Comparator.naturalOrder())))
                 .map(point -> new StageEvidence(point.value("stage"), CheckStatus.fromTag(point.value("status")),
-                        number(point.value("duration_s")), text(point.value("reason"))))
+                        number(point.value("duration_s")), trimToNull(point.value("reason"))))
                 .toList();
     }
 
@@ -186,31 +207,6 @@ public final class RunEvidence {
 
     private static Long limit(EvidencePoint point, String name) {
         return point == null ? null : number(point.value(name));
-    }
-
-    static Long number(String value) {
-        Double decimal = decimal(value);
-        return decimal == null ? null : (long) Math.floor(decimal);
-    }
-
-    static Double decimal(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        try {
-            return Double.parseDouble(value.trim());
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    private static boolean flag(String value) {
-        Long number = number(value);
-        return number != null && number > 0;
-    }
-
-    private static String text(String value) {
-        return value == null || value.isBlank() ? null : value;
     }
 
     private static Instant instant(String value) {

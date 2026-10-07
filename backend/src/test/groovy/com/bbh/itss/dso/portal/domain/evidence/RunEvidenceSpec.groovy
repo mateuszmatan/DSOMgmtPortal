@@ -314,24 +314,6 @@ class RunEvidenceSpec extends Specification {
                 new StageEvidence('Cleanup', NO_DATA, null, null)]
     }
 
-    def "the value #value reads as the number #number and the decimal #decimal"() {
-        expect:
-        RunEvidence.number(value) == number
-        RunEvidence.decimal(value) == decimal
-
-        where:
-        value   || number | decimal
-        null    || null   | null
-        ''      || null   | null
-        '   '   || null   | null
-        'abc'   || null   | null
-        '12'    || 12L    | 12.0d
-        ' 7 '   || 7L     | 7.0d
-        '12.9'  || 12L    | 12.9d
-        '-1.5'  || -2L    | -1.5d
-        '1e3'   || 1000L  | 1000.0d
-    }
-
     def "the report of a run holds its build with links and every kind of evidence of the module"() {
         given:
         def run = new PipelineRun(Instant.parse('2026-10-01T10:00:00Z'), RunResult.UNSTABLE, 'main', 42L, 900L,

@@ -5,6 +5,7 @@ import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringOverview
 import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringStatus;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.PipelineHealth;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.PipelineMonitoring;
+import com.bbh.itss.dso.portal.application.monitoring.port.in.PortfolioActivity;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.ProductHealth;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.ProductMonitoring;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
@@ -66,6 +67,11 @@ public class MonitoringController {
                 found.dashboardUrl() == null ? null : new Grafana(found.dashboardUrl()), found.metricsError());
     }
 
+    @GetMapping("/activity")
+    public PortfolioActivity activity(@RequestParam(defaultValue = "30d") String range) {
+        return monitoring.activity(range);
+    }
+
     public record StatusResponse(boolean influxConfigured, boolean influxReachable, String influxError,
                                  boolean grafanaConfigured, String grafanaUrl) {
     }
@@ -73,15 +79,15 @@ public class MonitoringController {
     public record OverviewResponse(List<ProductHealthResponse> products, String metricsError) {
     }
 
-    public record ProductHealthResponse(Long productId, String code, String name, String ownerTeam, int serviceCount,
-                                        int pipelineCount, RunResult overall, Map<RunResult, Integer> statusCounts,
-                                        Instant lastRunAt) {
+    public record ProductHealthResponse(Long productId, String code, String name, String ownerTeam,
+                                        Long departmentId, int serviceCount, int pipelineCount, RunResult overall,
+                                        Map<RunResult, Integer> statusCounts, Instant lastRunAt) {
 
         static ProductHealthResponse of(ProductHealth health) {
             Product product = health.product();
             return new ProductHealthResponse(product.id(), product.code(), product.name(), product.ownerTeam(),
-                    product.services().size(), health.pipelineCount(), health.overall(), health.statusCounts(),
-                    health.lastRunAt());
+                    product.departmentId(), product.services().size(), health.pipelineCount(),
+                    health.overall(), health.statusCounts(), health.lastRunAt());
         }
     }
 

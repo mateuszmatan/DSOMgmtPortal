@@ -26,57 +26,58 @@ import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
 
 class DemoDataLoaderSpec extends Specification {
 
+    static final List<String> DEPARTMENTS = ['AI Lab', 'Capital Partners', 'Corporate Technology', 'Custody',
+                                             'Fund Services']
+    static final List<String> CODES = ['CERTSCANNER', 'DOCSENSE', 'ADVISORAI', 'DEALFLOW', 'LPPORTAL', 'ACCESSHUB',
+                                       'SAFEKEEP', 'CORPACT', 'PAYHUB', 'NAVCALC']
+
     ProductsUseCase products = Mock()
     DepartmentsUseCase departments = Mock()
     PipelinesUseCase pipelines = Mock()
     ManageGlobalSettingsUseCase settings = Mock()
+    List<DepartmentView> known = DEPARTMENTS.withIndex().collect { name, int index -> department(index + 1, name) }
     List<ProductCommand> created = []
-    List<List> requested = []
+    List<Map> requested = []
+    List<List<String>> revoked = []
     List<Product> stored = []
 
     def loader = new DemoDataLoader(products, departments, pipelines, settings)
 
-    def "a database with products is left alone"() {
+    def "a database holding #codes is left alone"() {
         when:
         loader.run(null)
 
         then:
-        1 * products.list(null) >> [new ProductSummaryView(1L, 'CERT', 'CertScanner', null, null, 3L,
-                'Corporate Technology', 1, 1, 1, null)]
+        1 * products.list(null) >> codes.withIndex().collect { code, int index -> summary(index + 1, code) }
         0 * settings.update(*_)
         0 * products.create(_)
         0 * departments._
         0 * pipelines._
+
+        where:
+        codes << [['CERT'], ['CERTSCANNER', 'CERT'], CODES]
     }
 
-    def "an empty database gets two products with pipelines, one of them invalidated, and a Jenkins to link unless one is set: #jenkinsUrl"() {
+    def "an empty database gets ten products in five departments and a Jenkins to link unless one is set: #jenkinsUrl"() {
         given:
         demoCatalog(jenkinsUrl)
-        departments.list() >> [department(3L, 'Corporate Technology'), department(5L, 'Fund Services')]
 
         when:
         loader.run(null)
 
         then:
         updates * settings.update(null, { it.platform().jenkinsUrl() == 'https://jenkins.bbh.com' })
-        1 * pipelines.revokeKey(13L, 'Mobile app moved to the new mobile platform pipeline')
         0 * departments.create(_)
-        created*.details()*.code() == ['CERTSCANNER', 'PAYHUB']
-        created*.details()*.departmentId() == [3L, 5L]
-        created*.services()*.size() == [2, 4]
+        created*.details()*.code() == CODES
+        created*.details()*.departmentId() == [3L, 1L, 1L, 2L, 2L, 3L, 4L, 4L, 5L, 5L]
+        created*.services()*.size() == [2, 2, 2, 2, 3, 2, 2, 2, 4, 2]
         created.every { it.services().every { service -> problems(service.settings()) == [] } }
-        requested*.get(1) == [FULL, SECURITY, EXTENDED, FULL, SECURITY, EXTENDED, SAST, FULL, SECURITY, EXTENDED, FULL,
-                              FULL, SAST]
-        requested*.get(0) == ['update', 'create', 'create', 'update', 'create', 'create', 'create', 'update', 'create',
-                              'create', 'update', 'update', 'create']
-        requested[0][2].agentLabels() == ['linux-agent', 'windows-agent']
-        requested[0][2].jenkinsJob() == 'DevSecOps/CertScanner-pipeline'
-        requested[1][2].extendedPipelineJob() == 'DevSecOps/CertScanner-extended-pipeline'
-        requested[4][2].extendedPipelineJob() == null
-        requested[5][2].securityPipelineJob() == 'DevSecOps/CertScanner-security-pipeline'
-        requested[8][2].extendedPipelineJob() == 'DevSecOps/PAYHUB/gateway-extended'
-        requested[9][2].securityPipelineJob() == 'DevSecOps/PAYHUB/gateway-security'
-        requested.drop(6).collect { it[2].agentLabels() }.unique() == [['linux-agent']]
+        created.drop(1)*.appScan()*.keyId().every { it.startsWith('bbh_') }
+        requested.size() == 46
+        requested.count { it.action == 'update' } == 23
+        requested.countBy { it.type } == [(FULL): 23, (SECURITY): 10, (EXTENDED): 7, (SAST): 6]
+        revoked == [['SAFEKEEP recon-batch', 'Reconciliation moved to the mainframe scheduler'],
+                    ['PAYHUB mobile-app', 'Mobile app moved to the new mobile platform pipeline']]
 
         where:
         jenkinsUrl             || updates
@@ -84,39 +85,106 @@ class DemoDataLoaderSpec extends Specification {
         'https://jenkins.test' || 0
     }
 
-    def "a demo department that is gone is created again"() {
+    def "CertScanner keeps the Jenkins jobs and agents of its own pipelines"() {
         given:
-        demoCatalog(null)
-        departments.list() >> [department(3L, 'corporate technology')]
+        demoCatalog('https://jenkins.test')
 
         when:
         loader.run(null)
 
         then:
-        1 * departments.create('Fund Services') >> department(6L, 'Fund Services')
-        created*.details()*.departmentId() == [3L, 6L]
+        def certScanner = requested.take(7)
+        certScanner*.type == [FULL, SECURITY, EXTENDED, FULL, SECURITY, EXTENDED, SAST]
+        certScanner*.action == ['update', 'create', 'create', 'update', 'create', 'create', 'create']
+        certScanner[0].settings.agentLabels() == ['linux-agent', 'windows-agent']
+        certScanner[0].settings.jenkinsJob() == 'DevSecOps/CertScanner-pipeline'
+        certScanner[1].settings.extendedPipelineJob() == 'DevSecOps/CertScanner-extended-pipeline'
+        certScanner[4].settings.extendedPipelineJob() == null
+        certScanner[5].settings.securityPipelineJob() == 'DevSecOps/CertScanner-security-pipeline'
+        requested.drop(6)*.settings*.agentLabels().unique() == [['linux-agent']]
+    }
+
+    def "a #type pipeline of #service runs #job and links #extended and #security"() {
+        given:
+        demoCatalog('https://jenkins.test')
+
+        when:
+        loader.run(null)
+
+        then:
+        def settings = requested.find { it.service == service && it.type == type }.settings as PipelineSettings
+        settings.jenkinsJob() == job
+        settings.extendedPipelineJob() == extended
+        settings.securityPipelineJob() == security
+
+        where:
+        service                   | type     || job                                           | extended                                      | security
+        'DOCSENSE extraction-api' | FULL     || 'DevSecOps/DOCSENSE/extraction-api-full'     | null                                          | null
+        'DOCSENSE extraction-api' | SECURITY || 'DevSecOps/DOCSENSE/extraction-api-security' | 'DevSecOps/DOCSENSE/extraction-api-extended' | null
+        'DOCSENSE extraction-api' | EXTENDED || 'DevSecOps/DOCSENSE/extraction-api-extended' | null                                          | 'DevSecOps/DOCSENSE/extraction-api-security'
+        'ADVISORAI assistant-api' | SECURITY || 'DevSecOps/ADVISORAI/assistant-api-security' | null                                          | null
+        'NAVCALC nav-api'         | EXTENDED || 'DevSecOps/NAVCALC/nav-api-extended'         | null                                          | null
+        'LPPORTAL lp-mobile'      | SAST     || 'DevSecOps/LPPORTAL/lp-mobile-sast'          | null                                          | null
+    }
+
+    def "only the demo products a database is missing are added"() {
+        given:
+        demoCatalog('https://jenkins.test')
+
+        when:
+        loader.run(null)
+
+        then:
+        1 * products.list(null) >> [summary(1L, 'CERTSCANNER'), summary(2L, 'PAYHUB')]
+        0 * settings.update(*_)
+        created*.details()*.code() == CODES - ['CERTSCANNER', 'PAYHUB']
+        revoked*.first() == ['SAFEKEEP recon-batch']
+    }
+
+    def "a demo department that is gone is created again"() {
+        given:
+        demoCatalog('https://jenkins.test')
+        known.removeAll { it.name() != 'Corporate Technology' }
+
+        when:
+        loader.run(null)
+
+        then:
+        4 * departments.create(_) >> { String name ->
+            known << department(known.size() + 10, name)
+            known.last()
+        }
+        created*.details()*.departmentId() == [3L, 11L, 11L, 12L, 12L, 3L, 13L, 13L, 14L, 14L]
+        known*.name() == ['Corporate Technology', 'AI Lab', 'Capital Partners', 'Custody', 'Fund Services']
     }
 
     private void demoCatalog(String jenkinsUrl) {
         products.list(null) >> []
         settings.current() >> storedSettings(jenkinsUrl)
+        departments.list() >> { known }
         products.create(_) >> { ProductCommand command -> store(command) }
         pipelines.listForProduct(_) >> { long productId ->
             Product product = stored.find { it.id() == productId }
             product.services().collect { new ServicePipelinesView(it, [view(product, it.id() + 100, it.id(), FULL)]) }
         }
         pipelines.update(_, _, _) >> { long id, PipelineType type, PipelineSettings configured ->
-            requested << ['update', type, configured]
-            view(owner(id - 100), id, id - 100, type)
+            request('update', id - 100, type, configured, id)
         }
         pipelines.create(_, _, _) >> { long serviceId, PipelineType type, PipelineSettings configured ->
-            requested << ['create', type, configured]
-            view(owner(serviceId), requested.size(), serviceId, type)
+            request('create', serviceId, type, configured, requested.size() + 1000)
+        }
+        pipelines.revokeKey(_, _) >> { long id, String reason ->
+            revoked << [requested.find { it.id == id }.service as String, reason]
+            null
         }
     }
 
-    private Product owner(long serviceId) {
-        stored.find { it.service(serviceId).present }
+    private PipelineView request(String action, long serviceId, PipelineType type, PipelineSettings configured,
+                                 long id) {
+        Product product = stored.find { it.service(serviceId).present }
+        requested << [action: action, type: type, settings: configured, id: id,
+                      service: product.code() + ' ' + product.service(serviceId).get().name()]
+        view(product, id, serviceId, type)
     }
 
     private Product store(ProductCommand command) {
@@ -127,6 +195,10 @@ class DemoDataLoaderSpec extends Specification {
         }
         stored << Product.restore(created.size() as Long, command.details(), command.appScan(), services, 0, null, null)
         stored.last()
+    }
+
+    private static ProductSummaryView summary(long id, String code) {
+        new ProductSummaryView(id, code, code, null, null, 3L, 'Corporate Technology', 1, 1, 1, null)
     }
 
     private static DepartmentView department(long id, String name) {

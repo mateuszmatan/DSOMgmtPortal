@@ -144,7 +144,7 @@ class FakeInfluxDb implements AutoCloseable {
     }
 
     private String latestRuns(String flux) {
-        Set<String> projects = (flux =~ /set: \[(.*?)]/)[0][1].findAll(/"([^"]*)"/) { all, value -> value } as Set
+        Set<String> projects = projectsIn(flux)
         Instant since = Instant.now() - Duration.ofDays(days(flux))
         boolean perJob = flux.contains('group(columns: ["project", "env", "job"])')
         def newest = runs.findAll { it.project in projects && it.time.isAfter(since) }
@@ -161,7 +161,9 @@ class FakeInfluxDb implements AutoCloseable {
     }
 
     private String doraPoints(String flux) {
-        def selected = selectedRuns(flux).sort { it.time }
+        Set<String> projects = projectsIn(flux)
+        Instant since = Instant.now() - Duration.ofDays(days(flux))
+        def selected = runs.findAll { it.project in projects && it.time.isAfter(since) }.sort { it.time }
         csv(DORA_COLUMNS, selected.collect { run ->
             [0, [run.time.toString(), run.project, run.env, run.variant, run.result == 'SUCCESS' ? '0' : '1',
                  run.deployment ? '1' : '0', run.durationSeconds as String, run.leadTimeSeconds as String]]
@@ -196,6 +198,10 @@ class FakeInfluxDb implements AutoCloseable {
             it.project == filter[1] && it.env == filter[2] && it.time.isAfter(since) &&
                     (job == null || jobOf(it) == job || jobOf(it).startsWith(job + '/'))
         }
+    }
+
+    private static Set<String> projectsIn(String flux) {
+        (flux =~ /set: \[(.*?)]/)[0][1].findAll(/"([^"]*)"/) { all, value -> value } as Set
     }
 
     private static String jobOf(Run run) {

@@ -9,4 +9,6 @@ public interface MonitorPipelinesUseCase {
     ProductMonitoring product(long productId);
 
     PipelineMonitoring pipeline(long pipelineId, String range);
+
+    PortfolioActivity activity(String range);
 }

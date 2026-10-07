@@ -196,7 +196,7 @@ class PipelineMonitoringServiceSpec extends Specification {
 
         then:
         1 * runs.recentRuns(tag, null, 30, 25) >> [newest, run('2026-10-03T09:00:00Z', FAILURE)]
-        1 * runs.doraPoints(tag, 30) >> [new DoraPoint(newest.time(), true, false, 3600, 600)]
+        1 * runs.doraPoints([tag], 30) >> [(tag): [new DoraPoint(newest.time(), true, false, 3600, 600)]]
         1 * dashboards.dashboardUrl(tag, guiFull.type(), 30) >> Optional.of('https://grafana/d/x')
         0 * runs.latestRuns(*_)
         details.pipeline().pipeline().keys().size() == 1
@@ -216,7 +216,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         def old = run('2026-05-01T09:00:00Z', FAILURE)
         pipelines.load(100L) >> Optional.of(guiFull)
         runs.recentRuns(*_) >> []
-        runs.doraPoints(*_) >> []
+        runs.doraPoints(*_) >> [:]
 
         when:
         def details = monitoring.pipeline(100L, '7d')
@@ -312,19 +312,57 @@ class PipelineMonitoringServiceSpec extends Specification {
         given:
         pipelines.load(id) >> Optional.of(id == 100L ? guiFull : apiFull)
         pipelines.sharedMetricsTags() >> ([tag(guiFull), tag(apiFull)] as Set)
-        runs.doraPoints(*_) >> []
 
         when:
         def details = monitoring.pipeline(id, '30d')
 
         then:
         queries * runs.recentRuns(_, job, 30, 25) >> [run('2026-10-04T09:00:00Z', SUCCESS, 'DevSecOps/CERT/gui-full')]
+        queries * runs.doraPoints(*_) >> [:]
         details.recentRuns().size() == queries
 
         where:
         id   || job                       | queries
         100L || 'DevSecOps/CERT/gui-full' | 1
         102L || null                      | 0
+    }
+
+    def "the portfolio activity adds up the DORA points of every pipeline"() {
+        given:
+        products.findAll() >> [certScanner, payments]
+        pipelines.findAll() >> [guiFull, guiSast, apiFull, gatewayFull]
+
+        when:
+        def activity = monitoring.activity('7d')
+
+        then:
+        1 * runs.doraPoints({ it.size() == 4 }, 7) >> [
+                (tag(guiFull)): [new DoraPoint(NOW.minusSeconds(86_400), true, false, 3600, 600)],
+                (tag(apiFull)): [new DoraPoint(NOW.minusSeconds(3600), true, true, 7200, 900),
+                                 new DoraPoint(NOW.minusSeconds(1800), false, false, 0, 300)]]
+        activity.pipelines() == 4
+        activity.metricsError() == null
+        with(activity.dora()) {
+            runs() == 3
+            deployments() == 2
+            daily().size() == 7
+            daily().last().runs() == 2
+        }
+    }
+
+    def "when the DORA points cannot be read the portfolio activity says why"() {
+        given:
+        products.findAll() >> [certScanner]
+        pipelines.findAll() >> [guiFull]
+        runs.doraPoints(*_) >> { throw new MetricsUnavailableException(NOT_CONFIGURED) }
+
+        when:
+        def activity = monitoring.activity('30d')
+
+        then:
+        activity.pipelines() == 1
+        activity.metricsError() == NOT_CONFIGURED
+        activity.dora().runs() == 0
     }
 
     def "a range that is not a number of days is refused before anything is read"() {
