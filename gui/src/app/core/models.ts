@@ -372,6 +372,8 @@ export interface AppScanAccount {
   secretCredentialsId: string | null;
 }
 
+export const PRODUCT_CODE = /^[A-Z][A-Z0-9_-]{1,49}$/;
+
 export interface ProductFields {
   code: string;
   name: string;
