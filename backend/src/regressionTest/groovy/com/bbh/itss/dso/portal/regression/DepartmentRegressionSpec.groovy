@@ -1,13 +1,11 @@
 package com.bbh.itss.dso.portal.regression
 
-import com.bbh.itss.dso.portal.support.PortalSpecification
-
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 import static com.bbh.itss.dso.portal.support.Fixtures.DEPARTMENT_ID
 import static java.lang.String.CASE_INSENSITIVE_ORDER
 
-class DepartmentRegressionSpec extends PortalSpecification {
+class DepartmentRegressionSpec extends ChangeRegressionSpecification {
 
     def "the five BBH departments are there from the start and every department is listed by name in any case"() {
         given:
@@ -110,6 +108,27 @@ class DepartmentRegressionSpec extends PortalSpecification {
         moved.status == 200
         moved.json.departmentId == DEPARTMENT_ID
         api.delete("/api/departments/$department.id").status == 204
+    }
+
+    def "a department that owns a change raised in Beadle is not deleted, even once its products moved away"() {
+        given:
+        def department = createDepartment()
+        def code = uniqueCode()
+        def created = createProduct(product(code: code, name: "Product $code", departmentId: department.id))
+        def raised = raise(created)
+        def moved = api.put("/api/products/$created.id", product(code: code, name: "Product $code",
+                version: created.version, services: created.services, departmentId: DEPARTMENT_ID))
+
+        when:
+        def refused = api.delete("/api/departments/$department.id")
+
+        then:
+        [raised.departmentId, raised.departmentName] == [department.id, department.name]
+        moved.status == 200
+        refused.status == 409
+        refused.json.detail == "$department.name still owns 1 change(s) raised in Beadle, so it cannot be deleted."
+        api.get('/api/departments').json.find { it.id == department.id } ==
+                department + [productCount: 0, changeCount: 1]
     }
 
     def "department names are unique in any case, also on rename"() {
