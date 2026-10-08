@@ -43,12 +43,14 @@ class DepartmentRegressionSpec extends PortalSpecification {
         when:
         def renamed = api.put("/api/departments/$created.json.id", [name: "$name Services", version: 0])
         def stale = api.put("/api/departments/$created.json.id", [name: "$name Again", version: 0])
+        def unversioned = api.put("/api/departments/$created.json.id", [name: "$name Again"])
 
         then:
         renamed.status == 200
         renamed.json == created.json + [name: "$name Services".toString(), version: 1]
-        stale.status == 409
-        stale.json.detail.contains('changed by someone else')
+        [stale, unversioned]*.status == [409, 409]
+        [stale, unversioned].every { it.json.detail.contains('changed by someone else') }
+        api.get('/api/departments').json.find { it.id == created.json.id }.name == "$name Services".toString()
 
         when:
         def deleted = api.delete("/api/departments/$created.json.id")
