@@ -130,13 +130,6 @@ public class ServiceEntity extends AuditedEntity {
         name = "~" + id;
     }
 
-    private static <T> void replace(List<T> current, List<T> replacement) {
-        if (!current.equals(replacement)) {
-            current.clear();
-            current.addAll(replacement);
-        }
-    }
-
     private static <T> void replace(Map<Region, T> current, Map<Region, T> replacement) {
         if (!current.equals(replacement)) {
             current.clear();
