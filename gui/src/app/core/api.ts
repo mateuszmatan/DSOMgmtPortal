@@ -6,6 +6,8 @@ import {
   DepartmentRequest,
   GlobalSettings,
   GlobalSettingsRequest,
+  LookupItem,
+  LookupKind,
   MonitoringOverview,
   MonitoringStatus,
   Pipeline,
@@ -19,6 +21,7 @@ import {
   ProductRequest,
   ProductSummary,
   ServicePipelines,
+  SignedInUser,
 } from './models';
 
 function typeParam(pipelineType?: PipelineType): HttpParams | undefined {
@@ -176,5 +179,26 @@ export class EvidenceApi {
 
   product(productId: number): Observable<ProductEvidence> {
     return this.http.get<ProductEvidence>(`/api/evidence/products/${productId}`);
+  }
+}
+
+@Injectable({ providedIn: 'root' })
+export class LookupsApi {
+  private readonly http = inject(HttpClient);
+
+  find(kind: LookupKind, query: string): Observable<LookupItem[]> {
+    const text = query.trim();
+    return this.http.get<LookupItem[]>(`/api/lookups/${kind}`, {
+      params: text ? { q: text } : {},
+    });
+  }
+}
+
+@Injectable({ providedIn: 'root' })
+export class UserApi {
+  private readonly http = inject(HttpClient);
+
+  me(): Observable<SignedInUser> {
+    return this.http.get<SignedInUser>('/api/me');
   }
 }
