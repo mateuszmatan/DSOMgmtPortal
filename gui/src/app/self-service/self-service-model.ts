@@ -1,4 +1,5 @@
 import {
+  AppScanAccount,
   BuildTool,
   DeployTarget,
   FieldProblem,
@@ -467,6 +468,10 @@ export interface NewProduct {
   appScanKeyId: string;
 }
 
+export function appScanAccount(keyId: string): AppScanAccount {
+  return { keyId: keyId.trim(), secretCredentialsId: null };
+}
+
 export function productRequest(
   product: NewProduct | Product,
   services: readonly WizardService[],
@@ -504,7 +509,7 @@ export function productRequest(
     ownerTeam: fresh.ownerTeam.trim() || null,
     contactEmail: fresh.contactEmail.trim() || null,
     departmentId: fresh.departmentId,
-    appScan: { keyId: fresh.appScanKeyId.trim(), secretCredentialsId: null },
+    appScan: appScanAccount(fresh.appScanKeyId),
     version: null,
     services: requests,
   };

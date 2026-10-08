@@ -61,6 +61,7 @@ import {
   ProductMode,
   ServiceStart,
   WizardDefaults,
+  appScanAccount,
   changesOf,
   deploys,
   fromService,
@@ -242,6 +243,10 @@ export class SelfService implements HasUnsavedChanges {
     ),
   );
   protected readonly needsDepartment = computed(() => this.existing()?.departmentId === null);
+  protected readonly needsAppScanKey = computed(() => {
+    const product = this.existing();
+    return product !== null && !product.appScan?.keyId;
+  });
   protected readonly departmentName = computed(() => {
     const product = this.existing();
     const id = product?.departmentId ?? this.chosenDepartment();
@@ -426,6 +431,7 @@ export class SelfService implements HasUnsavedChanges {
         return this.mode() === 'new'
           ? this.productForm.valid
           : this.existing()?.id === this.productId.value &&
+              (!this.needsAppScanKey() || this.productForm.controls.appScanKeyId.valid) &&
               (this.productForm.controls.departmentId.valid ||
                 (this.departmentsError() !== null && !this.needsDepartment()));
       case 1:
@@ -500,7 +506,12 @@ export class SelfService implements HasUnsavedChanges {
       ? this.productsApi.update(
           existing.id,
           productRequest(
-            existing,
+            this.needsAppScanKey()
+              ? {
+                  ...existing,
+                  appScan: appScanAccount(this.productForm.controls.appScanKeyId.value),
+                }
+              : existing,
             services,
             pipeline,
             this.productForm.controls.departmentId.value,

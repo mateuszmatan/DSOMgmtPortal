@@ -16,6 +16,8 @@ import static com.bbh.itss.dso.portal.support.ApiJson.openShiftTarget
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 import static com.bbh.itss.dso.portal.support.ApiJson.toJson
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasksJson
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.templateJson
 import static java.util.concurrent.Executors.newFixedThreadPool
 
 class ProductCatalogRegressionSpec extends PortalSpecification {
@@ -347,8 +349,118 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                  product(services: [service(goldenFix: [ecosystems: ['gradle']])]),
                  product(services: [service(urbanCodeApplications: [[applicationName: 'LEDGER', components: [null]]])]),
                  product(services: [service(build: build(command: [tasks: ['clean'], environment: ['not a variable']]))]),
-                 product(appScan: null),
                  [code: 'X']]
+    }
+
+    def "a product needs its AppScan key once it has services, and not before"() {
+        given:
+        def code = uniqueCode()
+
+        when:
+        def created = api.post('/api/products', product(code: code, name: "Product $code", appScan: null, services: []))
+        def id = created.json.id
+        def withoutKey = api.put("/api/products/$id", product(code: code, name: "Product $code", version: 0,
+                appScan: [keyId: ' ', secretCredentialsId: null], services: [service(name: 'gui')]))
+
+        then:
+        created.status == 201
+        created.json.appScan == null
+        created.json.services == []
+        api.get("/api/products/$id/pipelines").json == []
+        withoutKey.status == 400
+        withoutKey.json.errors == [[field: 'appScan.keyId', message: 'must not be blank']]
+        api.post('/api/products', product(code: uniqueCode(), name: "Other $code", appScan: null)).json.errors ==
+                [[field: 'appScan.keyId', message: 'must not be blank']]
+
+        when:
+        def withKey = api.put("/api/products/$id", product(code: code, name: "Product $code", version: 0,
+                services: [service(name: 'gui')]))
+
+        then:
+        withKey.status == 200
+        withKey.json.appScan == [keyId: 'bbh_key-id', secretCredentialsId: 'hcl-app-scan-account']
+        api.get("/api/products/$id/pipelines").json*.pipelines*.type == [['FULL']]
+    }
+
+    def "a details change keeps the services, the AppScan account and the pipelines of the product"() {
+        given:
+        def code = uniqueCode()
+        def created = createProduct(product(code: code, name: "Product $code", description: 'Ledger postings',
+                ownerTeam: 'Payments Engineering', services: [service(name: 'gui'), service(name: 'api')]))
+        def pipelines = pipelinesOf(created.id as long)
+
+        when:
+        def read = api.get("/api/products/$created.id/details")
+        def changed = api.put("/api/products/$created.id/details", [name        : "Renamed $code",
+                                                                     departmentId: created.departmentId,
+                                                                     ownerTeam   : ' ', contactEmail: 'certs@bbh.com',
+                                                                     version     : read.json.version])
+        def stale = api.put("/api/products/$created.id/details", [name   : "Stale $code",
+                                                                   departmentId: created.departmentId,
+                                                                   version: read.json.version])
+        def stored = api.get("/api/products/$created.id").json
+
+        then:
+        read.status == 200
+        read.json == [id          : created.id, code: code.toString(), name: "Product $code".toString(),
+                      ownerTeam   : 'Payments Engineering', contactEmail: null,
+                      departmentId: created.departmentId, version: 0]
+        changed.status == 200
+        changed.json == read.json + [name: "Renamed $code".toString(), ownerTeam: null, contactEmail: 'certs@bbh.com',
+                                     version: 1]
+        stale.status == 409
+        stored.name == "Renamed $code"
+        stored.description == 'Ledger postings'
+        stored.appScan == created.appScan
+        stored.services == created.services
+        with(pipelinesOf(created.id as long)) {
+            it*.id == pipelines*.id
+            it*.activeKey == pipelines*.activeKey
+            it*.productName == ["Renamed $code".toString()] * 2
+        }
+    }
+
+    def "a details change is refused field by field"() {
+        given:
+        def created = createProduct(product(code: uniqueCode(), name: "Product ${uniqueCode()}"))
+
+        expect:
+        api.put("/api/products/$created.id/details", [name: ' ', departmentId: 99, contactEmail: 'not an address'])
+                .json.errors*.field.sort() == ['contactEmail', 'name']
+        api.put("/api/products/$created.id/details", [name: 'Renamed', departmentId: 99]).json.errors ==
+                [[field: 'departmentId', message: 'department 99 does not exist']]
+        api.put('/api/products/999999/details', [name: 'Renamed', departmentId: created.departmentId]).status == 404
+    }
+
+    def "a product is deleted with its change template from its details only while it has no services"() {
+        given:
+        def code = uniqueCode()
+        def used = createProduct(product(code: code, name: "Product $code", services: [service(name: 'gui'),
+                                                                                     service(name: 'api')]))
+        def pipeline = pipelineFor(used.services[0].id)
+        def unused = createProduct(product(code: uniqueCode(), name: "Unused $code", appScan: null, services: []))
+
+        expect:
+        api.put("/api/products/$unused.id/change-profile", [version: null, template: templateJson(), tasks: tasksJson()])
+                .status == 200
+        unused.id in api.get('/api/change-profiles').json*.productId
+
+        when:
+        def refused = api.delete("/api/products/$used.id/details")
+
+        then:
+        refused.status == 409
+        refused.json.detail == "Product $code still has 2 service(s) in DevSecOps Management. Remove them there first."
+        api.get("/api/products/$used.id").json.services*.name == ['gui', 'api']
+        api.get("/api/pipelines/$pipeline.id").status == 200
+
+        when:
+        def deleted = api.delete("/api/products/$unused.id/details")
+
+        then:
+        deleted.status == 204
+        api.get("/api/products/$unused.id/details").status == 404
+        !(unused.id in api.get('/api/change-profiles').json*.productId)
     }
 
     def "every service a save creates starts with a full pipeline named by the service template and a key that reads its configuration"() {
@@ -523,5 +635,9 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         api.get("/api/products/$created.id").status == 404
         api.get("/api/pipelines/$pipeline.id").status == 404
         api.get("/api/dso/config/$pipeline.activeKey.value").status == 404
+    }
+
+    private List<Map> pipelinesOf(long productId) {
+        api.get("/api/products/$productId/pipelines").json*.pipelines.flatten() as List<Map>
     }
 }

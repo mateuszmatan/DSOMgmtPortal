@@ -3,6 +3,8 @@ package com.bbh.itss.dso.portal.application.catalog;
 import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductCommand;
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductDetailsCommand;
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductDetailsView;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductSummaryView;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.out.PipelineCountsPort;
@@ -67,6 +69,29 @@ public class ProductCatalogService implements ProductsUseCase {
     @Override
     public void delete(long id) {
         find(id);
+        products.delete(id);
+    }
+
+    @Override
+    @ReadOnly
+    public ProductDetailsView details(long id) {
+        return ProductDetailsView.of(find(id));
+    }
+
+    @Override
+    public ProductDetailsView updateDetails(long id, ProductDetailsCommand command) {
+        Product product = find(id);
+        product.changeDetails(command.version(), command.applyTo(product.details()), products);
+        return ProductDetailsView.of(products.save(product));
+    }
+
+    @Override
+    public void deleteWithoutServices(long id) {
+        Product product = find(id);
+        if (!product.services().isEmpty()) {
+            throw new IllegalStateException(product.name() + " still has " + product.services().size()
+                    + " service(s) in DevSecOps Management. Remove them there first.");
+        }
         products.delete(id);
     }
 

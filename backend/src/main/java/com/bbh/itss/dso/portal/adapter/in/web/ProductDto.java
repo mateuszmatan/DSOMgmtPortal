@@ -29,7 +29,7 @@ public record ProductDto(
         @Size(max = 200) String ownerTeam,
         @Email @Size(max = 320) String contactEmail,
         Long departmentId,
-        @NotNull @Valid AppScanAccountDto appScan,
+        @Valid AppScanAccountDto appScan,
         Long version,
         Instant createdAt,
         Instant updatedAt,
@@ -49,7 +49,7 @@ public record ProductDto(
                 pipelineType);
     }
 
-    public record AppScanAccountDto(@NotBlank @Size(max = 200) String keyId, @Size(max = 200) String secretCredentialsId)
+    public record AppScanAccountDto(@Size(max = 200) String keyId, @Size(max = 200) String secretCredentialsId)
             implements Mirrors<AppScanAccount> {
     }
 }

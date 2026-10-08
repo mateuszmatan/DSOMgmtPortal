@@ -129,6 +129,23 @@
               <dt>Services</dt>
               <dd>{{ product.services.length }}</dd>
             </dl>
+            @if (needsAppScanKey()) {
+              <div class="fields">
+                <mat-form-field>
+                  <mat-label>AppScan API key ID</mat-label>
+                  <input
+                    matInput
+                    class="mono"
+                    [formControl]="productForm.controls.appScanKeyId"
+                    placeholder="bbh_..."
+                    autocomplete="off"
+                    required
+                  />
+                  <mat-hint>The Application Security team gives it to you</mat-hint>
+                  <mat-error>{{ errorText(productForm.controls.appScanKeyId) }}</mat-error>
+                </mat-form-field>
+              </div>
+            }
           } @else if (productId.value !== null) {
             <mat-progress-bar mode="indeterminate" />
             @if (checked()) {
