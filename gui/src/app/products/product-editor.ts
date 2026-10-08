@@ -31,9 +31,15 @@ import {
   of,
   switchMap,
 } from 'rxjs';
-import { DepartmentsApi, PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
+import {
+  DepartmentsApi,
+  PipelinesApi,
+  ProductsApi,
+  ServiceTemplateApi,
+  SettingsApi,
+} from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
-import { Department, FieldProblem, GlobalSettings, Product } from '../core/models';
+import { Department, FieldProblem, GlobalSettings, Product, ServiceTemplate } from '../core/models';
 import { Notifier } from '../core/notifier';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
@@ -49,6 +55,7 @@ import {
 } from '../shared/fields';
 import { addItem, moveItem, removeItem, revalidateAll } from '../shared/form-controls';
 import { CountedPipe } from '../shared/formatting';
+import { buildDefaults } from '../shared/service-template';
 import {
   ServiceForm,
   applyProductProblems,
@@ -128,6 +135,8 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   protected readonly form = createProductForm();
   protected readonly product = signal<Product | null>(null);
   protected readonly settings = signal<GlobalSettings | null>(null);
+  private readonly templateApi = inject(ServiceTemplateApi);
+  private readonly template = signal<ServiceTemplate | null>(null);
   protected readonly departments = signal<Department[]>([]);
   protected readonly loading = signal(false);
   protected readonly loadError = signal<string | null>(null);
@@ -172,6 +181,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
             named
               ? forkJoin({
                   settings: this.loadSettings(),
+                  template: this.loadTemplate(),
                   code: this.suggestCode(named.name),
                 }).pipe(map((loaded) => ({ ...loaded, ...named })))
               : of(null),
@@ -186,6 +196,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
               return;
             }
             this.settings.set(started.settings);
+            this.template.set(started.template);
             this.generatedCode = started.code;
             this.form.patchValue({
               name: started.name,
@@ -204,6 +215,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       product: this.products.get(Number(id)),
       pipelines: this.pipelines.listForProduct(Number(id)),
       settings: this.loadSettings(),
+      template: this.loadTemplate(),
       departments: this.departmentsApi.list(),
     })
       .pipe(
@@ -211,11 +223,12 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
-        next: ({ product, pipelines, settings, departments }) => {
+        next: ({ product, pipelines, settings, template, departments }) => {
           patchProduct(this.form, product);
           this.form.markAsPristine();
           this.product.set(product);
           this.settings.set(settings);
+          this.template.set(template);
           this.departments.set(departments);
           this.pipelineCounts.set(
             new Map(pipelines.map((service) => [service.serviceId, service.pipelines.length])),
@@ -240,10 +253,14 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   }
 
   protected addService(): void {
-    addItem(
-      this.form.controls.services,
-      createServiceForm(undefined, this.settings()?.serviceDefaults),
-    );
+    const service = createServiceForm(undefined, this.settings()?.serviceDefaults);
+    const template = this.template();
+    const build = buildDefaults(template, service.controls.build.controls.tool.value);
+    service.patchValue({
+      build: { buildPath: build.artifact, command: { tasks: build.tasks } },
+      delivery: { tasks: template?.deliveryTasks ?? '' },
+    });
+    addItem(this.form.controls.services, service);
     this.expanded.set(this.form.controls.services.length - 1);
   }
 
@@ -390,6 +407,10 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
 
   private loadSettings(): Observable<GlobalSettings | null> {
     return this.settingsApi.get().pipe(catchError(() => of(null)));
+  }
+
+  private loadTemplate(): Observable<ServiceTemplate | null> {
+    return this.templateApi.get().pipe(catchError(() => of(null)));
   }
 
   private removeAt(index: number): void {

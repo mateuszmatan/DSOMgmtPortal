@@ -46,8 +46,8 @@ describe('App', () => {
     ],
     [
       'DevSecOps Management',
-      ['Self-service', 'Pipeline Monitoring', 'Change Evidence', 'Admin'],
-      ['/self-service', '/monitoring', '/evidence', '/admin'],
+      ['Pipelines', 'Self-service', 'Pipeline Monitoring', 'Change Evidence', 'Admin'],
+      ['/pipelines', '/self-service', '/monitoring', '/evidence', '/admin'],
     ],
   ])('opens %s with the links of its sections in order', async (label, labels, paths) => {
     const panel = await open(label);
@@ -62,10 +62,11 @@ describe('App', () => {
     const panel = await open('DevSecOps Management');
 
     expect(SECTIONS.map((section) => section.description)).toEqual([
+      'The pipelines of your department with their keys, settings and last runs',
       'Set up or change the DevSecOps pipelines of your product, step by step',
       'Pipeline status and DORA metrics',
       'Builds, tests and scans for ServiceNow changes',
-      'Departments, products, services and the DSOEnhanced library defaults',
+      'Departments, products, services, the template of a new service and the DSOEnhanced library defaults',
     ]);
     expect(SECTIONS.some((section) => text(panel).includes(section.description))).toBe(false);
     expect(page().querySelector('header mat-icon, header .material-icons')).toBeNull();
@@ -118,8 +119,17 @@ describe('App', () => {
     expect(text((await open('DevSecOps Management')).querySelector('a.active'))).toBe('Admin');
   });
 
+  it('marks Pipelines of DevSecOps Management on the page of a pipeline', async () => {
+    await TestBed.inject(Router).navigateByUrl('/pipelines/100');
+    await fixture.whenStable();
+
+    expect(text(page().querySelector('.menu-group.active'))).toBe('DevSecOps Management');
+    expect(text((await open('DevSecOps Management')).querySelector('a.active'))).toBe('Pipelines');
+  });
+
   it('gives every section the full DevSecOps name as its page heading', () => {
     expect(SECTIONS.map((section) => section.heading)).toEqual([
+      'DevSecOps Pipelines',
       'DevSecOps Self-service',
       'DevSecOps Pipeline Monitoring',
       'DevSecOps Change Evidence',

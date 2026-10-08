@@ -3,10 +3,12 @@ package com.bbh.itss.dso.portal.application.pipeline
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
+import com.bbh.itss.dso.portal.application.settings.port.in.ManageServiceTemplateUseCase
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey
 import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
+import com.bbh.itss.dso.portal.domain.settings.StoredServiceTemplate
 import spock.lang.Specification
 
 import java.time.Instant
@@ -40,7 +42,11 @@ class PipelineServiceSpec extends Specification {
         current() >> storedSettings('https://jenkins.test')
     }
     KeyGenerator keys = { -> NEW_KEY } as KeyGenerator
-    def service = new PipelineService(pipelines, products, settings, keys, fixed(NOW, UTC))
+    def template = StoredServiceTemplate.unsaved()
+    ManageServiceTemplateUseCase templates = Stub() {
+        current() >> { template }
+    }
+    def service = new PipelineService(pipelines, products, settings, templates, keys, fixed(NOW, UTC))
 
     def certScanner = product(id: 1, services: [[name: 'gui', id: 10], [name: 'backend-api', id: 11]])
 
@@ -111,7 +117,7 @@ class PipelineServiceSpec extends Specification {
         view.pipeline().activeKey().get().status() == ACTIVE
     }
 
-    def "every service a save covers starts with a #type pipeline and a key"() {
+    def "every service a save covers starts with a #type pipeline and a key, named by the service template"() {
         given:
         products.load(1L) >> Optional.of(certScanner)
 
@@ -119,16 +125,41 @@ class PipelineServiceSpec extends Specification {
         def views = service.createMissing(1L, [10L, 11L], type)
 
         then:
-        2 * pipelines.save({ Pipeline p ->
+        1 * pipelines.save({ Pipeline p ->
             p.type() == type && p.settings().agentLabels() == ['linux-agent'] &&
-                    p.settings().jenkinsJob() == null && p.keys()*.value() == [NEW_KEY]
-        }) >>> [stored(100L, pipeline(id: null, serviceId: 10L)), stored(101L, pipeline(id: null, serviceId: 11L))]
+                    p.settings().jenkinsJob() == "DevSecOps/CERT/gui-$slug" && p.keys()*.value() == [NEW_KEY]
+        }) >> stored(100L, pipeline(id: null, serviceId: 10L))
+        1 * pipelines.save({ Pipeline p -> p.settings().jenkinsJob() == "DevSecOps/CERT/backend-api-$slug" }) >>
+                stored(101L, pipeline(id: null, serviceId: 11L))
         views*.pipeline()*.id() == [100L, 101L]
         views*.service()*.name() == ['gui', 'backend-api']
         views.every { it.pipeline().isEnabled() }
 
         where:
-        type << [FULL, SAST, NEXUS_IQ]
+        type     | slug
+        FULL     | 'full'
+        SAST     | 'sast'
+        NEXUS_IQ | 'nexusiq'
+    }
+
+    def "a saved service template decides the agents and the job of the pipelines the portal starts"() {
+        given:
+        products.load(1L) >> Optional.of(certScanner)
+        template = new StoredServiceTemplate(StoredServiceTemplate.unsaved().template().toBuilder()
+                .agentLabels(['linux && docker', 'windows-agent']).jenkinsJob(job).build(), 3, null)
+
+        when:
+        service.createMissing(1L, [10L], SECURITY)
+
+        then:
+        1 * pipelines.save({ Pipeline p ->
+            p.settings().agentLabels() == ['linux && docker', 'windows-agent'] && p.settings().jenkinsJob() == expected
+        }) >> { Pipeline p -> stored(100L, p) }
+
+        where:
+        job                              | expected
+        'Teams/{code}/{service}/{type}'  | 'Teams/cert/gui/security'
+        null                             | null
     }
 
     def "a service that already has a pipeline of the type keeps it, and a save that covered no service reads nothing"() {

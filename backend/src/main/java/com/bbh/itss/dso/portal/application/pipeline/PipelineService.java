@@ -8,6 +8,7 @@ import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.ServicePipelinesView;
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort;
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
+import com.bbh.itss.dso.portal.application.settings.port.in.ManageServiceTemplateUseCase;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
 import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey;
@@ -16,6 +17,7 @@ import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import com.bbh.itss.dso.portal.domain.pipeline.ServiceRef;
+import com.bbh.itss.dso.portal.domain.settings.ServiceTemplate;
 import com.bbh.itss.dso.portal.domain.shared.Timestamps;
 import lombok.RequiredArgsConstructor;
 
@@ -27,7 +29,6 @@ import java.util.NoSuchElementException;
 
 import static com.bbh.itss.dso.portal.domain.pipeline.Pipeline.UNKNOWN_KEY;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineKey.normalize;
-import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.forNewService;
 import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
 import static java.util.stream.Collectors.groupingBy;
 
@@ -38,6 +39,7 @@ public class PipelineService implements PipelinesUseCase {
     private final PipelineRepositoryPort pipelines;
     private final ProductRepositoryPort products;
     private final ManageGlobalSettingsUseCase settings;
+    private final ManageServiceTemplateUseCase template;
     private final KeyGenerator keys;
     private final Clock clock;
 
@@ -79,12 +81,13 @@ public class PipelineService implements PipelinesUseCase {
         }
         Product product = products.load(productId).orElseThrow(() -> notFound("Product", productId));
         String jenkinsUrl = jenkinsUrl();
+        ServiceTemplate defaults = template.current().template();
         return serviceIds.stream()
                 .map(serviceId -> product.service(serviceId)
                         .orElseThrow(() -> notFound("Service", serviceId)))
                 .filter(service -> !pipelines.existsForService(service.id(), type))
-                .map(service -> PipelineView.of(product, create(product, service.id(), type, forNewService()),
-                        jenkinsUrl))
+                .map(service -> PipelineView.of(product, create(product, service.id(), type,
+                        defaults.pipelineSettings(product.code(), service.name(), type)), jenkinsUrl))
                 .toList();
     }
 

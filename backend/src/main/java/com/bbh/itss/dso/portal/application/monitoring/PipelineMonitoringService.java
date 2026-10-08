@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.application.monitoring;
 
 import com.bbh.itss.dso.portal.application.UseCase;
 import com.bbh.itss.dso.portal.application.WithoutTransaction;
+import com.bbh.itss.dso.portal.application.monitoring.port.in.DepartmentPipelines;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitorPipelinesUseCase;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringOverview;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitoringStatus;
@@ -78,19 +79,20 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
 
     @Override
     @WithoutTransaction
+    public DepartmentPipelines department(long departmentId) {
+        MonitoringTargets monitored = targets.ofDepartment(departmentId);
+        MetricsReading<LatestRuns> latest = latestRuns(monitored);
+        return new DepartmentPipelines(health(monitored.pipelines(), latest.value()), latest.error());
+    }
+
+    @Override
+    @WithoutTransaction
     public ProductMonitoring product(long productId) {
         MonitoringTargets monitored = targets.ofProduct(productId);
-        Product product = monitored.product();
-        List<PipelineView> productPipelines = monitored.pipelines();
         MetricsReading<LatestRuns> latest = latestRuns(monitored);
-        List<PipelineHealth> health = productPipelines.stream()
-                .map(view -> {
-                    PipelineRun run = latest.value().of(view.metricsTag(), view.pipeline());
-                    return new PipelineHealth(view, RunResult.of(view.pipeline(), run), run);
-                })
-                .toList();
-        return new ProductMonitoring(product, worst(health.stream().map(PipelineHealth::status).toList()), health,
-                latest.error());
+        List<PipelineHealth> health = health(monitored.pipelines(), latest.value());
+        return new ProductMonitoring(monitored.product(), worst(health.stream().map(PipelineHealth::status).toList()),
+                health, latest.error());
     }
 
     @Override
@@ -139,6 +141,15 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
 
     private MetricsReading<LatestRuns> latestRuns(MonitoringTargets monitored) {
         return MetricsReading.of(() -> runs.latestRuns(monitored.tags(), monitored.sharedTags()), LatestRuns.none());
+    }
+
+    private static List<PipelineHealth> health(List<PipelineView> views, LatestRuns latest) {
+        return views.stream()
+                .map(view -> {
+                    PipelineRun run = latest.of(view.metricsTag(), view.pipeline());
+                    return new PipelineHealth(view, RunResult.of(view.pipeline(), run), run);
+                })
+                .toList();
     }
 
     private static ProductHealth health(Product product, List<PipelineView> productPipelines, LatestRuns latest) {

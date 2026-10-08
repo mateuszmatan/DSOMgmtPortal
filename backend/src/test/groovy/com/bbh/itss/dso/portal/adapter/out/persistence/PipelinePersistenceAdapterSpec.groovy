@@ -189,10 +189,10 @@ class PipelinePersistenceAdapterSpec extends Specification {
         jdbc.queryForObject("SELECT COUNT(*) FROM DSO_PIPELINE_KEY WHERE STATUS = 'ACTIVE'", Integer) == 1
     }
 
-    def "pipelines are listed and counted per product and overall in service and type order"() {
+    def "pipelines are listed and counted per product, per department and overall in service and type order"() {
         given:
-        def other = products.save(Product.create(details(code: 'ABC', name: 'Abacus'), account(), [draft('core')],
-                products))
+        def other = products.save(Product.create(details(code: 'ABC', name: 'Abacus', departmentId: 5L), account(),
+                [draft('core')], products))
         def apiSast = stored(ref(cert, 1), SAST)
         def guiSecurity = stored(ref(cert, 0), SECURITY)
         def guiSast = stored(ref(cert, 0), SAST)
@@ -210,6 +210,10 @@ class PipelinePersistenceAdapterSpec extends Specification {
         adapter.findAll()*.id() ==
                 [core.id(), guiFull.id(), guiNexusIq.id(), guiSast.id(), guiSecurity.id(), apiSast.id()]
         adapter.findAll()*.service() == [ref(other, 0)] + [ref(cert, 0)] * 4 + [ref(cert, 1)]
+        adapter.findByDepartmentId(cert.departmentId())*.id() ==
+                [guiFull.id(), guiNexusIq.id(), guiSast.id(), guiSecurity.id(), apiSast.id()]
+        adapter.findByDepartmentId(5L)*.id() == [core.id()]
+        adapter.findByDepartmentId(999_999L).empty
         adapter.load(guiNexusIq.id()).get().type() == NEXUS_IQ
         jdbc.queryForObject('SELECT PIPELINE_TYPE FROM DSO_PIPELINE WHERE ID = ?', String, guiNexusIq.id()) ==
                 'NEXUS_IQ'

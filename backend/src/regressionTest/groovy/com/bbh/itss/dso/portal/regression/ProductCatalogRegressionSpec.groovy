@@ -351,7 +351,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                  [code: 'X']]
     }
 
-    def "every service a save creates starts with a full pipeline and a key that reads its configuration"() {
+    def "every service a save creates starts with a full pipeline named by the service template and a key that reads its configuration"() {
         given:
         def code = uniqueCode()
 
@@ -363,7 +363,8 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         then:
         started*.serviceName == ['gui', 'backend-api']
         started.every { it.pipelines*.type == ['FULL'] }
-        started.every { it.pipelines[0].agentLabels == ['linux-agent'] && it.pipelines[0].jenkinsJob == null }
+        started.every { it.pipelines[0].agentLabels == ['linux-agent'] }
+        started*.pipelines*.jenkinsJob == [["DevSecOps/$code/gui-full"], ["DevSecOps/$code/backend-api-full"]]
         started.every { it.pipelines[0].enabled && it.pipelines[0].activeKey.status == 'ACTIVE' }
         started.every { api.get("/api/dso/config/${it.pipelines[0].activeKey.value}").status == 200 }
 

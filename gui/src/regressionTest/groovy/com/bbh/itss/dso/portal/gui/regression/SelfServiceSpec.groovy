@@ -86,16 +86,21 @@ class SelfServiceSpec extends EditorSpecification {
         fillIn(dialog(), ['Service name': 'archive-api', 'What it does': 'REST API of the archive',
                           'AppScan application ID': API_APPLICATION])
         dialogButton('Next').click()
-        dialogButton('Add service').click()
 
         then:
         assertThat(dialog().locator('.page-count')).hasText('Part 2 of 2 · Build and run')
-        assertThat(dialog().locator('.choice-error'))
-                .hasText(['Choose Gradle or Maven', 'Choose where the service runs'] as String[])
+        assertThat(radio(dialog(), 'Gradle')).hasAttribute('aria-checked', 'true')
+        assertThat(radio(dialog(), 'Virtual machines')).hasAttribute('aria-checked', 'true')
+        assertThat(dialog().locator('.choice-error')).hasCount(0)
 
         when:
         radio(dialog(), 'Maven').click()
         radio(dialog(), 'OpenShift').click()
+
+        then:
+        assertThat(input(dialog(), 'OpenShift project')).hasValue('tradearchive-archive-api')
+
+        when:
         input(dialog(), 'OpenShift project').fill('cus-archive')
         dialogButton('Add service').click()
         addService('archive-gui', TAKEN_APPLICATION, 'Gradle', 'Virtual machines')

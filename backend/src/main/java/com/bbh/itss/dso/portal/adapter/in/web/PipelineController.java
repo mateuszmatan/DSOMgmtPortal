@@ -1,5 +1,8 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
+import com.bbh.itss.dso.portal.adapter.in.web.MonitoringController.PipelineHealthResponse;
+import com.bbh.itss.dso.portal.application.monitoring.port.in.DepartmentPipelines;
+import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitorPipelinesUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.ServicePipelinesView;
 import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
@@ -14,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -29,6 +33,14 @@ import static org.springframework.http.HttpStatus.NO_CONTENT;
 public class PipelineController {
 
     private final PipelinesUseCase pipelines;
+    private final MonitorPipelinesUseCase monitoring;
+
+    @GetMapping("/pipelines")
+    public DepartmentPipelinesResponse listForDepartment(@RequestParam long departmentId) {
+        DepartmentPipelines found = monitoring.department(departmentId);
+        return new DepartmentPipelinesResponse(found.pipelines().stream().map(PipelineHealthResponse::of).toList(),
+                found.metricsError());
+    }
 
     @GetMapping("/products/{productId}/pipelines")
     public List<ServicePipelinesResponse> listForProduct(@PathVariable long productId) {
@@ -65,6 +77,9 @@ public class PipelineController {
     @PostMapping("/pipelines/{id}/keys")
     public PipelineResponse issueKey(@PathVariable long id) {
         return withKeys(pipelines.issueKey(id));
+    }
+
+    public record DepartmentPipelinesResponse(List<PipelineHealthResponse> pipelines, String metricsError) {
     }
 
     public record ServicePipelinesResponse(Long serviceId, String serviceName, String description, BuildTool buildTool,

@@ -15,6 +15,13 @@ export interface AdminArea {
   tabs: readonly PortalTab[];
 }
 
+export const PIPELINES: PortalSection = {
+  path: '/pipelines',
+  label: 'Pipelines',
+  heading: 'DevSecOps Pipelines',
+  description: 'The pipelines of your department with their keys, settings and last runs',
+};
+
 export const SELF_SERVICE: PortalSection = {
   path: '/self-service',
   label: 'Self-service',
@@ -40,18 +47,26 @@ export const ADMIN: PortalSection = {
   path: '/admin',
   label: 'Admin',
   heading: 'DevSecOps Admin',
-  description: 'Departments, products, services and the DSOEnhanced library defaults',
+  description:
+    'Departments, products, services, the template of a new service and the DSOEnhanced library defaults',
 };
 
-export const SECTIONS: readonly PortalSection[] = [SELF_SERVICE, MONITORING, EVIDENCE, ADMIN];
+export const SECTIONS: readonly PortalSection[] = [
+  PIPELINES,
+  SELF_SERVICE,
+  MONITORING,
+  EVIDENCE,
+  ADMIN,
+];
 
 export const ADMIN_DEPARTMENTS: PortalTab = { path: '/admin/departments', label: 'Departments' };
 export const ADMIN_PRODUCTS: PortalTab = { path: '/admin/products', label: 'Products' };
+export const ADMIN_TEMPLATE: PortalTab = { path: '/admin/template', label: 'Service template' };
 export const ADMIN_SETTINGS: PortalTab = { path: '/admin/settings', label: 'Library defaults' };
 
 export const DEVSECOPS_ADMIN: AdminArea = {
   section: ADMIN,
-  tabs: [ADMIN_DEPARTMENTS, ADMIN_PRODUCTS, ADMIN_SETTINGS],
+  tabs: [ADMIN_DEPARTMENTS, ADMIN_PRODUCTS, ADMIN_TEMPLATE, ADMIN_SETTINGS],
 };
 
 export const CHANGES: PortalSection = {
@@ -98,6 +113,10 @@ export const MENUS: readonly PortalMenu[] = [
 
 export function adminProduct(id: number | string, ...rest: string[]): (string | number)[] {
   return [ADMIN_PRODUCTS.path, id, ...rest];
+}
+
+export function pipelinePage(id: number | string): (string | number)[] {
+  return [PIPELINES.path, id];
 }
 
 export function beadleProduct(id: number | string): (string | number)[] {
