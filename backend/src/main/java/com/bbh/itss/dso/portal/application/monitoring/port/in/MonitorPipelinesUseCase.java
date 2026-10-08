@@ -6,6 +6,8 @@ public interface MonitorPipelinesUseCase {
 
     MonitoringOverview overview();
 
+    DepartmentPipelines department(long departmentId);
+
     ProductMonitoring product(long productId);
 
     PipelineMonitoring pipeline(long pipelineId, String range);

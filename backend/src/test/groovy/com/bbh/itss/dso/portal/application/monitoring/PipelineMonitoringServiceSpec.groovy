@@ -185,6 +185,34 @@ class PipelineMonitoringServiceSpec extends Specification {
         thrown(NoSuchElementException)
     }
 
+    def "a department lists the status and last run of every pipeline of its products, also when the runs cannot be read"() {
+        given:
+        def failed = run('2026-10-04T08:00:00Z', FAILURE)
+        products.departmentExists(3L) >> true
+        products.findByDepartmentId(3L) >> [certScanner, payments]
+        pipelines.findByDepartmentId(3L) >> [guiFull, guiSast, gatewayFull]
+        runs.latestRuns(*_) >>> [latest([(MetricsTag.of(payments.services()[0], gatewayFull)): failed])] >> {
+            throw new UncheckedIOException(NOT_CONFIGURED, new IOException())
+        }
+
+        when:
+        def department = monitoring.department(3L)
+
+        then:
+        department.pipelines()*.pipeline()*.pipeline()*.id() == [100L, 101L, 200L]
+        department.pipelines()*.status() == [NO_DATA, DISABLED, FAILURE]
+        department.pipelines()[2].lastRun() == failed
+        department.pipelines()[2].pipeline().product().code() == 'PAY'
+        department.metricsError() == null
+
+        when:
+        def unread = monitoring.department(3L)
+
+        then:
+        unread.pipelines()*.status() == [NO_DATA, DISABLED, NO_DATA]
+        unread.metricsError() == NOT_CONFIGURED
+    }
+
     def "a pipeline's details show its runs, DORA metrics and Grafana dashboard"() {
         given:
         def tag = tag(guiFull)

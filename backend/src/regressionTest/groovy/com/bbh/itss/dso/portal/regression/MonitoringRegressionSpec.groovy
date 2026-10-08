@@ -79,6 +79,31 @@ class MonitoringRegressionSpec extends PortalSpecification {
         monitoring.pipelines[1].lastRun == null
     }
 
+    def "a department lists every pipeline of its products with its status, last run and masked key"() {
+        given:
+        def department = api.post('/api/departments', [name: "Pipelines $code".toString()]).json
+        def other = createProduct(product(code: "${code}D", name: "Department $code", departmentId: department.id,
+                services: [service(name: 'worker')]))
+        def moved = api.put("/api/products/$monitored.id", product(code: code, name: monitored.name,
+                version: monitored.version, services: monitored.services, departmentId: department.id))
+
+        when:
+        def listed = api.get("/api/pipelines?departmentId=$department.id").json
+
+        then:
+        moved.status == 200
+        listed.metricsError == null
+        listed.pipelines*.pipeline*.productCode == [other.code, code, code, code]
+        listed.pipelines*.pipeline*.serviceName == ['worker', 'gui', 'gui', 'api']
+        listed.pipelines*.pipeline*.type == ['FULL', 'FULL', 'SAST', 'FULL']
+        listed.pipelines*.status == ['NO_DATA', 'SUCCESS', 'DISABLED', 'FAILURE']
+        listed.pipelines[1].lastRun.build == 42
+        listed.pipelines[1].pipeline.activeKey.value == null
+        listed.pipelines[1].pipeline.activeKey.hint.endsWith(guiFull.activeKey.value[-4..-1])
+        api.get('/api/pipelines?departmentId=999999').status == 404
+        api.get('/api/pipelines').status == 400
+    }
+
     def "a pipeline's details hold its runs, DORA metrics and Grafana dashboard"() {
         when:
         def details = api.get("/api/monitoring/pipelines/$guiFull.id?range=30d").json

@@ -51,6 +51,11 @@ class PipelinePersistenceAdapter implements PipelineRepositoryPort, PipelineCoun
     }
 
     @Override
+    public List<Pipeline> findByDepartmentId(long departmentId) {
+        return pipelines.findByDepartmentId(departmentId).stream().map(PipelineEntity::toDomain).toList();
+    }
+
+    @Override
     public List<Pipeline> findAll() {
         return pipelines.findAllWithService().stream().map(PipelineEntity::toDomain).toList();
     }

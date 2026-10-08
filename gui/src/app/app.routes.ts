@@ -4,6 +4,7 @@ import {
   ADMIN_DEPARTMENTS,
   ADMIN_PRODUCTS,
   ADMIN_SETTINGS,
+  ADMIN_TEMPLATE,
   BEADLE_ADMIN,
   BEADLE_ADMINISTRATION,
   BEADLE_DEPARTMENTS,
@@ -13,6 +14,7 @@ import {
   EVIDENCE,
   MONITORING,
   NEW_CHANGE,
+  PIPELINES,
   SELF_SERVICE,
 } from './core/sections';
 import { unsavedChangesGuard } from './core/unsaved-changes';
@@ -22,6 +24,16 @@ const departmentsAdmin = () => import('./admin/departments-admin').then((m) => m
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'monitoring' },
+  {
+    path: 'pipelines',
+    title: PIPELINES.heading,
+    loadComponent: () => import('./pipelines/pipeline-list').then((m) => m.PipelineList),
+  },
+  {
+    path: 'pipelines/:id',
+    title: 'Pipeline',
+    loadComponent: () => import('./pipelines/pipeline-page').then((m) => m.PipelinePage),
+  },
   {
     path: 'self-service',
     title: SELF_SERVICE.heading,
@@ -84,6 +96,13 @@ export const routes: Routes = [
         path: 'products',
         title: `${ADMIN_PRODUCTS.label} · ${ADMIN.heading}`,
         loadComponent: () => import('./products/product-list').then((m) => m.ProductList),
+      },
+      {
+        path: 'template',
+        title: `${ADMIN_TEMPLATE.label} · ${ADMIN.heading}`,
+        canDeactivate: [unsavedChangesGuard],
+        loadComponent: () =>
+          import('./settings/service-template-page').then((m) => m.ServiceTemplatePage),
       },
       {
         path: 'settings',

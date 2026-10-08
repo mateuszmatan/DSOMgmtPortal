@@ -23,6 +23,11 @@ public interface PipelineJpaRepository extends JpaRepository<PipelineEntity, Lon
             order by pr.name, s.displayOrder, s.name, p.type""")
     List<PipelineEntity> findAllWithService();
 
+    @Query("""
+            select p from PipelineEntity p join fetch p.service s join fetch s.product pr
+            where pr.departmentId = :departmentId order by pr.name, s.displayOrder, s.name, p.type""")
+    List<PipelineEntity> findByDepartmentId(@Param("departmentId") Long departmentId);
+
     @Query("select p from PipelineEntity p join fetch p.service s join fetch s.product where p.id = :id")
     Optional<PipelineEntity> findWithServiceById(@Param("id") Long id);
 

@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { finalize } from 'rxjs';
-import { PipelinesApi } from '../core/api';
+import { catchError, finalize, of } from 'rxjs';
+import { PipelinesApi, ServiceTemplateApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
 import {
   PIPELINE_TYPES,
@@ -13,6 +13,7 @@ import {
   PipelineRequest,
   PipelineType,
   ServicePipelines,
+  ServiceTemplate,
 } from '../core/models';
 import { Field, Fields, area, choice, mono } from '../shared/fields';
 import {
@@ -26,9 +27,11 @@ import {
   setEnabled,
   text,
 } from '../shared/form-controls';
+import { fillTemplate } from '../shared/service-template';
 
 export interface PipelineDialogData {
-  service: ServicePipelines;
+  service: Pick<ServicePipelines, 'serviceId' | 'serviceName' | 'pipelines'>;
+  productCode?: string;
   pipeline?: Pipeline;
 }
 
@@ -148,13 +151,49 @@ export class PipelineDialog {
     ];
   });
 
+  private template: ServiceTemplate | null = null;
+
   constructor() {
     const sync = (type: PipelineType) => {
       setEnabled(this.form.controls.extendedPipelineJob, type === 'SECURITY');
       setEnabled(this.form.controls.securityPipelineJob, type === 'EXTENDED');
+      this.prefill();
     };
     this.form.controls.type.valueChanges.subscribe(sync);
     sync(this.form.controls.type.value);
+    if (!this.editing) {
+      inject(ServiceTemplateApi)
+        .get()
+        .pipe(
+          catchError(() => of(null)),
+          takeUntilDestroyed(),
+        )
+        .subscribe((template) => {
+          this.template = template;
+          this.prefill();
+        });
+    }
+  }
+
+  private prefill(): void {
+    const { agentLabels, jenkinsJob, type } = this.form.controls;
+    const template = this.template;
+    if (!template) {
+      return;
+    }
+    if (!agentLabels.dirty && template.agentLabels.length) {
+      agentLabels.setValue(joinWords(template.agentLabels, ', '));
+    }
+    if (!jenkinsJob.dirty && this.data.productCode) {
+      jenkinsJob.setValue(
+        fillTemplate(
+          template.jenkinsJob,
+          this.data.productCode,
+          this.data.service.serviceName,
+          type.value,
+        ),
+      );
+    }
   }
 
   protected save(): void {
