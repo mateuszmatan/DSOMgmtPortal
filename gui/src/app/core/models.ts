@@ -512,6 +512,34 @@ export interface ServiceDefaults {
   testsMaxParallel: number;
 }
 
+export interface ServiceTemplateValues {
+  agentLabels: string[];
+  jenkinsJob: string | null;
+  gradleTasks: string | null;
+  gradleArtifact: string | null;
+  gradleScanPattern: string | null;
+  mavenTasks: string | null;
+  mavenArtifact: string | null;
+  mavenScanPattern: string | null;
+  flutterScanPattern: string | null;
+  deliveryTasks: string | null;
+  nexusIqApplication: string | null;
+  repositoryUrl: string | null;
+  bitbucketCredentialsId: string | null;
+  openShiftProject: string | null;
+  imageRegistry: string | null;
+  healthCheckUrl: string | null;
+}
+
+export interface ServiceTemplate extends ServiceTemplateValues {
+  version: number | null;
+  updatedAt: string | null;
+}
+
+export interface ServiceTemplateRequest extends ServiceTemplateValues {
+  version: number | null;
+}
+
 export interface GlobalSettingsValues {
   platform: PlatformSettings;
   deployment: DeploymentDefaults;
@@ -607,6 +635,11 @@ export interface PipelineHealth {
   pipeline: Pipeline;
   status: RunResult;
   lastRun: PipelineRun | null;
+}
+
+export interface DepartmentPipelines {
+  pipelines: PipelineHealth[];
+  metricsError: string | null;
 }
 
 export interface ProductMonitoring {

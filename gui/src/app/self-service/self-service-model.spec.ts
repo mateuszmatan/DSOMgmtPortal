@@ -1,10 +1,11 @@
-import { pipeline, product, service, servicePipelines } from '../testing/fixtures';
+import { pipeline, product, service, servicePipelines, serviceTemplate } from '../testing/fixtures';
 import {
   WizardService,
   changesOf,
   deploys,
   fromService,
   jobName,
+  namedDefaults,
   pipelineChoices,
   pipelineNames,
   pipelineReach,
@@ -18,6 +19,7 @@ import {
 } from './self-service-model';
 
 const APP_ID = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31';
+const TEMPLATE = serviceTemplate();
 const REPOSITORY = 'https://bitbucket.bbh.com/projects/PAY/repos/gateway';
 
 function added(overrides: Partial<WizardService> = {}): WizardService {
@@ -60,6 +62,7 @@ describe('self-service model', () => {
     const gradle = serviceRequest(
       added({ target: null, nexusIqApplication: 'payhub-gateway', repositoryUrl: REPOSITORY }),
       'NEXUS_IQ',
+      TEMPLATE,
     );
 
     expect(gradle.nexusIqApplications).toEqual([
@@ -83,6 +86,7 @@ describe('self-service model', () => {
     const maven = serviceRequest(
       added({ tool: 'MAVEN', nexusIqApplication: 'payhub-gateway', repositoryUrl: REPOSITORY }),
       'NEXUS_IQ',
+      TEMPLATE,
     );
     expect(maven.nexusIqApplications[0].scanPatterns).toEqual(['**/target/*.jar']);
   });
@@ -103,6 +107,7 @@ describe('self-service model', () => {
     const request = serviceRequest(
       { ...fromService(stored), nexusIqApplication: 'cert-web', repositoryUrl: REPOSITORY },
       'NEXUS_IQ',
+      TEMPLATE,
       stored,
     );
 
@@ -130,6 +135,7 @@ describe('self-service model', () => {
     const request = serviceRequest(
       { ...fromService(stored), nexusIqApplication: 'cert-mobile', repositoryUrl: REPOSITORY },
       'NEXUS_IQ',
+      TEMPLATE,
       stored,
     );
 
@@ -149,12 +155,12 @@ describe('self-service model', () => {
     const stored = service();
 
     for (const pipeline of ['NEXUS_IQ', 'SAST', 'FULL'] as const) {
-      const request = serviceRequest(fromService(stored), pipeline, stored);
+      const request = serviceRequest(fromService(stored), pipeline, TEMPLATE, stored);
       expect(request.nexusIqApplications).toEqual(stored.nexusIqApplications);
       expect(request.scm).toEqual(stored.scm);
     }
-    expect(serviceRequest(added(), 'SECURITY').nexusIqApplications).toEqual([]);
-    expect(serviceRequest(added(), 'SECURITY').scm.repositoryUrl).toBeNull();
+    expect(serviceRequest(added(), 'SECURITY', TEMPLATE).nexusIqApplications).toEqual([]);
+    expect(serviceRequest(added(), 'SECURITY', TEMPLATE).scm.repositoryUrl).toBeNull();
   });
 
   it('writes the Nexus IQ answers only for the Nexus IQ GoldenFix pipeline', () => {
@@ -162,25 +168,35 @@ describe('self-service model', () => {
     const answers = { nexusIqApplication: 'payhub-gateway', repositoryUrl: REPOSITORY };
 
     for (const pipeline of ['SAST', 'SECURITY', 'FULL'] as const) {
-      const fresh = serviceRequest(added(answers), pipeline);
+      const fresh = serviceRequest(added(answers), pipeline, TEMPLATE);
       expect(fresh.nexusIqApplications).toEqual([]);
       expect(fresh.scm.repositoryUrl).toBeNull();
       expect(fresh.scm.credentialsId).toBeNull();
-      const kept = serviceRequest({ ...fromService(stored), ...answers }, pipeline, stored);
+      const kept = serviceRequest(
+        { ...fromService(stored), ...answers },
+        pipeline,
+        TEMPLATE,
+        stored,
+      );
       expect(kept.nexusIqApplications).toEqual(stored.nexusIqApplications);
       expect(kept.scm).toEqual(stored.scm);
     }
   });
 
   it('builds a Gradle service on a virtual machine with the automatic build tool set-up', () => {
-    const request = serviceRequest(added(), 'SECURITY');
+    const request = serviceRequest(added(), 'SECURITY', TEMPLATE);
 
     expect(request.id).toBeNull();
     expect(request.name).toBe('gateway');
     expect(request.description).toBe('Public payment API');
     expect(request.appScan.applicationId).toBe(APP_ID);
     expect(request.build).toEqual(
-      expect.objectContaining({ tool: 'GRADLE', autoSetup: true, javaPath: null, buildPath: null }),
+      expect.objectContaining({
+        tool: 'GRADLE',
+        autoSetup: true,
+        javaPath: null,
+        buildPath: 'build/libs/*.jar',
+      }),
     );
     expect(request.build.command.tasks).toEqual(['clean', 'build']);
     expect(request.deployment.target).toBe('VM');
@@ -188,8 +204,66 @@ describe('self-service model', () => {
     expect(request.openShiftTargets).toEqual({});
   });
 
+  it('fills a new service in from the service template the DevSecOps team set', () => {
+    const template = serviceTemplate({
+      gradleTasks: 'build -x test',
+      gradleArtifact: 'out/*.jar',
+      gradleScanPattern: '**/out/*.jar',
+      deliveryTasks: null,
+      bitbucketCredentialsId: 'team-bitbucket',
+      imageRegistry: 'registry.bbh.com',
+      healthCheckUrl: '/health',
+    });
+    const request = serviceRequest(
+      added({ target: 'OPENSHIFT', openShiftProject: 'pay-gateway' }),
+      'FULL',
+      template,
+    );
+    const scanned = serviceRequest(
+      added({ nexusIqApplication: 'pay-gateway', repositoryUrl: REPOSITORY }),
+      'NEXUS_IQ',
+      template,
+    );
+
+    expect(request.build.command.tasks).toEqual(['build', '-x', 'test']);
+    expect(request.build.buildPath).toBe('out/*.jar');
+    expect(request.delivery.tasks).toEqual([]);
+    expect(request.openShiftTargets.RD).toEqual(
+      expect.objectContaining({
+        dockerRepoPush: 'registry.bbh.com/pay-gateway/gateway',
+        healthCheckUrl: '/health',
+      }),
+    );
+    expect(scanned.nexusIqApplications[0].scanPatterns).toEqual(['**/out/*.jar']);
+    expect(scanned.scm.credentialsId).toBe('team-bitbucket');
+  });
+
+  it('leaves the build of a new service empty when the template could not be read', () => {
+    const request = serviceRequest(added({ tool: 'MAVEN' }), 'FULL', null);
+
+    expect(request.build.command.tasks).toEqual([]);
+    expect(request.build.buildPath).toBeNull();
+    expect(request.delivery.tasks).toEqual([]);
+  });
+
+  it('names the OpenShift project, Nexus IQ application and repository of a service by the template', () => {
+    const defaults = { tool: null, target: null, template: TEMPLATE, productCode: 'PAY' };
+
+    expect(namedDefaults(defaults, 'Gateway')).toEqual({
+      openShiftProject: 'pay-gateway',
+      nexusIqApplication: 'pay-Gateway',
+      repositoryUrl: 'https://bitbucket.bbh.com/projects/PAY/repos/pay-Gateway',
+    });
+    expect(namedDefaults({ ...defaults, productCode: '' }, 'gateway')).toEqual({
+      openShiftProject: '',
+      nexusIqApplication: '',
+      repositoryUrl: '',
+    });
+    expect(namedDefaults({ ...defaults, template: null }, 'gateway').repositoryUrl).toBe('');
+  });
+
   it('publishes a Maven service on a virtual machine from target with deploy-file', () => {
-    const request = serviceRequest(added({ tool: 'MAVEN' }), 'FULL');
+    const request = serviceRequest(added({ tool: 'MAVEN' }), 'FULL', TEMPLATE);
 
     expect(request.build.command.tasks).toEqual(['clean', 'verify']);
     expect(request.build.buildPath).toBe('target/*.jar');
@@ -205,6 +279,7 @@ describe('self-service model', () => {
         openShiftProject: 'pay-payhub',
       }),
       'FULL',
+      TEMPLATE,
     );
 
     expect(request.deployment).toEqual(
@@ -236,11 +311,12 @@ describe('self-service model', () => {
     const request = serviceRequest(
       added({ target: 'OPENSHIFT', openShiftProject: 'pay-payhub' }),
       'SAST',
+      TEMPLATE,
     );
 
     expect(request.deployment.target).toBe('VM');
     expect(request.openShiftTargets).toEqual({});
-    expect(serviceRequest(added({ target: null }), 'SAST').deployment.target).toBe('VM');
+    expect(serviceRequest(added({ target: null }), 'SAST', TEMPLATE).deployment.target).toBe('VM');
   });
 
   it('changes only the name, description and AppScan application of a service in the portal', () => {
@@ -248,6 +324,7 @@ describe('self-service model', () => {
     const request = serviceRequest(
       { ...fromService(stored), name: 'web', description: '', appScanId: APP_ID },
       'SAST',
+      TEMPLATE,
       stored,
     );
 
@@ -262,7 +339,12 @@ describe('self-service model', () => {
 
   it('puts a service of the portal on another build tool with the build settings of a new one', () => {
     const stored = service();
-    const request = serviceRequest({ ...fromService(stored), tool: 'MAVEN' }, 'FULL', stored);
+    const request = serviceRequest(
+      { ...fromService(stored), tool: 'MAVEN' },
+      'FULL',
+      TEMPLATE,
+      stored,
+    );
 
     expect(request.build).toEqual(
       expect.objectContaining({
@@ -287,6 +369,7 @@ describe('self-service model', () => {
     const request = serviceRequest(
       { ...fromService(stored), target: 'OPENSHIFT', openShiftProject: 'cert-gui' },
       'SECURITY',
+      TEMPLATE,
       stored,
     );
 
@@ -311,7 +394,12 @@ describe('self-service model', () => {
         baseArtifactName: null,
       },
     });
-    const request = serviceRequest({ ...fromService(stored), target: 'VM' }, 'FULL', stored);
+    const request = serviceRequest(
+      { ...fromService(stored), target: 'VM' },
+      'FULL',
+      TEMPLATE,
+      stored,
+    );
 
     expect(request.deployment).toEqual({
       target: 'VM',
@@ -369,6 +457,11 @@ describe('self-service model', () => {
       }),
     );
     expect(request.services.map((entry) => entry.name)).toEqual(['gateway']);
+    expect(request.services[0].build.command.tasks).toEqual([]);
+    expect(
+      productRequest(product(), [added()], 'SECURITY', null, TEMPLATE).services[0].build.command
+        .tasks,
+    ).toEqual(['clean', 'build']);
   });
 
   it('keeps every detail of a product in the portal and adds the new services after its own', () => {
@@ -591,8 +684,10 @@ describe('self-service model', () => {
       { serviceName: 'gui', pipeline: security },
       { serviceName: 'api', pipeline: null },
     ]);
-    expect(jobName(security)).toBe('DevSecOps/CERT/gui-security');
-    expect(jobName(pipeline({ type: 'NEXUS_IQ' }))).toBe('DevSecOps/CERT/gui-nexusiq');
-    expect(jobName(pipeline({ type: 'SAST' }))).toBe('DevSecOps/CERT/gui-sast');
+    expect(jobName(security)).toBe('DevSecOps/CERT/gui-full');
+    expect(jobName({ ...security, jenkinsJob: null })).toBe('DevSecOps/CERT/gui-security');
+    expect(jobName(pipeline({ type: 'NEXUS_IQ', jenkinsJob: null }))).toBe(
+      'DevSecOps/CERT/gui-nexusiq',
+    );
   });
 });

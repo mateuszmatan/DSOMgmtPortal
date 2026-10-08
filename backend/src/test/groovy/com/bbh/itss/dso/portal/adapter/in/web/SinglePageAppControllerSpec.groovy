@@ -18,7 +18,8 @@ class SinglePageAppControllerSpec extends Specification {
         response.forwardedUrl == '/index.html'
 
         where:
-        path << ['/self-service', '/admin', '/admin/products/new', '/admin/products/12/edit', '/admin/settings',
+        path << ['/pipelines', '/pipelines/7', '/self-service', '/admin', '/admin/products/new',
+                 '/admin/products/12/edit', '/admin/template', '/admin/settings',
                  '/monitoring', '/monitoring/pipelines/7', '/beadle', '/beadle/admin/products/3', '/products',
                  '/products/12/edit', '/settings']
     }

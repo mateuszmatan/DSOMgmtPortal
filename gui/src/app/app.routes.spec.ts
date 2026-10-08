@@ -32,9 +32,12 @@ import { PipelineMonitoringPage } from './monitoring/pipeline-monitoring';
 import { ProductMonitoringPage } from './monitoring/product-monitoring';
 import { ProductDetail } from './products/product-detail';
 import { ProductEditor } from './products/product-editor';
+import { PipelineList } from './pipelines/pipeline-list';
+import { PipelinePage } from './pipelines/pipeline-page';
 import { ProductList } from './products/product-list';
 import { SelfService } from './self-service/self-service';
 import { GlobalSettingsPage } from './settings/global-settings';
+import { ServiceTemplatePage } from './settings/service-template-page';
 import { ConfirmDialog } from './shared/confirm-dialog';
 
 @Component({ template: '' })
@@ -55,6 +58,8 @@ describe('routes', () => {
     );
 
     expect(Object.fromEntries(pages)).toEqual({
+      pipelines: PipelineList,
+      'pipelines/:id': PipelinePage,
       'self-service': SelfService,
       monitoring: MonitoringOverview,
       'monitoring/products/:id': ProductMonitoringPage,
@@ -66,6 +71,7 @@ describe('routes', () => {
       admin: AdminPage,
       'admin/departments': DepartmentsAdmin,
       'admin/products': ProductList,
+      'admin/template': ServiceTemplatePage,
       'admin/settings': GlobalSettingsPage,
       'beadle/changes': ProductionChanges,
       'beadle/new-change': ChangeWizard,
@@ -99,6 +105,7 @@ describe('routes', () => {
       'self-service',
       'admin/products/new',
       'admin/products/:id/edit',
+      'admin/template',
       'admin/settings',
       'beadle/new-change',
       'beadle/changes/:id/edit',

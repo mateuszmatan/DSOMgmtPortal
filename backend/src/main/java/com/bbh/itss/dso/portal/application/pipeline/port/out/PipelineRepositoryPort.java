@@ -20,6 +20,8 @@ public interface PipelineRepositoryPort {
 
     List<Pipeline> findByProductId(long productId);
 
+    List<Pipeline> findByDepartmentId(long departmentId);
+
     List<Pipeline> findAll();
 
     Set<MetricsTag> sharedMetricsTags();

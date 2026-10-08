@@ -12,6 +12,7 @@ import {
   product,
   service,
   servicePipelines,
+  serviceTemplate,
 } from '../testing/fixtures';
 import { buttonOf, inputOf } from '../testing/dom';
 import { GeneratedKeys } from './generated-keys';
@@ -37,6 +38,10 @@ describe('ProductEditor', () => {
   afterEach(() => http.verify());
 
   const editor = () => fixture.componentInstance;
+  const template = () =>
+    http
+      .expectOne('/api/service-template')
+      .flush(serviceTemplate({ mavenTasks: 'clean install', deliveryTasks: 'deploy' }));
   const page = () => fixture.nativeElement as HTMLElement;
 
   const naming = (name: string | undefined, departmentId = 3) =>
@@ -56,6 +61,7 @@ describe('ProductEditor', () => {
     await fixture.whenStable();
     http.expectOne('/api/departments').flush(departments);
     http.expectOne('/api/settings').flush(globalSettings());
+    template();
     suggestion(name).flush({ code });
     await fixture.whenStable();
   }
@@ -81,6 +87,7 @@ describe('ProductEditor', () => {
         servicePipelines({ serviceId: 11, serviceName: 'api', pipelines: [] }),
       ]);
     http.expectOne('/api/settings').flush(globalSettings());
+    template();
     http.expectOne('/api/departments').flush(departments);
     await fixture.whenStable();
   }
@@ -131,12 +138,23 @@ describe('ProductEditor', () => {
     expect(editor().hasUnsavedChanges()).toBe(false);
   });
 
+  it('fills the build of an added service from the service template', async () => {
+    await start();
+    editor()['addService']();
+
+    const added = editor()['form'].controls.services.at(1).getRawValue();
+    expect(added.build.buildPath).toBe('target/*.jar');
+    expect(added.build.command.tasks).toBe('clean install');
+    expect(added.delivery.tasks).toBe('deploy');
+  });
+
   it('asks for the department and the name first and makes the unique code from the name', async () => {
     const open = naming('Payments Hub', 5);
     fixture.componentRef.setInput('department', '5');
     await fixture.whenStable();
     http.expectOne('/api/departments').flush(departments);
     http.expectOne('/api/settings').flush(globalSettings());
+    template();
     suggestion('Payments Hub').flush({ code: 'PAYMENTSHUB2' });
     await fixture.whenStable();
 
@@ -277,6 +295,7 @@ describe('ProductEditor', () => {
       .flush(product({ services: [service(), anotherService({ name: 'api' })] }));
     http.expectOne('/api/products/1/pipelines').flush([servicePipelines()]);
     http.expectOne('/api/settings').flush(globalSettings());
+    template();
     http.expectOne('/api/departments').flush(departments);
     await fixture.whenStable();
 

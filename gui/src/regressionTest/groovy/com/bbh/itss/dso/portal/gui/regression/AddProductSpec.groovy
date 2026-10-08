@@ -105,7 +105,8 @@ class AddProductSpec extends EditorSpecification {
 
         then:
         assertThat(errorOf(openService(), 'JDK path')).hasText('Required')
-        assertThat(errorOf(openService(), 'Gradle tasks')).hasText('Required')
+        assertThat(input(openService(), 'Gradle tasks')).hasValue('clean build')
+        assertThat(errorOf(openService(), 'Gradle tasks')).hasCount(0)
 
         when:
         showSection('AppScan SAST and DAST')

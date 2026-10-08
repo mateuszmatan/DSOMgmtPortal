@@ -36,10 +36,6 @@ public record PipelineSettings(List<String> agentLabels, String extendedPipeline
         description = trimToNull(description);
     }
 
-    public static PipelineSettings forNewService() {
-        return builder().agentLabels(List.of(DEFAULT_AGENT_LABEL)).build();
-    }
-
     public void validate(ValidationProblems problems) {
         problems.require("agentLabels", agentLabels, "add at least one Jenkins agent label");
         COMMAS_1000.check(problems, "agentLabels", agentLabels);
