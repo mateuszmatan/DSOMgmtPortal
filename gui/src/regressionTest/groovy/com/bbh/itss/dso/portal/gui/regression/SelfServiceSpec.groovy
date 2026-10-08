@@ -19,6 +19,8 @@ class SelfServiceSpec extends EditorSpecification {
     static final String APP_SCAN_KEY = 'bbh_9a1b2c3d-0000-4abc-9def-123456789abc'
     static final String SAST_KEY_OF_GUI = '2c0ca4f4-a1a6-472a-9685-0c75f22fe713'
     static final String SECURITY_KEY_OF_GATEWAY = '5a07b656-ed5b-46b6-b3af-eb043ca15627'
+    static final String GUI_REPOSITORY = 'https://bitbucket.bbh.com/projects/TA/repos/cert-scanner-gui'
+    static final String SCANNER_REPOSITORY = 'https://bitbucket.bbh.com/projects/TA/repos/cert-scanner-batch'
 
     def "a product manager adds a new product with a Security pipeline step by step"() {
         given:
@@ -59,7 +61,7 @@ class SelfServiceSpec extends EditorSpecification {
         then:
         assertThat(currentStep()).hasText('Pipeline')
         assertThat(step().locator('h2')).hasText('Which pipeline does Trade Archive need?')
-        assertThat(step().locator('.tile-label')).hasText(['Static scan', 'Security', 'Full'] as String[])
+        assertThat(step().locator('.tile-label')).hasText(['Static scan', 'Nexus IQ GoldenFix', 'Security', 'Full'] as String[])
         assertThat(step().locator('.tile-note')).hasCount(0)
         assertThat(step().locator('.today')).hasCount(0)
         assertThat(choiceError()).hasText('Choose a pipeline to continue')
@@ -203,7 +205,7 @@ class SelfServiceSpec extends EditorSpecification {
                 .containsText('Choosing one adds it to every service that lacks it and keeps the other pipelines.')
         assertThat(step().locator('.today li')).hasText(['gui · Full, Static scan', 'backend-api · Full'] as String[])
         assertThat(step().locator('.tile-note'))
-                .hasText(['1 of 2 services has it', 'No service has it yet', 'Every service has it'] as String[])
+                .hasText(['1 of 2 services has it', 'No service has it yet', 'No service has it yet', 'Every service has it'] as String[])
 
         when:
         radio(step(), 'Static scan').click()
@@ -280,6 +282,104 @@ class SelfServiceSpec extends EditorSpecification {
         assertThat(currentStep()).hasText('Product')
         assertThat(radio(step(), 'A new product')).hasAttribute('aria-checked', 'true')
         assertThat(input(step(), 'Product name')).hasValue('')
+        ownErrors().isEmpty()
+    }
+
+    def "a product in the portal gets a Nexus IQ GoldenFix pipeline that raises golden pull requests in Bitbucket"() {
+        given:
+        def store = ProductStore.recorded(api, 1)
+        def stored = fixture('product-1.json') as Map
+
+        when:
+        openProduct('Corporate Technology', 'CertScanner (CERTSCANNER)')
+        radio(step(), 'Nexus IQ GoldenFix').click()
+
+        then:
+        assertThat(radio(step(), 'Nexus IQ GoldenFix')).hasAttribute('aria-checked', 'true')
+        assertThat(step().locator('.prepare li').last())
+                .hasText('The Nexus IQ application and the Bitbucket repository of each service')
+
+        when:
+        button('Continue', true).click()
+
+        then:
+        assertThat(step().locator('.lead')).containsText('Each one gets its own Nexus IQ GoldenFix pipeline.')
+        assertThat(serviceRow('gui').locator('.muted').first())
+                .hasText('Gradle · runs on Virtual machines · Nexus IQ cert-scanner-gui')
+
+        when:
+        buttonIn(serviceRow('gui'), 'Change gui').click()
+        dialogButton('Next').click()
+
+        then:
+        assertThat(dialog().getByRole(RADIOGROUP)).hasCount(1)
+        hasValues(dialog(), ['Nexus IQ application': 'cert-scanner-gui',
+                             'Bitbucket repository': stored.services[0].scm.repositoryUrl as String])
+
+        when:
+        fillIn(dialog(), ['Nexus IQ application': '', 'Bitbucket repository': 'bitbucket.bbh.com/projects/TA/repos/cert-scanner-gui'])
+        dialogButton('Save service').click()
+
+        then:
+        hasErrors(dialog(), ['Nexus IQ application': 'Required',
+                             'Bitbucket repository': 'An http or https URL without spaces, double quotes, backslashes, $ or backticks'])
+
+        when:
+        fillIn(dialog(), ['Nexus IQ application': 'cert-scanner-web', 'Bitbucket repository': GUI_REPOSITORY])
+        dialogButton('Save service').click()
+        addService('scanner', API_APPLICATION, 'Maven', null,
+                ['Nexus IQ application': 'cert-scanner-batch', 'Bitbucket repository': SCANNER_REPOSITORY])
+
+        then:
+        assertThat(step().locator('.service-list strong')).hasText(['gui', 'backend-api', 'scanner'] as String[])
+        assertThat(step().locator('.service-list .tag')).hasText(['Changed', 'New'] as String[])
+
+        when:
+        button('Continue', true).click()
+
+        then:
+        assertThat(review('Pipeline')).hasText('Nexus IQ GoldenFix · added to every service')
+        assertThat(review('Added').locator('li')).hasText(['scanner · Maven · Nexus IQ cert-scanner-batch'] as String[])
+        assertThat(review('Changed').locator('li'))
+                .hasText(['gui · new Nexus IQ application; new Bitbucket repository'] as String[])
+        assertThat(review('Unchanged').locator('li'))
+                .hasText(['backend-api · Maven · runs on OpenShift · Nexus IQ cert-scanner-backend'] as String[])
+
+        when:
+        button('Save the changes', true).click()
+
+        then:
+        assertThat(step().locator('h2')).hasText('CertScanner is ready. Do these steps in order')
+        def request = awaitRequest('PUT', '/api/products/1')
+        request.params() == [pipelineType: 'NEXUS_IQ']
+        with(request.json() as Map) {
+            services*.id == [1, 2, null]
+            services[0].nexusIqApplications == [stored.services[0].nexusIqApplications[0] + [application: 'cert-scanner-web']]
+            services[0].scm == stored.services[0].scm + [repositoryUrl: SelfServiceSpec.GUI_REPOSITORY]
+            services[0].build == stored.services[0].build
+            services[0].deployment == stored.services[0].deployment
+            services[1].nexusIqApplications == stored.services[1].nexusIqApplications
+            services[1].scm == stored.services[1].scm
+            services[2].nexusIqApplications == [[application: 'cert-scanner-batch', scanPatterns: ['**/target/*.jar'],
+                                                 stage      : 'build', failOnNetworkError: false]]
+            services[2].scm.repositoryUrl == SelfServiceSpec.SCANNER_REPOSITORY
+            services[2].scm.credentialsId == 'bitbucket-http-credentials'
+            services[2].build.tool == 'MAVEN'
+            services[2].deployment.target == 'VM'
+            services[2].appScan.applicationId == SelfServiceSpec.API_APPLICATION
+        }
+        store.services*.pipelines*.type == [['FULL', 'SAST', 'NEXUS_IQ'], ['FULL', 'NEXUS_IQ'], ['NEXUS_IQ']]
+        store.product.services*.nexusIqApplications*.application == [['cert-scanner-web'], ['cert-scanner-backend'], ['cert-scanner-batch']]
+        store.product.services*.scm*.repositoryUrl == [GUI_REPOSITORY, stored.services[1].scm.repositoryUrl, SCANNER_REPOSITORY]
+        store.generatedKeys.keySet() == ['gui', 'backend-api', 'scanner'] as Set
+        assertThat(page.locator('.jenkinsfile .code-block')).hasText(store.services.collect { service ->
+            "@Library('DevSecOpsJenkinsLibrary') _ devSecOpsNexusIqGoldenFixPipeline(pipelineKey: '${store.generatedKeys[service.serviceName]}')".toString()
+        } as String[])
+        assertThat(page.locator('.next-steps > li h3')).hasText(['Put the Jenkinsfile in each repository',
+                                                                'Create a Jenkins job for each service',
+                                                                'Run each job once', 'Review the golden pull requests',
+                                                                'Follow the results'] as String[])
+        assertThat(page.locator('.next-steps code').last()).hasText('DevSecOps/CERTSCANNER/gui-nexusiq')
         ownErrors().isEmpty()
     }
 
@@ -455,7 +555,7 @@ class SelfServiceSpec extends EditorSpecification {
         assertThat(step().locator('.today li')).hasText(['gateway · Full, Security, Extended', 'ledger · Full',
                                                          'notifications · Full', 'mobile-app · Static scan'] as String[])
         assertThat(step().locator('.tile-note'))
-                .hasText(['1 of 4 services has it', '1 of 4 services has it', '3 of 4 services have it'] as String[])
+                .hasText(['1 of 4 services has it', 'No service has it yet', '1 of 4 services has it', '3 of 4 services have it'] as String[])
 
         when:
         radio(step(), 'Security').click()
@@ -528,7 +628,7 @@ class SelfServiceSpec extends EditorSpecification {
         button('Continue', true).click()
     }
 
-    void addService(String name, String applicationId, String tool, String target = null) {
+    void addService(String name, String applicationId, String tool, String target = null, Map<String, String> details = [:]) {
         button('Add a service', true).click()
         fillIn(dialog(), ['Service name': name, 'AppScan application ID': applicationId])
         dialogButton('Next').click()
@@ -536,6 +636,7 @@ class SelfServiceSpec extends EditorSpecification {
         if (target) {
             radio(dialog(), target).click()
         }
+        fillIn(dialog(), details)
         dialogButton('Add service').click()
     }
 

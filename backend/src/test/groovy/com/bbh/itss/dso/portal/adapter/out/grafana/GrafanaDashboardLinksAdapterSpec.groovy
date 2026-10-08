@@ -6,6 +6,7 @@ import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.EXTENDED
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 
 class GrafanaDashboardLinksAdapterSpec extends Specification {
@@ -35,5 +36,7 @@ class GrafanaDashboardLinksAdapterSpec extends Specification {
         PipelineType.SECURITY | SECURITY || 'the security one' | true          | "$SECURITY&var-project=CERT%20gui&from=now-90d&to=now"
         SAST                  | SECURITY || 'the security one' | true          | "$SECURITY&var-project=CERT%20gui&from=now-90d&to=now"
         SAST                  | ' '      || 'the pipeline one' | true          | "$PIPELINE?var-project=CERT%20gui&from=now-90d&to=now"
+        NEXUS_IQ              | SECURITY || 'the security one' | true          | "$SECURITY&var-project=CERT%20gui&from=now-90d&to=now"
+        NEXUS_IQ              | null     || 'the pipeline one' | true          | "$PIPELINE?var-project=CERT%20gui&from=now-90d&to=now"
     }
 }

@@ -89,7 +89,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
         then:
         assertThat(dialog().locator('h2')).hasText('Add pipeline')
-        assertThat(page.getByRole(OPTION)).hasText(['Security', 'Extended'] as String[])
+        assertThat(page.getByRole(OPTION)).hasText(['Security', 'Extended', 'Nexus IQ GoldenFix'] as String[])
 
         when:
         page.getByRole(OPTION, new Page.GetByRoleOptions().setName('Security')).click()

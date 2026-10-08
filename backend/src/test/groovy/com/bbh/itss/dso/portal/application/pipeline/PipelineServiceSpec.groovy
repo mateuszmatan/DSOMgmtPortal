@@ -14,6 +14,7 @@ import java.time.Instant
 import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.ACTIVE
 import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.REVOKED
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
 import static com.bbh.itss.dso.portal.support.Fixtures.KEY
@@ -127,7 +128,7 @@ class PipelineServiceSpec extends Specification {
         views.every { it.pipeline().isEnabled() }
 
         where:
-        type << [FULL, SAST]
+        type << [FULL, SAST, NEXUS_IQ]
     }
 
     def "a service that already has a pipeline of the type keeps it, and a save that covered no service reads nothing"() {

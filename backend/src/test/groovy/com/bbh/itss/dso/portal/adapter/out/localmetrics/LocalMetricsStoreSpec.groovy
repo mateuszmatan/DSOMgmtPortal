@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.out.localmetrics
 
+import com.bbh.itss.dso.portal.domain.evidence.GoldenFixEvidence
 import com.bbh.itss.dso.portal.domain.evidence.ReleaseGateEvidence
 import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint
 import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns
@@ -34,6 +35,7 @@ import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTest
 class LocalMetricsStoreSpec extends Specification {
 
     static final Instant NOW = Instant.parse('2026-10-07T12:00:00Z')
+    static final String PULL_REQUEST = 'https://bitbucket.bbh.com/projects/CT/repos/cert-gui/pull-requests/12'
 
     @Autowired
     JdbcTemplate jdbc
@@ -119,6 +121,10 @@ class LocalMetricsStoreSpec extends Specification {
                     point('stage_event', gui, finished - ofSeconds(900), [stage: 'Old', status: 'pass', order: '1']),
                     point('release_gate', gui, finished, [allowed: 'yes', violations: '0']),
                     point('code_coverage', gui, finished - ofSeconds(60), [module: 'gui', line_pct: '80']),
+                    point('goldenfix', gui, finished, [module: 'gui', status: 'PR_CREATED', offered: '2', applied: '2',
+                                                       unresolved: '0', pr_raised: '1', build_check: '1',
+                                                       build_failed: '0', pr_url: PULL_REQUEST,
+                                                       pr_title: 'GoldenFix-202610071100']),
                     point('stage_event', guiUat, finished, [stage: 'Deploy', status: 'pass', order: '1'])])
 
         when:
@@ -129,6 +135,8 @@ class LocalMetricsStoreSpec extends Specification {
         evidence[run].stages()*.name() == ['Build']
         evidence[run].releaseGate() == new ReleaseGateEvidence(true, 0L, null)
         evidence[run].coverage('gui').linePercent() == null
+        evidence[run].goldenFix('gui') == new GoldenFixEvidence('PR_CREATED', 2, 2, 0, true, PULL_REQUEST,
+                'GoldenFix-202610071100')
         store.evidenceOf([:]) == [:]
     }
 

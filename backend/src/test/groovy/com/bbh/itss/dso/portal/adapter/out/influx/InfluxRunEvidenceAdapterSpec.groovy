@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.adapter.out.influx
 
 import com.bbh.itss.dso.portal.domain.evidence.CoverageEvidence
 import com.bbh.itss.dso.portal.domain.evidence.EvidenceLinks
+import com.bbh.itss.dso.portal.domain.evidence.GoldenFixEvidence
 import com.bbh.itss.dso.portal.domain.evidence.ReleaseGateEvidence
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun
@@ -42,13 +43,13 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
             run0 = from(bucket: "DORA-metrics")
               |> range(start: time(v: "2026-10-04T09:49:56Z"), stop: time(v: "2026-10-04T10:00:02Z"))
               |> filter(fn: (r) => r.project == "CERT-gui" and r.env == "test")
-              |> filter(fn: (r) => r._measurement == "security_findings" or r._measurement == "policy_status" or r._measurement == "code_coverage" or r._measurement == "test_execution" or r._measurement == "release_gate" or r._measurement == "vulnerabilities" or r._measurement == "stage_event" or r._measurement == "build_evidence")
+              |> filter(fn: (r) => r._measurement == "security_findings" or r._measurement == "policy_status" or r._measurement == "code_coverage" or r._measurement == "test_execution" or r._measurement == "release_gate" or r._measurement == "vulnerabilities" or r._measurement == "stage_event" or r._measurement == "build_evidence" or r._measurement == "goldenfix")
               |> filter(fn: (r) => not (r._measurement == "release_gate" and r._field == "allowed"))
               |> last()
             run1 = from(bucket: "DORA-metrics")
               |> range(start: time(v: "2026-10-04T10:59:56Z"), stop: time(v: "2026-10-04T11:00:02Z"))
               |> filter(fn: (r) => r.project == "CERT-guisast" and r.env == "test")
-              |> filter(fn: (r) => r._measurement == "security_findings" or r._measurement == "policy_status" or r._measurement == "code_coverage" or r._measurement == "test_execution" or r._measurement == "release_gate" or r._measurement == "vulnerabilities" or r._measurement == "stage_event" or r._measurement == "build_evidence")
+              |> filter(fn: (r) => r._measurement == "security_findings" or r._measurement == "policy_status" or r._measurement == "code_coverage" or r._measurement == "test_execution" or r._measurement == "release_gate" or r._measurement == "vulnerabilities" or r._measurement == "stage_event" or r._measurement == "build_evidence" or r._measurement == "goldenfix")
               |> filter(fn: (r) => not (r._measurement == "release_gate" and r._field == "allowed"))
               |> last()
             union(tables: [run0, run1])
@@ -125,6 +126,29 @@ class InfluxRunEvidenceAdapterSpec extends Specification {
         evidence[earlier].build(earlier, 'backend-api', links()).artifactVersion() == '2.0.1'
         evidence[earlier].build(earlier, 'gui', links()).artifactVersion() == null
         evidence[later].build(later, 'gui', links()).artifactVersion() == '1.4.2'
+    }
+
+    def "the GoldenFix point InfluxDB returns names the golden pull request of its module"() {
+        given:
+        def finished = run(FINISHED, 600)
+        influx.query(_) >> FluxCsv.parse(
+                ',result,table,_time,_measurement,env,module,project,status,applied,build_check,build_failed,' +
+                        'offered,pr_raised,pr_title,pr_url,unresolved\r\n' +
+                        ',_result,0,2026-10-04T10:00:00Z,goldenfix,test,gui,CERT-gui,PR_CREATED,2,1,0,3,1,' +
+                        'GoldenFix-202610040955,https://bitbucket.bbh.com/projects/TA/repos/cert-scanner/pull-requests/7,1\r\n' +
+                        '\r\n' +
+                        ',result,table,_time,_measurement,env,module,project,status,applied,build_check,build_failed,' +
+                        'offered,pr_raised,unresolved\r\n' +
+                        ',_result,1,2026-10-04T10:00:00Z,goldenfix,test,backend-api,CERT-gui,NO_FIXES,0,0,0,0,0,0\r\n')
+
+        when:
+        def evidence = adapter.evidenceOf([(gui): [finished] as Set])[finished]
+
+        then:
+        evidence.goldenFix('gui') == new GoldenFixEvidence('PR_CREATED', 3, 2, 1, true,
+                'https://bitbucket.bbh.com/projects/TA/repos/cert-scanner/pull-requests/7', 'GoldenFix-202610040955')
+        evidence.goldenFix('backend-api') == new GoldenFixEvidence('NO_FIXES', 0, 0, 0, false, null, null)
+        evidence.goldenFix('cli') == null
     }
 
     def "without InfluxDB no evidence is read and the reason is given"() {

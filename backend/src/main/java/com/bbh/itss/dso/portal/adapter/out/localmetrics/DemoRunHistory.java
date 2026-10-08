@@ -13,6 +13,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -52,10 +53,17 @@ class DemoRunHistory {
             PipelineView first = views.getFirst();
             boolean retired = views.stream().noneMatch(view -> view.pipeline().isEnabled());
             points.addAll(new RunHistory(first.metricsTag(), first.pipeline().settings().jobPath(),
-                    first.pipeline().type(), views.stream().map(view -> view.service().name()).distinct().toList(),
-                    new Random(SEED + key.hashCode())).points(now.minus(HISTORY), retired ? now.minus(RETIRED) : now));
+                    first.pipeline().type(), repositories(views), new Random(SEED + key.hashCode()))
+                    .points(now.minus(HISTORY), retired ? now.minus(RETIRED) : now));
         });
         store.save(points);
         log.info("Recorded a random run history of {} pipelines in the local metrics store", byJob.size());
+    }
+
+    static Map<String, String> repositories(List<PipelineView> views) {
+        Map<String, String> repositories = new LinkedHashMap<>();
+        views.forEach(view -> repositories.putIfAbsent(view.service().name(),
+                view.service().settings().scm().repositoryUrl()));
+        return repositories;
     }
 }

@@ -73,6 +73,7 @@ import static com.bbh.itss.dso.portal.domain.catalog.UrbanCodeSettings.DEFAULTS;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.DEFAULT_AGENT_LABEL;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.EXTENDED;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -91,7 +92,8 @@ public class DemoDataLoader implements ApplicationRunner {
     static final List<DemoProduct> CATALOGUE = List.of(
             new DemoProduct("DOCSENSE", "DocSense", "AI Lab", "AIL", "AI Lab Engineering",
                     "Reads fund prospectuses and KYC documents and extracts their data with machine learning.",
-                    service("extraction-api", "Document extraction REST API", GRADLE_OPENSHIFT, SECURITY, EXTENDED),
+                    service("extraction-api", "Document extraction REST API", GRADLE_OPENSHIFT, SECURITY, EXTENDED,
+                            NEXUS_IQ),
                     service("review-ui", "Review screen for analysts", GRADLE_VM, SAST)),
             new DemoProduct("ADVISORAI", "Advisor Assistant", "AI Lab", "AIL", "AI Lab Engineering",
                     "Drafts answers for relationship managers from approved BBH content with a language model.",
@@ -109,7 +111,7 @@ public class DemoDataLoader implements ApplicationRunner {
             new DemoProduct("ACCESSHUB", "Access Hub", "Corporate Technology", "CT", "Identity and Access",
                     "Self-service access requests and quarterly entitlement reviews.",
                     service("requests-ui", "Access request screens", GRADLE_VM),
-                    service("workflow", "Approval workflow engine", MAVEN_OPENSHIFT, SECURITY)),
+                    service("workflow", "Approval workflow engine", MAVEN_OPENSHIFT, SECURITY, NEXUS_IQ)),
             new DemoProduct("SAFEKEEP", "Safekeeping Ledger", "Custody", "CUS", "Custody Platform",
                     "Books and reconciles client positions held with sub-custodians.",
                     service("positions-api", "Positions and holdings API", MAVEN_OPENSHIFT, SECURITY, EXTENDED),
@@ -120,7 +122,7 @@ public class DemoDataLoader implements ApplicationRunner {
                     service("elections-ui", "Client election screens", GRADLE_VM)),
             new DemoProduct("PAYHUB", "Payments Hub", "Fund Services", "PAY", "Payments Engineering",
                     "Payment orchestration platform: gateway, ledger, notifications and reporting.",
-                    service("gateway", "Public payment API", MAVEN_OPENSHIFT, SECURITY, EXTENDED),
+                    service("gateway", "Public payment API", MAVEN_OPENSHIFT, SECURITY, EXTENDED, NEXUS_IQ),
                     service("ledger", "Double-entry ledger", GRADLE_VM),
                     service("notifications", "E-mail and push notifications", GRADLE_VM),
                     service("mobile-app", "Flutter mobile application", FLUTTER, SAST)),

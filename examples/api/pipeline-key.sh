@@ -2,8 +2,8 @@
 set -euo pipefail
 
 PORTAL_URL="${PORTAL_URL:-http://localhost:8080}"
-PRODUCT_CODE="${1:?usage: pipeline-key.sh PRODUCT_CODE SERVICE [FULL|SECURITY|EXTENDED|SAST]}"
-SERVICE="${2:?usage: pipeline-key.sh PRODUCT_CODE SERVICE [FULL|SECURITY|EXTENDED|SAST]}"
+PRODUCT_CODE="${1:?usage: pipeline-key.sh PRODUCT_CODE SERVICE [FULL|SECURITY|EXTENDED|SAST|NEXUS_IQ]}"
+SERVICE="${2:?usage: pipeline-key.sh PRODUCT_CODE SERVICE [FULL|SECURITY|EXTENDED|SAST|NEXUS_IQ]}"
 TYPE="${3:-FULL}"
 
 PRODUCT_ID=$(curl -sS --fail-with-body -G "$PORTAL_URL/api/products" --data-urlencode "search=$PRODUCT_CODE" \

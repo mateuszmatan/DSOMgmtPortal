@@ -5,7 +5,7 @@ import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { Pipeline, PipelineKey } from '../core/models';
 import { pipeline, revokedKey } from '../testing/fixtures';
 import { KeyHistoryDialog } from './key-history-dialog';
-import { buttonOf } from '../testing/dom';
+import { buttonOf, text } from '../testing/dom';
 
 describe('KeyHistoryDialog', () => {
   let fixture: ComponentFixture<KeyHistoryDialog>;
@@ -114,5 +114,29 @@ describe('KeyHistoryDialog', () => {
     expect(page().querySelector('.banner')?.textContent).toBe('Pipeline 100 was not found');
     expect(buttonOf(page(), 'Regenerate key')?.disabled).toBe(false);
     expect(issued).toEqual([]);
+  });
+});
+
+describe('KeyHistoryDialog of a Nexus IQ GoldenFix pipeline', () => {
+  it('names the pipeline by its label', async () => {
+    const nexusIq = pipeline({ type: 'NEXUS_IQ' });
+    TestBed.configureTestingModule({
+      imports: [KeyHistoryDialog],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: MAT_DIALOG_DATA, useValue: nexusIq },
+      ],
+    });
+    const fixture = TestBed.createComponent(KeyHistoryDialog);
+    fixture.detectChanges();
+    TestBed.inject(HttpTestingController)
+      .expectOne('/api/pipelines/100')
+      .flush({ ...nexusIq, keys: [] });
+    await fixture.whenStable();
+
+    expect(text((fixture.nativeElement as HTMLElement).querySelector('.intro'))).toBe(
+      'Nexus IQ GoldenFix pipeline of gui in CertScanner.',
+    );
   });
 });

@@ -12,7 +12,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { BuildTool, DeployTarget } from '../core/models';
 import { SERVICE_NAME, UUID } from '../products/product-form-model';
-import { filled, max, text } from '../shared/form-controls';
+import { HTTP_URL_ERROR, filled, max, text, url } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { ChoiceTiles } from '../shared/choice-tiles';
 import {
@@ -21,6 +21,7 @@ import {
   WizardService,
   TARGETS,
   TOOLS,
+  deploys,
 } from './self-service-model';
 
 export interface ServiceDialogData {
@@ -110,6 +111,34 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
               </mat-form-field>
             }
           }
+          @if (scans) {
+            <h3>Nexus IQ and Bitbucket</h3>
+            <mat-form-field class="full-width">
+              <mat-label>Nexus IQ application</mat-label>
+              <input
+                matInput
+                class="mono"
+                formControlName="nexusIqApplication"
+                placeholder="cert-scanner-gui"
+                autocomplete="off"
+                required
+              />
+              <mat-hint>The application ID of the service in Nexus IQ</mat-hint>
+              <mat-error>{{ errorText(form.controls.nexusIqApplication) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="full-width">
+              <mat-label>Bitbucket repository</mat-label>
+              <input
+                matInput
+                formControlName="repositoryUrl"
+                placeholder="https://bitbucket.bbh.com/projects/TA/repos/cert-scanner"
+                autocomplete="off"
+                required
+              />
+              <mat-hint>GoldenFix opens its pull requests here</mat-hint>
+              <mat-error>{{ errorText(form.controls.repositoryUrl, urlHelp) }}</mat-error>
+            </mat-form-field>
+          }
           @if (existing) {
             <p class="note">
               {{
@@ -174,7 +203,8 @@ export class ServiceDialog {
 
   private readonly start = this.data.service;
   protected readonly existing = this.start?.id != null;
-  protected readonly deploys = this.data.pipeline !== 'SAST';
+  protected readonly deploys = deploys(this.data.pipeline);
+  protected readonly scans = this.data.pipeline === 'NEXUS_IQ';
   private readonly onOpenShift =
     this.existing && this.start?.target === 'OPENSHIFT' && !this.start.openShiftProject;
   protected readonly tools = TOOLS;
@@ -182,6 +212,7 @@ export class ServiceDialog {
   protected readonly nameHelp = NAME_HELP;
   protected readonly appScanHelp = APP_SCAN_HELP;
   protected readonly projectHelp = PROJECT_HELP;
+  protected readonly urlHelp = HTTP_URL_ERROR;
   protected readonly errorText = errorText;
 
   protected readonly page = signal<1 | 2>(1);
@@ -206,10 +237,13 @@ export class ServiceDialog {
     description: text(this.start?.description, max(2000)),
     appScanId: text(this.start?.appScanId, filled, Validators.pattern(UUID)),
     openShiftProject: text(this.start?.openShiftProject, Validators.pattern(OPENSHIFT_PROJECT)),
+    nexusIqApplication: text(this.start?.nexusIqApplication, filled, max(200)),
+    repositoryUrl: url(this.start?.repositoryUrl, 1000, filled),
   });
 
   protected next(): void {
-    const { name, description, appScanId, openShiftProject } = this.form.controls;
+    const { name, description, appScanId, openShiftProject, nexusIqApplication, repositoryUrl } =
+      this.form.controls;
     if (this.page() === 1) {
       [name, description, appScanId].forEach((control) => control.markAsTouched());
       if (name.valid && description.valid && appScanId.valid) {
@@ -218,14 +252,18 @@ export class ServiceDialog {
       return;
     }
     this.checked.set(true);
-    openShiftProject.markAsTouched();
+    [openShiftProject, nexusIqApplication, repositoryUrl].forEach((control) =>
+      control.markAsTouched(),
+    );
     if (this.tool() === null || (this.deploys && this.target() === null)) {
       return;
     }
     if (this.needsProject() && !openShiftProject.value.trim()) {
       openShiftProject.setErrors({ required: true });
     }
-    if (!this.needsProject() || openShiftProject.valid) {
+    const placed = !this.needsProject() || openShiftProject.valid;
+    const linked = !this.scans || (nexusIqApplication.valid && repositoryUrl.valid);
+    if (placed && linked) {
       this.finish();
     }
   }
@@ -240,6 +278,8 @@ export class ServiceDialog {
       tool: this.tool()!,
       target: this.target(),
       openShiftProject: this.target() === 'OPENSHIFT' ? value.openShiftProject.trim() : '',
+      nexusIqApplication: value.nexusIqApplication.trim(),
+      repositoryUrl: value.repositoryUrl.trim(),
     });
   }
 

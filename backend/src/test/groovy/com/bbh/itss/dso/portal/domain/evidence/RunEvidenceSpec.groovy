@@ -47,7 +47,7 @@ class RunEvidenceSpec extends Specification {
         new RunEvidence([point('stage_event', stage: 'Build')]).releaseGate() == null
         RunEvidence.none().stages() == []
         MEASUREMENTS == ['security_findings', 'policy_status', 'code_coverage', 'test_execution', 'release_gate',
-                         'vulnerabilities', 'stage_event', 'build_evidence']
+                         'vulnerabilities', 'stage_event', 'build_evidence', 'goldenfix']
     }
 
     def "coverage met #met, measured #measured and policy status #policy is #status"() {
@@ -327,7 +327,9 @@ class RunEvidenceSpec extends Specification {
                 point('code_coverage', module: 'gui', line_pct: '82.5', required: '60', met: '1', covered: '825',
                         total: '1000'),
                 point('release_gate', allowed: 'yes', violations: '0'),
-                point('stage_event', stage: 'Build', status: 'PASS', order: '1', duration_s: '60')])
+                point('stage_event', stage: 'Build', status: 'PASS', order: '1', duration_s: '60'),
+                point('goldenfix', module: 'gui', status: 'NO_FIXES', offered: '0', applied: '0', unresolved: '0',
+                        pr_raised: '0', build_check: '0', build_failed: '0')])
 
         when:
         def report = evidence.report(run, 'gui', links)
@@ -341,6 +343,46 @@ class RunEvidenceSpec extends Specification {
         report.scans() == evidence.scans('gui', links)
         report.releaseGate() == new ReleaseGateEvidence(true, 0L, null)
         report.stages() == [new StageEvidence('Build', PASS, 60L, null)]
+        report.goldenFix() == new GoldenFixEvidence('NO_FIXES', 0, 0, 0, false, null, null)
+        RunEvidence.none().report(run, 'gui', links).goldenFix() == null
+    }
+
+    def "GoldenFix of the module that raised the golden pull request names it"() {
+        given:
+        def evidence = new RunEvidence([
+                point('goldenfix', module: 'gui', status: 'PR_CREATED', offered: '3', applied: '2', unresolved: '1',
+                        pr_raised: '1', build_check: '1', build_failed: '0',
+                        pr_url: ' https://bitbucket.bbh.com/projects/TA/repos/cert-scanner/pull-requests/7 ',
+                        pr_title: 'GoldenFix-202610011000'),
+                point('goldenfix', module: 'backend-api', status: 'NO_FIXES', offered: '0', applied: '0',
+                        unresolved: '0', pr_raised: '0', build_check: '0', build_failed: '0')])
+
+        expect:
+        evidence.goldenFix('gui') == new GoldenFixEvidence('PR_CREATED', 3, 2, 1, true,
+                'https://bitbucket.bbh.com/projects/TA/repos/cert-scanner/pull-requests/7', 'GoldenFix-202610011000')
+        evidence.goldenFix('backend-api') == new GoldenFixEvidence('NO_FIXES', 0, 0, 0, false, null, null)
+        evidence.goldenFix('cli') == null
+    }
+
+    def "a module has no GoldenFix result with #description"() {
+        expect:
+        new RunEvidence(points).goldenFix('gui') == null
+
+        where:
+        description                   | points
+        'no point'                    | []
+        'other measurements only'     | [point('policy_status', scanner: 'iast', status: 'WARN')]
+        'the point of another module' | [point('goldenfix', module: 'backend-api', status: 'PR_CREATED')]
+    }
+
+    def "the only GoldenFix point counts for a module without its own and blank values read as not recorded"() {
+        given:
+        def unique = point('goldenfix', status: 'PR_UPDATED', pr_raised: '1', offered: '2')
+        def blank = point('goldenfix', module: 'gui', status: ' ', offered: 'n/a', pr_url: '')
+
+        expect:
+        new RunEvidence([unique]).goldenFix('gui') == new GoldenFixEvidence('PR_UPDATED', 2, 0, 0, true, null, null)
+        new RunEvidence([blank]).goldenFix('gui') == new GoldenFixEvidence(null, 0, 0, 0, false, null, null)
     }
 
     def "the build names the artifact version and the portal configuration it ran with"() {

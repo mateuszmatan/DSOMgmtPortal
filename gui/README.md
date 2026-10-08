@@ -18,7 +18,7 @@ Gradle downloads Node.js 24 into `gui/.gradle/nodejs`.
 | Folder        | Holds |
 |---------------|-------|
 | `core/`       | API clients, models mirroring the backend DTOs, error handling, the portal sections and the header menus |
-| `self-service/` | Self-service: the step-by-step wizard that sets up or changes the pipelines of a product, whose answers `self-service-model.ts` turns into a product request with BBH defaults (build tasks, Nexus delivery, OpenShift project names) |
+| `self-service/` | Self-service: the step-by-step wizard that sets up or changes the pipelines of a product, whose answers `self-service-model.ts` turns into a product request with BBH defaults (build tasks, Nexus delivery, OpenShift project names, Nexus IQ scan patterns) |
 | `admin/`      | the Admin page with its tab bar, shared by DevSecOps Admin and Beadle Admin, and the Departments tab |
 | `products/`   | DevSecOps Admin products: the product list grouped by department, product editor, product page with pipelines and keys |
 | `monitoring/` | Pipeline Monitoring: overview, product pipelines, pipeline details with DORA and Grafana |
@@ -62,15 +62,17 @@ every feature land in `build/reports/gui/screenshots`.
   removing services; Bitbucket fields, GoldenFix default and test job parameters; adding pipelines, replacing,
   invalidating and regenerating keys, and the keys generated for new services; config previews and their problem
   details; library defaults with a version conflict; the Self-service wizard for a new product and for one in the portal
-  (adding a pipeline, changing and removing services); Beadle Admin products, their services and their ServiceNow
-  defaults with privileged users and a version conflict; the production change by FixVersion from the product to the
-  raised change; change evidence and its ServiceNow text; monitoring ranges, Jenkins and build links, InfluxDB missing
-  or unreachable; and failing API calls.
-- Performance (`src/performanceTest`): the stub serves 25 products with 16 services and 4 pipelines each, with
-  monitoring and evidence for all of them. The suite times the cold product list, the product page, the editor and
-  a service expansion, the monitoring overview, a product's monitoring and a product's evidence in the browser, from
-  the click to the content being visible, one warm-up and five measured runs each, and fails when a p95 passes its
-  limit. `-Dperformance.factor=2` doubles the time limits on a slow machine. The table of timings is
+  (adding a pipeline, a Nexus IQ GoldenFix pipeline with the Nexus IQ application and repository of each service,
+  changing and removing services); Beadle Admin products, their services and their ServiceNow defaults with privileged
+  users and a version conflict; the production change by FixVersion from the product to the raised change; change
+  evidence and its ServiceNow text, and the golden pull request of a Nexus IQ GoldenFix run; monitoring ranges,
+  Jenkins and build links, InfluxDB missing or unreachable; and failing API calls.
+- Performance (`src/performanceTest`): the stub serves 25 products with 16 services and 4 pipelines each (Full,
+  Security, Extended and SAST scanning, so the workload stays the same as new types are added), with monitoring and
+  evidence for all of them. The suite times the cold product list, the product page, the editor and a service
+  expansion, the monitoring overview, a product's monitoring and a product's evidence in the browser, from the click
+  to the content being visible, one warm-up and five measured runs each, and fails when a p95 passes its limit.
+  `-Dperformance.factor=2` doubles the time limits on a slow machine. The table of timings is
   `build/reports/performance/gui-performance-report.md`; the bundle size is guarded by the `angular.json` budgets.
 
 ## Look and layout
@@ -101,6 +103,37 @@ the repository URL. They are optional: the pipeline reads them from the reposito
 product page links each service to its repository: the repository URL when set, otherwise
 `https://bitbucket.org/{workspace}/{repoSlug}` for Bitbucket Cloud or `{apiUrl}/projects/{projectKey}/repos/{repoSlug}`
 for Data Center (`users/` for a personal `~` project key).
+
+## Pipeline types
+
+`PIPELINE_TYPES` in `core/models.ts` lists the pipeline types in the order the pages show them: Full, Security,
+Extended, SAST scanning and Nexus IQ GoldenFix (`NEXUS_IQ`, run by `devSecOpsNexusIqGoldenFixPipeline`). The Add
+pipeline dialog offers the types a service has no pipeline of; only Security and Extended have a job field of another
+pipeline. No page lowercases the type itself: `pipelineTypeSlug` gives the part of job and file names (`full`, `sast`,
+`nexusiq`, so the suggested job is `DevSecOps/<CODE>/<service>-nexusiq`) and `pipelineTypeName` the name inside a
+sentence (`full`, `sast`, `Nexus IQ GoldenFix`).
+
+## Self-service wizard
+
+The wizard has five steps: Product, Pipeline, Services, Review and Next steps. The Pipeline step offers Static scan,
+Nexus IQ GoldenFix, Security and Full, and "Have these at hand" lists what the chosen one needs. Only Security and Full
+deploy (`deploys()` in `self-service-model.ts`), so only they ask where each service runs. Every pipeline asks for the
+AppScan application ID of each service, which the portal requires.
+
+For Nexus IQ GoldenFix the second part of the service dialog asks for the build tool, the Nexus IQ application and the
+Bitbucket repository (an http or https URL), filled in from a service in the portal (its first Nexus IQ application
+and `scm.repositoryUrl`); the Services step does not go on while a service lacks either. Saving renames the first
+Nexus IQ application of the service, or adds one with stage `build` and the scan pattern of its build tool
+(`**/build/libs/*.jar` for Gradle, `**/target/*.jar` for Maven, `**/pubspec.lock` for Flutter), and sets the repository
+URL, with the credentials `bitbucket-http-credentials` when the service has none. Every other stored setting stays as
+it is, and the other pipelines neither write nor review these two answers. The next steps add one: review the golden
+pull requests GoldenFix opens in each service's repository.
+
+## GoldenFix in the change evidence
+
+A run that went through GoldenFix carries `goldenFix`: its status, the upgrades offered, applied and left unresolved,
+and the golden pull request. The pipeline card shows it in plain words under the scans with a link to the pull
+request, and the ServiceNow text adds a GoldenFix block after the scans. A run without it shows nothing more.
 
 ## Pipeline keys
 

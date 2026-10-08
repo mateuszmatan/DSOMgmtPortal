@@ -65,9 +65,9 @@ class PortalSmokeSpec extends Specification {
         then:
         departments.status == 200
         departments.json instanceof List
-        !started || tallies == ['AI Lab'              : [2, 4, 8, 8], 'Capital Partners': [2, 5, 9, 9],
-                                'Corporate Technology': [2, 4, 10, 10], 'Custody': [2, 4, 8, 7],
-                                'Fund Services'       : [2, 6, 11, 10]]
+        !started || tallies == ['AI Lab'              : [2, 4, 9, 9], 'Capital Partners': [2, 5, 9, 9],
+                                'Corporate Technology': [2, 4, 11, 11], 'Custody': [2, 4, 8, 7],
+                                'Fund Services'       : [2, 6, 12, 11]]
     }
 
     def "every product's services, pipelines, configuration and change evidence can be read"() {

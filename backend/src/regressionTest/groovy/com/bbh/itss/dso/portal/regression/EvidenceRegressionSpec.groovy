@@ -155,6 +155,37 @@ class EvidenceRegressionSpec extends PortalSpecification {
         influx.requests.count { it.body.query.contains('"security_findings"') } == 1
     }
 
+    def "a Nexus IQ GoldenFix pipeline shows the golden pull request its latest run raised"() {
+        given:
+        def guiNexusIq = pipelineFor(evidenced.services[0].id as long, pipeline(type: 'NEXUS_IQ'))
+        String project = "$code-guinexusiq"
+        String pullRequest = 'https://bitbucket.bbh.com/projects/TRE/repos/gui/pull-requests/12'
+        influx.addRun(project: project, variant: 'nexusiq', time: finished, result: 'UNSTABLE', build: 7,
+                durationSeconds: 420)
+        def point = { Map args -> influx.addPoint([project: project, time: finished] + args) }
+        point(measurement: 'goldenfix', module: 'gui', status: 'PR_CREATED', offered: '3', applied: '2',
+                unresolved: '1', pr_raised: '1', build_check: '1', build_failed: '0', pr_url: pullRequest,
+                pr_title: 'GoldenFix-202610051015')
+        point(measurement: 'policy_status', scanner: 'iast', status: 'warn')
+        point(measurement: 'stage_event', stage: 'Dependencies scan (Nexus IQ)', status: 'warn', order: '3',
+                duration_s: '95', time: finished - ofSeconds(30),
+                reason: "Dependencies (Nexus IQ) policy not met | GoldenFix pull request raised: $pullRequest")
+
+        when:
+        def pipelines = api.get("/api/evidence/products/$evidenced.id").json.services[0].pipelines
+        def nexusIq = pipelines.find { it.pipelineId == guiNexusIq.id }
+
+        then:
+        pipelines*.type == ['FULL', 'NEXUS_IQ', 'SAST']
+        nexusIq.status == 'UNSTABLE'
+        nexusIq.run.build.number == 7
+        nexusIq.run.goldenFix == [status: 'PR_CREATED', offered: 3, applied: 2, unresolved: 1, pullRequestRaised: true,
+                                  pullRequestUrl: pullRequest, pullRequestTitle: 'GoldenFix-202610051015']
+        nexusIq.run.scans.find { it.scanner == 'NEXUS_IQ' }.status == 'WARN'
+        nexusIq.run.stages*.name == ['Dependencies scan (Nexus IQ)']
+        pipelines[0].run.goldenFix == null
+    }
+
     def "the build links follow the job that recorded the run, not the job the pipeline was given"() {
         given:
         def settings = api.get('/api/settings').json as Map
@@ -202,6 +233,7 @@ class EvidenceRegressionSpec extends PortalSpecification {
         full.run.scans*.status == ['NO_DATA', 'NO_DATA', 'NO_DATA', 'NO_DATA']
         full.run.releaseGate == null
         full.run.stages == []
+        full.run.goldenFix == null
     }
 
     def "when InfluxDB fails every pipeline is still listed, with the reason"() {

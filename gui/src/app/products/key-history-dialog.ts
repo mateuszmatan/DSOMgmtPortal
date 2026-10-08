@@ -9,9 +9,9 @@ import { MatTableModule } from '@angular/material/table';
 import { finalize } from 'rxjs';
 import { PipelinesApi } from '../core/api';
 import { errorMessage } from '../core/errors';
-import { Pipeline } from '../core/models';
+import { Pipeline, pipelineTypeName } from '../core/models';
 import { Notifier } from '../core/notifier';
-import { RelativeTimePipe } from '../shared/formatting';
+import { RelativeTimePipe, capitalized } from '../shared/formatting';
 
 @Component({
   selector: 'dso-key-history-dialog',
@@ -29,8 +29,8 @@ import { RelativeTimePipe } from '../shared/formatting';
     <h2 mat-dialog-title>Key history</h2>
     <mat-dialog-content>
       <p class="intro">
-        {{ data.type.charAt(0) + data.type.slice(1).toLowerCase() }} pipeline of
-        <strong class="mono">{{ data.serviceName }}</strong> in {{ data.productName }}.
+        {{ typeName }} pipeline of <strong class="mono">{{ data.serviceName }}</strong> in
+        {{ data.productName }}.
       </p>
       @if (pipeline.isLoading()) {
         <mat-progress-bar mode="indeterminate" />
@@ -146,6 +146,7 @@ export class KeyHistoryDialog {
   readonly keyIssued = output<Pipeline>();
 
   protected readonly data = inject<Pipeline>(MAT_DIALOG_DATA);
+  protected readonly typeName = capitalized(pipelineTypeName(this.data.type));
   private readonly api = inject(PipelinesApi);
   private readonly notifier = inject(Notifier);
 

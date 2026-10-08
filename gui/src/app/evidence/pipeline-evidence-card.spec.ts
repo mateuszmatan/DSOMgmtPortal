@@ -2,6 +2,7 @@ import { Clipboard } from '@angular/cdk/clipboard';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PipelineEvidence, RunEvidence } from '../core/models';
 import {
+  goldenFixEvidence,
   pipelineEvidence,
   productEvidence,
   runEvidence,
@@ -70,6 +71,42 @@ describe('PipelineEvidenceCard', () => {
     expect(cells('Smoke')).toEqual(['Passed', '2', '2', '0', '–', '0', '1m 35s']);
     expect(row('Regression').querySelector('td.bad')?.textContent?.trim()).toBe('1');
     expect(cells('Performance')).toEqual(['Not recorded']);
+    expect(card().querySelector('.golden-fix')).toBeNull();
+  });
+
+  it('says what GoldenFix did and links its pull request', async () => {
+    await render(withRun({ goldenFix: goldenFixEvidence() }));
+
+    expect(text('.golden-fix h5')).toBe('GoldenFix');
+    expect(text('.golden-fix p')).toBe(
+      'Pull request raised · 2 of 3 upgrades applied, 1 unresolved · GoldenFix-202610040815',
+    );
+    const link = card().querySelector<HTMLAnchorElement>('.golden-fix a');
+    expect(link?.getAttribute('href')).toBe(
+      'https://bitbucket.bbh.com/projects/CERT/repos/gui/pull-requests/17',
+    );
+    expect(link?.target).toBe('_blank');
+
+    await render(withRun({ goldenFix: goldenFixEvidence({ pullRequestTitle: null }) }));
+    expect(text('.golden-fix a')).toBe('Pull request');
+
+    await render(
+      withRun({
+        goldenFix: goldenFixEvidence({
+          status: 'NO_FIXES',
+          offered: 0,
+          applied: 0,
+          unresolved: 2,
+          pullRequestRaised: false,
+          pullRequestUrl: null,
+          pullRequestTitle: null,
+        }),
+      }),
+    );
+    expect(text('.golden-fix p')).toBe(
+      'No safe versions offered · 0 of 0 upgrades applied, 2 unresolved',
+    );
+    expect(card().querySelector('.golden-fix a')).toBeNull();
   });
 
   it('reads the scans against the limits of the policy', async () => {

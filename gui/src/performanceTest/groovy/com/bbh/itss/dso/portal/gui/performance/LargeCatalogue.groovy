@@ -15,7 +15,7 @@ class LargeCatalogue {
 
     static final int PRODUCTS = 25
     static final int SERVICES = 16
-    static final Map<String, String> TYPES = ENTRY_POINTS
+    static final Map<String, String> TYPES = ENTRY_POINTS.subMap(['FULL', 'SECURITY', 'EXTENDED', 'SAST'])
     static final int PIPELINES = SERVICES * TYPES.size()
 
     private final Map product = fixture('product-2.json') as Map

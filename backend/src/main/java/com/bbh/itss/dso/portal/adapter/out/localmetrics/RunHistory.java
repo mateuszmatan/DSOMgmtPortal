@@ -7,6 +7,7 @@ import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 
 import java.time.Instant;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -26,6 +27,7 @@ import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.SUCCESS;
 import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.UNSTABLE;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.EXTENDED;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY;
 import static java.lang.Math.log;
@@ -33,6 +35,7 @@ import static java.lang.Math.max;
 import static java.lang.Math.round;
 import static java.time.DayOfWeek.SATURDAY;
 import static java.time.ZoneOffset.UTC;
+import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static java.util.Locale.ROOT;
 import static java.util.Map.entry;
@@ -65,29 +68,33 @@ final class RunHistory {
             entry("Performance Tests", "p95 latency above the limit"),
             entry("Release Gate", "The release gate refused the build"));
     private static final Map<PipelineType, Profile> PROFILES = Map.of(
-            FULL, new Profile(1.4, 45, 95, List.of("Checkout", "Build", "Unit Tests", "SonarQube",
+            FULL, new Profile(1.4, 45, 95, 0, List.of("Checkout", "Build", "Unit Tests", "SonarQube",
                     "AppScan SAST", "Nexus IQ", "Publish Artifact", "Deploy RD", "Smoke Tests", "Regression Tests",
                     "Deploy QC", "Release Gate")),
-            SECURITY, new Profile(0.7, 20, 45, List.of("Checkout", "Build", "Unit Tests",
+            SECURITY, new Profile(0.7, 20, 45, 0, List.of("Checkout", "Build", "Unit Tests",
                     "AppScan SAST", "Nexus IQ", "SonarQube", "AppScan DAST", "Release Gate")),
-            EXTENDED, new Profile(0.4, 70, 130, List.of("Checkout", "Read Security Run", "Deploy RD",
+            EXTENDED, new Profile(0.4, 70, 130, 0, List.of("Checkout", "Read Security Run", "Deploy RD",
                     "Smoke Tests", "Regression Tests", "Performance Tests", "AppScan DAST", "Deploy QC",
                     "Release Gate")),
-            SAST, new Profile(0.9, 6, 18, List.of("Checkout", "Build", "AppScan SAST", "Release Gate")));
+            SAST, new Profile(0.9, 6, 18, 0, List.of("Checkout", "Build", "AppScan SAST", "Release Gate")),
+            NEXUS_IQ, new Profile(0.8, 5, 15, 0.6, List.of("Checkout", "Build", "Nexus IQ", "Release Gate")));
+    private static final DateTimeFormatter GOLDEN_FIX_TITLE = ofPattern("'GoldenFix-'yyyyMMddHHmm").withZone(UTC);
 
     private final MetricsTag tag;
     private final String job;
     private final List<String> modules;
+    private final Map<String, String> repositories;
     private final Profile profile;
     private final Random random;
     private final double health;
     private final long leadTimeSeconds;
     private final String release;
 
-    RunHistory(MetricsTag tag, String job, PipelineType type, List<String> modules, Random random) {
+    RunHistory(MetricsTag tag, String job, PipelineType type, Map<String, String> repositories, Random random) {
         this.tag = tag;
         this.job = job;
-        this.modules = List.copyOf(modules);
+        this.modules = List.copyOf(repositories.keySet());
+        this.repositories = new HashMap<>(repositories);
         this.profile = PROFILES.get(type);
         this.random = random;
         this.health = 0.75 + random.nextDouble() * 0.22;
@@ -138,7 +145,7 @@ final class RunHistory {
 
     private RunResult result(boolean failing) {
         if (random.nextDouble() < (failing ? 0.45 : health)) {
-            return SUCCESS;
+            return profile.warnings() > 0 && random.nextDouble() < profile.warnings() ? UNSTABLE : SUCCESS;
         }
         double kind = random.nextDouble();
         return kind < 0.5 ? FAILURE : kind < 0.9 ? UNSTABLE : ABORTED;
@@ -214,6 +221,11 @@ final class RunHistory {
         for (String module : modules) {
             points.addAll(moduleEvidence(run, module));
         }
+        if (run.status("Nexus IQ") == WARN) {
+            for (int i = 0; i < modules.size(); i++) {
+                points.add(goldenFix(run, modules.get(i), run.build() + i));
+            }
+        }
         policy(run, "AppScan SAST", "sast", points);
         policy(run, "Nexus IQ", "iast", points);
         policy(run, "SonarQube", "sonar", points);
@@ -267,6 +279,23 @@ final class RunHistory {
         findings(run, module, "AppScan DAST", "dast", 1, points);
         findings(run, module, "Nexus IQ", "niq", 0, points);
         return points;
+    }
+
+    private StoredPoint goldenFix(Run run, String module, long seed) {
+        String repository = repositories.get(module);
+        boolean raised = repository != null;
+        int offered = 2 + (int) (seed % 3);
+        int unresolved = raised ? (int) (seed % 2) : 0;
+        Map<String, String> values = new HashMap<>(Map.of("module", module,
+                "status", raised ? "PR_CREATED" : "NOT_CONFIGURED", "offered", Integer.toString(offered),
+                "applied", Integer.toString(raised ? offered - unresolved : 0),
+                "unresolved", Integer.toString(unresolved), "pr_raised", flag(raised), "build_check", flag(raised),
+                "build_failed", flag(false)));
+        if (raised) {
+            values.putAll(Map.of("pr_url", repository + "/pull-requests/" + run.build(),
+                    "pr_title", GOLDEN_FIX_TITLE.format(run.end())));
+        }
+        return point("goldenfix", run.end(), values);
     }
 
     private void findings(Run run, String module, String stage, String scanner, int maxHigh, List<StoredPoint> points) {
@@ -329,7 +358,7 @@ final class RunHistory {
         return status.name().toLowerCase(ROOT);
     }
 
-    private record Profile(double perDay, int minMinutes, int maxMinutes, List<String> stages) {
+    private record Profile(double perDay, int minMinutes, int maxMinutes, double warnings, List<String> stages) {
     }
 
     private record Run(Instant start, Instant end, long build, RunResult result, String branch, String commit,

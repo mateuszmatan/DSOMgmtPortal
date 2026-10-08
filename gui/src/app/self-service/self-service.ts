@@ -54,6 +54,7 @@ import {
   ProductMode,
   ServiceStart,
   changesOf,
+  deploys,
   fromService,
   jobName,
   pipelineChoices,
@@ -126,16 +127,23 @@ export class SelfService implements HasUnsavedChanges {
     this.services().filter((service) => !this.isRemoved(service)),
   );
   protected readonly unplaced = computed(() =>
-    this.pipeline() === 'SAST'
-      ? []
-      : this.kept()
+    deploys(this.pipeline()!)
+      ? this.kept()
           .filter(
             (service) =>
               service.id === null &&
               (service.target === null ||
                 (service.target === 'OPENSHIFT' && !service.openShiftProject)),
           )
-          .map((service) => service.name),
+          .map((service) => service.name)
+      : [],
+  );
+  protected readonly unscanned = computed(() =>
+    this.pipeline() === 'NEXUS_IQ'
+      ? this.kept()
+          .filter((service) => !service.nexusIqApplication || !service.repositoryUrl)
+          .map((service) => service.name)
+      : [],
   );
   protected readonly existing = signal<Product | null>(null);
   protected readonly productError = signal<string | null>(null);
@@ -335,7 +343,7 @@ export class SelfService implements HasUnsavedChanges {
 
   protected isChanged(service: WizardService): boolean {
     const stored = this.existing()?.services.find((candidate) => candidate.id === service.id);
-    return !!stored && changesOf(service, stored).length > 0;
+    return !!stored && changesOf(this.pipeline()!, service, stored).length > 0;
   }
 
   protected removeService(index: number): void {
@@ -395,7 +403,9 @@ export class SelfService implements HasUnsavedChanges {
       case 1:
         return this.pipeline() !== null;
       case 2:
-        return this.kept().length > 0 && this.unplaced().length === 0;
+        return (
+          this.kept().length > 0 && this.unplaced().length === 0 && this.unscanned().length === 0
+        );
       default:
         return !this.saving();
     }

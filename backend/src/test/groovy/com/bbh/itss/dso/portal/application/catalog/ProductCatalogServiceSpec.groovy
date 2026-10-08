@@ -17,6 +17,7 @@ import spock.lang.Specification
 import java.time.Instant
 
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.Fixtures.account
@@ -154,21 +155,27 @@ class ProductCatalogServiceSpec extends Specification {
         []                                            || []
     }
 
-    def "a save naming a pipeline type gives that pipeline to every service of the product that lacks one"() {
+    def "a save naming the #type pipeline type gives that pipeline to every service of the product that lacks one"() {
         given:
         products.load(5L) >> Optional.of(product(id: 5, services: [[name: 'gui', id: 10]]))
 
         when:
-        save(catalog)
+        save(catalog, type)
 
         then:
         1 * products.save(_) >> { Product p -> stored(5L, p, [10L, 12L]) }
-        1 * pipelines.createMissing(5L, [10L, 12L], SAST)
+        1 * pipelines.createMissing(5L, [10L, 12L], type)
 
         where:
-        save << [{ it.create(command(services: [service(name: 'gui'), service(name: 'worker')], pipelineType: SAST)) },
-                 { it.update(5L, command(version: 0L, services: [service(id: 10L, name: 'gui'), service(name: 'worker')],
-                         pipelineType: SAST)) }]
+        [type, save] << [[SAST, NEXUS_IQ], [
+                { ProductCatalogService saving, PipelineType pipelineType ->
+                    saving.create(command(services: [service(name: 'gui'), service(name: 'worker')],
+                            pipelineType: pipelineType))
+                },
+                { ProductCatalogService saving, PipelineType pipelineType ->
+                    def services = [service(id: 10L, name: 'gui'), service(name: 'worker')]
+                    saving.update(5L, command(version: 0L, services: services, pipelineType: pipelineType))
+                }]].combinations()
     }
 
     def "every invalid service is reported at once and nothing is stored"() {

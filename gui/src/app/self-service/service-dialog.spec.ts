@@ -5,6 +5,7 @@ import { WizardService } from './self-service-model';
 import { ServiceDialog, ServiceDialogData } from './service-dialog';
 
 const APP_ID = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31';
+const REPOSITORY = 'https://bitbucket.bbh.com/projects/PAY/repos/gateway';
 
 describe('ServiceDialog', () => {
   let fixture: ComponentFixture<ServiceDialog>;
@@ -92,6 +93,8 @@ describe('ServiceDialog', () => {
       tool: 'MAVEN',
       target: 'OPENSHIFT',
       openShiftProject: 'pay-payhub',
+      nexusIqApplication: '',
+      repositoryUrl: '',
     } satisfies WizardService);
   });
 
@@ -102,6 +105,8 @@ describe('ServiceDialog', () => {
     await submit();
 
     expect(page().querySelectorAll('[role=radiogroup]')).toHaveLength(1);
+    expect(inputOf(page(), 'Nexus IQ application')).toBeUndefined();
+    expect(inputOf(page(), 'Bitbucket repository')).toBeUndefined();
 
     page().querySelector<HTMLButtonElement>('mat-dialog-actions button[type=button]')!.click();
     await fixture.whenStable();
@@ -130,6 +135,8 @@ describe('ServiceDialog', () => {
       tool: 'GRADLE',
       target: 'VM',
       openShiftProject: '',
+      nexusIqApplication: 'cert-gui',
+      repositoryUrl: 'https://bitbucket.bbh.com/projects/CERT/repos/gui',
     };
     await open({ service, takenNames: ['api'] });
 
@@ -175,6 +182,8 @@ describe('ServiceDialog', () => {
       tool: 'MAVEN',
       target: 'OPENSHIFT',
       openShiftProject: '',
+      nexusIqApplication: '',
+      repositoryUrl: '',
     };
     await open({ service, pipeline: 'SAST', takenNames: [] });
     await submit();
@@ -187,5 +196,77 @@ describe('ServiceDialog', () => {
     await submit();
 
     expect(close).toHaveBeenCalledWith(service);
+  });
+
+  it('asks for the Nexus IQ application and the Bitbucket repository of a Nexus IQ GoldenFix service', async () => {
+    await open({ pipeline: 'NEXUS_IQ' });
+    await type('Service name', 'gateway');
+    await type('AppScan application ID', APP_ID);
+    await submit();
+
+    expect(page().querySelectorAll('[role=radiogroup]')).toHaveLength(1);
+    expect([...page().querySelectorAll('h3')].map(text)).toEqual([
+      'What builds the code?',
+      'Nexus IQ and Bitbucket',
+    ]);
+
+    await submit();
+
+    expect(errors()).toEqual(['Choose Gradle or Maven', 'Required', 'Required']);
+
+    await choose('Maven');
+    await type('Nexus IQ application', ' payhub-gateway ');
+    await type('Bitbucket repository', 'bitbucket.bbh.com/projects/PAY');
+    await submit();
+
+    expect(errors()).toEqual([
+      'An http or https URL without spaces, double quotes, backslashes, $ or backticks',
+    ]);
+    expect(close).not.toHaveBeenCalled();
+
+    await type('Bitbucket repository', REPOSITORY);
+    await submit();
+
+    expect(close).toHaveBeenCalledWith({
+      id: null,
+      name: 'gateway',
+      description: '',
+      appScanId: APP_ID,
+      tool: 'MAVEN',
+      target: null,
+      openShiftProject: '',
+      nexusIqApplication: 'payhub-gateway',
+      repositoryUrl: REPOSITORY,
+    } satisfies WizardService);
+  });
+
+  it('starts from the Nexus IQ application and the repository of a service of the portal', async () => {
+    const service: WizardService = {
+      id: 10,
+      name: 'gui',
+      description: '',
+      appScanId: APP_ID,
+      tool: 'GRADLE',
+      target: 'VM',
+      openShiftProject: '',
+      nexusIqApplication: 'cert-gui',
+      repositoryUrl: 'https://bitbucket.bbh.com/projects/CERT/repos/gui',
+    };
+    await open({ service, pipeline: 'NEXUS_IQ', takenNames: [] });
+    await submit();
+
+    expect(inputOf(page(), 'Nexus IQ application').value).toBe('cert-gui');
+    expect(inputOf(page(), 'Bitbucket repository').value).toBe(service.repositoryUrl);
+    expect(inputOf(page(), 'OpenShift project')).toBeUndefined();
+
+    await type('Nexus IQ application', '');
+    await submit();
+
+    expect(errors()).toEqual(['Required']);
+
+    await type('Nexus IQ application', 'cert-web');
+    await submit();
+
+    expect(close).toHaveBeenCalledWith({ ...service, nexusIqApplication: 'cert-web' });
   });
 });

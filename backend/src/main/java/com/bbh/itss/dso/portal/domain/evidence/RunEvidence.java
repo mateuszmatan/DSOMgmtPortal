@@ -41,7 +41,7 @@ import static org.apache.commons.lang3.Strings.CS;
 public final class RunEvidence {
 
     public static final List<String> MEASUREMENTS = List.of("security_findings", "policy_status", "code_coverage",
-            "test_execution", "release_gate", "vulnerabilities", "stage_event", "build_evidence");
+            "test_execution", "release_gate", "vulnerabilities", "stage_event", "build_evidence", "goldenfix");
     private static final Duration TOLERANCE = ofSeconds(2);
 
     private final List<EvidencePoint> points;
@@ -70,7 +70,7 @@ public final class RunEvidence {
 
     public RunEvidenceReport report(PipelineRun run, String module, EvidenceLinks links) {
         return new RunEvidenceReport(build(run, module, links), coverage(module), testSuites(module),
-                scans(module, links), releaseGate(), stages());
+                scans(module, links), releaseGate(), stages(), goldenFix(module));
     }
 
     public BuildEvidence build(PipelineRun run, String module, EvidenceLinks links) {
@@ -150,6 +150,15 @@ public final class RunEvidence {
                 .toList();
     }
 
+    public GoldenFixEvidence goldenFix(String module) {
+        return forModule("goldenfix", module)
+                .map(point -> new GoldenFixEvidence(trimToNull(point.value("status")), whole(point.value("offered")),
+                        whole(point.value("applied")), whole(point.value("unresolved")),
+                        positive(point.value("pr_raised")), trimToNull(point.value("pr_url")),
+                        trimToNull(point.value("pr_title"))))
+                .orElse(null);
+    }
+
     private ScanEvidence appScan(EvidenceScanner scanner, String key, String module, String link) {
         Optional<EvidencePoint> point = findings(key, module);
         CheckStatus policy = policyStatus(key);
@@ -215,6 +224,10 @@ public final class RunEvidence {
 
     private static Long count(Optional<EvidencePoint> point, String name) {
         return point.map(found -> number(found.value(name))).orElse(null);
+    }
+
+    private static int whole(String value) {
+        return getIfNull(number(value), 0L).intValue();
     }
 
     private static Long limit(EvidencePoint point, String name) {

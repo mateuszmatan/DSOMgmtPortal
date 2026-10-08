@@ -2,6 +2,7 @@ import { pipeline, product, service, servicePipelines } from '../testing/fixture
 import {
   WizardService,
   changesOf,
+  deploys,
   fromService,
   jobName,
   pipelineChoices,
@@ -17,6 +18,7 @@ import {
 } from './self-service-model';
 
 const APP_ID = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31';
+const REPOSITORY = 'https://bitbucket.bbh.com/projects/PAY/repos/gateway';
 
 function added(overrides: Partial<WizardService> = {}): WizardService {
   return {
@@ -27,6 +29,8 @@ function added(overrides: Partial<WizardService> = {}): WizardService {
     tool: 'GRADLE',
     target: 'VM',
     openShiftProject: '',
+    nexusIqApplication: '',
+    repositoryUrl: '',
     ...overrides,
   };
 }
@@ -37,6 +41,135 @@ describe('self-service model', () => {
     expect(preparation('FULL')).toContain(
       'Whether each service runs on virtual machines or OpenShift',
     );
+    expect(preparation('NEXUS_IQ')).toEqual([
+      "Your product's AppScan API key ID, from the Application Security team",
+      'The name and the AppScan application ID of each service',
+      'Whether each service is built with Gradle or Maven',
+      'The Nexus IQ application and the Bitbucket repository of each service',
+    ]);
+  });
+
+  it('deploys the services only with the Security and Full pipelines', () => {
+    expect(deploys('SAST')).toBe(false);
+    expect(deploys('NEXUS_IQ')).toBe(false);
+    expect(deploys('SECURITY')).toBe(true);
+    expect(deploys('FULL')).toBe(true);
+  });
+
+  it('scans the libraries of a new service with Nexus IQ and raises its pull requests in Bitbucket', () => {
+    const gradle = serviceRequest(
+      added({ target: null, nexusIqApplication: 'payhub-gateway', repositoryUrl: REPOSITORY }),
+      'NEXUS_IQ',
+    );
+
+    expect(gradle.nexusIqApplications).toEqual([
+      {
+        application: 'payhub-gateway',
+        scanPatterns: ['**/build/libs/*.jar'],
+        stage: 'build',
+        failOnNetworkError: false,
+      },
+    ]);
+    expect(gradle.scm).toEqual(
+      expect.objectContaining({
+        repositoryUrl: REPOSITORY,
+        credentialsId: 'bitbucket-http-credentials',
+        authType: 'BASIC',
+      }),
+    );
+    expect(gradle.deployment.target).toBe('VM');
+    expect(gradle.appScan.applicationId).toBe(APP_ID);
+
+    const maven = serviceRequest(
+      added({ tool: 'MAVEN', nexusIqApplication: 'payhub-gateway', repositoryUrl: REPOSITORY }),
+      'NEXUS_IQ',
+    );
+    expect(maven.nexusIqApplications[0].scanPatterns).toEqual(['**/target/*.jar']);
+  });
+
+  it('renames the first Nexus IQ application of a service in the portal and keeps the rest', () => {
+    const stored = service({
+      nexusIqApplications: [
+        { ...service().nexusIqApplications[0], scanPatterns: ['web/build/libs/*.jar'] },
+        {
+          application: 'cert-gui-tools',
+          scanPatterns: ['tools/*.jar'],
+          stage: 'release',
+          failOnNetworkError: true,
+        },
+      ],
+      scm: { ...service().scm, credentialsId: 'ta-bitbucket' },
+    });
+    const request = serviceRequest(
+      { ...fromService(stored), nexusIqApplication: 'cert-web', repositoryUrl: REPOSITORY },
+      'NEXUS_IQ',
+      stored,
+    );
+
+    expect(request.nexusIqApplications).toEqual([
+      { ...stored.nexusIqApplications[0], application: 'cert-web' },
+      stored.nexusIqApplications[1],
+    ]);
+    expect(request.scm).toEqual({
+      ...stored.scm,
+      repositoryUrl: REPOSITORY,
+      credentialsId: 'ta-bitbucket',
+    });
+    expect(request.build).toEqual(stored.build);
+    expect(request.deployment).toEqual(stored.deployment);
+    expect(request.testJobs).toEqual(stored.testJobs);
+    expect(request.goldenFix).toEqual(stored.goldenFix);
+  });
+
+  it('adds the first Nexus IQ application and the repository to a service in the portal that has none', () => {
+    const stored = service({
+      build: { ...service().build, tool: 'FLUTTER' },
+      nexusIqApplications: [],
+      scm: { ...service().scm, repositoryUrl: null, credentialsId: null },
+    });
+    const request = serviceRequest(
+      { ...fromService(stored), nexusIqApplication: 'cert-mobile', repositoryUrl: REPOSITORY },
+      'NEXUS_IQ',
+      stored,
+    );
+
+    expect(request.nexusIqApplications).toEqual([
+      {
+        application: 'cert-mobile',
+        scanPatterns: ['**/pubspec.lock'],
+        stage: 'build',
+        failOnNetworkError: false,
+      },
+    ]);
+    expect(request.scm.repositoryUrl).toBe(REPOSITORY);
+    expect(request.scm.credentialsId).toBe('bitbucket-http-credentials');
+  });
+
+  it('keeps the Nexus IQ applications and the repository of a service the answers leave alone', () => {
+    const stored = service();
+
+    for (const pipeline of ['NEXUS_IQ', 'SAST', 'FULL'] as const) {
+      const request = serviceRequest(fromService(stored), pipeline, stored);
+      expect(request.nexusIqApplications).toEqual(stored.nexusIqApplications);
+      expect(request.scm).toEqual(stored.scm);
+    }
+    expect(serviceRequest(added(), 'SECURITY').nexusIqApplications).toEqual([]);
+    expect(serviceRequest(added(), 'SECURITY').scm.repositoryUrl).toBeNull();
+  });
+
+  it('writes the Nexus IQ answers only for the Nexus IQ GoldenFix pipeline', () => {
+    const stored = service();
+    const answers = { nexusIqApplication: 'payhub-gateway', repositoryUrl: REPOSITORY };
+
+    for (const pipeline of ['SAST', 'SECURITY', 'FULL'] as const) {
+      const fresh = serviceRequest(added(answers), pipeline);
+      expect(fresh.nexusIqApplications).toEqual([]);
+      expect(fresh.scm.repositoryUrl).toBeNull();
+      expect(fresh.scm.credentialsId).toBeNull();
+      const kept = serviceRequest({ ...fromService(stored), ...answers }, pipeline, stored);
+      expect(kept.nexusIqApplications).toEqual(stored.nexusIqApplications);
+      expect(kept.scm).toEqual(stored.scm);
+    }
   });
 
   it('builds a Gradle service on a virtual machine with the automatic build tool set-up', () => {
@@ -199,7 +332,14 @@ describe('self-service model', () => {
       tool: 'GRADLE',
       target: 'VM',
       openShiftProject: '',
+      nexusIqApplication: 'cert-gui',
+      repositoryUrl: 'https://bitbucket.bbh.com/projects/CERT/repos/gui',
     });
+    expect(
+      fromService(
+        service({ nexusIqApplications: [], scm: { ...service().scm, repositoryUrl: null } }),
+      ),
+    ).toEqual(expect.objectContaining({ nexusIqApplication: '', repositoryUrl: '' }));
   });
 
   it('makes a new product from the answers, leaving empty answers out', () => {
@@ -274,6 +414,18 @@ describe('self-service model', () => {
     expect(problemText({ field: 'code', message: 'is taken' }, services)).toBe(
       'product code: is taken',
     );
+    expect(
+      problemText(
+        { field: 'services[0].nexusIqApplications[1].application', message: 'is listed twice' },
+        services,
+      ),
+    ).toBe('gateway, Nexus IQ application: is listed twice');
+    expect(
+      problemText({ field: 'services[1].scm.credentialsId', message: 'is required' }, services),
+    ).toBe('ledger, Bitbucket credentials ID: is required');
+    expect(
+      problemText({ field: 'services[1].scm.repositoryUrl', message: 'is not a URL' }, services),
+    ).toBe('ledger, Bitbucket repository: is not a URL');
   });
 
   it('sums up a service for the chosen pipeline', () => {
@@ -292,15 +444,25 @@ describe('self-service model', () => {
         fromService(service({ build: { ...service().build, tool: 'FLUTTER' } })),
       ),
     ).toBe('Flutter · runs on Virtual machines');
+    expect(serviceSummary('NEXUS_IQ', { ...openShift, nexusIqApplication: 'payhub-gateway' })).toBe(
+      'Gradle · Nexus IQ payhub-gateway',
+    );
+    expect(serviceSummary('NEXUS_IQ', fromService(service()))).toBe(
+      'Gradle · runs on Virtual machines · Nexus IQ cert-gui',
+    );
+    expect(serviceSummary('NEXUS_IQ', added())).toBe('Gradle');
   });
 
   it('says what changes for a service of the portal', () => {
     const stored = service();
     const same = fromService(stored);
 
-    expect(changesOf({ ...same, appScanId: same.appScanId.toUpperCase() }, stored)).toEqual([]);
+    expect(changesOf('FULL', { ...same, appScanId: same.appScanId.toUpperCase() }, stored)).toEqual(
+      [],
+    );
     expect(
       changesOf(
+        'SECURITY',
         {
           ...same,
           name: 'web',
@@ -319,9 +481,15 @@ describe('self-service model', () => {
       'built with Maven instead of Gradle, with the default build settings',
       'runs on OpenShift in project cert-web instead of Virtual machines, with the default deployment settings',
     ]);
-    expect(changesOf({ ...same, description: 'Web front end' }, stored)).toEqual([
+    expect(changesOf('SAST', { ...same, description: 'Web front end' }, stored)).toEqual([
       'new description',
     ]);
+    const nexusIq = { ...same, nexusIqApplication: 'cert-web', repositoryUrl: REPOSITORY };
+    expect(changesOf('NEXUS_IQ', nexusIq, stored)).toEqual([
+      'new Nexus IQ application',
+      'new Bitbucket repository',
+    ]);
+    expect(changesOf('FULL', nexusIq, stored)).toEqual([]);
   });
 
   it('groups the services for the review', () => {
@@ -363,6 +531,7 @@ describe('self-service model', () => {
     const services = [
       servicePipelines({
         pipelines: [
+          pipeline({ type: 'NEXUS_IQ' }),
           pipeline({ type: 'SAST' }),
           pipeline({ type: 'EXTENDED' }),
           pipeline(),
@@ -372,14 +541,18 @@ describe('self-service model', () => {
       servicePipelines({ serviceName: 'api', pipelines: [pipeline({ type: 'SECURITY' })] }),
     ];
 
-    expect(pipelineNames(services[0])).toBe('Full, Security, Extended, Static scan');
+    expect(pipelineNames(services[0])).toBe(
+      'Full, Security, Extended, Static scan, Nexus IQ GoldenFix',
+    );
     expect(pipelineNames(servicePipelines({ pipelines: [] }))).toBe('');
     expect(pipelineChoices(services).map((choice) => [choice.label, choice.note])).toEqual([
       ['Static scan', '1 of 2 services has it'],
+      ['Nexus IQ GoldenFix', '1 of 2 services has it'],
       ['Security', 'Every service has it'],
       ['Full', '1 of 2 services has it'],
     ]);
     expect(pipelineChoices([]).map((choice) => choice.note)).toEqual([
+      'No service has it yet',
       'No service has it yet',
       'No service has it yet',
       'No service has it yet',
@@ -419,5 +592,7 @@ describe('self-service model', () => {
       { serviceName: 'api', pipeline: null },
     ]);
     expect(jobName(security)).toBe('DevSecOps/CERT/gui-security');
+    expect(jobName(pipeline({ type: 'NEXUS_IQ' }))).toBe('DevSecOps/CERT/gui-nexusiq');
+    expect(jobName(pipeline({ type: 'SAST' }))).toBe('DevSecOps/CERT/gui-sast');
   });
 });

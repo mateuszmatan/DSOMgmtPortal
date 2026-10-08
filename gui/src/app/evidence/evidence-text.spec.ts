@@ -1,4 +1,5 @@
 import {
+  goldenFixEvidence,
   pipelineEvidence,
   productEvidence,
   runEvidence,
@@ -8,6 +9,7 @@ import {
   evidenceText,
   formatPercent,
   formatUtc,
+  goldenFixResult,
   hasFindings,
   scanRows,
   suiteRows,
@@ -182,6 +184,62 @@ describe('evidenceText', () => {
     expect(text).toContain('- Decision: Release allowed\n');
   });
 
+  it('writes what GoldenFix did after the scans of a run that recorded it', () => {
+    const run = runEvidence({ goldenFix: goldenFixEvidence() });
+    const pipeline = pipelineEvidence({ type: 'NEXUS_IQ', run });
+
+    const text = evidenceText(
+      productEvidence(),
+      serviceEvidence({ pipelines: [pipeline] }),
+      pipeline,
+    );
+
+    expect(text).toContain(
+      'DevSecOps change evidence: CertScanner (CERT), gui, Nexus IQ GoldenFix pipeline\n',
+    );
+    expect(text).toContain('- Type: Nexus IQ GoldenFix (NEXUS_IQ)\n');
+    expect(text).toContain(
+      [
+        `- Nexus IQ: Failed, critical 1 (limit 0), high 2 (limit 2), medium 0 (limit 10), low 0, ${BUILD}`,
+        '',
+        'GoldenFix',
+        '- Result: Pull request raised',
+        '- Upgrades: 2 of 3 upgrades applied, 1 unresolved',
+        '- Pull request: GoldenFix-202610040815, https://bitbucket.bbh.com/projects/CERT/repos/gui/pull-requests/17',
+        '',
+        'Release gate',
+      ].join('\n'),
+    );
+  });
+
+  it('says when GoldenFix raised no pull request or its link was not recorded', () => {
+    const textOf = (fix: Parameters<typeof goldenFixEvidence>[0]) =>
+      evidenceText(
+        productEvidence(),
+        serviceEvidence(),
+        pipelineEvidence({ run: runEvidence({ goldenFix: goldenFixEvidence(fix) }) }),
+      );
+    const none = textOf({
+      status: 'NO_FIXES',
+      offered: 0,
+      applied: 0,
+      unresolved: 2,
+      pullRequestRaised: false,
+      pullRequestUrl: null,
+      pullRequestTitle: null,
+    });
+
+    expect(none).toContain(
+      '- Result: No safe versions offered\n- Upgrades: 0 of 0 upgrades applied, 2 unresolved\n- Pull request: None\n',
+    );
+    expect(textOf({ pullRequestUrl: null, pullRequestTitle: null })).toContain(
+      '- Pull request: Not recorded\n',
+    );
+    expect(textOf({ offered: 1, applied: 1, unresolved: 0 })).toContain(
+      '- Upgrades: 1 of 1 upgrade applied, 0 unresolved\n',
+    );
+  });
+
   it('marks scan counts the run did not record', () => {
     const run = runEvidence({
       scans: [
@@ -231,5 +289,26 @@ describe('evidence helpers', () => {
     const [sast, sonar] = runEvidence().scans;
     expect(hasFindings(sast)).toBe(true);
     expect(hasFindings(sonar)).toBe(false);
+  });
+
+  it('names the result of GoldenFix in plain words and keeps a status it does not know', () => {
+    expect(
+      [
+        'PR_UPDATED',
+        'NO_MANIFEST_CHANGES',
+        'NOT_CONFIGURED',
+        'BUILD_FAILED',
+        'SKIPPED',
+        'ERROR',
+      ].map((status) => goldenFixResult(goldenFixEvidence({ status }))),
+    ).toEqual([
+      'Pull request updated',
+      'Nothing to change',
+      'No Bitbucket repository set',
+      'Upgrades do not build',
+      'Skipped',
+      'Failed',
+    ]);
+    expect(goldenFixResult(goldenFixEvidence({ status: 'PARTIAL' }))).toBe('PARTIAL');
   });
 });

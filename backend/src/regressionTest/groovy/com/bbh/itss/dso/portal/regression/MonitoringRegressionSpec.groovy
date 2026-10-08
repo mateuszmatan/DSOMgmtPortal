@@ -119,12 +119,17 @@ class MonitoringRegressionSpec extends PortalSpecification {
         activity.dora.daily*.runs.sum() == 5
     }
 
-    def "security and SAST pipelines link the security dashboard"() {
+    def "security, SAST and Nexus IQ GoldenFix pipelines link the security dashboard"() {
+        given:
+        def guiNexusIq = pipelineFor(monitored.services[0].id as long, pipeline(type: 'NEXUS_IQ'))
+
         when:
         def details = api.get("/api/monitoring/pipelines/$guiSast.id?range=7d").json
+        def nexusIq = api.get("/api/monitoring/pipelines/$guiNexusIq.id?range=7d").json
 
         then:
         details.grafana == [dashboardUrl: "http://grafana.test/d/ad2trcm/devsecops-security?var-project=$code-guisast&from=now-7d&to=now".toString()]
+        nexusIq.grafana == [dashboardUrl: "http://grafana.test/d/ad2trcm/devsecops-security?var-project=$code-guinexusiq&from=now-7d&to=now".toString()]
     }
 
     def "a pipeline without runs in the range shows the last one before it"() {

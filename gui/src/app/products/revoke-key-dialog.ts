@@ -8,7 +8,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { finalize } from 'rxjs';
 import { PipelinesApi } from '../core/api';
 import { errorMessage } from '../core/errors';
-import { Pipeline } from '../core/models';
+import { Pipeline, pipelineTypeName } from '../core/models';
 import { filled, max, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 
@@ -29,7 +29,7 @@ import { errorText } from '../shared/form-errors';
       <mat-dialog-content>
         <div class="banner">
           <span>
-            The {{ pipeline.type.toLowerCase() }} pipeline of
+            The {{ typeName }} pipeline of
             <strong class="mono">{{ pipeline.serviceName }}</strong>
             stops working: the portal refuses its configuration from now on. You can issue a new key
             later.
@@ -70,6 +70,7 @@ import { errorText } from '../shared/form-errors';
 })
 export class RevokeKeyDialog {
   protected readonly pipeline = inject<Pipeline>(MAT_DIALOG_DATA);
+  protected readonly typeName = pipelineTypeName(this.pipeline.type);
   private readonly dialogRef = inject<MatDialogRef<RevokeKeyDialog, Pipeline>>(MatDialogRef);
   private readonly api = inject(PipelinesApi);
 

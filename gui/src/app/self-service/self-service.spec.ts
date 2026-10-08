@@ -24,6 +24,8 @@ const added: WizardService = {
   tool: 'GRADLE',
   target: 'VM',
   openShiftProject: '',
+  nexusIqApplication: '',
+  repositoryUrl: '',
 };
 
 describe('SelfService', () => {
@@ -262,8 +264,10 @@ describe('SelfService', () => {
       'api · Full',
       'batch · no pipeline yet',
     ]);
+    expect(all('.tile-label')).toEqual(['Static scan', 'Nexus IQ GoldenFix', 'Security', 'Full']);
     expect(all('.tile-note')).toEqual([
       '1 of 3 services has it',
+      'No service has it yet',
       'No service has it yet',
       '2 of 3 services have it',
     ]);
@@ -430,6 +434,74 @@ describe('SelfService', () => {
     wizard()['pipeline'].set('SAST');
     await fixture.whenStable();
     expect(text(page().querySelector('.review-services li'))).toBe('archive-api · Gradle');
+  });
+
+  it('asks for the Nexus IQ application and repository of every service and points to the golden pull requests', async () => {
+    await chooseProduct(
+      3,
+      product({ services: [service(), anotherService({ nexusIqApplications: [] })] }),
+      [servicePipelines(), servicePipelines({ serviceId: 11, serviceName: 'api', pipelines: [] })],
+    );
+    await next();
+    wizard()['pipeline'].set('NEXUS_IQ');
+    await fixture.whenStable();
+
+    expect(all('.prepare li').at(-1)).toBe(
+      'The Nexus IQ application and the Bitbucket repository of each service',
+    );
+
+    await next();
+    await next();
+
+    expect(wizard()['step']()).toBe(2);
+    expect(text(page().querySelector('.choice-error'))).toBe(
+      'Add the Nexus IQ application and Bitbucket repository of these services: api',
+    );
+
+    wizard()['services'].update(([gui, api]) => [gui, { ...api, nexusIqApplication: 'cert-api' }]);
+    await next();
+
+    expect(wizard()['step']()).toBe(3);
+    expect(all('.review-services li')).toEqual([
+      'api · new Nexus IQ application',
+      'gui · Gradle · runs on Virtual machines · Nexus IQ cert-gui',
+    ]);
+
+    await next();
+    const request = http.expectOne({ method: 'PUT', url: '/api/products/1?pipelineType=NEXUS_IQ' });
+    expect(request.request.body.services[1].nexusIqApplications).toEqual([
+      {
+        application: 'cert-api',
+        scanPatterns: ['**/build/libs/*.jar'],
+        stage: 'build',
+        failOnNetworkError: false,
+      },
+    ]);
+    expect(request.request.body.services[0].nexusIqApplications).toEqual(
+      service().nexusIqApplications,
+    );
+    request.flush(product());
+    http.expectOne('/api/products/1/pipelines').flush([
+      servicePipelines({
+        pipelines: [
+          pipeline(),
+          pipeline({ id: 101, type: 'NEXUS_IQ', entryPoint: 'devSecOpsNexusIqGoldenFixPipeline' }),
+        ],
+      }),
+    ]);
+    await fixture.whenStable();
+
+    expect(all('.next-steps > li h3')).toEqual([
+      'Put the Jenkinsfile in each repository',
+      'Create a Jenkins job for each service',
+      'Run each job once',
+      'Review the golden pull requests',
+      'Follow the results',
+    ]);
+    expect(all('.next-steps code').at(-1)).toBe('DevSecOps/CERT/gui-nexusiq');
+    expect(text(page().querySelector('.jenkinsfile .code-block'))).toContain(
+      'devSecOpsNexusIqGoldenFixPipeline(',
+    );
   });
 
   it('keeps the department of a product in the portal', async () => {
