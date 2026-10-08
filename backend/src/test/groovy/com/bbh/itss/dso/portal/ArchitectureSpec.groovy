@@ -1,6 +1,15 @@
 package com.bbh.itss.dso.portal
 
 import com.bbh.itss.dso.portal.application.UseCase
+import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentView
+import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentsUseCase
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductSummaryView
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase
+import com.bbh.itss.dso.portal.application.catalog.port.out.PipelineCountsPort
+import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort
+import com.bbh.itss.dso.portal.domain.catalog.Product
+import com.bbh.itss.dso.portal.domain.catalog.Service
+import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
 import com.tngtech.archunit.base.DescribedPredicate
 import com.tngtech.archunit.core.domain.JavaClass
 import com.tngtech.archunit.core.domain.JavaClasses
@@ -40,6 +49,10 @@ class ArchitectureSpec extends Specification {
     static final String INFLUX = 'com.bbh.itss.dso.portal.adapter.out.influx..'
     static final String ADAPTER = 'com.bbh.itss.dso.portal.adapter..'
     static final String CONFIG = 'com.bbh.itss.dso.portal.config..'
+    static final String[] CHANGES = ['com.bbh.itss.dso.portal.application.change..',
+                                     'com.bbh.itss.dso.portal.domain.change..']
+    static final String[] PIPELINES = ['com.bbh.itss.dso.portal.application.pipeline..',
+                                       'com.bbh.itss.dso.portal.domain.pipeline..']
     static final String[] FRAMEWORKS = ['jakarta..', 'org.springframework..', 'org.hibernate..', 'tools.jackson..',
                                         'com.fasterxml..', 'org.slf4j..']
     static final String[] HELPERS = ['org.apache.commons.lang3..', 'org.apache.commons.collections4..', 'lombok..']
@@ -72,6 +85,12 @@ class ArchitectureSpec extends Specification {
                         .should().onlyDependOnClassesThat().resideInAnyPackage('java..', DOMAIN, APPLICATION, *HELPERS),
                 noClasses().that().resideInAnyPackage(DOMAIN, APPLICATION)
                         .should().dependOnClassesThat().resideInAnyPackage(FRAMEWORKS),
+                noClasses().that().resideInAnyPackage(CHANGES)
+                        .should().dependOnClassesThat().resideInAnyPackage(PIPELINES)
+                        .orShould().dependOnClassesThat().belongToAnyOf(Product, Service, ServiceDraft,
+                        ProductsUseCase, ProductSummaryView, ProductRepositoryPort, DepartmentsUseCase, DepartmentView,
+                        PipelineCountsPort)
+                        .because('Beadle reads products through ChangeProductsPort, without services or pipelines'),
                 noClasses().that().resideInAPackage(ADAPTER_IN)
                         .should().dependOnClassesThat().resideInAPackage(ADAPTER_OUT),
                 noClasses().that().resideInAPackage(ADAPTER_OUT)
