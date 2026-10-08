@@ -24,16 +24,7 @@ final class ProductRules {
 
     void check(ProductDetails details, AppScanAccount appScanAccount, List<ServiceDraft> services) {
         requireIdentity(details, appScanAccount, services);
-        directory.findProductByCode(details.code())
-                .filter(other -> !isThisProduct(other.id()))
-                .ifPresent(other -> {
-                    throw new IllegalStateException("Product code " + details.code() + " is already used by " + other.name());
-                });
-        directory.findProductByName(details.name())
-                .filter(other -> !isThisProduct(other.id()))
-                .ifPresent(other -> {
-                    throw new IllegalStateException("A product named " + other.name() + " already exists");
-                });
+        requireUnique(details);
 
         ValidationProblems problems = new ValidationProblems();
         Set<String> names = new HashSet<>();
@@ -51,6 +42,11 @@ final class ProductRules {
         problems.throwIfAny();
     }
 
+    void checkDetails(ProductDetails details) {
+        requireIdentity(details, null, List.of());
+        requireUnique(details);
+    }
+
     private void requireIdentity(ProductDetails details, AppScanAccount appScanAccount, List<ServiceDraft> services) {
         ValidationProblems problems = new ValidationProblems();
         if (isBlank(details.code())) {
@@ -64,7 +60,7 @@ final class ProductRules {
         } else if (!directory.departmentExists(details.departmentId())) {
             problems.add("departmentId", "department " + details.departmentId() + " does not exist");
         }
-        if (appScanAccount == null || appScanAccount.keyId() == null) {
+        if (!services.isEmpty() && (appScanAccount == null || appScanAccount.keyId() == null)) {
             problems.add("appScan.keyId", "must not be blank");
         }
         for (int i = 0; i < services.size(); i++) {
@@ -73,6 +69,19 @@ final class ProductRules {
             }
         }
         problems.throwIfAny();
+    }
+
+    private void requireUnique(ProductDetails details) {
+        directory.findProductByCode(details.code())
+                .filter(other -> !isThisProduct(other.id()))
+                .ifPresent(other -> {
+                    throw new IllegalStateException("Product code " + details.code() + " is already used by " + other.name());
+                });
+        directory.findProductByName(details.name())
+                .filter(other -> !isThisProduct(other.id()))
+                .ifPresent(other -> {
+                    throw new IllegalStateException("A product named " + other.name() + " already exists");
+                });
     }
 
     private boolean isThisProduct(long otherId) {

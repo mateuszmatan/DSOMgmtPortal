@@ -191,7 +191,7 @@ class ProductSpec extends Specification {
         noExceptionThrown()
     }
 
-    def "a product needs a code, a name, a department, an AppScan key and named services"() {
+    def "a product needs a code, a name, a department and named services, and an AppScan key once it has services"() {
         when:
         Product.create(new ProductDetails(' ', null, null, null, null, null), new AppScanAccount(' ', null),
                 [draft(name: ' ')], nobody)
@@ -202,11 +202,79 @@ class ProductSpec extends Specification {
         e.problems()*.message.unique() == ['must not be blank', "choose the product's department"]
 
         when:
-        Product.create(details(), null, [], nobody)
+        Product.create(details(), null, [draft()], nobody)
 
         then:
         def missing = thrown(InvalidRequestException)
         missing.problems()*.field == ['appScan.keyId']
+
+        when:
+        product(appScan: null).update(0L, details(), new AppScanAccount(' ', 'hcl-app-scan-account'), [draft()],
+                nobody)
+
+        then:
+        def added = thrown(InvalidRequestException)
+        added.problems()*.field == ['appScan.keyId']
+    }
+
+    def "a product without services needs no AppScan key: #account"() {
+        when:
+        def product = Product.create(details(), account, [], nobody)
+
+        then:
+        product.appScanAccount() == account
+        product.services().isEmpty()
+
+        where:
+        account << [null, new AppScanAccount(' ', null), new AppScanAccount('bbh_key-id', null)]
+    }
+
+    def "a details change keeps the services and the AppScan account, even a service today's rules would refuse"() {
+        given:
+        def product = product(id: 5, version: 2, services: [[name: 'gui', id: 10, build: build(javaPath: null)],
+                                                            [name: 'api', id: 11]])
+        def services = product.services()
+
+        when:
+        product.changeDetails(2L, details(name: ' CertScanner 2 ', ownerTeam: 'Security', contactEmail: 'certs@bbh.com',
+                departmentId: 5L), directory(departments: [DEPARTMENT_ID, 5L]))
+
+        then:
+        product.details() == new ProductDetails('CERT', 'CertScanner 2', null, 'Security', 'certs@bbh.com', 5L)
+        product.services() == services
+        product.appScanAccount() == account()
+        product.version() == 2
+    }
+
+    def "a details change of a product without services or AppScan key needs neither"() {
+        given:
+        def product = product(appScan: null)
+
+        when:
+        product.changeDetails(null, details(name: 'Trade Archive'), nobody)
+
+        then:
+        product.name() == 'Trade Archive'
+        product.appScanAccount() == null
+    }
+
+    def "a details change is checked for the product's own fields and its version only (#refusal)"() {
+        given:
+        def product = product(id: 5, version: 2, services: [[name: 'gui', id: 10, build: build(javaPath: null)]])
+
+        when:
+        product.changeDetails(version, changed, directory(byName: ['Payments Hub': new ProductIdentity(6, 'Payments Hub')]))
+
+        then:
+        def e = thrown(type)
+        (e instanceof InvalidRequestException ? e.problems()*.field : e.message) == problems
+        product.details() == details()
+
+        where:
+        refusal          | version | changed                                                   || type                    | problems
+        'missing values' | 2L      | new ProductDetails('CERT', ' ', null, null, null, null)   || InvalidRequestException | ['name', 'departmentId']
+        'a name in use'  | 2L      | details(name: 'Payments Hub')                             || IllegalStateException   | 'A product named Payments Hub already exists'
+        'an old version' | 1L      | details(name: 'CertScanner 2')                            || IllegalStateException   | STALE_VERSION
     }
 
     def "a product without a department or in one that does not exist is refused, also when an older product is edited: #departmentId"() {
