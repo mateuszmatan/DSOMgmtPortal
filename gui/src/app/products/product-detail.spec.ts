@@ -99,6 +99,15 @@ describe('ProductDetail', () => {
     expect(page().querySelector('.meta')?.textContent).not.toContain('Department');
   });
 
+  it('shows the AppScan key ID only of a product that has one', async () => {
+    await load();
+    expect(page().querySelector('.meta')?.textContent).toContain('AppScan key IDbbh_key');
+
+    fixture.componentInstance['product'].set(product({ appScan: null, services: [] }));
+    fixture.detectChanges();
+    expect(page().querySelector('.meta')?.textContent).not.toContain('AppScan');
+  });
+
   it('links the repository URL of the service', async () => {
     await load();
 

@@ -510,6 +510,41 @@ describe('SelfService', () => {
     expect(text(fieldOf(page(), 'Department')?.querySelector('mat-hint'))).toBe('');
     expect(review()).toEqual(['Owner team', 'Services']);
     expect(wizard()['departmentName']()).toBe('Corporate Technology');
+    expect(fieldOf(page(), 'AppScan API key ID')).toBeNull();
+  });
+
+  it('asks for the AppScan key of a product in the portal that has none and sends it', async () => {
+    await chooseProduct(3, product({ appScan: null, services: [] }), []);
+
+    expect(text(fieldOf(page(), 'AppScan API key ID')?.querySelector('mat-hint'))).toBe(
+      'The Application Security team gives it to you',
+    );
+
+    await next();
+
+    expect(wizard()['step']()).toBe(0);
+    expect(text(fieldOf(page(), 'AppScan API key ID')?.querySelector('mat-error'))).toBe(
+      'Required',
+    );
+
+    wizard()['productForm'].controls.appScanKeyId.setValue(' bbh_new ');
+    await next();
+    wizard()['pipeline'].set('SAST');
+    await next();
+    wizard()['services'].set([added]);
+    await next();
+    await next();
+
+    const request = http.expectOne({ method: 'PUT', url: '/api/products/1?pipelineType=SAST' });
+    expect(request.request.body.appScan).toEqual({ keyId: 'bbh_new', secretCredentialsId: null });
+    expect(request.request.body.services.map((service: { name: string }) => service.name)).toEqual([
+      'archive-api',
+    ]);
+    request.flush(product());
+    http.expectOne('/api/products/1/pipelines').flush([]);
+    await fixture.whenStable();
+
+    expect(wizard()['step']()).toBe(4);
   });
 });
 

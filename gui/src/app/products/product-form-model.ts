@@ -840,8 +840,8 @@ export function patchProduct(form: ProductForm, product: Product): void {
     contactEmail: product.contactEmail ?? '',
     departmentId: product.departmentId,
     appScan: {
-      keyId: product.appScan.keyId,
-      secretCredentialsId: product.appScan.secretCredentialsId ?? '',
+      keyId: product.appScan?.keyId ?? '',
+      secretCredentialsId: product.appScan?.secretCredentialsId ?? '',
     },
   });
   form.controls.services.clear();

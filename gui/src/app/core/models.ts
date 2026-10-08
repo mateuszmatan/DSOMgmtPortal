@@ -379,7 +379,7 @@ export interface ProductFields {
   ownerTeam: string | null;
   contactEmail: string | null;
   departmentId: number | null;
-  appScan: AppScanAccount;
+  appScan: AppScanAccount | null;
 }
 
 export interface Product extends ProductFields {

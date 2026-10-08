@@ -836,6 +836,22 @@ describe('product form', () => {
     expect(toProductRequest(form, 3).departmentId).toBe(5);
   });
 
+  it('asks for the AppScan key of a product that has none yet', () => {
+    const form = createProductForm();
+    patchProduct(form, product({ appScan: null, services: [] }));
+
+    expect(form.controls.appScan.value).toEqual({ keyId: '', secretCredentialsId: '' });
+    expect(form.controls.appScan.controls.keyId.hasError('required')).toBe(true);
+
+    form.controls.appScan.controls.keyId.setValue(' bbh_key ');
+
+    expect(form.valid).toBe(true);
+    expect(toProductRequest(form, 3).appScan).toEqual({
+      keyId: 'bbh_key',
+      secretCredentialsId: null,
+    });
+  });
+
   it('replaces the services of an earlier product when patched again', () => {
     const form = createProductForm();
     patchProduct(form, product({ services: [service(), anotherService({ name: 'api' })] }));
