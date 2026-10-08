@@ -3,7 +3,9 @@ package com.bbh.itss.dso.portal.adapter.in.web;
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.RenderConfigUseCase;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -14,6 +16,8 @@ import org.yaml.snakeyaml.representer.Representer;
 
 import java.util.Map;
 
+import static com.bbh.itss.dso.portal.adapter.in.web.ApiExceptionHandler.problem;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.http.ResponseEntity.ok;
 import static org.yaml.snakeyaml.DumperOptions.FlowStyle.BLOCK;
@@ -47,6 +51,11 @@ public class DsoConfigController {
     @GetMapping("/api/settings/config")
     public ResponseEntity<?> globalConfig(@RequestParam(defaultValue = "yaml") String format) {
         return render(configs.settingsConfig(), format);
+    }
+
+    @ExceptionHandler(SecurityException.class)
+    ProblemDetail revoked(SecurityException e) {
+        return problem(FORBIDDEN, "Pipeline key invalidated", e.getMessage());
     }
 
     private ResponseEntity<?> render(Map<String, Object> config, String format) {

@@ -301,6 +301,7 @@ export function department(overrides: Partial<Department> = {}): Department {
     serviceCount: 2,
     pipelineCount: 3,
     activePipelineCount: 2,
+    changeCount: 0,
     ...overrides,
   };
 }

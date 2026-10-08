@@ -327,7 +327,7 @@ describe('SelfService', () => {
     await next();
 
     expect(review()).toEqual(['Product', 'Department', 'Pipeline', 'Removed', 'Unchanged']);
-    expect(all('.review-services li')).toEqual([
+    expect(all('.review-list li')).toEqual([
       'gui · Gradle · runs on Virtual machines',
       'api · Gradle · runs on Virtual machines',
     ]);
@@ -381,7 +381,7 @@ describe('SelfService', () => {
     await next();
 
     expect(review()).toContain('Changed');
-    expect(text(page().querySelector('.review-services li'))).toBe(
+    expect(text(page().querySelector('.review-list li'))).toBe(
       'web · renamed from gui; built with Maven instead of Gradle, with the default build settings',
     );
     expect(page().querySelector('.removal-warning')).toBeNull();
@@ -427,13 +427,13 @@ describe('SelfService', () => {
     ]);
     await next();
     expect(wizard()['step']()).toBe(3);
-    expect(text(page().querySelector('.review-services li'))).toBe(
+    expect(text(page().querySelector('.review-list li'))).toBe(
       'archive-api · Gradle · runs on OpenShift · project ta-archive',
     );
 
     wizard()['pipeline'].set('SAST');
     await fixture.whenStable();
-    expect(text(page().querySelector('.review-services li'))).toBe('archive-api · Gradle');
+    expect(text(page().querySelector('.review-list li'))).toBe('archive-api · Gradle');
   });
 
   it('asks for the Nexus IQ application and repository of every service and points to the golden pull requests', async () => {
@@ -462,7 +462,7 @@ describe('SelfService', () => {
     await next();
 
     expect(wizard()['step']()).toBe(3);
-    expect(all('.review-services li')).toEqual([
+    expect(all('.review-list li')).toEqual([
       'api · new Nexus IQ application',
       'gui · Gradle · runs on Virtual machines · Nexus IQ cert-gui',
     ]);

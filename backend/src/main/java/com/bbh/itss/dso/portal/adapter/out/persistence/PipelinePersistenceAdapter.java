@@ -16,7 +16,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.bbh.itss.dso.portal.adapter.out.persistence.AuditedEntity.current;
-import static com.bbh.itss.dso.portal.adapter.out.persistence.Counts.perProduct;
+import static com.bbh.itss.dso.portal.adapter.out.persistence.Counts.perId;
 import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
@@ -96,12 +96,12 @@ class PipelinePersistenceAdapter implements PipelineRepositoryPort, PipelineCoun
 
     @Override
     public Map<Long, Long> pipelinesPerProduct() {
-        return perProduct(pipelines.countByProduct());
+        return perId(pipelines.countByProduct());
     }
 
     @Override
     public Map<Long, Long> activePipelinesPerProduct() {
-        return perProduct(pipelines.countWithActiveKeyByProduct());
+        return perId(pipelines.countWithActiveKeyByProduct());
     }
 
     private PipelineEntity created(Pipeline pipeline) {

@@ -15,7 +15,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.bbh.itss.dso.portal.adapter.out.persistence.AuditedEntity.current;
-import static com.bbh.itss.dso.portal.adapter.out.persistence.Counts.perProduct;
+import static com.bbh.itss.dso.portal.adapter.out.persistence.Counts.perId;
 
 @Component
 @RequiredArgsConstructor
@@ -48,7 +48,7 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
 
     @Override
     public Map<Long, Long> servicesPerProduct() {
-        return perProduct(services.countByProduct());
+        return perId(services.countByProduct());
     }
 
     @Override

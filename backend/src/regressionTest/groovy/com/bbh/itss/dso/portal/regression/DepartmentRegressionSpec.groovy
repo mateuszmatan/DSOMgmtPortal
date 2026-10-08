@@ -22,7 +22,7 @@ class DepartmentRegressionSpec extends PortalSpecification {
         departments.find { it.id == DEPARTMENT_ID }.name == 'Corporate Technology'
         departments.every {
             it.keySet() as List == ['id', 'name', 'version', 'productCount', 'serviceCount', 'pipelineCount',
-                                    'activePipelineCount']
+                                    'activePipelineCount', 'changeCount']
         }
     }
 
@@ -37,7 +37,7 @@ class DepartmentRegressionSpec extends PortalSpecification {
         created.status == 201
         created.header('Location') == "$api.baseUrl/api/departments/${created.json.id}"
         created.json == [id          : created.json.id, name: name, version: 0, productCount: 0, serviceCount: 0,
-                         pipelineCount: 0, activePipelineCount: 0]
+                         pipelineCount: 0, activePipelineCount: 0, changeCount: 0]
         api.get('/api/departments').json.find { it.id == created.json.id } == created.json
 
         when:

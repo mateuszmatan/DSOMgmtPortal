@@ -125,10 +125,12 @@ you run.
 
 ## Screenshots
 
-`screenshots/v1` to `screenshots/v11` hold screenshots of the GUI, one folder per version: v7 shows the
+`screenshots/v1` to `screenshots/v12` hold screenshots of the GUI, one folder per version: v7 shows the
 departments, v8 the ten demo integrations with the charts of Product Management and Pipeline Monitoring, v9 the
 ServiceNow production change raised from Beadle, v10 the Self-service wizard and the Admin tabs of DevSecOps
-Management, Beadle Admin with the ServiceNow defaults of a product, and the production change by FixVersion, and v11
+Management, Beadle Admin with the ServiceNow defaults of a product, and the production change by FixVersion, v11
 the Nexus IQ GoldenFix pipeline: the Self-service wizard choosing it, the product and pipeline pages of DevSecOps Admin
 and Pipeline Monitoring, Change Evidence with the golden pull request, and two pages of the DSOEnhanced report of the
-new pipeline.
+new pipeline, and v12 Beadle synchronised with ProTech: the Changes tab filtered and sorted in its headers, the
+ProTech workflow progress of a change, an update edited by its department, published to ProTech and applied, the New
+Change wizard, and Beadle Admin with departments, products and the change template of a product.

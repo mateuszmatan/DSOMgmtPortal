@@ -288,7 +288,7 @@
           @for (group of review(); track group.label) {
             <dt>{{ group.label }}</dt>
             <dd>
-              <ul class="review-services">
+              <ul class="review-list">
                 @for (entry of group.services; track $index) {
                   <li>
                     <strong>{{ entry.name }}</strong> · {{ entry.text }}

@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { App } from './app';
-import { SECTIONS } from './core/sections';
+import { MENUS, SECTIONS } from './core/sections';
 import { text } from './testing/dom';
 
 @Component({ template: '' })
@@ -41,8 +41,8 @@ describe('App', () => {
   it.each([
     [
       'Beadle',
-      ['Overview', 'Production Change', 'Admin'],
-      ['/beadle', '/beadle/changes', '/beadle/admin'],
+      ['Changes', 'New Change', 'Admin'],
+      ['/beadle/changes', '/beadle/new-change', '/beadle/admin'],
     ],
     [
       'DevSecOps Management',
@@ -86,6 +86,28 @@ describe('App', () => {
 
     expect(text(page().querySelector('.menu-group.active'))).toBe('Beadle');
     expect(text((await open('Beadle')).querySelector('a.active'))).toBe('Admin');
+  });
+
+  it('marks Changes of Beadle on the page and the edit page of a change', async () => {
+    await TestBed.inject(Router).navigateByUrl('/beadle/changes/4/edit');
+    await fixture.whenStable();
+
+    expect(text(page().querySelector('.menu-group.active'))).toBe('Beadle');
+    expect(text((await open('Beadle')).querySelector('a.active'))).toBe('Changes');
+  });
+
+  it('gives the Beadle sections their ProTech headings', () => {
+    expect(MENUS[0].sections.map((section) => [section.heading, section.description])).toEqual([
+      [
+        'ProTech Changes',
+        'The ProTech changes of your department, read from ProTech each time you open them',
+      ],
+      [
+        'New ProTech Change',
+        'Raise a ProTech change (CHG) with its change tasks (CTASK), written from Jira',
+      ],
+      ['Beadle Admin', 'Departments, products and the change template of each product'],
+    ]);
   });
 
   it('marks Admin of DevSecOps Management on the product pages', async () => {
