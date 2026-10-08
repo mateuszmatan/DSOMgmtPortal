@@ -144,6 +144,26 @@ class PortalSmokeSpec extends Specification {
         }
     }
 
+    def "the wizard reads the signed-in user, its options and lookups that know the people of the demo templates"() {
+        given:
+        def products = api.get('/api/products').json
+
+        expect:
+        api.get('/api/me').json.name
+        api.get('/api/changes/options').json.categories.contains('Application')
+        ['users', 'departments', 'assignment-groups', 'releases', 'configuration-items', 'incidents', 'problems',
+         'clients'].every { api.get("/api/lookups/$it").status == 200 }
+        !started || products.every { product ->
+            def template = api.get("/api/products/$product.id/change-profile").json.template
+            def people = (template.approvers.values() + template.privilegedAccess.users*.user).findAll()
+            def item = api.get("/api/lookups/configuration-items?q=${encode(template.configurationItem, UTF_8)}").json
+            assert people.every { api.get("/api/lookups/users?q=${encode(it, UTF_8)}").json*.value.contains(it) }
+            assert template.directBusinessService == item.find { it.value == template.configurationItem }?.detail
+            assert template.risk in ['Low', 'Moderate', 'High']
+            true
+        }
+    }
+
     def "a pipeline key that was never issued is refused"() {
         expect:
         api.get('/api/dso/config/00000000-0000-4000-8000-000000000000').status == 404
