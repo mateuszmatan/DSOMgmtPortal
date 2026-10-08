@@ -19,11 +19,12 @@ class GuiSmokeSpec extends GuiSpecification {
              description: 'Builds, tests and scans for ServiceNow changes'],
             [menu       : 'DevSecOps Management', label: 'Admin', heading: 'DevSecOps Admin', path: '/admin/products',
              description: 'Departments, products, services and the DSOEnhanced library defaults'],
-            [menu: 'Beadle', label: 'Overview', heading: 'Beadle', path: '/beadle', description: 'New features of the BBH portal'],
-            [menu       : 'Beadle', label: 'Production Change', heading: 'Production Change', path: '/beadle/changes',
-             description: 'Raise a ServiceNow change with its change tasks, written from Jira'],
+            [menu       : 'Beadle', label: 'Changes', heading: 'ProTech Changes', path: '/beadle/changes',
+             description: 'The ProTech changes of your department, read from ProTech each time you open them'],
+            [menu       : 'Beadle', label: 'New Change', heading: 'New ProTech Change', path: '/beadle/new-change',
+             description: 'Raise a ProTech change (CHG) with its change tasks (CTASK), written from Jira'],
             [menu       : 'Beadle', label: 'Admin', heading: 'Beadle Admin', path: '/beadle/admin/products',
-             description: 'Departments, products, services and the defaults of their ServiceNow changes']]
+             description: 'Departments, products and the change template of each product']]
 
     static final Map<String, Map<String, String>> ADMIN_TABS = [
             'DevSecOps Admin': [Departments: '/admin/departments', Products: '/admin/products', 'Library defaults': '/admin/settings'],
@@ -32,6 +33,8 @@ class GuiSmokeSpec extends GuiSpecification {
     static final String REGENERATED_KEY = '3f9d2c4e-8a1b-4c7d-9e2f-5b6a7c8d1e04'
 
     static final String GENERATED_KEY = '9c4e1a7b-2d3f-4e5a-8b6c-7d8e9f0a1b2c'
+
+    static final String CORPORATE_TECHNOLOGY = "localStorage.setItem('dso.beadle.department', '3')"
 
     def "the portal shows its title, the Beadle and DevSecOps Management menus and the footer"() {
         when:
@@ -92,8 +95,8 @@ class GuiSmokeSpec extends GuiSpecification {
         where:
         [path, heading] << SECTIONS.collect { [it.path, it.heading] } +
                 ADMIN_TABS.collectMany { heading, tabs -> tabs.values().collect { [it, heading] } }.unique() +
-                [['/admin', 'DevSecOps Admin'], ['/admin/products/new', 'Add product'],
-                 ['/beadle/changes/new', 'Raise a production change']]
+                [['/admin', 'DevSecOps Admin'], ['/admin/products/new', 'Add product'], ['/beadle', 'ProTech Changes'],
+                 ['/beadle/changes/new', 'New ProTech Change']]
     }
 
     def "every tab of #heading opens its page with the tab marked"() {
@@ -120,6 +123,9 @@ class GuiSmokeSpec extends GuiSpecification {
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
     def "#path shows #heading from the API"() {
+        given:
+        page.addInitScript(CORPORATE_TECHNOLOGY)
+
         when:
         open(path)
 
@@ -134,11 +140,15 @@ class GuiSmokeSpec extends GuiSpecification {
         '/monitoring/products/1'   | 'CertScanner'
         '/monitoring/pipelines/1'  | 'Full pipeline'
         '/beadle/admin/products/1' | 'CertScanner'
-        '/beadle/changes/1'        | 'CHG0031001'
+        '/beadle/changes/4'        | 'CHG0031001'
+        '/beadle/changes/4/edit'   | 'Edit CHG0031001'
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
     def "#path shows no icons"() {
+        given:
+        page.addInitScript(CORPORATE_TECHNOLOGY)
+
         when:
         open(path)
 
@@ -148,9 +158,9 @@ class GuiSmokeSpec extends GuiSpecification {
 
         where:
         path << ['/self-service', '/monitoring', '/monitoring/products/1', '/monitoring/pipelines/1', '/evidence',
-                 '/admin/departments', '/admin/products', '/admin/products/1', '/admin/settings', '/beadle',
-                 '/beadle/changes', '/beadle/changes/new', '/beadle/changes/1', '/beadle/admin/departments',
-                 '/beadle/admin/products', '/beadle/admin/products/1']
+                 '/admin/departments', '/admin/products', '/admin/products/1', '/admin/settings', '/beadle/changes',
+                 '/beadle/new-change', '/beadle/changes/4', '/beadle/changes/4/edit', '/beadle/changes/2',
+                 '/beadle/admin/departments', '/beadle/admin/products', '/beadle/admin/products/1']
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
@@ -169,6 +179,7 @@ class GuiSmokeSpec extends GuiSpecification {
     def "#path fits a #width px window without horizontal scrolling"() {
         given:
         page.setViewportSize(width, 900)
+        page.addInitScript(CORPORATE_TECHNOLOGY)
 
         when:
         open(path)
@@ -180,8 +191,9 @@ class GuiSmokeSpec extends GuiSpecification {
         where:
         [path, width] << [['/self-service', '/monitoring', '/monitoring/products/1', '/evidence', '/admin/departments',
                            '/admin/products', '/admin/products/1', '/admin/products/1/edit', '/admin/settings',
-                           '/beadle/changes', '/beadle/changes/new', '/beadle/changes/1', '/beadle/admin/departments',
-                           '/beadle/admin/products', '/beadle/admin/products/1'], [800, 600]].combinations()
+                           '/beadle/changes', '/beadle/new-change', '/beadle/changes/4', '/beadle/changes/4/edit',
+                           '/beadle/changes/2', '/beadle/admin/departments', '/beadle/admin/products',
+                           '/beadle/admin/products/1'], [800, 600]].combinations()
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })

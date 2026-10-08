@@ -17,10 +17,10 @@ import { appConfig } from './app.config';
 import { routes } from './app.routes';
 import { AdminPage } from './admin/admin-page';
 import { DepartmentsAdmin } from './admin/departments-admin';
-import { BeadleOverview } from './beadle/beadle-overview';
 import { BeadleProduct } from './beadle/beadle-product';
 import { BeadleProducts } from './beadle/beadle-products';
 import { ChangeDetail } from './changes/change-detail';
+import { ChangeEdit } from './changes/change-edit';
 import { ChangeWizard } from './changes/change-wizard';
 import { ProductionChanges } from './changes/production-changes';
 import { BEADLE_ADMINISTRATION, DEVSECOPS_ADMIN } from './core/sections';
@@ -67,10 +67,10 @@ describe('routes', () => {
       'admin/departments': DepartmentsAdmin,
       'admin/products': ProductList,
       'admin/settings': GlobalSettingsPage,
-      beadle: BeadleOverview,
       'beadle/changes': ProductionChanges,
-      'beadle/changes/new': ChangeWizard,
+      'beadle/new-change': ChangeWizard,
       'beadle/changes/:id': ChangeDetail,
+      'beadle/changes/:id/edit': ChangeEdit,
       'beadle/admin/products/:id': BeadleProduct,
       'beadle/admin': AdminPage,
       'beadle/admin/departments': DepartmentsAdmin,
@@ -100,7 +100,8 @@ describe('routes', () => {
       'admin/products/new',
       'admin/products/:id/edit',
       'admin/settings',
-      'beadle/changes/new',
+      'beadle/new-change',
+      'beadle/changes/:id/edit',
       'beadle/admin/products/:id',
     ]);
   });
@@ -114,6 +115,8 @@ describe('addresses of the former pages', () => {
     ['/products/5/change', '/beadle/admin/products/5'],
     ['/settings', '/admin/settings'],
     ['/beadle/onboarding', '/self-service'],
+    ['/beadle', '/beadle/changes'],
+    ['/beadle/changes/new', '/beadle/new-change'],
   ])('send %s to %s', async (former, current) => {
     TestBed.configureTestingModule({
       providers: [

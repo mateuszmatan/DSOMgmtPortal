@@ -3,7 +3,6 @@ export interface PortalSection {
   label: string;
   heading: string;
   description: string;
-  exact?: boolean;
 }
 
 export interface PortalTab {
@@ -55,26 +54,25 @@ export const DEVSECOPS_ADMIN: AdminArea = {
   tabs: [ADMIN_DEPARTMENTS, ADMIN_PRODUCTS, ADMIN_SETTINGS],
 };
 
-export const BEADLE: PortalSection = {
-  path: '/beadle',
-  label: 'Overview',
-  heading: 'Beadle',
-  description: 'New features of the BBH portal',
-  exact: true,
-};
-
 export const CHANGES: PortalSection = {
   path: '/beadle/changes',
-  label: 'Production Change',
-  heading: 'Production Change',
-  description: 'Raise a ServiceNow change with its change tasks, written from Jira',
+  label: 'Changes',
+  heading: 'ProTech Changes',
+  description: 'The ProTech changes of your department, read from ProTech each time you open them',
+};
+
+export const NEW_CHANGE: PortalSection = {
+  path: '/beadle/new-change',
+  label: 'New Change',
+  heading: 'New ProTech Change',
+  description: 'Raise a ProTech change (CHG) with its change tasks (CTASK), written from Jira',
 };
 
 export const BEADLE_ADMIN: PortalSection = {
   path: '/beadle/admin',
   label: 'Admin',
   heading: 'Beadle Admin',
-  description: 'Departments, products, services and the defaults of their ServiceNow changes',
+  description: 'Departments, products and the change template of each product',
 };
 
 export const BEADLE_DEPARTMENTS: PortalTab = {
@@ -94,7 +92,7 @@ export interface PortalMenu {
 }
 
 export const MENUS: readonly PortalMenu[] = [
-  { label: 'Beadle', sections: [BEADLE, CHANGES, BEADLE_ADMIN] },
+  { label: 'Beadle', sections: [CHANGES, NEW_CHANGE, BEADLE_ADMIN] },
   { label: 'DevSecOps Management', sections: SECTIONS },
 ];
 
@@ -104,4 +102,8 @@ export function adminProduct(id: number | string, ...rest: string[]): (string | 
 
 export function beadleProduct(id: number | string): (string | number)[] {
   return [BEADLE_PRODUCTS.path, id];
+}
+
+export function beadleChange(id: number | string, ...rest: string[]): (string | number)[] {
+  return [CHANGES.path, id, ...rest];
 }
