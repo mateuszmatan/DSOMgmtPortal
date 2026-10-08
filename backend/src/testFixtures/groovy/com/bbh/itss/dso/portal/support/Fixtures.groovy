@@ -224,7 +224,8 @@ final class Fixtures {
             new Service(plain.id(), plain.name(), plain.description(), plain.displayOrder(),
                     plain.settings().withDefaultMetricsProject(details.code(), plain.name()))
         }
-        Product.restore(args.containsKey('id') ? args.id as Long : 1L, details, args.appScan as AppScanAccount ?: account(),
+        Product.restore(args.containsKey('id') ? args.id as Long : 1L, details,
+                args.containsKey('appScan') ? args.appScan as AppScanAccount : account(),
                 stored, (args.version ?: 0) as long, CREATED, UPDATED)
     }
 

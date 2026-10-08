@@ -1,3 +1,4 @@
+import { ProductDetails } from '../beadle/product-details-api';
 import {
   Department,
   DoraSummary,
@@ -272,6 +273,19 @@ export function product(overrides: Partial<Product> = {}): Product {
     appScan: { keyId: 'bbh_key', secretCredentialsId: 'hcl-app-scan-account' },
     updatedAt: '2026-10-04T08:00:00Z',
     services: [service()],
+    ...overrides,
+  };
+}
+
+export function productDetails(overrides: Partial<ProductDetails> = {}): ProductDetails {
+  return {
+    id: 1,
+    code: 'CERT',
+    name: 'CertScanner',
+    ownerTeam: 'Technology Architecture',
+    contactEmail: 'arch@bbh.com',
+    departmentId: 3,
+    version: 3,
     ...overrides,
   };
 }

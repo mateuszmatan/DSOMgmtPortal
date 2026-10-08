@@ -50,6 +50,10 @@ class ApiData {
          pipelines  : pipelines]
     }
 
+    static Map productDetails(Map product) {
+        product.subMap(['id', 'code', 'name', 'ownerTeam', 'contactEmail', 'departmentId', 'version'])
+    }
+
     static Map noFlutterSettings() {
         ((fixture('product-1.json') as Map).services as List<Map>)[0].flutter as Map
     }

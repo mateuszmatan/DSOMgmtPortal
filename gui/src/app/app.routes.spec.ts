@@ -22,7 +22,7 @@ import { BeadleProducts } from './beadle/beadle-products';
 import { ChangeDetail } from './changes/change-detail';
 import { ChangeEdit } from './changes/change-edit';
 import { ChangeWizard } from './changes/change-wizard';
-import { ProductionChanges } from './changes/production-changes';
+import { ChangesList } from './changes/changes-list';
 import { BEADLE_ADMINISTRATION, DEVSECOPS_ADMIN } from './core/sections';
 import { PortalTitleStrategy } from './core/title-strategy';
 import { HasUnsavedChanges, unsavedChangesGuard } from './core/unsaved-changes';
@@ -73,7 +73,7 @@ describe('routes', () => {
       'admin/products': ProductList,
       'admin/template': ServiceTemplatePage,
       'admin/settings': GlobalSettingsPage,
-      'beadle/changes': ProductionChanges,
+      'beadle/changes': ChangesList,
       'beadle/new-change': ChangeWizard,
       'beadle/changes/:id': ChangeDetail,
       'beadle/changes/:id/edit': ChangeEdit,

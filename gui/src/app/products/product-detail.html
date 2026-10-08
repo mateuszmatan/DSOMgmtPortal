@@ -50,10 +50,12 @@
               </dd>
             </div>
           }
-          <div>
-            <dt>AppScan key ID</dt>
-            <dd class="mono">{{ p.appScan.keyId }}</dd>
-          </div>
+          @if (p.appScan; as appScan) {
+            <div>
+              <dt>AppScan key ID</dt>
+              <dd class="mono">{{ appScan.keyId }}</dd>
+            </div>
+          }
           <div>
             <dt>Changed</dt>
             <dd>{{ p.updatedAt | relative }}</dd>

@@ -139,6 +139,14 @@ notification, the schedule with a downtime window, planning, privileged access, 
 coding, then review and raised), the change page with the new fields, its edit page and the Beadle Admin change
 template in the same sections.
 
+`screenshots/v14` shows every function of Beadle after its review: the Changes tab of a department filtered and
+sorted in its headers, a change read from ProTech with its workflow progress, an escalated approval, an update ProTech
+did not apply and a closed change, an open change edited in ProTech's sections, published and applied, the New Change
+wizard step by step with the short description and description written on the Jira step, the review and the raised
+change followed in Beadle, Beadle Admin with departments, products added without any DevSecOps setting, the change
+template of a product and the refusal to delete a product whose services live in DevSecOps Management, and the
+pages in a narrow window.
+
 `screenshots/v15` shows DevSecOps Management: the Pipelines tab of your department filtered and sorted in its
 headers, the page of a pipeline with its key, settings, Jenkinsfile and recent runs, a pipeline with an invalidated
 key, the Self-service wizard with the defaults of the library and the service template, Pipeline Monitoring, Change

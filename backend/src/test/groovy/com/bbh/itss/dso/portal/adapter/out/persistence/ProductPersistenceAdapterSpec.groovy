@@ -67,6 +67,38 @@ class ProductPersistenceAdapterSpec extends Specification {
         loaded.services()[0].settings().sshTargets().keySet() as List == [RD, QC]
     }
 
+    def "a product without services is stored and read back without an AppScan account"() {
+        when:
+        def saved = adapter.save(Product.create(details(), null, [], adapter))
+        entities.clear()
+
+        then:
+        adapter.load(saved.id()).get().appScanAccount() == null
+        jdbc.queryForMap('SELECT ASOC_KEY_ID, ASOC_SECRET_CREDENTIALS_ID FROM DSO_PRODUCT WHERE ID = ?', saved.id()) ==
+                [ASOC_KEY_ID: null, ASOC_SECRET_CREDENTIALS_ID: null]
+    }
+
+    def "a details change keeps every service and the AppScan account as they were stored"() {
+        given:
+        def saved = adapter.save(Product.create(details(), account(), [
+                new ServiceDraft(null, 'gui', 'Angular', fullSettings('gui')),
+                new ServiceDraft(null, 'api', null, settings())], adapter))
+        entities.clear()
+        def product = adapter.load(saved.id()).get()
+
+        when:
+        product.changeDetails(0L, details(name: 'CertScanner 2', ownerTeam: 'Security'), adapter)
+        def changed = adapter.save(product)
+        entities.clear()
+        def loaded = adapter.load(saved.id()).get()
+
+        then:
+        changed.version() == 1
+        loaded.details() == details(name: 'CertScanner 2', ownerTeam: 'Security')
+        loaded.services() == saved.services()
+        loaded.appScanAccount() == account()
+    }
+
     def "the columns hold the values the library view and the old rows use"() {
         when:
         def saved = adapter.save(Product.create(details(), account(), [new ServiceDraft(null, 'gui', null,

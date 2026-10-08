@@ -18,6 +18,7 @@ import {
   GoldenFixPolicy,
   NexusIqApplication,
   OpenShiftTarget,
+  PRODUCT_CODE,
   Product,
   ProductRequest,
   REGIONS,
@@ -64,7 +65,6 @@ import {
   words,
 } from '../shared/form-controls';
 
-export const PRODUCT_CODE = /^[A-Z][A-Z0-9_-]{1,49}$/;
 export const SERVICE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 export const UUID =
   /^\s*[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\s*$/;
@@ -840,8 +840,8 @@ export function patchProduct(form: ProductForm, product: Product): void {
     contactEmail: product.contactEmail ?? '',
     departmentId: product.departmentId,
     appScan: {
-      keyId: product.appScan.keyId,
-      secretCredentialsId: product.appScan.secretCredentialsId ?? '',
+      keyId: product.appScan?.keyId ?? '',
+      secretCredentialsId: product.appScan?.secretCredentialsId ?? '',
     },
   });
   form.controls.services.clear();

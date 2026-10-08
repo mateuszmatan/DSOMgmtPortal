@@ -116,7 +116,7 @@ export const routes: Routes = [
   {
     path: 'beadle/changes',
     title: CHANGES.heading,
-    loadComponent: () => import('./changes/production-changes').then((m) => m.ProductionChanges),
+    loadComponent: () => import('./changes/changes-list').then((m) => m.ChangesList),
   },
   { path: 'beadle/changes/new', redirectTo: 'beadle/new-change' },
   {
