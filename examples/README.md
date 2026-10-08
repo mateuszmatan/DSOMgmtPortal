@@ -138,3 +138,8 @@ guided New Change wizard step by step (generic request data with the magnifier l
 notification, the schedule with a downtime window, planning, privileged access, the risk assessment lists and secure
 coding, then review and raised), the change page with the new fields, its edit page and the Beadle Admin change
 template in the same sections.
+
+`screenshots/v15` shows DevSecOps Management: the Pipelines tab of your department filtered and sorted in its
+headers, the page of a pipeline with its key, settings, Jenkinsfile and recent runs, a pipeline with an invalidated
+key, the Self-service wizard with the defaults of the library and the service template, Pipeline Monitoring, Change
+Evidence, and the Admin tabs with the pipeline form filled from the template and the Service template page itself.

@@ -2,36 +2,28 @@ import { ClipboardModule } from '@angular/cdk/clipboard';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
-import { Observable, catchError, filter, finalize, of, switchMap, tap } from 'rxjs';
-import { DepartmentsApi, PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
+import { catchError, finalize, of, switchMap, tap } from 'rxjs';
+import { DepartmentsApi, PipelinesApi, ProductsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import {
   PIPELINE_TYPES,
   Pipeline,
-  PipelineType,
   Product,
   ServicePipelines,
   pipelineTypeLabel,
-  pipelineTypeName,
-  pipelineTypeSlug,
 } from '../core/models';
 import { Notifier } from '../core/notifier';
+import { pipelinePage } from '../core/sections';
+import { PipelineActions, typeName } from '../pipelines/pipeline-actions';
 import { bitbucketRepositoryUrl } from '../shared/bitbucket';
-import { CodeDialog, CodeDialogData } from '../shared/code-dialog';
-import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
 import { TARGET_LABELS, TOOL_LABELS } from '../shared/fields';
 import { RelativeTimePipe, counted } from '../shared/formatting';
 import { GeneratedKeys } from './generated-keys';
-import { jenkinsfile } from './jenkinsfile';
-import { KeyHistoryDialog } from './key-history-dialog';
-import { PipelineDialog, PipelineDialogData } from './pipeline-dialog';
-import { RevokeKeyDialog } from './revoke-key-dialog';
 
 @Component({
   selector: 'dso-product-detail',
@@ -54,8 +46,7 @@ export class ProductDetail {
 
   private readonly products = inject(ProductsApi);
   private readonly pipelines = inject(PipelinesApi);
-  private readonly settings = inject(SettingsApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly actions = inject(PipelineActions);
   private readonly notifier = inject(Notifier);
   private readonly router = inject(Router);
   private readonly generatedKeys = inject(GeneratedKeys);
@@ -122,13 +113,10 @@ export class ProductDetail {
   protected readonly errorMessage = errorMessage;
 
   protected readonly typeLabel = pipelineTypeLabel;
+  protected readonly typeName = typeName;
+  protected readonly pipelinePage = pipelinePage;
   protected readonly toolLabels = TOOL_LABELS;
   protected readonly targetLabels = TARGET_LABELS;
-
-  protected typeName(type: PipelineType): string {
-    const label = this.typeLabel(type);
-    return /[A-Z]/.test(label.slice(1)) ? label : label.toLowerCase();
-  }
 
   protected repositoryOf(service: ServicePipelines): string | null {
     return this.repositories().get(service.serviceId) ?? null;
@@ -147,27 +135,25 @@ export class ProductDetail {
   }
 
   protected copied(): void {
-    this.notifier.success('Key copied to the clipboard');
+    this.actions.copied();
   }
 
   protected showProductConfig(product: Product): void {
-    this.showCode(this.products.config(product.id), (code) => ({
-      title: `config.yaml of ${product.name}`,
-      subtitle:
-        'Every service of the product in the format of the DevSecOps library, with the BBH defaults filled in.',
-      code,
-      fileName: `${product.code.toLowerCase()}-config.yaml`,
-    }));
+    this.products.config(product.id).subscribe({
+      next: (code) =>
+        this.actions.openCode({
+          title: `config.yaml of ${product.name}`,
+          subtitle:
+            'Every service of the product in the format of the DevSecOps library, with the BBH defaults filled in.',
+          code,
+          fileName: `${product.code.toLowerCase()}-config.yaml`,
+        }),
+      error: (error) => this.notifier.error(error),
+    });
   }
 
   protected showPipelineConfig(pipeline: Pipeline): void {
-    this.showCode(this.pipelines.config(pipeline.id), (code) => ({
-      title: `Configuration of the ${pipeline.serviceName} ${pipelineTypeName(pipeline.type)} pipeline`,
-      subtitle:
-        "What the DevSecOps library receives for this pipeline's key. Showing it here does not count as a use of the key.",
-      code,
-      fileName: `${pipeline.productCode.toLowerCase()}-${pipeline.serviceName}-${pipelineTypeSlug(pipeline.type)}.yaml`,
-    }));
+    this.actions.showConfig(pipeline);
   }
 
   protected sameTypeElsewhere(pipeline: Pipeline): Pipeline[] {
@@ -184,125 +170,65 @@ export class ProductDetail {
   }
 
   protected showJenkinsfile(pipeline: Pipeline, together = false): void {
-    const pipelines = together ? [pipeline, ...this.sameTypeElsewhere(pipeline)] : [pipeline];
-    const subtitle = together
-      ? `One run builds ${pipelines.map((p) => p.serviceName).join(', ')}; the first key is the ` +
-        'primary service. Everything else comes from the portal by the keys.'
-      : 'Once the DevSecOps library reads its configuration from the portal, this is the whole Jenkinsfile of the ' +
-        'service: everything else comes from the portal by the key.';
-    this.settings
-      .get()
-      .pipe(catchError(() => of(null)))
-      .subscribe((settings) =>
-        this.openCode({
-          title: together ? 'Jenkinsfile for several services' : 'Jenkinsfile',
-          subtitle,
-          code: jenkinsfile(pipelines, settings?.platform.jenkinsLibrary),
-          fileName: 'Jenkinsfile',
-        }),
-      );
-  }
-
-  protected addPipeline(service: ServicePipelines): void {
-    this.openPipelineDialog(
-      { service },
-      (pipeline) => `${this.typeLabel(pipeline.type)} pipeline added to ${pipeline.serviceName}`,
+    this.actions.showJenkinsfile(
+      together ? [pipeline, ...this.sameTypeElsewhere(pipeline)] : [pipeline],
     );
   }
 
-  protected editPipeline(service: ServicePipelines, pipeline: Pipeline): void {
-    this.openPipelineDialog({ service, pipeline }, () => 'Pipeline settings saved');
+  protected addPipeline(product: Product, service: ServicePipelines): void {
+    this.actions
+      .add({ service, productCode: product.code })
+      .subscribe((pipeline) => this.replacePipeline(pipeline));
+  }
+
+  protected editPipeline(pipeline: Pipeline): void {
+    this.actions.edit(pipeline).subscribe((updated) => this.replacePipeline(updated));
   }
 
   protected revokeKey(pipeline: Pipeline): void {
-    this.dialog
-      .open<RevokeKeyDialog, Pipeline, Pipeline>(RevokeKeyDialog, { data: pipeline })
-      .afterClosed()
-      .pipe(filter((updated): updated is Pipeline => !!updated))
-      .subscribe((updated) => {
-        this.replacePipeline(updated);
-        this.notifier.success('Key invalidated: the pipeline stops at its next start');
-      });
+    this.actions.revokeKey(pipeline).subscribe((updated) => this.replacePipeline(updated));
   }
 
   protected replaceKey(pipeline: Pipeline): void {
-    this.confirm({
-      title: 'Replace the key?',
-      message:
-        'The current key is invalidated and a new one is issued. Update the Jenkinsfile with the new key, ' +
-        'or the pipeline stops at its next start.',
-      confirmLabel: 'Replace key',
-      danger: true,
-    })
-      .pipe(switchMap(() => this.pipelines.issueKey(pipeline.id)))
-      .subscribe({
-        next: (updated) => {
-          this.keyIssued(updated);
-          this.notifier.success('New key issued');
-        },
-        error: (error) => this.notifier.error(error),
-      });
+    this.actions.replaceKey(pipeline).subscribe((updated) => this.keyIssued(updated));
   }
 
   protected regenerateKey(pipeline: Pipeline): void {
     this.regenerating.update((ids) => withId(ids, pipeline.id));
-    this.pipelines
-      .issueKey(pipeline.id)
+    this.actions
+      .regenerateKey(pipeline)
       .pipe(finalize(() => this.regenerating.update((ids) => withId(ids, pipeline.id, false))))
-      .subscribe({
-        next: (updated) => {
-          this.keyIssued(updated);
-          this.notifier.success(
-            `${this.typeLabel(updated.type)} pipeline of ${updated.serviceName} has a new key: ` +
-              'pass it in the Jenkinsfile',
-          );
-        },
-        error: (error) => this.notifier.error(error),
-      });
+      .subscribe((updated) => this.keyIssued(updated));
   }
 
   protected showKeyHistory(pipeline: Pipeline): void {
-    this.dialog
-      .open(KeyHistoryDialog, { data: pipeline, maxWidth: '95vw' })
-      .componentInstance.keyIssued.subscribe((updated) => this.keyIssued(updated));
+    this.actions.showKeyHistory(pipeline).subscribe((updated) => this.keyIssued(updated));
   }
 
   protected deletePipeline(pipeline: Pipeline): void {
-    this.confirm({
-      title: 'Delete the pipeline?',
-      message:
-        `The ${pipelineTypeName(pipeline.type)} pipeline of ${pipeline.serviceName} and its key history are deleted. ` +
-        'Jenkins jobs using its key stop working.',
-      confirmLabel: 'Delete pipeline',
-      danger: true,
-    })
-      .pipe(switchMap(() => this.pipelines.delete(pipeline.id)))
-      .subscribe({
-        next: () => {
-          this.services.update((services) =>
-            services?.map((service) => ({
-              ...service,
-              pipelines: service.pipelines.filter((p) => p.id !== pipeline.id),
-            })),
-          );
-          this.notifier.success('Pipeline deleted');
-        },
-        error: (error) => this.notifier.error(error),
-      });
+    this.actions.deletePipeline(pipeline).subscribe(() =>
+      this.services.update((services) =>
+        services?.map((service) => ({
+          ...service,
+          pipelines: service.pipelines.filter((p) => p.id !== pipeline.id),
+        })),
+      ),
+    );
   }
 
   protected deleteProduct(product: Product): void {
     const pipelines = this.services.hasValue()
       ? this.services.value().flatMap((service) => service.pipelines).length
       : 0;
-    this.confirm({
-      title: `Delete ${product.name}?`,
-      message:
-        `The product, its ${counted(product.services.length, 'service')} and ${counted(pipelines, 'pipeline')} with their keys are deleted. ` +
-        'Jenkins jobs using those keys stop working. This cannot be undone.',
-      confirmLabel: 'Delete product',
-      danger: true,
-    })
+    this.actions
+      .confirm({
+        title: `Delete ${product.name}?`,
+        message:
+          `The product, its ${counted(product.services.length, 'service')} and ${counted(pipelines, 'pipeline')} with their keys are deleted. ` +
+          'Jenkins jobs using those keys stop working. This cannot be undone.',
+        confirmLabel: 'Delete product',
+        danger: true,
+      })
       .pipe(switchMap(() => this.products.delete(product.id)))
       .subscribe({
         next: () => {
@@ -310,20 +236,6 @@ export class ProductDetail {
           this.router.navigate(['/admin/products']);
         },
         error: (error) => this.notifier.error(error),
-      });
-  }
-
-  private openPipelineDialog(
-    data: PipelineDialogData,
-    message: (pipeline: Pipeline) => string,
-  ): void {
-    this.dialog
-      .open<PipelineDialog, PipelineDialogData, Pipeline>(PipelineDialog, { data })
-      .afterClosed()
-      .pipe(filter((pipeline): pipeline is Pipeline => !!pipeline))
-      .subscribe((pipeline) => {
-        this.replacePipeline(pipeline);
-        this.notifier.success(message(pipeline));
       });
   }
 
@@ -369,24 +281,6 @@ export class ProductDetail {
         return { ...service, pipelines };
       }),
     );
-  }
-
-  private showCode(source: Observable<string>, data: (code: string) => CodeDialogData): void {
-    source.subscribe({
-      next: (code) => this.openCode(data(code)),
-      error: (error) => this.notifier.error(error),
-    });
-  }
-
-  private openCode(data: CodeDialogData): void {
-    this.dialog.open(CodeDialog, { data, width: '760px', maxWidth: '95vw' });
-  }
-
-  private confirm(data: ConfirmDialogData) {
-    return this.dialog
-      .open<ConfirmDialog, ConfirmDialogData, boolean>(ConfirmDialog, { data })
-      .afterClosed()
-      .pipe(filter((confirmed) => confirmed === true));
   }
 }
 

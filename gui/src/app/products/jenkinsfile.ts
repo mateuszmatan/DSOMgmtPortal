@@ -1,6 +1,9 @@
 import { DEFAULT_JENKINS_LIBRARY, Pipeline } from '../core/models';
 
-export function jenkinsfile(pipelines: Pipeline[], library: string | null | undefined): string {
+export function jenkinsfile(
+  pipelines: readonly Pipeline[],
+  library: string | null | undefined,
+): string {
   const keys = pipelines.map(
     (pipeline) => `'${pipeline.activeKey?.value ?? '<issue a new key first>'}'`,
   );

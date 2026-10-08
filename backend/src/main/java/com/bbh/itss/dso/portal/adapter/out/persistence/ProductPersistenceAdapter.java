@@ -41,6 +41,11 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
     }
 
     @Override
+    public List<Product> findByDepartmentId(long departmentId) {
+        return products.findByDepartmentIdOrderByNameAsc(departmentId).stream().map(ProductEntity::toDomain).toList();
+    }
+
+    @Override
     public List<ProductSummary> summaries() {
         return products.findAllByOrderByNameAsc().stream()
                 .map(product -> RecordMapper.map(ProductSummary.class, product)).toList();

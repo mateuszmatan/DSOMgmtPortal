@@ -1,11 +1,19 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { inputOf, text } from '../testing/dom';
-import { WizardService } from './self-service-model';
+import { serviceTemplate } from '../testing/fixtures';
+import { WizardDefaults, WizardService } from './self-service-model';
 import { ServiceDialog, ServiceDialogData } from './service-dialog';
 
 const APP_ID = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31';
 const REPOSITORY = 'https://bitbucket.bbh.com/projects/PAY/repos/gateway';
+const NO_DEFAULTS: WizardDefaults = { tool: null, target: null, template: null, productCode: '' };
+const BBH_DEFAULTS: WizardDefaults = {
+  tool: 'GRADLE',
+  target: 'VM',
+  template: serviceTemplate(),
+  productCode: 'PAY',
+};
 
 describe('ServiceDialog', () => {
   let fixture: ComponentFixture<ServiceDialog>;
@@ -18,7 +26,13 @@ describe('ServiceDialog', () => {
         { provide: MatDialogRef, useValue: { close } },
         {
           provide: MAT_DIALOG_DATA,
-          useValue: { pipeline: 'FULL', service: null, takenNames: ['gui'], ...data },
+          useValue: {
+            pipeline: 'FULL',
+            service: null,
+            takenNames: ['gui'],
+            defaults: NO_DEFAULTS,
+            ...data,
+          },
         },
       ],
     });
@@ -96,6 +110,48 @@ describe('ServiceDialog', () => {
       nexusIqApplication: '',
       repositoryUrl: '',
     } satisfies WizardService);
+  });
+
+  it('starts a new service on the default build tool and platform with the names the template gives', async () => {
+    await open({ defaults: BBH_DEFAULTS });
+    await type('Service name', 'gateway');
+    await type('AppScan application ID', APP_ID);
+    await submit();
+
+    expect(errors()).toEqual([]);
+    await choose('OpenShift');
+    expect(inputOf(page(), 'OpenShift project').value).toBe('pay-gateway');
+
+    await submit();
+
+    expect(close).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tool: 'GRADLE',
+        target: 'OPENSHIFT',
+        openShiftProject: 'pay-gateway',
+      }),
+    );
+  });
+
+  it('fills the Nexus IQ application and the repository in from the template and renames them with the service', async () => {
+    await open({ pipeline: 'NEXUS_IQ', defaults: BBH_DEFAULTS });
+    await type('Service name', 'gateway');
+    await type('AppScan application ID', APP_ID);
+    await submit();
+
+    expect(inputOf(page(), 'Nexus IQ application').value).toBe('pay-gateway');
+    expect(inputOf(page(), 'Bitbucket repository').value).toBe(
+      'https://bitbucket.bbh.com/projects/PAY/repos/pay-gateway',
+    );
+
+    await type('Bitbucket repository', REPOSITORY);
+    page().querySelector<HTMLButtonElement>('mat-dialog-actions button[type=button]')!.click();
+    await fixture.whenStable();
+    await type('Service name', 'ledger');
+    await submit();
+
+    expect(inputOf(page(), 'Nexus IQ application').value).toBe('pay-ledger');
+    expect(inputOf(page(), 'Bitbucket repository').value).toBe(REPOSITORY);
   });
 
   it('asks only for the build tool of a static scan and goes back to the first part', async () => {

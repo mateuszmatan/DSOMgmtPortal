@@ -11,6 +11,8 @@ import static com.microsoft.playwright.options.AriaRole.MENUITEM
 class GuiSmokeSpec extends GuiSpecification {
 
     static final List<Map<String, String>> SECTIONS = [
+            [menu       : 'DevSecOps Management', label: 'Pipelines', heading: 'DevSecOps Pipelines', path: '/pipelines',
+             description: 'The pipelines of your department with their keys, settings and last runs'],
             [menu       : 'DevSecOps Management', label: 'Self-service', heading: 'DevSecOps Self-service', path: '/self-service',
              description: 'Set up or change the DevSecOps pipelines of your product, step by step'],
             [menu       : 'DevSecOps Management', label: 'Pipeline Monitoring', heading: 'DevSecOps Pipeline Monitoring',
@@ -18,7 +20,7 @@ class GuiSmokeSpec extends GuiSpecification {
             [menu       : 'DevSecOps Management', label: 'Change Evidence', heading: 'DevSecOps Change Evidence', path: '/evidence',
              description: 'Builds, tests and scans for ServiceNow changes'],
             [menu       : 'DevSecOps Management', label: 'Admin', heading: 'DevSecOps Admin', path: '/admin/products',
-             description: 'Departments, products, services and the DSOEnhanced library defaults'],
+             description: 'Departments, products, services, the template of a new service and the DSOEnhanced library defaults'],
             [menu       : 'Beadle', label: 'Changes', heading: 'ProTech Changes', path: '/beadle/changes',
              description: 'The ProTech changes of your department, read from ProTech each time you open them'],
             [menu       : 'Beadle', label: 'New Change', heading: 'New ProTech Change', path: '/beadle/new-change',
@@ -27,7 +29,8 @@ class GuiSmokeSpec extends GuiSpecification {
              description: 'Departments, products and the change template of each product']]
 
     static final Map<String, Map<String, String>> ADMIN_TABS = [
-            'DevSecOps Admin': [Departments: '/admin/departments', Products: '/admin/products', 'Library defaults': '/admin/settings'],
+            'DevSecOps Admin': [Departments       : '/admin/departments', Products: '/admin/products',
+                                'Service template': '/admin/template', 'Library defaults': '/admin/settings'],
             'Beadle Admin'   : [Departments: '/beadle/admin/departments', Products: '/beadle/admin/products']]
 
     static final String REGENERATED_KEY = '3f9d2c4e-8a1b-4c7d-9e2f-5b6a7c8d1e04'
@@ -74,7 +77,7 @@ class GuiSmokeSpec extends GuiSpecification {
         open('/monitoring')
 
         expect:
-        (SECTIONS.drop(2) + SECTIONS.take(2)).every { section ->
+        (SECTIONS.drop(3) + SECTIONS.take(3)).every { section ->
             menuLink(section.menu, section.label).click()
             page.waitForURL("**${section.path}")
             assertThat(page.locator('h1')).hasText(section.heading)
@@ -135,6 +138,8 @@ class GuiSmokeSpec extends GuiSpecification {
 
         where:
         path                       | heading
+        '/pipelines'               | 'DevSecOps Pipelines'
+        '/pipelines/1'             | 'Full pipeline'
         '/admin/products/1'        | 'CertScanner'
         '/admin/products/2/edit'   | 'Edit Payments Hub'
         '/monitoring/products/1'   | 'CertScanner'
@@ -160,6 +165,8 @@ class GuiSmokeSpec extends GuiSpecification {
 
         where:
         path                        | lookups
+        '/pipelines'                | 0
+        '/pipelines/1'              | 0
         '/self-service'             | 0
         '/monitoring'               | 0
         '/monitoring/products/1'    | 0
@@ -168,6 +175,7 @@ class GuiSmokeSpec extends GuiSpecification {
         '/admin/departments'        | 0
         '/admin/products'           | 0
         '/admin/products/1'         | 0
+        '/admin/template'           | 0
         '/admin/settings'           | 0
         '/beadle/changes'           | 0
         '/beadle/new-change'        | 0
@@ -205,8 +213,9 @@ class GuiSmokeSpec extends GuiSpecification {
         ownErrors().isEmpty()
 
         where:
-        [path, width] << [['/self-service', '/monitoring', '/monitoring/products/1', '/evidence', '/admin/departments',
-                           '/admin/products', '/admin/products/1', '/admin/products/1/edit', '/admin/settings',
+        [path, width] << [['/pipelines', '/pipelines/1', '/self-service', '/monitoring', '/monitoring/products/1',
+                           '/evidence', '/admin/departments', '/admin/products', '/admin/products/1',
+                           '/admin/products/1/edit', '/admin/template', '/admin/settings',
                            '/beadle/changes', '/beadle/new-change', '/beadle/changes/4', '/beadle/changes/4/edit',
                            '/beadle/changes/2', '/beadle/admin/departments', '/beadle/admin/products',
                            '/beadle/admin/products/1'], [800, 600]].combinations()
