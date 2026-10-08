@@ -268,6 +268,9 @@ class ProductPersistenceAdapterSpec extends Specification {
         expect:
         adapter.findAll()*.code() == ['CERT', 'EMPTY', 'PAY']
         adapter.findAll()[2].services()*.name() == ['gateway', 'ledger', 'mobile']
+        adapter.findByDepartmentId(5L)*.code() == ['PAY']
+        adapter.findByDepartmentId(DEPARTMENT_ID)*.code() == ['CERT']
+        adapter.findByDepartmentId(9999L) == []
         adapter.summaries()*.code() == ['CERT', 'EMPTY', 'PAY']
         with(adapter.summaries()[0]) {
             id() == cert.id()

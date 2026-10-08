@@ -7,17 +7,17 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 
 class AdminTabsSpec extends GuiSpecification {
 
-    static final Map<String, String> TABS = [Departments: '/admin/departments', Products: '/admin/products',
-                                             'Library defaults': '/admin/settings']
+    static final Map<String, String> TABS = [Departments       : '/admin/departments', Products: '/admin/products',
+                                             'Service template': '/admin/template', 'Library defaults': '/admin/settings']
 
-    def "the Admin page shows its heading, its description and the three tabs with the open one marked"() {
+    def "the Admin page shows its heading, its description and the four tabs with the open one marked"() {
         when:
         open('/admin/departments')
 
         then:
         assertThat(page.locator('h1')).hasText('DevSecOps Admin')
         assertThat(page.locator('.page-header .page-description'))
-                .hasText('Departments, products, services and the DSOEnhanced library defaults')
+                .hasText('Departments, products, services, the template of a new service and the DSOEnhanced library defaults')
         assertThat(tabs()).hasText(TABS.keySet() as String[])
         TABS.every { label, path ->
             assertThat(tab(label)).hasAttribute('href', path)
@@ -107,6 +107,7 @@ class AdminTabsSpec extends GuiSpecification {
         label              | content
         'Departments'      | 'tr.mat-mdc-row'
         'Products'         | 'section.department'
+        'Service template' | '.example'
         'Library defaults' | '.toc'
         path = TABS[label]
     }

@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import {
   Department,
+  DepartmentPipelines,
   DepartmentRequest,
   GlobalSettings,
   GlobalSettingsRequest,
@@ -21,6 +22,8 @@ import {
   ProductRequest,
   ProductSummary,
   ServicePipelines,
+  ServiceTemplate,
+  ServiceTemplateRequest,
   SignedInUser,
 } from './models';
 
@@ -92,6 +95,10 @@ export class DepartmentsApi {
 @Injectable({ providedIn: 'root' })
 export class PipelinesApi {
   private readonly http = inject(HttpClient);
+
+  listForDepartment(departmentId: number): Observable<DepartmentPipelines> {
+    return this.http.get<DepartmentPipelines>('/api/pipelines', { params: { departmentId } });
+  }
 
   listForProduct(productId: number): Observable<ServicePipelines[]> {
     return this.http.get<ServicePipelines[]>(`/api/products/${productId}/pipelines`);
@@ -170,6 +177,19 @@ export class SettingsApi {
       params: { format: 'yaml' },
       responseType: 'text',
     });
+  }
+}
+
+@Injectable({ providedIn: 'root' })
+export class ServiceTemplateApi {
+  private readonly http = inject(HttpClient);
+
+  get(): Observable<ServiceTemplate> {
+    return this.http.get<ServiceTemplate>('/api/service-template');
+  }
+
+  update(request: ServiceTemplateRequest): Observable<ServiceTemplate> {
+    return this.http.put<ServiceTemplate>('/api/service-template', request);
   }
 }
 

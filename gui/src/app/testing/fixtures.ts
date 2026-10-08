@@ -22,6 +22,7 @@ import {
   Service,
   ServiceEvidence,
   ServicePipelines,
+  ServiceTemplate,
   ToolCommand,
 } from '../core/models';
 
@@ -351,6 +352,30 @@ export function pipeline(overrides: Partial<Pipeline> = {}): Pipeline {
     influxEnv: 'test',
     updatedAt: '2026-10-04T08:00:00Z',
     keys: null,
+    ...overrides,
+  };
+}
+
+export function serviceTemplate(overrides: Partial<ServiceTemplate> = {}): ServiceTemplate {
+  return {
+    version: 0,
+    updatedAt: '2026-10-08T12:00:00Z',
+    agentLabels: ['linux-agent'],
+    jenkinsJob: 'DevSecOps/{CODE}/{service}-{type}',
+    gradleTasks: 'clean build',
+    gradleArtifact: 'build/libs/*.jar',
+    gradleScanPattern: '**/build/libs/*.jar',
+    mavenTasks: 'clean verify',
+    mavenArtifact: 'target/*.jar',
+    mavenScanPattern: '**/target/*.jar',
+    flutterScanPattern: '**/pubspec.lock',
+    deliveryTasks: 'deploy:deploy-file',
+    nexusIqApplication: '{code}-{service}',
+    repositoryUrl: 'https://bitbucket.bbh.com/projects/{CODE}/repos/{code}-{service}',
+    bitbucketCredentialsId: 'bitbucket-http-credentials',
+    openShiftProject: '{code}-{service}',
+    imageRegistry: 'docker-qc.tools.bbh.com',
+    healthCheckUrl: '/actuator/health',
     ...overrides,
   };
 }

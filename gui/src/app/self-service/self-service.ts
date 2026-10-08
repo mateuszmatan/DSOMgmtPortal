@@ -34,7 +34,14 @@ import {
   switchMap,
   tap,
 } from 'rxjs';
-import { DepartmentsApi, PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
+import { MyDepartment } from '../beadle/my-department';
+import {
+  DepartmentsApi,
+  PipelinesApi,
+  ProductsApi,
+  ServiceTemplateApi,
+  SettingsApi,
+} from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
 import { Product } from '../core/models';
 import { Notifier } from '../core/notifier';
@@ -53,6 +60,7 @@ import {
   PRODUCT_MODES,
   ProductMode,
   ServiceStart,
+  WizardDefaults,
   appScanAccount,
   changesOf,
   deploys,
@@ -101,6 +109,7 @@ export class SelfService implements HasUnsavedChanges {
   private readonly dialog = inject(MatDialog);
   private readonly notifier = inject(Notifier);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly myDepartment = inject(MyDepartment);
 
   protected readonly section = SELF_SERVICE;
   protected readonly admin = ADMIN.heading;
@@ -177,18 +186,37 @@ export class SelfService implements HasUnsavedChanges {
       ),
     { initialValue: [] },
   );
-  private readonly library = toSignal(
+  private readonly settings = toSignal(
     inject(SettingsApi)
       .get()
+      .pipe(catchError(() => of(null))),
+    { initialValue: null },
+  );
+  private readonly library = computed(() => this.settings()?.platform.jenkinsLibrary);
+  protected readonly templateError = signal<string | null>(null);
+  private readonly template = toSignal(
+    inject(ServiceTemplateApi)
+      .get()
       .pipe(
-        map((settings) => settings.platform.jenkinsLibrary),
-        catchError(() => of(null)),
+        catchError((error) => {
+          this.templateError.set(errorMessage(error));
+          return of(null);
+        }),
       ),
     { initialValue: null },
   );
+  private readonly defaults = computed<WizardDefaults>(() => ({
+    tool: this.settings()?.serviceDefaults.buildTool ?? null,
+    target: this.settings()?.serviceDefaults.deployTarget ?? null,
+    template: this.template(),
+    productCode: this.existing()?.code ?? this.code(),
+  }));
 
   protected readonly productForm = new FormGroup({
-    departmentId: new FormControl<number | null>(null, Validators.required),
+    departmentId: new FormControl<number | null>(
+      this.myDepartment.departmentId(),
+      Validators.required,
+    ),
     name: text('', filled, max(200), (control: AbstractControl) => this.nameInUse(control)),
     ownerTeam: text('', max(200)),
     contactEmail: text('', Validators.email, max(320)),
@@ -205,7 +233,7 @@ export class SelfService implements HasUnsavedChanges {
   );
   private readonly chosenDepartment = toSignal(
     this.productForm.controls.departmentId.valueChanges,
-    { initialValue: null },
+    { initialValue: this.productForm.controls.departmentId.value },
   );
   protected readonly productGroups = computed(() => this.groupsOf(this.chosenDepartment()));
   protected readonly choosable = computed(() =>
@@ -386,7 +414,7 @@ export class SelfService implements HasUnsavedChanges {
     this.result.set(null);
     this.pipeline.set(null);
     this.chooseMode('new');
-    this.productForm.reset();
+    this.productForm.reset({ departmentId: this.myDepartment.departmentId() });
     this.services.set([]);
     this.removed.set([]);
     this.changed.set(false);
@@ -427,6 +455,7 @@ export class SelfService implements HasUnsavedChanges {
           takenNames: services
             .filter((_, position) => position !== index)
             .map((service) => service.name),
+          defaults: this.defaults(),
         },
       })
       .afterClosed()
@@ -486,13 +515,14 @@ export class SelfService implements HasUnsavedChanges {
             services,
             pipeline,
             this.productForm.controls.departmentId.value,
+            this.template(),
           ),
           pipeline,
         )
       : this.suggestCode(this.productForm.controls.name.value.trim()).pipe(
           switchMap((code) =>
             this.productsApi.create(
-              productRequest(this.newProduct(code), services, pipeline),
+              productRequest(this.newProduct(code), services, pipeline, null, this.template()),
               pipeline,
             ),
           ),

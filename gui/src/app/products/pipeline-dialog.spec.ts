@@ -3,7 +3,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { inputOf } from '../testing/dom';
-import { pipeline, servicePipelines } from '../testing/fixtures';
+import { pipeline, servicePipelines, serviceTemplate } from '../testing/fixtures';
+import { ServiceTemplate } from '../core/models';
 import { PipelineDialog, PipelineDialogData } from './pipeline-dialog';
 
 describe('PipelineDialog', () => {
@@ -11,7 +12,10 @@ describe('PipelineDialog', () => {
   let http: HttpTestingController;
   const close = vi.fn();
 
-  async function render(data: PipelineDialogData) {
+  async function render(
+    data: PipelineDialogData,
+    template: ServiceTemplate | null = serviceTemplate(),
+  ) {
     TestBed.configureTestingModule({
       imports: [PipelineDialog],
       providers: [
@@ -23,6 +27,14 @@ describe('PipelineDialog', () => {
     });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(PipelineDialog);
+    if (!data.pipeline) {
+      const request = http.expectOne('/api/service-template');
+      if (template) {
+        request.flush(template);
+      } else {
+        request.flush(null, { status: 500, statusText: 'Server Error' });
+      }
+    }
     await fixture.whenStable();
   }
 
@@ -209,5 +221,37 @@ describe('PipelineDialog', () => {
     expect(page().querySelector('[role=alert]')?.textContent).toBe('the service was deleted');
     expect(page().querySelector('mat-spinner')).toBeNull();
     expect(close).not.toHaveBeenCalled();
+  });
+
+  it('fills the agents and the job of a new pipeline from the service template', async () => {
+    await render(
+      {
+        service: servicePipelines({ serviceName: 'backend-api', pipelines: [pipeline()] }),
+        productCode: 'CERT',
+      },
+      serviceTemplate({
+        agentLabels: ['linux', 'docker'],
+        jenkinsJob: 'Teams/{CODE}/{service}/{type}',
+      }),
+    );
+
+    expect(inputOf(page(), 'Jenkins agent labels').value).toBe('linux, docker');
+    expect(inputOf(page(), 'Jenkins job').value).toBe('Teams/CERT/backend-api/security');
+
+    form().controls.type.setValue('SAST');
+    await fixture.whenStable();
+    expect(inputOf(page(), 'Jenkins job').value).toBe('Teams/CERT/backend-api/sast');
+
+    await type('Jenkins job', 'Teams/CERT/own-job');
+    form().controls.type.setValue('EXTENDED');
+    await fixture.whenStable();
+    expect(inputOf(page(), 'Jenkins job').value).toBe('Teams/CERT/own-job');
+  });
+
+  it('keeps the BBH agent and an empty job when the template cannot be read', async () => {
+    await render({ service: servicePipelines({ pipelines: [] }), productCode: 'CERT' }, null);
+
+    expect(inputOf(page(), 'Jenkins agent labels').value).toBe('linux-agent');
+    expect(inputOf(page(), 'Jenkins job').value).toBe('');
   });
 });

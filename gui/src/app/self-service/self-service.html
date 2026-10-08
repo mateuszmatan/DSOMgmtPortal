@@ -209,6 +209,11 @@
           A service is a part of the product that is built on its own, for example its web front end
           or its REST API. Each one gets its own {{ pipelineLabel() }} pipeline.
         </p>
+        @if (templateError(); as error) {
+          <p class="choice-error">
+            The service template could not be loaded, so nothing is filled in for you: {{ error }}
+          </p>
+        }
         @if (services().length) {
           <ol class="service-list">
             @for (service of services(); track $index; let index = $index) {
@@ -331,8 +336,8 @@
           </div>
         }
         <p class="note">
-          The portal fills in everything else from the BBH library defaults. The DevSecOps team can
-          fine-tune it in {{ admin }}.
+          The portal fills in everything else from the service template and the library defaults.
+          The DevSecOps team can fine-tune them in {{ admin }}.
         </p>
         @if (saving()) {
           <mat-progress-bar mode="indeterminate" />

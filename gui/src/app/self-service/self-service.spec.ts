@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { MY_DEPARTMENT_KEY } from '../beadle/my-department';
 import { buttonOf, fieldOf, text } from '../testing/dom';
 import {
   anotherService,
@@ -12,6 +13,7 @@ import {
   productSummary,
   service,
   servicePipelines,
+  serviceTemplate,
 } from '../testing/fixtures';
 import { SelfService } from './self-service';
 import { WizardService } from './self-service-model';
@@ -33,6 +35,7 @@ describe('SelfService', () => {
   let http: HttpTestingController;
 
   beforeEach(async () => {
+    localStorage.removeItem(MY_DEPARTMENT_KEY);
     TestBed.configureTestingModule({
       imports: [SelfService],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
@@ -51,6 +54,7 @@ describe('SelfService', () => {
       .expectOne('/api/departments')
       .flush([department(), department({ id: 5, name: 'Fund Services' })]);
     http.expectOne('/api/settings').flush(globalSettings());
+    http.expectOne('/api/service-template').flush(serviceTemplate());
     await fixture.whenStable();
   });
 
@@ -485,7 +489,12 @@ describe('SelfService', () => {
       servicePipelines({
         pipelines: [
           pipeline(),
-          pipeline({ id: 101, type: 'NEXUS_IQ', entryPoint: 'devSecOpsNexusIqGoldenFixPipeline' }),
+          pipeline({
+            id: 101,
+            type: 'NEXUS_IQ',
+            entryPoint: 'devSecOpsNexusIqGoldenFixPipeline',
+            jenkinsJob: 'DevSecOps/CERT/gui-nexusiq',
+          }),
         ],
       }),
     ]);
@@ -563,6 +572,7 @@ describe('SelfService without departments', () => {
       .expectOne('/api/departments')
       .flush({ detail: 'Database unavailable' }, { status: 500, statusText: 'Server Error' });
     http.expectOne('/api/settings').flush(globalSettings());
+    http.expectOne('/api/service-template').flush(serviceTemplate());
     await fixture.whenStable();
 
     const error = (fixture.nativeElement as HTMLElement).querySelector('.choice-error');
@@ -596,11 +606,40 @@ describe('SelfService without products', () => {
       .flush({ detail: 'Database unavailable' }, { status: 500, statusText: 'Server Error' });
     http.expectOne('/api/departments').flush([department()]);
     http.expectOne('/api/settings').flush(globalSettings());
+    http.expectOne('/api/service-template').flush(serviceTemplate());
     await fixture.whenStable();
 
     expect(text((fixture.nativeElement as HTMLElement).querySelector('.choice-error'))).toBe(
       'The products could not be loaded: Database unavailable',
     );
+    http.verify();
+  });
+});
+
+describe('SelfService in your department', () => {
+  afterEach(() => localStorage.removeItem(MY_DEPARTMENT_KEY));
+
+  it('starts in the department you chose and says when the service template cannot be read', async () => {
+    localStorage.setItem(MY_DEPARTMENT_KEY, '5');
+    TestBed.configureTestingModule({
+      imports: [SelfService],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    });
+    const http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(SelfService);
+    const wizard = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/products').flush([productSummary()]);
+    http.expectOne('/api/departments').flush([department({ id: 5, name: 'Fund Services' })]);
+    http.expectOne('/api/settings').flush(globalSettings());
+    http
+      .expectOne('/api/service-template')
+      .flush({ detail: 'Database unavailable' }, { status: 500, statusText: 'Server Error' });
+    await fixture.whenStable();
+
+    expect(wizard['productForm'].controls.departmentId.value).toBe(5);
+    expect(wizard['departmentName']()).toBe('Fund Services');
+    expect(wizard['templateError']()).toContain('Database unavailable');
     http.verify();
   });
 });

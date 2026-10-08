@@ -16,18 +16,22 @@ import { HTTP_URL_ERROR, filled, max, text, url } from '../shared/form-controls'
 import { errorText } from '../shared/form-errors';
 import { ChoiceTiles } from '../shared/choice-tiles';
 import {
+  NamedDefaults,
   OPENSHIFT_PROJECT,
-  WizardPipeline,
-  WizardService,
   TARGETS,
   TOOLS,
+  WizardDefaults,
+  WizardPipeline,
+  WizardService,
   deploys,
+  namedDefaults,
 } from './self-service-model';
 
 export interface ServiceDialogData {
   pipeline: WizardPipeline;
   service: WizardService | null;
   takenNames: readonly string[];
+  defaults: WizardDefaults;
 }
 
 const NAME_HELP = "Use letters, digits, '.', '-' or '_', starting with a letter or digit";
@@ -217,8 +221,15 @@ export class ServiceDialog {
 
   protected readonly page = signal<1 | 2>(1);
   protected readonly checked = signal(false);
-  protected readonly tool = signal<BuildTool | null>(this.start?.tool ?? null);
-  protected readonly target = signal<DeployTarget | null>(this.start?.target ?? null);
+  protected readonly tool = signal<BuildTool | null>(
+    this.start?.tool ??
+      (TOOLS.some((option) => option.value === this.data.defaults.tool)
+        ? this.data.defaults.tool
+        : null),
+  );
+  protected readonly target = signal<DeployTarget | null>(
+    this.start?.target ?? this.data.defaults.target,
+  );
   protected readonly needsProject = computed(
     () => this.deploys && this.target() === 'OPENSHIFT' && !this.onOpenShift,
   );
@@ -247,6 +258,7 @@ export class ServiceDialog {
     if (this.page() === 1) {
       [name, description, appScanId].forEach((control) => control.markAsTouched());
       if (name.valid && description.valid && appScanId.valid) {
+        this.prefill(name.value.trim());
         this.page.set(2);
       }
       return;
@@ -268,6 +280,23 @@ export class ServiceDialog {
     }
   }
 
+  private prefilled: NamedDefaults = {
+    openShiftProject: '',
+    nexusIqApplication: '',
+    repositoryUrl: '',
+  };
+
+  private prefill(serviceName: string): void {
+    const named = namedDefaults(this.data.defaults, serviceName);
+    for (const key of Object.keys(named) as (keyof NamedDefaults)[]) {
+      const control = this.form.controls[key];
+      if (!control.value.trim() || control.value === this.prefilled[key]) {
+        control.setValue(named[key]);
+      }
+    }
+    this.prefilled = named;
+  }
+
   private finish(): void {
     const value = this.form.getRawValue();
     this.dialogRef.close({
@@ -277,7 +306,7 @@ export class ServiceDialog {
       appScanId: value.appScanId.trim().toLowerCase(),
       tool: this.tool()!,
       target: this.target(),
-      openShiftProject: this.target() === 'OPENSHIFT' ? value.openShiftProject.trim() : '',
+      openShiftProject: this.needsProject() ? value.openShiftProject.trim() : '',
       nexusIqApplication: value.nexusIqApplication.trim(),
       repositoryUrl: value.repositoryUrl.trim(),
     });

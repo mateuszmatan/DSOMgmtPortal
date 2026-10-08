@@ -93,6 +93,12 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
         when:
         page.getByRole(OPTION, new Page.GetByRoleOptions().setName('Security')).click()
+
+        then:
+        assertThat(input(dialog(), 'Jenkins job')).hasValue('DevSecOps/CERTSCANNER/gui-security')
+        assertThat(input(dialog(), 'Jenkins agent labels')).hasValue('linux-agent')
+
+        when:
         input(dialog(), 'Jenkins agent labels').fill('linux-agent, docker')
         input(dialog(), 'Jenkins job').fill('DevSecOps/CERTSCANNER/gui-security')
         input(dialog(), 'Extended pipeline job').fill('DevSecOps/../gui-extended')

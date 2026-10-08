@@ -66,6 +66,23 @@ class MonitoringTargetsServiceSpec extends Specification {
         pipeline.product().is(certScanner)
     }
 
+    def "one department is read with the products and pipelines it holds only"() {
+        given:
+        products.departmentExists(3L) >> true
+        products.findByDepartmentId(3L) >> [certScanner]
+        pipelines.findByDepartmentId(3L) >> [guiFull, apiFull]
+
+        when:
+        def read = targets.ofDepartment(3L)
+
+        then:
+        read.products() == [certScanner]
+        read.pipelines()*.pipeline()*.id() == [100L, 102L]
+        read.pipelines()[0].jenkinsJobUrl() == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-full/'
+        0 * products.findAll()
+        0 * pipelines.findAll()
+    }
+
     def "every read names the tags that pipelines of several services write under"() {
         given:
         def shared = [new MetricsTag('CertScanner', 'test')] as Set
@@ -94,6 +111,7 @@ class MonitoringTargetsServiceSpec extends Specification {
 
         where:
         what                   | message                        | read
+        'department'           | 'Department 7 does not exist'  | { MonitoringTargetsService it -> it.ofDepartment(7L) }
         'product'              | 'Product 5 does not exist'     | { MonitoringTargetsService it -> it.ofProduct(5L) }
         'pipeline'             | 'Pipeline 101 does not exist'  | { MonitoringTargetsService it -> it.ofPipeline(101L) }
         "pipeline's product"   | 'Product 1 does not exist'     | { MonitoringTargetsService it -> it.ofPipeline(100L) }

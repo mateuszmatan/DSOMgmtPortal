@@ -64,9 +64,6 @@
       </div>
       <div class="actions">
         <a mat-stroked-button [routerLink]="['/monitoring/products', p.id]">Monitoring</a>
-        <a mat-stroked-button [routerLink]="['/beadle/admin/products', p.id]"
-          >ServiceNow defaults</a
-        >
         <button mat-stroked-button (click)="showProductConfig(p)">config.yaml</button>
         <a mat-flat-button [routerLink]="['/admin/products', p.id, 'edit']">Edit product</a>
         <button mat-button class="danger" (click)="deleteProduct(p)">Delete</button>
@@ -131,7 +128,7 @@
             </div>
             <button
               mat-stroked-button
-              (click)="addPipeline(service)"
+              (click)="addPipeline(p, service)"
               [disabled]="!canAddPipeline(service)"
               [matTooltip]="
                 canAddPipeline(service) ? '' : 'The service has a pipeline of every type'
@@ -151,7 +148,9 @@
             <div class="pipeline" [class.revoked]="!pipeline.activeKey">
               <div class="pipeline-body">
                 <div class="pipeline-title row-wrap">
-                  <strong>{{ typeLabel(pipeline.type) }} pipeline</strong>
+                  <a class="plain-link" [routerLink]="pipelinePage(pipeline.id)"
+                    ><strong>{{ typeLabel(pipeline.type) }} pipeline</strong></a
+                  >
                   <span class="mono muted entry">{{ pipeline.entryPoint }}</span>
                   @if (pipeline.activeKey) {
                     <span class="chip success key-state">Key active</span>
@@ -291,7 +290,7 @@
                     </button>
                   }
                   <button mat-menu-item (click)="showKeyHistory(pipeline)">Key history</button>
-                  <button mat-menu-item (click)="editPipeline(service, pipeline)">Settings</button>
+                  <button mat-menu-item (click)="editPipeline(pipeline)">Settings</button>
                   <mat-divider />
                   @if (pipeline.activeKey) {
                     <button mat-menu-item (click)="replaceKey(pipeline)">Replace key</button>

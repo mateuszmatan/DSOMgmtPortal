@@ -3,7 +3,6 @@ package com.bbh.itss.dso.portal.domain.pipeline
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
-import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.forNewService
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.jobUrl
 
 class PipelineSettingsSpec extends Specification {
@@ -12,9 +11,8 @@ class PipelineSettingsSpec extends Specification {
 
     def both = new PipelineSettings(['linux'], 'CERT/gui-extended', 'CERT/gui-security', 'DevSecOps/CERT/gui', 'Nightly')
 
-    def "blank settings are stored as null, agent labels cleaned, and a new service starts on the default agent"() {
+    def "blank settings are stored as null and agent labels cleaned"() {
         expect:
-        forNewService() == new PipelineSettings(['linux-agent'], null, null, null, null)
         new PipelineSettings([' linux ', '', 'linux', 'docker'], ' ', '  ', ' DevSecOps/gui ', '\t') ==
                 new PipelineSettings(['linux', 'docker'], null, null, 'DevSecOps/gui', null)
         new PipelineSettings(null, null, null, null, null).agentLabels() == []
