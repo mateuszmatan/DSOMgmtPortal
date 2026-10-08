@@ -15,7 +15,12 @@ import {
 } from '@angular/material/form-field';
 import { MatIconRegistry } from '@angular/material/icon';
 import { MAT_SELECT_CONFIG, MatSelectConfig } from '@angular/material/select';
-import { TitleStrategy, provideRouter, withComponentInputBinding } from '@angular/router';
+import {
+  TitleStrategy,
+  provideRouter,
+  withComponentInputBinding,
+  withInMemoryScrolling,
+} from '@angular/router';
 import { routes } from './app.routes';
 import { PortalTitleStrategy } from './core/title-strategy';
 
@@ -23,7 +28,11 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideHttpClient(withFetch()),
-    provideRouter(routes, withComponentInputBinding()),
+    provideRouter(
+      routes,
+      withComponentInputBinding(),
+      withInMemoryScrolling({ scrollPositionRestoration: 'enabled' }),
+    ),
     { provide: TitleStrategy, useClass: PortalTitleStrategy },
     {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
