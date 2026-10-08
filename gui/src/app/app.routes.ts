@@ -4,7 +4,6 @@ import {
   ADMIN_DEPARTMENTS,
   ADMIN_PRODUCTS,
   ADMIN_SETTINGS,
-  BEADLE,
   BEADLE_ADMIN,
   BEADLE_ADMINISTRATION,
   BEADLE_DEPARTMENTS,
@@ -13,6 +12,7 @@ import {
   DEVSECOPS_ADMIN,
   EVIDENCE,
   MONITORING,
+  NEW_CHANGE,
   SELF_SERVICE,
 } from './core/sections';
 import { unsavedChangesGuard } from './core/unsaved-changes';
@@ -93,26 +93,29 @@ export const routes: Routes = [
       },
     ],
   },
-  {
-    path: 'beadle',
-    title: BEADLE.heading,
-    loadComponent: () => import('./beadle/beadle-overview').then((m) => m.BeadleOverview),
-  },
+  { path: 'beadle', pathMatch: 'full', redirectTo: 'beadle/changes' },
   {
     path: 'beadle/changes',
     title: CHANGES.heading,
     loadComponent: () => import('./changes/production-changes').then((m) => m.ProductionChanges),
   },
+  { path: 'beadle/changes/new', redirectTo: 'beadle/new-change' },
   {
-    path: 'beadle/changes/new',
-    title: 'Raise a production change',
+    path: 'beadle/new-change',
+    title: NEW_CHANGE.heading,
     canDeactivate: [unsavedChangesGuard],
     loadComponent: () => import('./changes/change-wizard').then((m) => m.ChangeWizard),
   },
   {
     path: 'beadle/changes/:id',
-    title: 'Production change',
+    title: 'ProTech change',
     loadComponent: () => import('./changes/change-detail').then((m) => m.ChangeDetail),
+  },
+  {
+    path: 'beadle/changes/:id/edit',
+    title: 'Edit ProTech change',
+    canDeactivate: [unsavedChangesGuard],
+    loadComponent: () => import('./changes/change-edit').then((m) => m.ChangeEdit),
   },
   {
     path: 'beadle/admin/products/:id',

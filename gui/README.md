@@ -24,8 +24,8 @@ Gradle downloads Node.js 24 into `gui/.gradle/nodejs`.
 | `monitoring/` | Pipeline Monitoring: overview, product pipelines, pipeline details with DORA and Grafana |
 | `evidence/`   | Change Evidence: builds, tests and scans of each pipeline for ServiceNow changes |
 | `settings/`   | Admin > Library defaults: tools, policy and defaults of every pipeline |
-| `beadle/`     | Beadle: the overview page, the Beadle Admin products list and the product page with its facts, services and ServiceNow defaults |
-| `changes/`    | Production Change: the change wizard, the ServiceNow fields form shared with Beadle Admin, the change list and page |
+| `beadle/`     | Beadle: the department the user works for (remembered in the browser), the Beadle Admin products list and the product page with its facts and change template |
+| `changes/`    | Beadle Changes and New Change: the ProTech changes of a department in a table filtered and sorted in its header, the change page with its workflow progress and update status, the edit page that publishes to ProTech, the change wizard, and the ProTech fields form and change tasks editor shared with Beadle Admin |
 | `shared/`     | field definitions and the field component, form controls, dialogs, formatting, Bitbucket links |
 | `testing/`    | fixtures for the unit tests |
 
@@ -63,8 +63,11 @@ every feature land in `build/reports/gui/screenshots`.
   invalidating and regenerating keys, and the keys generated for new services; config previews and their problem
   details; library defaults with a version conflict; the Self-service wizard for a new product and for one in the portal
   (adding a pipeline, a Nexus IQ GoldenFix pipeline with the Nexus IQ application and repository of each service,
-  changing and removing services); Beadle Admin products, their services and their ServiceNow defaults with privileged
-  users and a version conflict; the production change by FixVersion from the product to the raised change; change
+  changing and removing services); Beadle Admin products and their change template with privileged users, default
+  change tasks and a version conflict; the ProTech changes of a department filtered and sorted in the table header, the
+  change page with its workflow progress, an update published to ProTech from PENDING to APPLIED, a NOT_APPLIED update,
+  a stale update, a closed change and the change of another department; the new change by FixVersion from the product
+  with its change tasks to the raised change; change
   evidence and its ServiceNow text, and the golden pull request of a Nexus IQ GoldenFix run; monitoring ranges,
   Jenkins and build links, InfluxDB missing or unreachable; and failing API calls.
 - Performance (`src/performanceTest`): the stub serves 25 products with 16 services and 4 pipelines each (Full,
@@ -77,10 +80,10 @@ every feature land in `build/reports/gui/screenshots`.
 
 ## Look and layout
 
-- The header holds two menus, each opening a compact dropdown of short labels: Beadle (Overview, Production Change,
-  Admin), for the new features of the portal, and DevSecOps Management (Self-service, Pipeline Monitoring, Change
-  Evidence, Admin). A new feature is a `PortalSection` added to the Beadle entry of `MENUS` in `core/sections.ts`, next
-  to its Overview page, and to `MENUS` in `GuiSpecification`, whose `menuLink(menu, label)` opens the right menu (both
+- The header holds two menus, each opening a compact dropdown of short labels: Beadle (Changes, New Change, Admin), for
+  the new features of the portal, and DevSecOps Management (Self-service, Pipeline Monitoring, Change Evidence, Admin).
+  A new feature is a `PortalSection` added to the Beadle entry of `MENUS` in `core/sections.ts` and to `MENUS` in
+  `GuiSpecification`, whose `menuLink(menu, label)` opens the right menu (both
   menus have an Admin item). An Admin page is an `AdminArea` of tabs in `core/sections.ts`, routed as children of
   `AdminPage`; its tabs render without their own page heading. The menu
   holding the current page is underlined. Each page starts with the full name of its section as the heading and the
