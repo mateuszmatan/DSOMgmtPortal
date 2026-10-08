@@ -41,6 +41,12 @@ therefore describe their sections as lists of fields; only the parts that are no
 blocks, the test job list, the UrbanCode applications, the OpenShift targets and the toggle groups) have markup of
 their own. Labels and hints go through `chips()`, which turns `` `path` `` into a code chip.
 
+A field with a `lookup` gets a magnifier button, "Find <label>", that opens `LookupDialog` (`shared/lookup-dialog.ts`):
+a search field and the matching entries of `/api/lookups/{kind}`, each with its value and detail. Picking one fills the
+field, or adds it to the comma separated list when the lookup appends, and `detail` names the field the detail of the
+entry fills (the Affected CI fills the Direct business service, which typing the CI by hand clears). The input itself
+stays free text.
+
 The service editor's vertical menu, the panes it opens and the validity of each section come from
 `SERVICE_SECTIONS` in `products/product-form-model.ts`; the explanation under each pane heading sits next to the
 field definitions. Requests are mapped with `sent()`, which trims every string of a form value and sends a blank
@@ -63,11 +69,15 @@ every feature land in `build/reports/gui/screenshots`.
   invalidating and regenerating keys, and the keys generated for new services; config previews and their problem
   details; library defaults with a version conflict; the Self-service wizard for a new product and for one in the portal
   (adding a pipeline, a Nexus IQ GoldenFix pipeline with the Nexus IQ application and repository of each service,
-  changing and removing services); Beadle Admin products and their change template with privileged users, default
-  change tasks and a version conflict; the ProTech changes of a department filtered and sorted in the table header, the
-  change page with its workflow progress, an update published to ProTech from PENDING to APPLIED, a NOT_APPLIED update,
-  a stale update, a closed change and the change of another department; the new change by FixVersion from the product
-  with its change tasks to the raised change; change
+  changing and removing services); Beadle Admin products and their change template section by section, with a
+  lookup, the downtime, the risk answers and the risk they give, privileged accounts, default change tasks and a
+  version conflict; the ProTech changes of a department filtered and sorted in the table header, the change page with
+  its workflow progress, an update published to ProTech from PENDING to APPLIED with a lookup, a downtime window and a
+  risk answer, a NOT_APPLIED update, a stale update, a closed change and the change of another department; the new
+  change walked step by step from the product through the lookups, the FixVersion, the approvers, the schedule with its
+  downtime window, the planning, the privileged accounts, the risk lists and the secure coding ticket to the review with
+  its change tasks and the raised change, a product without a template, and ProTech's field errors marked on the steps;
+  change
   evidence and its ServiceNow text, and the golden pull request of a Nexus IQ GoldenFix run; monitoring ranges,
   Jenkins and build links, InfluxDB missing or unreachable; and failing API calls.
 - Performance (`src/performanceTest`): the stub serves 25 products with 16 services and 4 pipelines each (Full,
@@ -88,7 +98,8 @@ every feature land in `build/reports/gui/screenshots`.
   `AdminPage`; its tabs render without their own page heading. The menu
   holding the current page is underlined. Each page starts with the full name of its section as the heading and the
   section description under it.
-- The pages show no icons. The only icons are those of the vertical section menu in the service editor.
+- The pages show no icons. The only icons are those of the vertical section menu in the service editor and the
+  magnifier of each lookup field.
 - Fields are compact (Material density -4, 32px inputs). Forms reflow to two columns below 760px and to one below
   480px; the menu wraps and wide tables scroll inside their own container, so no page scrolls sideways at 800px or
   600px.
@@ -115,6 +126,28 @@ pipeline dialog offers the types a service has no pipeline of; only Security and
 pipeline. No page lowercases the type itself: `pipelineTypeSlug` gives the part of job and file names (`full`, `sast`,
 `nexusiq`, so the suggested job is `DevSecOps/<CODE>/<service>-nexusiq`) and `pipelineTypeName` the name inside a
 sentence (`full`, `sast`, `Nexus IQ GoldenFix`).
+
+## New ProTech change
+
+The New Change wizard follows the sections of a ProTech change, listed once in `SECTIONS` of
+`changes/change-sections.ts`: Request data (Generic request data), Jira, Approval (Approval and Notification), Schedule,
+Planning, Privileged access, Risk assessment and Secure coding, then Review and Raised. Request data starts with the
+department and product pickers and the read-only facts (Change number, Approval, Opened By, State), then the request
+fields in two columns. Requested For, Requested By and Assigned to default to the signed-in user of `/api/me` and
+the Department to the department of the product. Jira shows the Jira project of the template and asks for the
+FixVersion and its epics and stories. Schedule asks for the start of the installation, the post-install validation
+and the first use as date and time, with hours for the installation and the validation, and a Yes/No downtime with
+its own start and hours; the end of each window is shown under its hours. Privileged access asks how many accounts
+(none to seven) and then the person and the account of each. Risk assessment offers the nine lists of
+`/api/changes/options` with Not assessed first; the Risk field of Request data is read-only and follows the answers
+(High when an answer is the last of its list, Moderate when one is past the first, else Low). Review holds the short
+description and description written from Jira and the change tasks, which can be changed there.
+
+The Category, Type and risk lists come only from `/api/changes/options`. The Beadle Admin product page shows the same
+sections without the facts, with the Jira project and the schedule defaults (start time and hours), and says that an
+empty Requested For, Requested By or Assigned to becomes the user who opens the change and an empty Department the
+department of the product. The edit page of a change shows the facts and the same sections without Jira, with the
+schedule of the change; the change page summary lists every field by section.
 
 ## Self-service wizard
 

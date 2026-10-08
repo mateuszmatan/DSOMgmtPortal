@@ -145,7 +145,7 @@ class GuiSmokeSpec extends GuiSpecification {
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
-    def "#path shows no icons"() {
+    def "#path shows no icons but the magnifiers of the lookups"() {
         given:
         page.addInitScript(CORPORATE_TECHNOLOGY)
 
@@ -153,14 +153,30 @@ class GuiSmokeSpec extends GuiSpecification {
         open(path)
 
         then:
-        page.locator('mat-icon').count() == 0
+        assertThat(page.locator('button.lookup mat-icon')).hasCount(lookups)
+        page.locator('mat-icon').count() == lookups
+        page.locator('mat-icon').allTextContents().every { it.trim() == 'search' }
         ownErrors().isEmpty()
 
         where:
-        path << ['/self-service', '/monitoring', '/monitoring/products/1', '/monitoring/pipelines/1', '/evidence',
-                 '/admin/departments', '/admin/products', '/admin/products/1', '/admin/settings', '/beadle/changes',
-                 '/beadle/new-change', '/beadle/changes/4', '/beadle/changes/4/edit', '/beadle/changes/2',
-                 '/beadle/admin/departments', '/beadle/admin/products', '/beadle/admin/products/1']
+        path                        | lookups
+        '/self-service'             | 0
+        '/monitoring'               | 0
+        '/monitoring/products/1'    | 0
+        '/monitoring/pipelines/1'   | 0
+        '/evidence'                 | 0
+        '/admin/departments'        | 0
+        '/admin/products'           | 0
+        '/admin/products/1'         | 0
+        '/admin/settings'           | 0
+        '/beadle/changes'           | 0
+        '/beadle/new-change'        | 0
+        '/beadle/changes/4'         | 0
+        '/beadle/changes/4/edit'    | 13
+        '/beadle/changes/2'         | 0
+        '/beadle/admin/departments' | 0
+        '/beadle/admin/products'    | 0
+        '/beadle/admin/products/1'  | 13
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })

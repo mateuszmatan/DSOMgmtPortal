@@ -25,6 +25,25 @@ export type CheckStatus =
   'PASS' | 'WARN' | 'FAIL' | 'BLOCKED' | 'NOT_REQUIRED' | 'SKIP' | 'NO_DATA';
 export type EvidenceScanner = 'SAST' | 'DAST' | 'SONARQUBE' | 'NEXUS_IQ';
 
+export type LookupKind =
+  | 'users'
+  | 'departments'
+  | 'assignment-groups'
+  | 'releases'
+  | 'configuration-items'
+  | 'incidents'
+  | 'problems'
+  | 'clients';
+
+export interface LookupItem {
+  value: string;
+  detail: string | null;
+}
+
+export interface SignedInUser {
+  name: string;
+}
+
 export const REGIONS: Region[] = ['RD', 'QC'];
 export const TEST_STAGES: TestStage[] = ['SMOKE', 'REGRESSION', 'PERFORMANCE'];
 export type TestSuite = 'UNIT' | TestStage;
