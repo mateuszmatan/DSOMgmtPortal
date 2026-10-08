@@ -39,6 +39,7 @@ export interface Department {
   serviceCount: number;
   pipelineCount: number;
   activePipelineCount: number;
+  changeCount: number;
 }
 
 export interface DepartmentRequest {

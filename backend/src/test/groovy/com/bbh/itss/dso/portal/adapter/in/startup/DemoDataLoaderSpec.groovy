@@ -209,7 +209,7 @@ class DemoDataLoaderSpec extends Specification {
     }
 
     private static DepartmentView department(long id, String name) {
-        new DepartmentView(id, name, 0, 0, 0, 0, 0)
+        new DepartmentView(id, name, 0, 0, 0, 0, 0, 0)
     }
 
     private static PipelineView view(Product product, long id, long serviceId, PipelineType type) {
