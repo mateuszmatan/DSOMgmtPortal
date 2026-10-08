@@ -259,6 +259,12 @@
         @if (checked() && unplaced().length) {
           <p class="choice-error">Choose where these services run: {{ unplaced().join(', ') }}</p>
         }
+        @if (checked() && unscanned().length) {
+          <p class="choice-error">
+            Add the Nexus IQ application and Bitbucket repository of these services:
+            {{ unscanned().join(', ') }}
+          </p>
+        }
       }
       @case (3) {
         <h2>Check and save</h2>
@@ -389,6 +395,16 @@
                 <p>
                   Add the smoke, regression and performance test jobs and the deployment details of
                   each service in {{ admin }}, or ask the DevSecOps team to do it.
+                </p>
+              </li>
+            }
+            @if (pipeline() === 'NEXUS_IQ') {
+              <li>
+                <h3>Review the golden pull requests</h3>
+                <p>
+                  When Nexus IQ finds a library that breaks the policy, GoldenFix opens a pull
+                  request with safe versions in the service's Bitbucket repository. Review it and
+                  merge it.
                 </p>
               </li>
             }

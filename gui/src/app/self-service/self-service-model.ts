@@ -12,11 +12,17 @@ import {
   Service,
   ServicePipelines,
   pipelineTypeLabel,
+  pipelineTypeSlug,
 } from '../core/models';
-import { createServiceForm, toServiceRequest } from '../products/product-form-model';
+import {
+  ServiceForm,
+  createNexusIqApplicationForm,
+  createServiceForm,
+  toServiceRequest,
+} from '../products/product-form-model';
 import { Choice } from '../shared/choice-tiles';
 
-export type WizardPipeline = Extract<PipelineType, 'SAST' | 'SECURITY' | 'FULL'>;
+export type WizardPipeline = Extract<PipelineType, 'SAST' | 'NEXUS_IQ' | 'SECURITY' | 'FULL'>;
 
 export const PIPELINES: readonly Choice<WizardPipeline>[] = [
   {
@@ -24,6 +30,17 @@ export const PIPELINES: readonly Choice<WizardPipeline>[] = [
     label: 'Static scan',
     description: 'Checks the source code for security flaws. Nothing is built or deployed.',
     points: ['Downloads the code of each service', 'Scans it with HCL AppScan'],
+  },
+  {
+    value: 'NEXUS_IQ',
+    label: 'Nexus IQ GoldenFix',
+    description:
+      'Checks the libraries of each service with Nexus IQ and opens a pull request with safe versions, without deploying anything.',
+    points: [
+      'Builds the code and scans its libraries',
+      'GoldenFix finds safe versions of risky ones',
+      'Opens a pull request with them in Bitbucket',
+    ],
   },
   {
     value: 'SECURITY',
@@ -88,6 +105,12 @@ const BUILD_TASKS: Record<BuildTool, string> = {
   MAVEN: 'clean verify',
   FLUTTER: '',
 };
+const SCAN_PATTERNS: Record<BuildTool, string> = {
+  GRADLE: '**/build/libs/*.jar',
+  MAVEN: '**/target/*.jar',
+  FLUTTER: '**/pubspec.lock',
+};
+const BITBUCKET_CREDENTIALS = 'bitbucket-http-credentials';
 const MAVEN_ARTIFACT = 'target/*.jar';
 const MAVEN_DELIVERY = 'deploy:deploy-file';
 const IMAGE_REGISTRY = 'docker-qc.tools.bbh.com';
@@ -157,15 +180,22 @@ export function choiceLabel<T>(choices: readonly Choice<T>[], value: T): string 
   return choices.find((option) => option.value === value)?.label ?? String(value);
 }
 
+export function deploys(pipeline: WizardPipeline): boolean {
+  return pipeline === 'SECURITY' || pipeline === 'FULL';
+}
+
 export function preparation(pipeline: WizardPipeline): string[] {
   const needs = [
     "Your product's AppScan API key ID, from the Application Security team",
     'The name and the AppScan application ID of each service',
     'Whether each service is built with Gradle or Maven',
   ];
-  return pipeline === 'SAST'
-    ? needs
-    : [...needs, 'Whether each service runs on virtual machines or OpenShift'];
+  if (pipeline === 'NEXUS_IQ') {
+    return [...needs, 'The Nexus IQ application and the Bitbucket repository of each service'];
+  }
+  return deploys(pipeline)
+    ? [...needs, 'Whether each service runs on virtual machines or OpenShift']
+    : needs;
 }
 
 export interface WizardService {
@@ -176,7 +206,14 @@ export interface WizardService {
   tool: BuildTool;
   target: DeployTarget | null;
   openShiftProject: string;
+  nexusIqApplication: string;
+  repositoryUrl: string;
 }
+
+const nexusIqApplicationOf = (service?: Service) =>
+  service?.nexusIqApplications[0]?.application ?? '';
+
+const repositoryOf = (service?: Service) => service?.scm.repositoryUrl ?? '';
 
 export function fromService(service: Service): WizardService {
   return {
@@ -187,26 +224,35 @@ export function fromService(service: Service): WizardService {
     tool: service.build.tool,
     target: service.deployment.target,
     openShiftProject: '',
+    nexusIqApplication: nexusIqApplicationOf(service),
+    repositoryUrl: repositoryOf(service),
   };
 }
 
 export function deploysWith(pipeline: WizardPipeline, service: WizardService): DeployTarget | null {
-  return pipeline === 'SAST' && service.id === null ? 'VM' : service.target;
+  return !deploys(pipeline) && service.id === null ? 'VM' : service.target;
 }
 
 export function serviceSummary(pipeline: WizardPipeline, service: WizardService): string {
   const target = deploysWith(pipeline, service);
   const parts = [choiceLabel(TOOL_NAMES, service.tool)];
-  if (target && (pipeline !== 'SAST' || service.id !== null)) {
+  if (target && (deploys(pipeline) || service.id !== null)) {
     parts.push(`runs on ${choiceLabel(TARGETS, target)}`);
   }
   if (target === 'OPENSHIFT' && service.openShiftProject) {
     parts.push(`project ${service.openShiftProject}`);
   }
+  if (pipeline === 'NEXUS_IQ' && service.nexusIqApplication) {
+    parts.push(`Nexus IQ ${service.nexusIqApplication}`);
+  }
   return parts.join(' · ');
 }
 
-export function changesOf(service: WizardService, stored: Service): string[] {
+export function changesOf(
+  pipeline: WizardPipeline,
+  service: WizardService,
+  stored: Service,
+): string[] {
   const changes: string[] = [];
   if (service.name !== stored.name) {
     changes.push(`renamed from ${stored.name}`);
@@ -227,6 +273,12 @@ export function changesOf(service: WizardService, stored: Service): string[] {
     changes.push(
       `runs on ${choiceLabel(TARGETS, service.target)}${project} instead of ${choiceLabel(TARGETS, stored.deployment.target)}, with the default deployment settings`,
     );
+  }
+  if (pipeline === 'NEXUS_IQ' && service.nexusIqApplication !== nexusIqApplicationOf(stored)) {
+    changes.push('new Nexus IQ application');
+  }
+  if (pipeline === 'NEXUS_IQ' && service.repositoryUrl !== repositoryOf(stored)) {
+    changes.push('new Bitbucket repository');
   }
   return changes;
 }
@@ -258,7 +310,7 @@ function reviewEntry(
   if (removed.includes(before.id)) {
     return ['Removed', { name: service.name, text: serviceSummary(pipeline, service) }];
   }
-  const changes = changesOf(service, before);
+  const changes = changesOf(pipeline, service, before);
   return changes.length
     ? ['Changed', { name: service.name, text: changes.join('; ') }]
     : ['Unchanged', { name: service.name, text: serviceSummary(pipeline, service) }];
@@ -355,7 +407,33 @@ export function serviceRequest(
   if (retooled || moved) {
     form.patchValue({ delivery: { tasks: MAVEN_DELIVERY } });
   }
+  if (pipeline === 'NEXUS_IQ') {
+    scanWithNexusIq(form, service, existing);
+  }
   return toServiceRequest(form);
+}
+
+function scanWithNexusIq(form: ServiceForm, service: WizardService, existing?: Service): void {
+  const applications = form.controls.nexusIqApplications;
+  if (service.nexusIqApplication !== nexusIqApplicationOf(existing)) {
+    if (applications.length) {
+      applications.controls[0].controls.application.setValue(service.nexusIqApplication);
+    } else {
+      applications.push(
+        createNexusIqApplicationForm({
+          application: service.nexusIqApplication,
+          scanPatterns: [SCAN_PATTERNS[service.tool]],
+        }),
+      );
+    }
+  }
+  const scm = form.controls.scm.controls;
+  if (service.repositoryUrl !== repositoryOf(existing)) {
+    scm.repositoryUrl.setValue(service.repositoryUrl);
+    if (!scm.credentialsId.value.trim()) {
+      scm.credentialsId.setValue(BITBUCKET_CREDENTIALS);
+    }
+  }
 }
 
 export interface NewProduct {
@@ -412,16 +490,22 @@ const FIELD_NAMES: Record<string, string> = {
   name: 'name',
   'appScan.applicationId': 'AppScan application ID',
   'appScan.keyId': 'AppScan API key ID',
+  'nexusIqApplications.application': 'Nexus IQ application',
+  'nexusIqApplications.scanPatterns': 'Nexus IQ scan patterns',
+  'scm.repositoryUrl': 'Bitbucket repository',
+  'scm.credentialsId': 'Bitbucket credentials ID',
   code: 'product code',
 };
+
+const fieldName = (field: string) => FIELD_NAMES[field.replace(/\[\d+]/g, '')] ?? field;
 
 export function problemText(problem: FieldProblem, services: readonly WizardService[]): string {
   const match = /^services\[(\d+)]\.(.+)$/.exec(problem.field);
   if (!match) {
-    return `${FIELD_NAMES[problem.field] ?? problem.field}: ${problem.message}`;
+    return `${fieldName(problem.field)}: ${problem.message}`;
   }
   const service = services[Number(match[1])]?.name ?? 'A service';
-  return `${service}, ${FIELD_NAMES[match[2]] ?? match[2]}: ${problem.message}`;
+  return `${service}, ${fieldName(match[2])}: ${problem.message}`;
 }
 
 export interface ServiceStart {
@@ -440,5 +524,5 @@ export function servicesToStart(
 }
 
 export function jobName(pipeline: Pipeline): string {
-  return `DevSecOps/${pipeline.productCode}/${pipeline.serviceName}-${pipeline.type.toLowerCase()}`;
+  return `DevSecOps/${pipeline.productCode}/${pipeline.serviceName}-${pipelineTypeSlug(pipeline.type)}`;
 }

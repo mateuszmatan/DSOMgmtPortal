@@ -11,6 +11,7 @@ use. Every pipeline key in these files is a placeholder: take the real one from 
 | [jenkins/security-pipeline.Jenkinsfile](jenkins/security-pipeline.Jenkinsfile) | a security pipeline: `devSecOpsSecurityPipeline` |
 | [jenkins/extended-pipeline.Jenkinsfile](jenkins/extended-pipeline.Jenkinsfile) | an extended pipeline: `devSecOpsExtendedPipeline` |
 | [jenkins/sast-pipeline.Jenkinsfile](jenkins/sast-pipeline.Jenkinsfile) | a SAST scanning pipeline: `devSecOpsSASTScanningPipeline` |
+| [jenkins/nexus-iq-pipeline.Jenkinsfile](jenkins/nexus-iq-pipeline.Jenkinsfile) | a Nexus IQ GoldenFix pipeline: `devSecOpsNexusIqGoldenFixPipeline` |
 | [jenkins/multi-service/gateway.Jenkinsfile](jenkins/multi-service/gateway.Jenkinsfile) | the full pipeline of Payments Hub `gateway` |
 | [jenkins/multi-service/ledger.Jenkinsfile](jenkins/multi-service/ledger.Jenkinsfile) | the full pipeline of Payments Hub `ledger` |
 | [jenkins/multi-service/payhub-full.Jenkinsfile](jenkins/multi-service/payhub-full.Jenkinsfile) | one full run that builds every Payments Hub service, `gateway` first |
@@ -50,6 +51,11 @@ job passes the key of its own pipeline. The demo data names these jobs `DevSecOp
   build made by the portal-integrated library.
 - `sast-pipeline.Jenkinsfile` runs `devSecOpsSASTScanningPipeline`: an AppScan static scan of the sources only, with
   nothing built or deployed.
+- `nexus-iq-pipeline.Jenkinsfile` runs `devSecOpsNexusIqGoldenFixPipeline`: it checks out the sources, builds each
+  service so that the Nexus IQ scan patterns find the built artifacts, and scans the dependencies with Nexus IQ. On a
+  policy violation GoldenFix raises the golden pull request with the upgrades in the service's Bitbucket repository.
+  Nothing is deployed. The demo data names these jobs `DevSecOps/<CODE>/<service>-nexusiq`, for example
+  `DevSecOps/PAYHUB/gateway-nexusiq`.
 - `multi-service/gateway.Jenkinsfile` and `multi-service/ledger.Jenkinsfile` are the full pipelines of two services of
   the demo product Payments Hub, each in its own repository with its own key. The key in `gateway.Jenkinsfile`
   (`00000000-0000-4000-8000-000000000000`) stands for the pipeline whose configuration `config/` shows.
@@ -89,7 +95,8 @@ examples/api/dso-config.sh "$KEY"
 - `product-pipelines.sh PRODUCT_ID` calls `GET /api/products/{id}/pipelines` and shows each pipeline's ID, type,
   entry point, Jenkins job and active key.
 - `pipeline-key.sh CODE SERVICE [TYPE]` finds the product by its code and prints the active key of the service's
-  pipeline of that type (`FULL` by default), for use in the other scripts.
+  pipeline of that type (`FULL` by default, `NEXUS_IQ` for the Nexus IQ GoldenFix pipeline), for use in the other
+  scripts.
 - `rotate-key.sh PIPELINE_ID` calls `POST /api/pipelines/{id}/keys`. An active key is invalidated with the reason
   "Replaced by a new key"; on a pipeline whose key was invalidated this regenerates it.
 - `revoke-key.sh PIPELINE_ID REASON` calls `POST /api/pipelines/{id}/keys/revoke` with `{"reason": ...}`. The pipeline
@@ -98,7 +105,9 @@ examples/api/dso-config.sh "$KEY"
   library sends, and records the key's last use. A revoked key answers 403, an unknown one 404.
 - `monitoring.sh PRODUCT_ID PIPELINE_ID [RANGE]` calls `GET /api/monitoring/status`, `/products`,
   `/activity?range=`, `/products/{id}` and `/pipelines/{id}?range=` (`30d` by default) and shortens each answer.
-- `change-evidence.sh PRODUCT_ID` calls `GET /api/evidence/products/{id}`.
+- `change-evidence.sh PRODUCT_ID` calls `GET /api/evidence/products/{id}`. The `run.goldenFix` of a pipeline gives
+  the GoldenFix result of that run (status, upgrades offered, applied and unresolved, and the link and title of the
+  golden pull request when one was raised), or is `null` when the run recorded none.
 
 `create-product.sh`, `rotate-key.sh` and `revoke-key.sh` change the portal's data. On the demo data, rotating or
 revoking a key changes nothing in Jenkins, since no job uses those keys.

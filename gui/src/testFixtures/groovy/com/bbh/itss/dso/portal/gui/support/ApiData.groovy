@@ -30,7 +30,8 @@ class ApiData {
 
     static final Map<String, String> ENTRY_POINTS = [FULL    : 'devSecOpsPipeline', SECURITY: 'devSecOpsSecurityPipeline',
                                                      EXTENDED: 'devSecOpsExtendedPipeline',
-                                                     SAST    : 'devSecOpsSASTScanningPipeline']
+                                                     SAST    : 'devSecOpsSASTScanningPipeline',
+                                                     NEXUS_IQ: 'devSecOpsNexusIqGoldenFixPipeline']
 
     static Map newPipeline(long id, Map product, Map service, Map key, String type) {
         def code = product.code as String

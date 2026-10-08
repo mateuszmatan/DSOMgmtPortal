@@ -417,6 +417,42 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                 services: [service(name: 'gui')])).status == 400
     }
 
+    def "a product onboarded for Nexus IQ GoldenFix gives each service a pipeline whose key reads the nexusiq config"() {
+        given:
+        def code = uniqueCode('NIQ')
+        def repository = 'https://bitbucket.bbh.com/projects/NIQ/repos/gui'
+
+        when:
+        def created = api.post('/api/products?pipelineType=NEXUS_IQ', product(code: code, name: "Product $code",
+                services: [service(name: 'gui', nexusIqApplications: [[application: 'niq-gui',
+                                                                       scanPatterns: ['**/build/libs/*.jar']]],
+                                   scm: [repositoryUrl: repository, credentialsId: 'bitbucket-http-credentials']),
+                           service(name: 'worker')]))
+        def pipelines = api.get("/api/products/$created.json.id/pipelines").json*.pipelines
+        def gui = pipelines[0][0]
+        def config = api.get("/api/dso/config/$gui.activeKey.value?format=json").json
+
+        then:
+        created.status == 201
+        pipelines*.type == [['NEXUS_IQ'], ['NEXUS_IQ']]
+        gui.entryPoint == 'devSecOpsNexusIqGoldenFixPipeline'
+        gui.activeKey.status == 'ACTIVE'
+        config.pipeline.subMap(['type', 'entryPoint', 'product', 'projectNames']) ==
+                [type: 'nexusiq', entryPoint: 'devSecOpsNexusIqGoldenFixPipeline', product: code, projectNames: 'gui']
+        config.projects.gui.tools.nexusIq.application == 'niq-gui'
+        config.projects.gui.scm.bitbucket.url == repository
+        config.projects.gui.influx.project == "$code-gui".toString()
+
+        when:
+        def updated = api.put("/api/products/$created.json.id?pipelineType=SAST", product(code: code,
+                name: "Product $code", services: created.json.services))
+
+        then:
+        updated.status == 200
+        api.get("/api/products/$created.json.id/pipelines").json*.pipelines*.type ==
+                [['NEXUS_IQ', 'SAST'], ['NEXUS_IQ', 'SAST']]
+    }
+
     def "#refusal is a problem detail that keeps the portal's internals to itself"() {
         when:
         def response = call.call(api)

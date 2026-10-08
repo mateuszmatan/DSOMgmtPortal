@@ -23,6 +23,7 @@ import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.ACTIVE
 import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.REVOKED
 import static com.bbh.itss.dso.portal.domain.pipeline.Pipeline.REPLACED_REASON
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
 import static com.bbh.itss.dso.portal.support.Fixtures.account
@@ -194,6 +195,8 @@ class PipelinePersistenceAdapterSpec extends Specification {
                 products))
         def apiSast = stored(ref(cert, 1), SAST)
         def guiSecurity = stored(ref(cert, 0), SECURITY)
+        def guiSast = stored(ref(cert, 0), SAST)
+        def guiNexusIq = stored(ref(cert, 0), NEXUS_IQ)
         def guiFull = stored(ref(cert, 0))
         def core = stored(ref(other, 0))
         apiSast.revokeActiveKey('Retired', REISSUED)
@@ -201,15 +204,21 @@ class PipelinePersistenceAdapterSpec extends Specification {
         entities.clear()
 
         expect:
-        adapter.findByProductId(cert.id())*.id() == [guiFull.id(), guiSecurity.id(), apiSast.id()]
+        adapter.findByProductId(cert.id())*.id() ==
+                [guiFull.id(), guiNexusIq.id(), guiSast.id(), guiSecurity.id(), apiSast.id()]
         adapter.findByProductId(999_999L).empty
-        adapter.findAll()*.id() == [core.id(), guiFull.id(), guiSecurity.id(), apiSast.id()]
-        adapter.findAll()*.service() == [ref(other, 0), ref(cert, 0), ref(cert, 0), ref(cert, 1)]
+        adapter.findAll()*.id() ==
+                [core.id(), guiFull.id(), guiNexusIq.id(), guiSast.id(), guiSecurity.id(), apiSast.id()]
+        adapter.findAll()*.service() == [ref(other, 0)] + [ref(cert, 0)] * 4 + [ref(cert, 1)]
+        adapter.load(guiNexusIq.id()).get().type() == NEXUS_IQ
+        jdbc.queryForObject('SELECT PIPELINE_TYPE FROM DSO_PIPELINE WHERE ID = ?', String, guiNexusIq.id()) ==
+                'NEXUS_IQ'
         adapter.existsForService(cert.services()[0].id(), FULL)
-        !adapter.existsForService(cert.services()[0].id(), SAST)
+        adapter.existsForService(cert.services()[0].id(), NEXUS_IQ)
+        !adapter.existsForService(cert.services()[1].id(), NEXUS_IQ)
         !adapter.existsForService(cert.services()[1].id(), FULL)
-        adapter.pipelinesPerProduct() == [(cert.id()): 3L, (other.id()): 1L]
-        adapter.activePipelinesPerProduct() == [(cert.id()): 2L, (other.id()): 1L]
+        adapter.pipelinesPerProduct() == [(cert.id()): 5L, (other.id()): 1L]
+        adapter.activePipelinesPerProduct() == [(cert.id()): 4L, (other.id()): 1L]
     }
 
     def "a tag is shared when pipelines of several services write under it"() {

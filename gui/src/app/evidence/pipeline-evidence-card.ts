@@ -18,6 +18,8 @@ import {
   evidenceText,
   formatPercent,
   formatUtc,
+  goldenFixResult,
+  goldenFixUpgrades,
   hasFindings,
   scanRows,
   stageDetails,
@@ -91,6 +93,8 @@ export class PipelineEvidenceCard {
   protected readonly suiteLabels = SUITE_LABELS;
   protected readonly percent = formatPercent;
   protected readonly hasFindings = hasFindings;
+  protected readonly goldenFixResult = goldenFixResult;
+  protected readonly goldenFixUpgrades = goldenFixUpgrades;
 
   protected over(value: number | null, max: number | null): boolean {
     return value !== null && max !== null && value > max;

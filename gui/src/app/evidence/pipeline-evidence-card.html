@@ -245,6 +245,21 @@
         <p class="limits-note">Counts read as findings / limit of the BBH policy.</p>
       </section>
     </div>
+
+    @if (run.goldenFix; as fix) {
+      <section class="golden-fix">
+        <h5>GoldenFix</h5>
+        <p>
+          <strong>{{ goldenFixResult(fix) }}</strong> · {{ goldenFixUpgrades(fix) }}
+          @if (fix.pullRequestUrl) {
+            ·
+            <a class="plain-link" [href]="fix.pullRequestUrl" target="_blank" rel="noopener">{{
+              fix.pullRequestTitle ?? 'Pull request'
+            }}</a>
+          }
+        </p>
+      </section>
+    }
   } @else {
     <p class="not-recorded no-run">No run of this pipeline was recorded yet.</p>
   }

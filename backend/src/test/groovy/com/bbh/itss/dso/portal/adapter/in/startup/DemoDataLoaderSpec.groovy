@@ -21,6 +21,7 @@ import spock.lang.Specification
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.forNewService
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.EXTENDED
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
 import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
@@ -74,9 +75,11 @@ class DemoDataLoaderSpec extends Specification {
         created*.services()*.size() == [2, 2, 2, 2, 3, 2, 2, 2, 4, 2]
         created.every { it.services().every { service -> problems(service.settings()) == [] } }
         created.drop(1)*.appScan()*.keyId().every { it.startsWith('bbh_') }
-        requested.size() == 46
+        requested.size() == 49
         requested.count { it.action == 'update' } == 23
-        requested.countBy { it.type } == [(FULL): 23, (SECURITY): 10, (EXTENDED): 7, (SAST): 6]
+        requested.countBy { it.type } == [(FULL): 23, (SECURITY): 10, (EXTENDED): 7, (SAST): 6, (NEXUS_IQ): 3]
+        requested.findAll { it.type == NEXUS_IQ }*.service == ['DOCSENSE extraction-api', 'ACCESSHUB workflow',
+                                                               'PAYHUB gateway']
         revoked == [['SAFEKEEP recon-batch', 'Reconciliation moved to the mainframe scheduler'],
                     ['PAYHUB mobile-app', 'Mobile app moved to the new mobile platform pipeline']]
 
@@ -126,6 +129,9 @@ class DemoDataLoaderSpec extends Specification {
         'ADVISORAI assistant-api' | SECURITY || 'DevSecOps/ADVISORAI/assistant-api-security' | null                                          | null
         'NAVCALC nav-api'         | EXTENDED || 'DevSecOps/NAVCALC/nav-api-extended'         | null                                          | null
         'LPPORTAL lp-mobile'      | SAST     || 'DevSecOps/LPPORTAL/lp-mobile-sast'          | null                                          | null
+        'DOCSENSE extraction-api' | NEXUS_IQ || 'DevSecOps/DOCSENSE/extraction-api-nexusiq'  | null                                          | null
+        'ACCESSHUB workflow'      | NEXUS_IQ || 'DevSecOps/ACCESSHUB/workflow-nexusiq'       | null                                          | null
+        'PAYHUB gateway'          | NEXUS_IQ || 'DevSecOps/PAYHUB/gateway-nexusiq'           | null                                          | null
     }
 
     def "only the demo products a database is missing are added"() {

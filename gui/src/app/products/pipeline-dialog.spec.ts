@@ -49,8 +49,8 @@ describe('PipelineDialog', () => {
     [...page().querySelectorAll('mat-label')].map((label) => label.textContent?.trim());
   const every = () =>
     servicePipelines({
-      pipelines: (['FULL', 'SECURITY', 'EXTENDED', 'SAST'] as const).map((value, index) =>
-        pipeline({ id: 100 + index, type: value }),
+      pipelines: (['FULL', 'SECURITY', 'EXTENDED', 'SAST', 'NEXUS_IQ'] as const).map(
+        (value, index) => pipeline({ id: 100 + index, type: value }),
       ),
     });
 
@@ -131,6 +131,43 @@ describe('PipelineDialog', () => {
 
     request.flush(pipeline({ agentLabels: ['linux-agent', 'docker'] }));
     expect(close).toHaveBeenCalledWith(pipeline({ agentLabels: ['linux-agent', 'docker'] }));
+  });
+
+  it('adds a Nexus IQ GoldenFix pipeline without a job of another pipeline', async () => {
+    const service = servicePipelines({
+      pipelines: (['FULL', 'SECURITY', 'EXTENDED', 'SAST'] as const).map((value, index) =>
+        pipeline({ id: 100 + index, type: value }),
+      ),
+    });
+    await render({ service });
+
+    expect(dialog()['types'].map((type) => type.label)).toEqual(['Nexus IQ GoldenFix']);
+    expect(form().controls.type.value).toBe('NEXUS_IQ');
+    expect(page().querySelector('mat-hint')?.textContent).toContain(
+      "GoldenFix opens a pull request with safe versions in the service's Bitbucket repository",
+    );
+    expect(labels()).toEqual([
+      'Pipeline type',
+      'Jenkins agent labels',
+      'Jenkins job',
+      'Description',
+    ]);
+
+    await type('Jenkins job', 'DevSecOps/CERT/gui-nexusiq');
+    await submit();
+
+    const request = http.expectOne({ method: 'POST', url: '/api/services/10/pipelines' });
+    expect(request.request.body).toEqual({
+      type: 'NEXUS_IQ',
+      agentLabels: ['linux-agent'],
+      extendedPipelineJob: null,
+      securityPipelineJob: null,
+      jenkinsJob: 'DevSecOps/CERT/gui-nexusiq',
+      description: null,
+    });
+    const created = pipeline({ id: 104, type: 'NEXUS_IQ' });
+    request.flush(created);
+    expect(close).toHaveBeenCalledWith(created);
   });
 
   it('refuses unusable agent labels and job paths before sending', async () => {

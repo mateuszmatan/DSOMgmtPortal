@@ -1,6 +1,7 @@
 import {
   CheckStatus,
   EvidenceScanner,
+  GoldenFixEvidence,
   PipelineEvidence,
   ProductEvidence,
   RunEvidence,
@@ -31,6 +32,17 @@ const EVIDENCE_SCANNERS: { scanner: EvidenceScanner; label: string }[] = [
   { scanner: 'SONARQUBE', label: 'SonarQube' },
   { scanner: 'NEXUS_IQ', label: 'Nexus IQ' },
 ];
+
+const GOLDEN_FIX_RESULTS: Record<string, string> = {
+  PR_CREATED: 'Pull request raised',
+  PR_UPDATED: 'Pull request updated',
+  NO_FIXES: 'No safe versions offered',
+  NO_MANIFEST_CHANGES: 'Nothing to change',
+  NOT_CONFIGURED: 'No Bitbucket repository set',
+  BUILD_FAILED: 'Upgrades do not build',
+  SKIPPED: 'Skipped',
+  ERROR: 'Failed',
+};
 
 export function formatUtc(iso: string | null | undefined): string | null {
   if (!iso) {
@@ -69,6 +81,14 @@ export function scanRows(
 
 export function hasFindings(scan: ScanEvidence): boolean {
   return [scan.critical, scan.high, scan.medium, scan.low].some((value) => value !== null);
+}
+
+export function goldenFixResult(fix: GoldenFixEvidence): string {
+  return GOLDEN_FIX_RESULTS[fix.status] ?? fix.status;
+}
+
+export function goldenFixUpgrades(fix: GoldenFixEvidence): string {
+  return `${fix.applied} of ${counted(fix.offered, 'upgrade')} applied, ${fix.unresolved} unresolved`;
 }
 
 export function evidenceText(
@@ -134,6 +154,7 @@ export function evidenceText(
     '',
     'Security and quality scans',
     ...scanRows(run).map(({ label, scan }) => field(label, scan && scanText(scan))),
+    ...goldenFixLines(run.goldenFix),
     '',
     'Release gate',
     field('Decision', gateText(run)),
@@ -227,6 +248,20 @@ function scanText(scan: ScanEvidence): string {
 function severity(label: string, value: number | null, max: number | null): string {
   const count = value === null ? NOT_RECORDED.toLowerCase() : String(value);
   return max === null ? `${label} ${count}` : `${label} ${count} (limit ${max})`;
+}
+
+function goldenFixLines(fix: GoldenFixEvidence | null): string[] {
+  if (!fix) {
+    return [];
+  }
+  const pullRequest = [fix.pullRequestTitle, fix.pullRequestUrl].filter(Boolean).join(', ');
+  return [
+    '',
+    'GoldenFix',
+    field('Result', goldenFixResult(fix)),
+    field('Upgrades', goldenFixUpgrades(fix)),
+    field('Pull request', pullRequest || (fix.pullRequestRaised ? null : 'None')),
+  ];
 }
 
 function gateText(run: RunEvidence): string | null {

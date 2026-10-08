@@ -311,6 +311,45 @@ describe('ProductDetail', () => {
       expect(opened(1).data['fileName']).toBe('cert-gui-full.yaml');
     });
 
+    it('names a Nexus IQ GoldenFix pipeline in its labels, configuration and delete question', async () => {
+      const nexusIq = pipeline({
+        type: 'NEXUS_IQ',
+        entryPoint: 'devSecOpsNexusIqGoldenFixPipeline',
+      });
+      await load(product(), [
+        servicePipelines({ pipelines: [pipeline({ id: 101, type: 'SAST' }), nexusIq] }),
+      ]);
+      const labels = (selector: string) =>
+        [...page().querySelectorAll(selector)].map((element) => element.getAttribute('aria-label'));
+
+      expect(
+        [...page().querySelectorAll('.pipeline-title strong')].map((title) => title.textContent),
+      ).toEqual(['SAST scanning pipeline', 'Nexus IQ GoldenFix pipeline']);
+      expect(labels('.key .text-link')).toEqual([
+        'Show the key of the SAST scanning pipeline',
+        'Copy the key of the SAST scanning pipeline',
+        'Show the key of the Nexus IQ GoldenFix pipeline',
+        'Copy the key of the Nexus IQ GoldenFix pipeline',
+      ]);
+
+      buttonOf(page(), 'More actions of the Nexus IQ GoldenFix pipeline').click();
+      await fixture.whenStable();
+      buttonOf(document, 'Delete pipeline').click();
+      await fixture.whenStable();
+      [...page().querySelectorAll<HTMLButtonElement>('button')]
+        .filter((button) => button.textContent?.trim() === 'Config')[1]
+        .click();
+      http.expectOne('/api/pipelines/100/config').flush('projects: {}');
+
+      expect(opened(0).data['message']).toContain(
+        'The Nexus IQ GoldenFix pipeline of gui and its key history are deleted.',
+      );
+      expect(opened(1).data).toMatchObject({
+        title: 'Configuration of the gui Nexus IQ GoldenFix pipeline',
+        fileName: 'cert-gui-nexusiq.yaml',
+      });
+    });
+
     it('offers one Jenkinsfile for the services that share a pipeline type, this one first', async () => {
       const api = pipeline({
         id: 200,

@@ -2,6 +2,7 @@ import {
   Department,
   DoraSummary,
   GlobalSettings,
+  GoldenFixEvidence,
   MonitoringOverview,
   MonitoringStatus,
   Pipeline,
@@ -567,6 +568,20 @@ export function runEvidence(overrides: Partial<RunEvidence> = {}): RunEvidence {
       { name: 'Nexus IQ', status: 'FAIL', durationSeconds: 60, reason: '1 critical finding' },
       { name: 'Deploy QC', status: 'BLOCKED', durationSeconds: null, reason: 'Release gate' },
     ],
+    goldenFix: null,
+    ...overrides,
+  };
+}
+
+export function goldenFixEvidence(overrides: Partial<GoldenFixEvidence> = {}): GoldenFixEvidence {
+  return {
+    status: 'PR_CREATED',
+    offered: 3,
+    applied: 2,
+    unresolved: 1,
+    pullRequestRaised: true,
+    pullRequestUrl: 'https://bitbucket.bbh.com/projects/CERT/repos/gui/pull-requests/17',
+    pullRequestTitle: 'GoldenFix-202610040815',
     ...overrides,
   };
 }

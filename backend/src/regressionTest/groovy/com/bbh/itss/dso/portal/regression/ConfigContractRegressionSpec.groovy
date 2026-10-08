@@ -45,15 +45,20 @@ class ConfigContractRegressionSpec extends PortalSpecification {
         def payments = createProduct(PAYMENTS)
         def security = pipelineFor(payments.services[0].id as long, pipeline(type: 'SECURITY',
                 agentLabels: ['linux-agent', 'docker'], extendedPipelineJob: 'PAYHUB/gateway-extended'))
+        def nexusIq = pipelineFor(payments.services[0].id as long, pipeline(type: 'NEXUS_IQ',
+                extendedPipelineJob: 'PAYHUB/gateway-extended', securityPipelineJob: 'PAYHUB/gateway-security'))
 
         when:
         def pipelineConfig = api.get("/api/dso/config/$security.activeKey.value")
+        def nexusIqConfig = api.get("/api/dso/config/$nexusIq.activeKey.value")
         def productConfig = api.get("/api/products/$payments.id/config")
 
         then:
         pipelineConfig.status == 200
+        nexusIqConfig.status == 200
         productConfig.status == 200
         matchesExpected('pipeline-config.yaml', pipelineConfig.body)
+        matchesExpected('nexus-iq-pipeline-config.yaml', nexusIqConfig.body)
         matchesExpected('product-config.yaml', productConfig.body)
     }
 

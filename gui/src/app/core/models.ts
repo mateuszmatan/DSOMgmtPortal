@@ -1,6 +1,6 @@
 export type BuildTool = 'GRADLE' | 'MAVEN' | 'FLUTTER';
 export type DeployTarget = 'VM' | 'OPENSHIFT';
-export type PipelineType = 'FULL' | 'SECURITY' | 'EXTENDED' | 'SAST';
+export type PipelineType = 'FULL' | 'SECURITY' | 'EXTENDED' | 'SAST' | 'NEXUS_IQ';
 export type KeyStatus = 'ACTIVE' | 'REVOKED';
 export type RunResult =
   'SUCCESS' | 'UNSTABLE' | 'FAILURE' | 'ABORTED' | 'NOT_BUILT' | 'NO_DATA' | 'DISABLED';
@@ -649,6 +649,7 @@ export interface RunEvidence {
   scans: ScanEvidence[];
   releaseGate: ReleaseGateEvidence | null;
   stages: StageEvidence[];
+  goldenFix: GoldenFixEvidence | null;
 }
 
 export interface BuildEvidence {
@@ -707,6 +708,16 @@ export interface ReleaseGateEvidence {
   reason: string | null;
 }
 
+export interface GoldenFixEvidence {
+  status: string;
+  offered: number;
+  applied: number;
+  unresolved: number;
+  pullRequestRaised: boolean;
+  pullRequestUrl: string | null;
+  pullRequestTitle: string | null;
+}
+
 export interface StageEvidence {
   name: string;
   status: CheckStatus;
@@ -736,10 +747,24 @@ export const PIPELINE_TYPES: { value: PipelineType; label: string; description: 
     description: 'Deployment and tests started by the security pipeline',
   },
   { value: 'SAST', label: 'SAST scanning', description: 'AppScan static scan of the sources only' },
+  {
+    value: 'NEXUS_IQ',
+    label: 'Nexus IQ GoldenFix',
+    description:
+      "Nexus IQ dependency scan; GoldenFix opens a pull request with safe versions in the service's Bitbucket repository",
+  },
 ];
 
 export function pipelineTypeLabel(type: PipelineType): string {
   return PIPELINE_TYPES.find((option) => option.value === type)?.label ?? type;
+}
+
+export function pipelineTypeSlug(type: PipelineType): string {
+  return type === 'NEXUS_IQ' ? 'nexusiq' : type.toLowerCase();
+}
+
+export function pipelineTypeName(type: PipelineType): string {
+  return type === 'NEXUS_IQ' ? pipelineTypeLabel(type) : type.toLowerCase();
 }
 
 export const DEFAULT_JENKINS_LIBRARY = 'DevSecOpsJenkinsLibrary';

@@ -78,4 +78,4 @@ terminates TLS at the edge and redirects plain HTTP. Memory is limited to 1 GiB 
 | `INFLUX_ORG`, `INFLUX_BUCKET` | ConfigMap (optional) | Default to `DevSecOps` and `DORA-metrics`, as DSOEnhanced writes them |
 | `INFLUX_TOKEN` | Secret `dso-portal-influx` (optional) | InfluxDB read token |
 | `GRAFANA_DASHBOARD_URL` | ConfigMap | Link to the DSOEnhanced pipeline dashboard on your Grafana |
-| `GRAFANA_SECURITY_DASHBOARD_URL` | ConfigMap (optional) | Link to the DSOEnhanced security dashboard, used for SECURITY and SAST pipelines |
+| `GRAFANA_SECURITY_DASHBOARD_URL` | ConfigMap (optional) | Link to the DSOEnhanced security dashboard, used for SECURITY, SAST and NEXUS_IQ pipelines |

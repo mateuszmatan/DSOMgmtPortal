@@ -18,6 +18,8 @@ import {
   Product,
   ServicePipelines,
   pipelineTypeLabel,
+  pipelineTypeName,
+  pipelineTypeSlug,
 } from '../core/models';
 import { Notifier } from '../core/notifier';
 import { bitbucketRepositoryUrl } from '../shared/bitbucket';
@@ -125,7 +127,7 @@ export class ProductDetail {
 
   protected typeName(type: PipelineType): string {
     const label = this.typeLabel(type);
-    return /^[A-Z]{2}/.test(label) ? label : label.charAt(0).toLowerCase() + label.slice(1);
+    return /[A-Z]/.test(label.slice(1)) ? label : label.toLowerCase();
   }
 
   protected repositoryOf(service: ServicePipelines): string | null {
@@ -160,11 +162,11 @@ export class ProductDetail {
 
   protected showPipelineConfig(pipeline: Pipeline): void {
     this.showCode(this.pipelines.config(pipeline.id), (code) => ({
-      title: `Configuration of the ${pipeline.serviceName} ${pipeline.type.toLowerCase()} pipeline`,
+      title: `Configuration of the ${pipeline.serviceName} ${pipelineTypeName(pipeline.type)} pipeline`,
       subtitle:
         "What the DevSecOps library receives for this pipeline's key. Showing it here does not count as a use of the key.",
       code,
-      fileName: `${pipeline.productCode.toLowerCase()}-${pipeline.serviceName}-${pipeline.type.toLowerCase()}.yaml`,
+      fileName: `${pipeline.productCode.toLowerCase()}-${pipeline.serviceName}-${pipelineTypeSlug(pipeline.type)}.yaml`,
     }));
   }
 
@@ -269,7 +271,7 @@ export class ProductDetail {
     this.confirm({
       title: 'Delete the pipeline?',
       message:
-        `The ${pipeline.type.toLowerCase()} pipeline of ${pipeline.serviceName} and its key history are deleted. ` +
+        `The ${pipelineTypeName(pipeline.type)} pipeline of ${pipeline.serviceName} and its key history are deleted. ` +
         'Jenkins jobs using its key stop working.',
       confirmLabel: 'Delete pipeline',
       danger: true,

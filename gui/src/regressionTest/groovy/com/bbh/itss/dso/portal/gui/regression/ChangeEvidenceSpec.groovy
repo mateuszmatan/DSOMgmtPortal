@@ -64,6 +64,39 @@ class ChangeEvidenceSpec extends GuiSpecification {
         ownErrors().isEmpty()
     }
 
+    def "the evidence of a Nexus IQ GoldenFix pipeline links the golden pull request it raised"() {
+        given:
+        def evidence = fixture('evidence-product-2.json') as Map
+        (evidence.services as List<Map>).find { it.name == 'ledger' }.pipelines << fixture('evidence-nexus-iq-pipeline.json')
+        api.respond('GET', '/api/evidence/products/2', evidence)
+        recordClipboard()
+        open('/evidence')
+
+        when:
+        header('Payments Hub').click()
+
+        then:
+        def nexusIq = card('Payments Hub', 'ledger', 'Nexus IQ GoldenFix')
+        assertThat(nexusIq.locator('.stage'))
+                .hasText(['Monitor source changes (download sources)', 'Build artifact', 'Dependencies scan (Nexus IQ)'] as String[])
+        assertThat(nexusIq.locator('.golden-fix p'))
+                .hasText('Pull request raised · 2 of 3 upgrades applied, 1 unresolved · GoldenFix-202610040610')
+        assertThat(nexusIq.locator('.golden-fix').getByRole(LINK))
+                .hasAttribute('href', 'https://bitbucket.bbh.com/projects/PAY/repos/payhub-ledger/pull-requests/12')
+        assertThat(card('Payments Hub', 'ledger', 'Full').locator('.golden-fix')).hasCount(0)
+
+        when:
+        buttonIn(nexusIq, 'Copy for ServiceNow', false).click()
+
+        then:
+        assertThat(snackBar()).containsText('Evidence copied for ServiceNow')
+        copiedTexts().size() == 1
+        copiedTexts()[0].startsWith('DevSecOps change evidence: Payments Hub (PAYHUB), ledger, Nexus IQ GoldenFix pipeline\n')
+        copiedTexts()[0].contains('\n\nGoldenFix\n- Result: Pull request raised\n- Upgrades: 2 of 3 upgrades applied, 1 unresolved\n' +
+                '- Pull request: GoldenFix-202610040610, https://bitbucket.bbh.com/projects/PAY/repos/payhub-ledger/pull-requests/12\n\nRelease gate\n')
+        ownErrors().isEmpty()
+    }
+
     def "products are found by the trimmed search term"() {
         given:
         open('/evidence')

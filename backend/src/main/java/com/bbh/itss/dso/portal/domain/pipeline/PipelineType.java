@@ -8,7 +8,8 @@ public enum PipelineType {
     FULL("devSecOpsPipeline", "full", ""),
     SECURITY("devSecOpsSecurityPipeline", "security", "security"),
     EXTENDED("devSecOpsExtendedPipeline", "extended", "extended"),
-    SAST("devSecOpsSASTScanningPipeline", "sast", "sast");
+    SAST("devSecOpsSASTScanningPipeline", "sast", "sast"),
+    NEXUS_IQ("devSecOpsNexusIqGoldenFixPipeline", "nexusiq", "nexusiq");
 
     @Getter
     private final String entryPoint;

@@ -75,3 +75,23 @@ describe('RevokeKeyDialog', () => {
     expect(close).not.toHaveBeenCalled();
   });
 });
+
+describe('RevokeKeyDialog of a Nexus IQ GoldenFix pipeline', () => {
+  it('names the pipeline by its label', async () => {
+    TestBed.configureTestingModule({
+      imports: [RevokeKeyDialog],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: MAT_DIALOG_DATA, useValue: pipeline({ type: 'NEXUS_IQ' }) },
+        { provide: MatDialogRef, useValue: { close: vi.fn() } },
+      ],
+    });
+    const fixture = TestBed.createComponent(RevokeKeyDialog);
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.banner')?.textContent).toContain(
+      'The Nexus IQ GoldenFix pipeline of',
+    );
+  });
+});

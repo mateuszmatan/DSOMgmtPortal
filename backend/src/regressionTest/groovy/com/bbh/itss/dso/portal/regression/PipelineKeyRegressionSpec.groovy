@@ -182,6 +182,23 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
         config.projects.gui.jenkins.pipeline.extendedPipeline == "$code/gui-extended"
     }
 
+    def "the Nexus IQ GoldenFix pipeline links no other job and reads its runs under its own project tag"() {
+        when:
+        def nexusIq = pipelineFor(gui, pipeline(type: 'NEXUS_IQ', jenkinsJob: "DevSecOps/$code/gui-nexusiq",
+                extendedPipelineJob: "$code/gui-extended", securityPipelineJob: "$code/gui-security"))
+        def config = new Yaml().load(api.get("/api/dso/config/$nexusIq.activeKey.value").body) as Map
+
+        then:
+        nexusIq.type == 'NEXUS_IQ'
+        nexusIq.entryPoint == 'devSecOpsNexusIqGoldenFixPipeline'
+        nexusIq.influxProjectTag == "$code-guinexusiq"
+        nexusIq.jenkinsJob == "DevSecOps/$code/gui-nexusiq"
+        [nexusIq.extendedPipelineJob, nexusIq.securityPipelineJob] == [null, null]
+        config.pipeline == [type: 'nexusiq', entryPoint: 'devSecOpsNexusIqGoldenFixPipeline', product: code,
+                            projectNames: 'gui', agentNames: ['linux-agent']]
+        !config.projects.gui.containsKey('jenkins')
+    }
+
     def "the product's pipelines are listed per service"() {
         given:
         pipelineFor(gui)

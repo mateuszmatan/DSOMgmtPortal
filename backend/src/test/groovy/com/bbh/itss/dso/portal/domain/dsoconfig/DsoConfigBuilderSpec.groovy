@@ -1,7 +1,9 @@
 package com.bbh.itss.dso.portal.domain.dsoconfig
 
+import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication
 import com.bbh.itss.dso.portal.domain.catalog.Product
+import com.bbh.itss.dso.portal.domain.catalog.ScmSettings
 import com.bbh.itss.dso.portal.domain.catalog.Service
 import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
 import com.bbh.itss.dso.portal.domain.catalog.SshTarget
@@ -14,6 +16,7 @@ import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT
 import static com.bbh.itss.dso.portal.domain.catalog.Region.RD
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.EXTENDED
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.command
@@ -28,6 +31,7 @@ class DsoConfigBuilderSpec extends Specification {
     @Subject
     def builder = new DsoConfigBuilder(storedSettings('https://jenkins.test').values())
 
+    static final String REPOSITORY = 'https://bitbucket.bbh.com/projects/TA/repos/cert-scanner'
     static final Map GUI = [id: 10L, name: 'gui',
                             sonar: SonarSettings.of('CertScanner GUI', 'cert-gui', command(['sonarqube'])),
                             nexusIqApplications: [NexusIqApplication.of('cert-gui', ['**/build/libs/*.jar'])]]
@@ -140,6 +144,27 @@ class DsoConfigBuilderSpec extends Specification {
         SECURITY | 'CERT/gui-extended' | null                || null                | [pipeline: [extendedPipeline: 'CERT/gui-extended']]
         EXTENDED | null                | 'CERT/gui-security' || 'CERT/gui-security' | null
         SECURITY | null                | null                || null                | null
+        NEXUS_IQ | 'CERT/gui-extended' | 'CERT/gui-security' || null                | null
+    }
+
+    def "the Nexus IQ GoldenFix pipeline renders the scan, GoldenFix and the repository of its golden pull request"() {
+        given:
+        certScanner = product(services: [GUI + [scm: ScmSettings.of(REPOSITORY, 'bitbucket-http-credentials'),
+                                                goldenFix: GoldenFixPolicy.inherit(true)]])
+
+        when:
+        def config = builder.pipelineConfig(certScanner, certScanner.services()[0],
+                pipeline(serviceId: 10L, type: NEXUS_IQ))
+
+        then:
+        config.pipeline == [type: 'nexusiq', entryPoint: 'devSecOpsNexusIqGoldenFixPipeline', product: 'CERT',
+                            projectNames: 'gui', agentNames: ['linux-agent']]
+        config.projects.gui.tools.nexusIq.application == 'cert-gui'
+        config.projects.gui.tools.nexusIq.scanPatterns == ['**/build/libs/*.jar']
+        config.projects.gui.scm.bitbucket.subMap(['url', 'credentialsId']) ==
+                [url: REPOSITORY, credentialsId: 'bitbucket-http-credentials']
+        config.projects.gui.goldenFix == [enabled: true]
+        config.defaults.goldenFix.verify.enabled != null
     }
 
     def "the global configuration holds the platform and the library defaults"() {

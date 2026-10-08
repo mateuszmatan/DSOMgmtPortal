@@ -10,6 +10,7 @@ import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.REVOKED
 import static com.bbh.itss.dso.portal.domain.pipeline.Pipeline.REPLACED_REASON
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.EXTENDED
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
 import static com.bbh.itss.dso.portal.support.Fixtures.activeKey
@@ -134,6 +135,7 @@ class PipelineSpec extends Specification {
         EXTENDED || null                | 'CERT/gui-security'
         FULL     || null                | null
         SAST     || null                | null
+        NEXUS_IQ || null                | null
     }
 
     def "reconfiguring changes the settings but not the keys"() {
@@ -182,12 +184,14 @@ class PipelineSpec extends Specification {
         SECURITY || 'cert-guisecurity'
         EXTENDED || 'cert-guiextended'
         SAST     || 'cert-guisast'
+        NEXUS_IQ || 'cert-guinexusiq'
     }
 
     def "each type names the library entry point it runs"() {
         expect:
         PipelineType.values().collect { [it.entryPoint(), it.variant()] } == [
                 ['devSecOpsPipeline', 'full'], ['devSecOpsSecurityPipeline', 'security'],
-                ['devSecOpsExtendedPipeline', 'extended'], ['devSecOpsSASTScanningPipeline', 'sast']]
+                ['devSecOpsExtendedPipeline', 'extended'], ['devSecOpsSASTScanningPipeline', 'sast'],
+                ['devSecOpsNexusIqGoldenFixPipeline', 'nexusiq']]
     }
 }

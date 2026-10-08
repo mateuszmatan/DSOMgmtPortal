@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { GlobalSettings, TEST_STAGES, TestStage } from '../core/models';
 import { HTTP_URL_ERROR, addItem, moveItem, removeItem } from '../shared/form-controls';
+import { capitalized } from '../shared/formatting';
 import {
   Field,
   Fields,
@@ -34,7 +35,7 @@ const STAGES: Stage[] = TEST_STAGES.map((value) => {
   const noun = value.toLowerCase() as StageNoun;
   return {
     value,
-    label: `${noun.charAt(0).toUpperCase()}${noun.slice(1)} tests`,
+    label: `${capitalized(noun)} tests`,
     noun,
     required: `${noun}Required`,
   };
