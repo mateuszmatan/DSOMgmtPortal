@@ -10,7 +10,7 @@
         [attr.aria-current]="section.id === current() ? 'true' : null"
         (click)="select(section.id)"
       >
-        <svg-icon aria-hidden="true" [name]="section.icon" [svgStyle]="iconStyle" />
+        <svg-icon aria-hidden="true" [name]="section.icon" />
         <span>{{ section.label }}</span>
         @if (section.problem) {
           <span class="problem-mark" role="img" aria-label="Needs your attention"></span>

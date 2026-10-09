@@ -71,8 +71,6 @@ const NOTES: Record<ServiceSectionId, string> = {
     'What a Flutter build needs besides the common settings; written only for Flutter services.',
 };
 
-const ICON_STYLE = { 'width.px': 16, 'height.px': 16, fill: 'currentColor' };
-
 const GENERAL: Field[] = [
   line('name', 'Service name', '', 5, {
     placeholder: 'backend-api',
@@ -298,7 +296,6 @@ export class ServiceFields {
   private readonly selected = signal<ServiceSectionId>('general');
   private readonly changes = formRevision(this.form);
 
-  protected readonly iconStyle = ICON_STYLE;
   protected readonly regions = REGIONS;
   protected readonly regionNames = REGION_NAMES;
   protected readonly general = GENERAL;
