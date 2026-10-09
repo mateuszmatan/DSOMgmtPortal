@@ -27,44 +27,33 @@ import { buildDefaults, fillTemplate } from '../shared/service-template';
 
 export type WizardPipeline = Extract<PipelineType, 'SAST' | 'NEXUS_IQ' | 'SECURITY' | 'FULL'>;
 
-export const PIPELINES: readonly Choice<WizardPipeline>[] = [
+export interface PipelineChoice extends Choice<WizardPipeline> {
+  name: string;
+}
+
+export const PIPELINES: readonly PipelineChoice[] = [
   {
     value: 'SAST',
-    label: 'Static scan',
-    description: 'Checks the source code for security flaws. Nothing is built or deployed.',
-    points: ['Downloads the code of each service', 'Scans it with HCL AppScan'],
+    name: 'SAST',
+    label: 'SAST (Static Application Security Tests) - HCL AppScan',
   },
   {
     value: 'NEXUS_IQ',
-    label: 'Nexus IQ GoldenFix',
-    description:
-      'Checks the libraries of each service with Nexus IQ and opens a pull request with safe versions, without deploying anything.',
-    points: [
-      'Builds the code and scans its libraries',
-      'GoldenFix finds safe versions of risky ones',
-      'Opens a pull request with them in Bitbucket',
-    ],
+    name: 'OSA',
+    label: 'OSA (Open Source Analysis) (NexusIQ with Golden Fix and Golden Pull Request)',
   },
   {
     value: 'SECURITY',
+    name: 'Security',
     label: 'Security',
-    description: 'Builds every service and runs all the security checks.',
-    points: [
-      'Builds the code and runs its unit tests',
-      'Scans the code, its libraries and its quality',
-      'Publishes a checked snapshot to Nexus',
-    ],
+    description: 'Unit Tests, NexusIQ, SAST, SonarQube',
   },
   {
     value: 'FULL',
+    name: 'Full',
     label: 'Full',
-    description: 'Everything Security does, then deploys, tests and releases.',
-    points: [
-      'Everything the Security pipeline does',
-      'Deploys to the RD and QC test environments',
-      'Runs your smoke, regression and performance tests',
-      'Releases an artifact with no known vulnerabilities',
-    ],
+    description:
+      'Static Security (unit test, NexusIQ, SAST, SonarQube) + Extended (lower test region deployment, regression, performance, smoke, DAST, *higher test region deployment)',
   },
 ];
 
@@ -105,11 +94,11 @@ export const PRODUCT_MODES: readonly Choice<ProductMode>[] = [
 export const OPENSHIFT_PROJECT = /^[a-z0-9]([-a-z0-9]{0,48}[a-z0-9])?$/;
 
 export function pipelineLabel(pipeline: WizardPipeline): string {
-  return PIPELINES.find((option) => option.value === pipeline)!.label;
+  return PIPELINES.find((option) => option.value === pipeline)!.name;
 }
 
 function typeLabel(type: PipelineType): string {
-  return PIPELINES.find((option) => option.value === type)?.label ?? pipelineTypeLabel(type);
+  return PIPELINES.find((option) => option.value === type)?.name ?? pipelineTypeLabel(type);
 }
 
 export function pipelineNames(service: ServicePipelines): string {
@@ -159,7 +148,7 @@ function listed(names: readonly string[]): string {
 
 export function pipelineChoices(
   services: readonly ServicePipelines[] | null,
-): readonly Choice<WizardPipeline>[] {
+): readonly PipelineChoice[] {
   return services
     ? PIPELINES.map((option) => ({ ...option, note: coverage(services, option.value) }))
     : PIPELINES;
