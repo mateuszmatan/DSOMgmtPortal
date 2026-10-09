@@ -12,12 +12,8 @@ import {
   viewChildren,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { Dialog } from '@angular/cdk/dialog';
 import { ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatExpansionModule } from '@angular/material/expansion';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterLink } from '@angular/router';
 import {
   Observable,
@@ -56,6 +52,8 @@ import {
 import { addItem, moveItem, removeItem, revalidateAll } from '../shared/form-controls';
 import { CountedPipe } from '../shared/formatting';
 import { buildDefaults } from '../shared/service-template';
+import { DsoLoading, DsoSpinner } from '../ui/loading';
+import { PANEL } from '../ui/panel';
 import {
   ServiceForm,
   applyProductProblems,
@@ -105,10 +103,9 @@ const APP_SCAN_ACCOUNT: Field[] = [
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    MatButtonModule,
-    MatExpansionModule,
-    MatProgressBarModule,
-    MatProgressSpinnerModule,
+    PANEL,
+    DsoLoading,
+    DsoSpinner,
     CountedPipe,
     Fields,
     ServiceFields,
@@ -127,7 +124,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   private readonly settingsApi = inject(SettingsApi);
   private readonly router = inject(Router);
   private readonly notifier = inject(Notifier);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(Dialog);
   private readonly generatedKeys = inject(GeneratedKeys);
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
@@ -171,11 +168,10 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
         .pipe(
           switchMap((departments) => {
             this.departments.set(departments);
-            return this.dialog
-              .open<ProductNameDialog, ProductNameDialogData, NamedProduct>(ProductNameDialog, {
-                data: { departments, departmentId: Number(this.department()) || null },
-              })
-              .afterClosed();
+            return this.dialog.open<NamedProduct, ProductNameDialogData, ProductNameDialog>(
+              ProductNameDialog,
+              { data: { departments, departmentId: Number(this.department()) || null } },
+            ).closed;
           }),
           switchMap((named) =>
             named
@@ -297,9 +293,8 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       danger: true,
     };
     this.dialog
-      .open<ConfirmDialog, ConfirmDialogData, boolean>(ConfirmDialog, { data })
-      .afterClosed()
-      .subscribe((confirmed) => confirmed && this.removeAt(index));
+      .open<boolean, ConfirmDialogData, ConfirmDialog>(ConfirmDialog, { data })
+      .closed.subscribe((confirmed) => confirmed && this.removeAt(index));
   }
 
   protected panelToggled(index: number, open: boolean): void {
@@ -374,7 +369,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     afterNextRender(
       () => {
         const field = document.querySelector(
-          '.product-fields .mat-form-field-invalid, .mat-expanded .mat-form-field-invalid',
+          '.product-fields .dso-form-field.has-error, .dso-panel.expanded .dso-form-field.has-error',
         );
         field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       },

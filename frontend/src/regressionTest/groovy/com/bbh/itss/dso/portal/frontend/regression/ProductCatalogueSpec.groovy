@@ -19,11 +19,13 @@ class ProductCatalogueSpec extends ProductPageSpecification {
         assertThat(department('Fund Services').locator('.tally')).hasText('6 DevSecOps pipelines for 1 product · 5 active')
         assertThat(department('AI Lab').locator('.tally')).hasText('0 DevSecOps pipelines for 0 products')
         assertThat(department('AI Lab').locator('.no-products')).hasText('No products in AI Lab yet.')
-        assertThat(department('Corporate Technology').locator('td a.name')).hasText('CertScanner')
-        assertThat(department('Fund Services').locator('td a.name')).hasText('Payments Hub')
+        assertThat(gridRows(department('Corporate Technology')).locator('a.name')).hasText('CertScanner')
+        assertThat(gridRows(department('Fund Services')).locator('a.name')).hasText('Payments Hub')
+        assertThat(gridHeaders(department('Fund Services')))
+                .hasText(['Product', 'Owner team', 'Services', 'Pipelines', 'Last change'] as String[])
         assertThat(names()).hasText(['CertScanner', 'Payments Hub'] as String[])
         assertThat(page.locator('.toolbar .count')).hasText('2 products in 5 departments')
-        assertThat(row('Payments Hub').locator('td').nth(2)).hasText('4')
+        assertThat(gridCell(row('Payments Hub'), 'services')).hasText('4')
         assertThat(row('Payments Hub').locator('.pipelines strong')).hasText('6')
         assertThat(row('Payments Hub').locator('.pipelines .muted')).hasText('· 5 active')
         assertThat(row('Payments Hub').locator('.pipelines .revoked')).hasText('· 1 invalidated')
@@ -44,7 +46,7 @@ class ProductCatalogueSpec extends ProductPageSpecification {
 
         then:
         assertThat(departmentNames()).hasText((DEPARTMENTS + 'Not in a department') as String[])
-        assertThat(department('Not in a department').locator('td a.name')).hasText('Payments Hub')
+        assertThat(gridRows(department('Not in a department')).locator('a.name')).hasText('Payments Hub')
         assertThat(department('Not in a department').locator('.tally')).hasText('6 DevSecOps pipelines for 1 product · 5 active')
         assertThat(department('Not in a department').locator('.hint')).hasText('Edit these products to choose their department.')
         assertThat(department('Not in a department').getByRole(BUTTON)).hasCount(0)
@@ -95,7 +97,7 @@ class ProductCatalogueSpec extends ProductPageSpecification {
         open('/admin/products')
 
         when:
-        row('Payments Hub').locator('td').nth(1).click()
+        gridCell(row('Payments Hub'), 'ownerTeam').click()
         page.waitForURL('**/admin/products/2')
 
         then:
@@ -129,11 +131,11 @@ class ProductCatalogueSpec extends ProductPageSpecification {
     }
 
     Locator names() {
-        page.locator('td a.name')
+        gridRows().locator('a.name')
     }
 
     Locator row(String name) {
-        holding(page.locator('tr.mat-mdc-row'), "a.name:text-is('${name}')")
+        holding(gridRows(), "a.name:text-is('${name}')")
     }
 
     Locator search() {

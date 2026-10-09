@@ -50,7 +50,7 @@ abstract class ProductPageSpecification extends GuiSpecification {
 
     void keyRows(List<List<String>> expected) {
         expected.eachWithIndex { parts, index ->
-            parts.each { assertThat(dialog().locator('tr.mat-mdc-row').nth(index)).containsText(it) }
+            parts.each { assertThat(gridRows(dialog()).nth(index)).containsText(it) }
         }
     }
 }

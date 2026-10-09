@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
 import { GlobalSettings, TEST_STAGES, TestStage } from '../core/models';
 import { HTTP_URL_ERROR, addItem, moveItem, removeItem } from '../shared/form-controls';
 import { capitalized } from '../shared/formatting';
@@ -80,7 +79,7 @@ const REMOTE: Field[] = [
 
 @Component({
   selector: 'dso-test-jobs-fields',
-  imports: [MatButtonModule, Fields],
+  imports: [Fields],
   changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './test-jobs-fields.html',
   styles: `
@@ -93,7 +92,7 @@ const REMOTE: Field[] = [
       align-items: center;
       gap: 4px 12px;
 
-      mat-form-field {
+      dso-form-field {
         width: 170px;
       }
     }

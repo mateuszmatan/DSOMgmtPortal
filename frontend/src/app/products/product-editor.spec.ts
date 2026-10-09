@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
@@ -14,7 +14,7 @@ import {
   servicePipelines,
   serviceTemplate,
 } from '../testing/fixtures';
-import { buttonOf, inputOf } from '../testing/dom';
+import { buttonOf, inputOf, selectOf, text } from '../testing/dom';
 import { GeneratedKeys } from './generated-keys';
 import { ProductEditor } from './product-editor';
 import { ProductNameDialog } from './product-name-dialog';
@@ -44,10 +44,12 @@ describe('ProductEditor', () => {
       .flush(serviceTemplate({ mavenTasks: 'clean install', deliveryTasks: 'deploy' }));
   const page = () => fixture.nativeElement as HTMLElement;
 
+  const closing = (result: unknown) =>
+    vi
+      .spyOn(TestBed.inject(Dialog), 'open')
+      .mockReturnValue({ closed: of(result) } as unknown as DialogRef<unknown>);
   const naming = (name: string | undefined, departmentId = 3) =>
-    vi.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
-      afterClosed: () => of(name && { name, departmentId }),
-    } as unknown as MatDialogRef<unknown>);
+    closing(name && { name, departmentId });
   const departments = [department(), department({ id: 5, name: 'Fund Services' })];
 
   const suggestion = (name: string) =>
@@ -93,13 +95,9 @@ describe('ProductEditor', () => {
   }
 
   const names = () =>
-    [...page().querySelectorAll('mat-expansion-panel .service-name')].map((name) =>
-      name.textContent?.trim(),
-    );
-  const confirming = (answer: boolean) =>
-    vi
-      .spyOn(TestBed.inject(MatDialog), 'open')
-      .mockReturnValue({ afterClosed: () => of(answer) } as unknown as MatDialogRef<unknown>);
+    [...page().querySelectorAll('dso-panel .service-name')].map((name) => name.textContent?.trim());
+  const panels = () => [...page().querySelectorAll<HTMLElement>('dso-panel')];
+  const expandedPanels = () => panels().filter((panel) => panel.classList.contains('expanded'));
 
   const imageBuild = {
     RD: {
@@ -133,8 +131,9 @@ describe('ProductEditor', () => {
     await start();
 
     expect(page().querySelector('h1')?.textContent).toBe('Add product');
-    expect(page().querySelectorAll('mat-expansion-panel').length).toBe(1);
+    expect(panels().length).toBe(1);
     expect(editor()['expanded']()).toBe(0);
+    expect(text(expandedPanels()[0].querySelector('.panel-toggle'))).toBe('Hide');
     expect(editor().hasUnsavedChanges()).toBe(false);
   });
 
@@ -164,9 +163,9 @@ describe('ProductEditor', () => {
     expect(inputOf(page(), 'Name').value).toBe('Payments Hub');
     expect(inputOf(page(), 'Code').value).toBe('PAYMENTSHUB2');
     expect(editor()['form'].controls.departmentId.value).toBe(5);
-    expect(page().querySelector('.product-fields mat-select')?.textContent).toContain(
-      'Fund Services',
-    );
+    expect(
+      text(selectOf(page().querySelector('.product-fields')!, 'Department').selectedOptions[0]),
+    ).toBe('Fund Services');
     expect(editor().hasUnsavedChanges()).toBe(false);
   });
 
@@ -260,7 +259,7 @@ describe('ProductEditor', () => {
     });
     expect(editor()['expanded']()).toBe(1);
     expect(page().querySelector('.problems')?.textContent).toContain('appScanAccount: is unknown');
-    expect(page().querySelector('.mat-expanded .rail-item.active')?.textContent).toContain(
+    expect(page().querySelector('.dso-panel.expanded .rail-item.active')?.textContent).toContain(
       'SonarQube',
     );
   });
@@ -339,7 +338,15 @@ describe('ProductEditor', () => {
 
   it('moves services up and down and keeps the open one open', async () => {
     await edit();
-    editor()['panelToggled'](0, true);
+    expect(expandedPanels()).toEqual([]);
+    panels()[0].querySelector<HTMLButtonElement>('.accordion-button')!.click();
+    await fixture.whenStable();
+    expect(expandedPanels()).toEqual([panels()[0]]);
+    panels()[1].querySelector<HTMLButtonElement>('.accordion-button')!.click();
+    await fixture.whenStable();
+    expect(expandedPanels()).toEqual([panels()[1]]);
+    expect(editor()['expanded']()).toBe(1);
+    panels()[0].querySelector<HTMLButtonElement>('.accordion-button')!.click();
     await fixture.whenStable();
 
     buttonOf(page(), 'Move gui down').click();
@@ -357,7 +364,7 @@ describe('ProductEditor', () => {
 
   it('removes a stored service once confirmed and sends the product without it', async () => {
     await edit();
-    const open = confirming(true);
+    const open = closing(true);
     editor()['panelToggled'](1, true);
 
     editor()['remove'](0);

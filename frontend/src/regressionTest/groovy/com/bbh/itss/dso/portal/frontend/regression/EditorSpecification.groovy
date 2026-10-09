@@ -21,15 +21,15 @@ abstract class EditorSpecification extends GuiSpecification {
     }
 
     Locator openService() {
-        page.locator('mat-expansion-panel.mat-expanded')
+        page.locator('dso-panel.expanded')
     }
 
     Locator servicePanel(String name) {
-        holding(page.locator('mat-expansion-panel'), ".service-name:text-is('${name}')")
+        holding(page.locator('dso-panel'), ".service-name:text-is('${name}')")
     }
 
     Locator serviceNames() {
-        page.locator('mat-expansion-panel .service-name')
+        page.locator('dso-panel .service-name')
     }
 
     void expandService(String name) {
@@ -37,12 +37,12 @@ abstract class EditorSpecification extends GuiSpecification {
     }
 
     void expandServiceAt(int index) {
-        expand(page.locator('mat-expansion-panel').nth(index))
+        expand(page.locator('dso-panel').nth(index))
     }
 
     private void expand(Locator panel) {
-        panel.locator('mat-expansion-panel-header').click()
-        assertThat(panel).hasClass(~/\bmat-expanded\b/)
+        panel.locator('.accordion-header button').click()
+        assertThat(panel).hasClass(~/\bexpanded\b/)
         assertThat(openService()).hasCount(1)
     }
 
@@ -64,11 +64,15 @@ abstract class EditorSpecification extends GuiSpecification {
     }
 
     Locator hintOf(Locator scope, String label) {
-        formField(scope, label).locator('mat-hint')
+        formField(scope, label).locator('dso-hint')
     }
 
     void toggle(Locator scope, String label) {
-        holdingText(scope.locator('mat-button-toggle'), label).locator('button').click()
+        holdingText(scope.locator('dso-toggle-group button'), label).click()
+    }
+
+    Locator selected(Locator scope, String label) {
+        select(scope, label).locator('option:checked')
     }
 
     Locator saveError() {

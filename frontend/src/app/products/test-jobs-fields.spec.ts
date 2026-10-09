@@ -52,7 +52,7 @@ describe('TestJobsFields', () => {
 
     const textarea = inputOf(page(), 'Parameters') as unknown as HTMLTextAreaElement;
     expect(textarea.value).toBe('ENV=rd\nSUITE=critical');
-    expect(text(textarea.closest('mat-form-field'))).toContain(
+    expect(text(textarea.closest('dso-form-field'))).toContain(
       'parameters · One NAME=value per line',
     );
 
@@ -61,7 +61,7 @@ describe('TestJobsFields', () => {
     textarea.dispatchEvent(new Event('blur'));
     await fixture.whenStable();
 
-    expect(text(textarea.closest('mat-form-field'))).toContain(
+    expect(text(textarea.closest('dso-form-field'))).toContain(
       'Write each parameter as NAME=value: SUITE critical',
     );
   });

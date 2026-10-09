@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AbstractControl, FormArray, FormGroup } from '@angular/forms';
 import { BuildTool, DeployTarget, GlobalSettings, Service } from '../core/models';
 import { wholeNumber } from '../shared/form-controls';
-import { buttonOf, checkboxOf, fieldOf, text } from '../testing/dom';
+import { buttonOf, checkboxOf, choose, fieldOf, optionsOf, selectOf, text } from '../testing/dom';
 import { globalSettings, service } from '../testing/fixtures';
 import { ServiceForm, createServiceForm } from './product-form-model';
 import { ServiceFields } from './service-fields';
@@ -26,7 +26,7 @@ describe('ServiceFields', () => {
 
   const page = () => fixture.nativeElement as HTMLElement;
   const pane = () => page().querySelector<HTMLElement>('.pane')!;
-  const hints = () => [...pane().querySelectorAll('mat-hint')].map((hint) => text(hint));
+  const hints = () => [...pane().querySelectorAll('dso-hint')].map((hint) => text(hint));
 
   async function open(label: string) {
     const item = [...page().querySelectorAll<HTMLButtonElement>('.rail-item')].find(
@@ -88,16 +88,6 @@ describe('ServiceFields', () => {
     ['FLUTTER', 'OPENSHIFT'],
   ];
 
-  async function chooseOption(trigger: HTMLElement, label: string) {
-    trigger.click();
-    await fixture.whenStable();
-    const option = [...document.querySelectorAll<HTMLElement>('mat-option')].find(
-      (element) => element.textContent?.trim() === label,
-    );
-    option!.click();
-    await fixture.whenStable();
-  }
-
   describe('every section', () => {
     it.each(combinations)(
       'opens each section of a %s service on %s',
@@ -127,7 +117,7 @@ describe('ServiceFields', () => {
         expect(marked.length).toBeGreaterThan(5);
         for (const label of railLabels()) {
           await open(label);
-          const errors = [...pane().querySelectorAll('mat-error')].map((e) =>
+          const errors = [...pane().querySelectorAll('dso-error')].map((e) =>
             e.textContent?.trim(),
           );
           expect(errors.every((error) => !!error)).toBe(true);
@@ -136,22 +126,18 @@ describe('ServiceFields', () => {
       20_000,
     );
 
-    it(
-      'works without the global settings and reveals the first section with a problem',
-      async () => {
-        await render(service(), null);
-        for (const label of railLabels()) {
-          await open(label);
-        }
-        expect(fixture.componentInstance.revealFirstProblem()).toBe(false);
+    it('works without the global settings and reveals the first section with a problem', async () => {
+      await render(service(), null);
+      for (const label of railLabels()) {
+        await open(label);
+      }
+      expect(fixture.componentInstance.revealFirstProblem()).toBe(false);
 
-        form.controls.sonar.controls.command.controls.tasks.setValue('');
-        expect(fixture.componentInstance.revealFirstProblem()).toBe(true);
-        await fixture.whenStable();
-        expect(page().querySelector('.rail-item.active span')?.textContent).toBe('SonarQube');
-      },
-      20_000,
-    );
+      form.controls.sonar.controls.command.controls.tasks.setValue('');
+      expect(fixture.componentInstance.revealFirstProblem()).toBe(true);
+      await fixture.whenStable();
+      expect(page().querySelector('.rail-item.active span')?.textContent).toBe('SonarQube');
+    }, 20_000);
   });
 
   describe('Build', () => {
@@ -186,6 +172,30 @@ describe('ServiceFields', () => {
       expect(field('Artifact path').textContent).toContain(
         'the artifact the Nexus snapshot delivery uploads',
       );
+    });
+  });
+
+  describe('Deployment', () => {
+    it('switches the deployment target and its sections with the toggles', async () => {
+      await render();
+      await open('Deployment');
+      const target = (label: string) => buttonOf(pane(), label);
+
+      expect(pane().querySelector('dso-toggle-group')?.getAttribute('aria-label')).toBe(
+        'Deployment target',
+      );
+      expect(target('Virtual machine').getAttribute('aria-checked')).toBe('true');
+      expect(pane().querySelector('.pane-header p')?.textContent).toContain(
+        'UrbanCode Deploy and SSH targets',
+      );
+
+      target('OpenShift').click();
+      await fixture.whenStable();
+
+      expect(form.controls.deployment.controls.target.value).toBe('OPENSHIFT');
+      expect(target('OpenShift').getAttribute('aria-checked')).toBe('true');
+      expect(railLabels()).toContain('OpenShift targets');
+      expect(railLabels()).not.toContain('SSH targets');
     });
   });
 
@@ -248,16 +258,12 @@ describe('ServiceFields', () => {
       await render();
       await open('GoldenFix');
 
-      const select = pane().querySelector<HTMLElement>('mat-select')!;
-      expect(select.textContent?.trim()).toBe('Global default');
+      const select = selectOf(pane(), 'Run GoldenFix');
+      expect(text(select.selectedOptions[0])).toBe('Global default');
       expect(hints()).toContain('goldenFix.enabled · Global default: on');
+      expect(optionsOf(select)).toEqual(['Global default', 'On', 'Off']);
 
-      select.click();
-      await fixture.whenStable();
-      expect(
-        [...document.querySelectorAll('mat-option')].map((option) => option.textContent?.trim()),
-      ).toEqual(['Global default', 'On', 'Off']);
-      (document.querySelector('mat-option:last-of-type') as HTMLElement).click();
+      choose(select, 'Off');
       await fixture.whenStable();
 
       expect(form.controls.goldenFix.controls.enabled.value).toBe(false);
@@ -272,7 +278,8 @@ describe('ServiceFields', () => {
       await open('GoldenFix');
 
       expect(hints()).toContain('goldenFix.enabled · Global default: off');
-      await chooseOption(pane().querySelector<HTMLElement>('mat-select')!, 'On');
+      choose(selectOf(pane(), 'Run GoldenFix'), 'On');
+      await fixture.whenStable();
 
       expect(form.controls.goldenFix.controls.enabled.value).toBe(true);
     });
@@ -284,9 +291,13 @@ describe('ServiceFields', () => {
       expect(pane().querySelector('.note')?.textContent).toContain(
         'maven, npm, pypi, threat level 2 and above, direct dependencies only, each fix verified by a build.',
       );
-      form.controls.goldenFix.controls.inherit.setValue(false);
+      expect(buttonOf(pane(), 'Inherit the library defaults').getAttribute('aria-checked')).toBe(
+        'true',
+      );
+      buttonOf(pane(), 'Override for this service').click();
       await fixture.whenStable();
 
+      expect(form.controls.goldenFix.controls.inherit.value).toBe(false);
       expect(pane().querySelector('dso-golden-fix-fields')).not.toBeNull();
     });
 

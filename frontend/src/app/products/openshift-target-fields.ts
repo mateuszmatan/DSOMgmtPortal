@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { REGIONS, Region } from '../core/models';
 import { Field, Fields, check, formRevision, mono } from '../shared/fields';
 import { IMAGE_TAG_ERROR, SHELL_SAFE_ERROR } from '../shared/form-controls';
+import { TOGGLES } from '../ui/toggle-group';
 import { OpenShiftTargetForm, ServiceForm } from './product-form-model';
 
 const SAFE = { error: SHELL_SAFE_ERROR };
@@ -61,24 +61,19 @@ const PINNED_IMAGE: Field[] = [
 
 @Component({
   selector: 'dso-openshift-target-fields',
-  imports: [MatButtonToggleModule, Fields],
+  imports: [TOGGLES, Fields],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
-    <mat-button-toggle-group
-      class="regions"
-      [value]="region()"
-      (change)="region.set($event.value)"
-      aria-label="Region"
-    >
+    <dso-toggle-group class="regions" [(value)]="region" aria-label="Region">
       @for (option of regions; track option) {
-        <mat-button-toggle [value]="option">
+        <button [dsoToggle]="option">
           {{ option }} region
           @if (target(option).invalid) {
             <span class="problem-mark" role="img" aria-label="Needs your attention"></span>
           }
-        </mat-button-toggle>
+        </button>
       }
-    </mat-button-toggle-group>
+    </dso-toggle-group>
     <p class="region-note">
       @if (region() === 'RD') {
         The lower test region, where the run builds the image. Keys under

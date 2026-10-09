@@ -1,7 +1,6 @@
 package com.bbh.itss.dso.portal.frontend.regression
 
 import com.bbh.itss.dso.portal.frontend.support.StubResponse
-import com.microsoft.playwright.Page
 
 import java.util.regex.Pattern
 
@@ -14,7 +13,6 @@ import static com.bbh.itss.dso.portal.frontend.support.ApiData.revokedKey
 import static com.bbh.itss.dso.portal.frontend.support.StubApi.fixture
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
-import static com.microsoft.playwright.options.AriaRole.OPTION
 
 class PipelineKeysSpec extends ProductPageSpecification {
 
@@ -60,8 +58,9 @@ class PipelineKeysSpec extends ProductPageSpecification {
         then:
         assertThat(dialog().locator('h2')).hasText('Key history')
         assertThat(dialog().locator('.intro')).hasText('Sast pipeline of mobile-app in Payments Hub.')
-        assertThat(dialog().locator('tr.mat-mdc-row td').first()).hasText('dd3ac7a4…825e')
-        assertThat(dialog().locator('tr.mat-mdc-row')).containsText(['Invalidated'] as String[])
+        assertThat(gridHeaders(dialog())).hasText(['Key', 'Status', 'Issued', 'Last REST fetch', 'Invalidated'] as String[])
+        assertThat(gridCells(dialog(), 'key').first()).hasText('dd3ac7a4…825e')
+        assertThat(gridRows(dialog())).containsText(['Invalidated'] as String[])
         assertThat(dialog().locator('.reason')).hasText('Mobile app moved to the new mobile platform pipeline')
         assertThat(dialog().locator('.key-status')).containsText('Key invalidated')
         assertThat(dialogButton('Regenerate key')).isVisible()
@@ -85,14 +84,13 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
         when:
         buttonIn(serviceCard('gui'), 'Add pipeline', false).click()
-        select(dialog(), 'Pipeline type').click()
 
         then:
         assertThat(dialog().locator('h2')).hasText('Add pipeline')
-        assertThat(page.getByRole(OPTION)).hasText(['Security', 'Extended', 'Nexus IQ GoldenFix'] as String[])
+        optionsOf(dialog(), 'Pipeline type') == ['Security', 'Extended', 'Nexus IQ GoldenFix']
 
         when:
-        page.getByRole(OPTION, new Page.GetByRoleOptions().setName('Security')).click()
+        choose(dialog(), 'Pipeline type', 'Security')
 
         then:
         assertThat(input(dialog(), 'Jenkins job')).hasValue('DevSecOps/CERTSCANNER/gui-security')
@@ -219,7 +217,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         then:
         assertThat(dialog().locator('.key-status')).containsText('New key')
         assertThat(dialog().locator('.key-status .key-value')).hasText(newValue)
-        assertThat(dialog().locator('tr.mat-mdc-row')).hasCount(2)
+        assertThat(gridRows(dialog())).hasCount(2)
         keyRows([[hint(newValue), 'Active'],
                  ['2c0ca4f4…e713', 'Invalidated', 'Key printed in a build log']])
         awaitRequest('POST', '/api/pipelines/2/keys').json() == [:]
@@ -245,7 +243,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
         expect:
         assertThat(regenerate).hasText('Regenerate key')
-        assertThat(regenerate.locator('mat-icon')).hasCount(0)
+        assertThat(regenerate.locator('svg-icon')).hasCount(0)
         assertThat(pipelineRow('mobile-app', 'SAST scanning').locator('.key-state')).hasText('Key invalidated')
 
         when:
@@ -274,7 +272,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         pipelineAction('mobile-app', 'SAST scanning', 'Key history')
 
         then:
-        assertThat(dialog().locator('tr.mat-mdc-row')).hasCount(2)
+        assertThat(gridRows(dialog())).hasCount(2)
         keyRows([[hint(REGENERATED_KEY), 'Active'], ['dd3ac7a4…825e', 'Invalidated']])
         assertThat(dialog().locator('.reason')).hasText('Mobile app moved to the new mobile platform pipeline')
         assertThat(dialogButton('Regenerate key')).hasCount(0)
