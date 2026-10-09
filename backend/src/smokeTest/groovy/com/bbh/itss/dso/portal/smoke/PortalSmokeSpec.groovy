@@ -117,6 +117,8 @@ class PortalSmokeSpec extends Specification {
             assert profile.status == 200: profile
             assert !started || profile.json.version != null
             assert !profile.json.tasks.isEmpty()
+            assert profile.json.tasks.every { it.assignmentGroup && it.shortDescription && it.description }
+            assert !started || profile.json.tasks.any { it.assignmentGroup.toLowerCase().contains('release management') }
             if (profile.json.version != null) {
                 def versions = api.get("/api/products/$product.id/jira/versions")
                 assert versions.status == 200: versions
@@ -129,16 +131,21 @@ class PortalSmokeSpec extends Specification {
         }
     }
 
-    def "the demo changes are stored, synced with ProTech and spread over its workflow"() {
+    def "the demo changes are stored, synced with ProTech, spread over its workflow and hold their change tasks"() {
         when:
         def changes = api.get('/api/changes')
         def department = changes.json.find { it.departmentId != null }?.departmentId
+        def tasks = changes.json.collectMany { it.tasks }
 
         then:
         changes.status == 200
         changes.json.every { it.syncProblem == null }
         !started || changes.json.size() >= 12 && changes.json*.state.toSet().size() >= 6 &&
                 changes.json*.update.findAll()*.status.toSet() == ['APPLIED', 'NOT_APPLIED'] as Set
+        tasks.every { it.number ==~ /CTASK\d{7}/ && it.details.assignmentGroup && it.approval }
+        tasks*.approval.toSet().every { it in ['Not Yet Requested', 'Requested', 'Approved'] }
+        !started || changes.json.every { !it.tasks.isEmpty() } &&
+                tasks*.approval.toSet().containsAll(['Not Yet Requested', 'Approved'])
         department == null || api.get("/api/changes?departmentId=$department").json.every {
             it.departmentId == department
         }
@@ -151,6 +158,7 @@ class PortalSmokeSpec extends Specification {
         expect:
         api.get('/api/me').json.name
         api.get('/api/changes/options').json.categories.contains('Application')
+        api.get('/api/changes/options').json.releaseManagement == 'Release Management'
         ['users', 'departments', 'assignment-groups', 'releases', 'configuration-items', 'incidents', 'problems',
          'clients'].every { api.get("/api/lookups/$it").status == 200 }
         !started || products.every { product ->

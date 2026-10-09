@@ -7,6 +7,18 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 
 abstract class EditorSpecification extends GuiSpecification {
 
+    static final List<String> RELEASE_TASK_FIELDS = ['Number', 'Change number', 'Assignment group', 'Assigned to', 'Affected CI',
+                                                     'Approval', 'Installation start', 'Installation end', 'Platform', 'Task start',
+                                                     'Application', 'Packages', 'Backout packages', 'Short description',
+                                                     'Description', 'Additional comments']
+
+    static final List<String> OTHER_TASK_FIELDS = ['Number', 'Change number', 'Assignment group', 'Assigned to', 'Importance',
+                                                   'Affected CI', 'Approval', 'Installation start', 'Installation end',
+                                                   'Short description', 'Description', 'Additional comments']
+
+    static final List<String> CHANGE_ONLY_FIELDS = ['Number', 'Change number', 'Approval', 'Installation start',
+                                                    'Installation end', 'Task start']
+
     void startProduct(String name, String department = 'Corporate Technology') {
         open('/admin/products/new')
         choose(dialog(), 'Department', department)
@@ -81,6 +93,10 @@ abstract class EditorSpecification extends GuiSpecification {
 
     Locator templateCard(String title) {
         page.locator("section.template-card[aria-label='${title}']")
+    }
+
+    Locator taskRows() {
+        page.locator('dso-change-tasks-form .task-row')
     }
 
     Locator account(Locator scope, int index) {
