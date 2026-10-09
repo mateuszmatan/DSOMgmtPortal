@@ -1,0 +1,153 @@
+<div class="page evidence">
+  <header class="page-header">
+    <div>
+      <h1>{{ section.heading }}</h1>
+      <p class="page-description">{{ section.description }}</p>
+    </div>
+    <div class="actions">
+      <mat-form-field class="search" subscriptSizing="dynamic">
+        <input
+          matInput
+          [formControl]="search"
+          placeholder="Find a product"
+          aria-label="Find a product"
+          autocomplete="off"
+        />
+      </mat-form-field>
+    </div>
+  </header>
+
+  @if (list.isLoading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  @if (list.error(); as error) {
+    <div class="banner" role="alert">{{ errorMessage(error) }}</div>
+  } @else if (list.hasValue()) {
+    @if (list.value().length === 0) {
+      <div class="card empty-state">
+        <h3>{{ query() ? 'No matching products' : 'No products yet' }}</h3>
+        <p>Products appear here once they are added in DevSecOps Product Management.</p>
+        <a mat-stroked-button routerLink="/admin/products">Go to products</a>
+      </div>
+    } @else {
+      <mat-accordion class="wide-titles" displayMode="flat" multi>
+        @for (product of list.value(); track product.id) {
+          <mat-expansion-panel #panel (opened)="opened(product.id)" hideToggle>
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                <span class="code mono">{{ product.code }}</span>
+                <span class="name">{{ product.name }}</span>
+              </mat-panel-title>
+              <mat-panel-description>
+                <span>{{ product.ownerTeam ?? '' }}</span>
+                <span class="counts"
+                  >{{ product.serviceCount | counted: 'service' }} ·
+                  {{ product.pipelineCount | counted: 'pipeline' }}</span
+                >
+              </mat-panel-description>
+              <span class="panel-toggle" aria-hidden="true">{{
+                panel.expanded ? 'Hide' : 'Show'
+              }}</span>
+            </mat-expansion-panel-header>
+
+            <ng-template matExpansionPanelContent>
+              @let state = evidence().get(product.id) ?? loading;
+              @if (state.status === 'loaded') {
+                @let e = state.evidence;
+                @if (e.metricsError) {
+                  <div class="banner">
+                    The run metrics cannot be read, so the runs show as not recorded:
+                    {{ e.metricsError }}
+                  </div>
+                }
+                <dl class="pairs product-facts">
+                  <div>
+                    <dt>Owner team</dt>
+                    <dd>
+                      @if (e.ownerTeam) {
+                        {{ e.ownerTeam }}
+                      } @else {
+                        <span class="not-recorded">Not recorded</span>
+                      }
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Contact</dt>
+                    <dd>
+                      @if (e.contactEmail) {
+                        <a [href]="'mailto:' + e.contactEmail">{{ e.contactEmail }}</a>
+                      } @else {
+                        <span class="not-recorded">Not recorded</span>
+                      }
+                    </dd>
+                  </div>
+                </dl>
+                @for (service of e.services; track service.serviceId) {
+                  <section class="service">
+                    <header class="service-head">
+                      <h3 class="mono">{{ service.name }}</h3>
+                      @if (service.description) {
+                        <span class="muted">{{ service.description }}</span>
+                      }
+                    </header>
+                    <dl class="identifiers">
+                      <div>
+                        <dt>Repository</dt>
+                        <dd>
+                          @if (service.repositoryUrl) {
+                            <a [href]="service.repositoryUrl" target="_blank" rel="noopener">{{
+                              service.repositoryUrl
+                            }}</a>
+                          } @else {
+                            <span class="not-recorded">Not recorded</span>
+                          }
+                        </dd>
+                      </div>
+                      @for (id of identifiers(service); track id.label) {
+                        <div>
+                          <dt>{{ id.label }}</dt>
+                          <dd>
+                            @if (id.value) {
+                              <span class="mono">{{ id.value }}</span>
+                            } @else {
+                              <span class="not-recorded">Not recorded</span>
+                            }
+                          </dd>
+                        </div>
+                      }
+                    </dl>
+                    @for (pipeline of service.pipelines; track pipeline.pipelineId) {
+                      <dso-pipeline-evidence-card
+                        [product]="e"
+                        [service]="service"
+                        [pipeline]="pipeline"
+                      />
+                    } @empty {
+                      <p class="not-recorded">The service has no pipelines yet.</p>
+                    }
+                  </section>
+                } @empty {
+                  <p class="not-recorded">The product has no services yet.</p>
+                }
+                <p class="library-note">
+                  Runs of a DevSecOps library older than the portal integration record no unit test
+                  counts, artifact version, quality gate, report links or configuration hint, so
+                  their scans link to HCL AppScan, SonarQube and Nexus IQ.
+                </p>
+              } @else if (state.status === 'error') {
+                <div class="banner" role="alert">
+                  <span>{{ state.message }}</span>
+                  <span class="spacer"></span>
+                  <button mat-button type="button" (click)="load(product.id)">Try again</button>
+                </div>
+              } @else {
+                <mat-progress-bar mode="indeterminate" />
+              }
+            </ng-template>
+          </mat-expansion-panel>
+        }
+      </mat-accordion>
+    }
+  }
+</div>

@@ -1,0 +1,85 @@
+description = 'Angular user interface of the DevSecOps management portal'
+
+def distDir = layout.projectDirectory.dir('dist')
+
+dependencies {
+    testFixturesApi platform(libs.groovy.bom)
+    testFixturesApi libs.groovy
+    testFixturesApi libs.groovy.json
+    testFixturesApi platform(libs.spock.bom)
+    testFixturesApi libs.spock.core
+    testFixturesApi libs.playwright
+}
+
+def forward(Test task, String... names) {
+    names.each { name ->
+        def value = providers.systemProperty(name).orNull
+        if (value != null) {
+            task.systemProperty name, value
+        }
+    }
+}
+
+testing {
+    suites {
+        configureEach {
+            if (name != 'test') {
+                useJUnitJupiter(libs.versions.junit)
+                dependencies {
+                    implementation testFixtures(project())
+                }
+                targets.configureEach {
+                    testTask.configure {
+                        dependsOn 'buildAngular'
+                        inputs.dir(distDir).withPathSensitivity(PathSensitivity.RELATIVE)
+                        systemProperty 'frontend.dist', distDir.asFile.absolutePath
+                        systemProperty 'frontend.reports', layout.buildDirectory.dir('reports/frontend').get().asFile.absolutePath
+                        forward(it, 'frontend.browser', 'frontend.headed')
+                        testLogging {
+                            events 'failed'
+                            exceptionFormat = 'full'
+                        }
+                    }
+                }
+            }
+        }
+
+        regressionTest(JvmTestSuite) {
+            targets.configureEach {
+                testTask.configure {
+                    description = 'Runs the user journeys of the interface in a browser against a stubbed API.'
+                    shouldRunAfter 'testAngular'
+                }
+            }
+        }
+
+        smokeTest(JvmTestSuite) {
+            targets.configureEach {
+                testTask.configure {
+                    description = 'Opens every page of the interface in a browser; -Dsmoke.baseUrl checks a deployed portal.'
+                    shouldRunAfter tasks.named('regressionTest')
+                    forward(it, 'smoke.baseUrl')
+                    outputs.upToDateWhen { false }
+                    outputs.cacheIf { false }
+                }
+            }
+        }
+
+        performanceTest(JvmTestSuite) {
+            targets.configureEach {
+                testTask.configure {
+                    description = 'Measures load and render times of the interface on a large catalogue.'
+                    shouldRunAfter tasks.named('smokeTest')
+                    systemProperty 'performance.report', layout.buildDirectory.file('reports/performance/frontend-performance-report.md').get().asFile.absolutePath
+                    forward(it, 'performance.factor')
+                    outputs.upToDateWhen { false }
+                    outputs.cacheIf { false }
+                }
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn 'testAngular', testing.suites.regressionTest, testing.suites.smokeTest, testing.suites.performanceTest
+}

@@ -1,7 +1,7 @@
 # Running the portal as a container and on OpenShift
 
 The portal ships as one container image: the Spring Boot jar with the Angular GUI inside, on the Red Hat UBI 9
-OpenJDK 21 runtime. The image runs as a non-root user and also under the arbitrary UID (group 0) that OpenShift
+OpenJDK 17 runtime. The image runs as a non-root user and also under the arbitrary UID (group 0) that OpenShift
 assigns, so it fits the default `restricted-v2` security context constraint.
 
 ## Build the image
@@ -13,7 +13,7 @@ docker build -t dso-portal:0.1.0-SNAPSHOT .
 
 The Dockerfile copies `backend/build/libs/dso-portal-<version>.jar`, so build the jar first (any Gradle command
 that runs `bootJar`, such as `./gradlew build`, works). To build on an internal mirror of the base image, pass
-`--build-arg BASE_IMAGE=<mirror>/ubi9/openjdk-21-runtime:<tag>`. Podman and Buildah accept the same arguments.
+`--build-arg BASE_IMAGE=<mirror>/ubi9/openjdk-17-runtime:<tag>`. Podman and Buildah accept the same arguments.
 
 ## Run the image locally
 
