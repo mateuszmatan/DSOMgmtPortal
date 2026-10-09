@@ -77,10 +77,12 @@ export class PipelineMonitoringPage {
     computation: (next, previous) => next ?? previous?.value,
   });
 
-  protected readonly dashboard = computed(() => {
-    const url = this.data()?.grafana?.dashboardUrl;
-    return url ? this.sanitizer.bypassSecurityTrustResourceUrl(`${url}&kiosk`) : null;
-  });
+  protected readonly dashboards = computed(() =>
+    (this.data()?.grafana ?? []).map((dashboard) => ({
+      ...dashboard,
+      embedded: this.sanitizer.bypassSecurityTrustResourceUrl(`${dashboard.dashboardUrl}&kiosk`),
+    })),
+  );
 
   protected readonly runColumns = [
     'time',

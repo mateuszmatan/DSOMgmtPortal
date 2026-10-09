@@ -51,12 +51,14 @@ describe('PipelineMonitoringPage', () => {
       'Time to restore',
     ]);
     expect(text('.last-run')).toContain('10 passed · 1 warned · 1 failed · 0 blocked · 0 skipped');
+    expect(text('.grafana h2')).toBe('Grafana');
     expect(page().querySelector('.grafana iframe')?.getAttribute('src')).toBe(
       'https://grafana.bbh.com/d/adzfc54123/pipeline?var-project=CERT-gui&kiosk',
     );
     expect(page().querySelector('.grafana a')?.getAttribute('href')).toBe(
       'https://grafana.bbh.com/d/adzfc54123/pipeline?var-project=CERT-gui',
     );
+    expect(text('.grafana a')).toBe('Open in Grafana');
     expect(page().querySelector('a.jenkins')?.getAttribute('href')).toBe(
       'https://jenkins.bbh.com/job/DevSecOps/job/CERT/job/gui-full/',
     );
@@ -83,12 +85,37 @@ describe('PipelineMonitoringPage', () => {
     expect(text('.page')).toContain('The key of this pipeline is invalidated');
   });
 
+  it('embeds the dashboard of every Grafana instance, each named and linked', async () => {
+    await load(
+      pipelineMonitoring({
+        grafana: [
+          { name: 'Grafana test', dashboardUrl: 'https://grafana.bbh.com/d/adzfc54123/p?var-project=CERT-gui' },
+          { name: 'Grafana prod', dashboardUrl: 'https://grafana-prod.bbh.com/d/ad2trcm/s?var-project=CERT-gui' },
+        ],
+      }),
+    );
+
+    const cards = Array.from(page().querySelectorAll('.grafana'));
+    expect(cards.map((card) => card.querySelector('h2')?.textContent?.trim())).toEqual([
+      'Grafana test',
+      'Grafana prod',
+    ]);
+    expect(cards.map((card) => card.querySelector('a')?.textContent?.trim())).toEqual([
+      'Open in Grafana test',
+      'Open in Grafana prod',
+    ]);
+    expect(cards.map((card) => card.querySelector('iframe')?.getAttribute('src'))).toEqual([
+      'https://grafana.bbh.com/d/adzfc54123/p?var-project=CERT-gui&kiosk',
+      'https://grafana-prod.bbh.com/d/ad2trcm/s?var-project=CERT-gui&kiosk',
+    ]);
+  });
+
   it('explains what is missing without runs, without Grafana and without metrics', async () => {
     await load(
       pipelineMonitoring({
         lastRun: null,
         recentRuns: [],
-        grafana: null,
+        grafana: [],
         metricsError: 'InfluxDB timed out',
         pipeline: monitoringPipeline({ jenkinsJobUrl: null }),
       }),

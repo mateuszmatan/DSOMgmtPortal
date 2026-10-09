@@ -661,8 +661,13 @@ export interface PipelineMonitoring {
   lastRun: PipelineRun | null;
   dora: DoraSummary;
   recentRuns: PipelineRun[];
-  grafana: { dashboardUrl: string } | null;
+  grafana: GrafanaDashboard[];
   metricsError: string | null;
+}
+
+export interface GrafanaDashboard {
+  name: string;
+  dashboardUrl: string;
 }
 
 export interface ProductEvidence {

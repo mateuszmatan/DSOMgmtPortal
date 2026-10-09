@@ -33,7 +33,6 @@ import java.time.Instant;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static com.bbh.itss.dso.portal.domain.monitoring.DoraCalculator.summarize;
 import static com.bbh.itss.dso.portal.domain.monitoring.DoraCalculator.summarizeAll;
@@ -58,9 +57,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
     public MonitoringStatus status() {
         boolean configured = runs.configured();
         String error = configured ? MetricsReading.of(this::ping, false).error() : null;
-        Optional<String> dashboard = dashboards.url();
-        return new MonitoringStatus(configured, configured && error == null, error, dashboard.isPresent(),
-                dashboard.orElse(null));
+        return new MonitoringStatus(configured, configured && error == null, error, dashboards.instances());
     }
 
     @Override
@@ -120,7 +117,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         }
         DoraSummary dora = summarize(points.value(), days, now(clock));
         return new PipelineMonitoring(view, RunResult.of(pipeline, last), last, dora, recentRuns,
-                dashboards.dashboardUrl(tag, pipeline.type(), days).orElse(null), points.error());
+                dashboards.dashboards(tag, pipeline.type(), days), points.error());
     }
 
     @Override

@@ -139,24 +139,30 @@
       </section>
     </div>
 
-    <section class="card grafana">
-      <header class="card-header">
-        <h2>Grafana</h2>
-        @if (d.grafana; as grafana) {
-          <a class="text-link" [href]="grafana.dashboardUrl" target="_blank" rel="noopener"
-            >Open in Grafana</a
+    @for (dashboard of dashboards(); track $index) {
+      <section class="card grafana">
+        <header class="card-header">
+          <h2>{{ dashboard.name }}</h2>
+          <a class="text-link" [href]="dashboard.dashboardUrl" target="_blank" rel="noopener"
+            >Open in {{ dashboard.name }}</a
           >
-        }
-      </header>
-      @if (dashboard(); as url) {
-        <iframe [src]="url" title="DevSecOps pipeline dashboard" loading="lazy"></iframe>
-      } @else {
+        </header>
+        <iframe
+          [src]="dashboard.embedded"
+          [title]="'DevSecOps pipeline dashboard in ' + dashboard.name"
+          loading="lazy"
+        ></iframe>
+      </section>
+    } @empty {
+      <section class="card grafana">
+        <header class="card-header"><h2>Grafana</h2></header>
         <div class="banner info">
-          Grafana is not configured. Set <code>GRAFANA_DASHBOARD_URL</code> to embed the DevSecOps
-          dashboard of this pipeline here.
+          Grafana is not configured. Set <code>GRAFANA_DASHBOARD_URL</code>, and
+          <code>GRAFANA_2_DASHBOARD_URL</code> for a second Grafana, to embed the DevSecOps dashboard
+          of this pipeline here.
         </div>
-      }
-    </section>
+      </section>
+    }
 
     <section class="card">
       <header class="card-header">

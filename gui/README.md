@@ -190,9 +190,10 @@ pipeline with an active key still asks first, because it invalidates the key in 
 
 ## Grafana
 
-The monitoring API sends one `grafana.dashboardUrl` for a pipeline, with the dashboard and its variables already
-set. The pipeline page embeds it in an iframe with `&kiosk` and links the same address as "Open in Grafana". When
-the backend has no `GRAFANA_DASHBOARD_URL` the field is `null` and the page says so instead of embedding anything.
+The monitoring API sends `grafana` for a pipeline: one entry per Grafana instance, with the instance's `name` and
+its `dashboardUrl`, the dashboard with its variables already set. The pipeline page shows a card per entry, named
+after the instance, which embeds the dashboard in an iframe with `&kiosk` and links the same address as "Open in
+<name>". When the backend has no Grafana link the list is empty and the page says so instead of embedding anything.
 
 ## Build links
 

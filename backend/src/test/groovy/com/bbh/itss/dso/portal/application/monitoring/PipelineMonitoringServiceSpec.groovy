@@ -8,6 +8,7 @@ import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryP
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
 import com.bbh.itss.dso.portal.domain.catalog.Product
+import com.bbh.itss.dso.portal.domain.monitoring.DashboardLink
 import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint
 import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
@@ -61,20 +62,20 @@ class PipelineMonitoringServiceSpec extends Specification {
         products.load(1L) >> Optional.of(certScanner)
     }
 
-    def "the status says whether InfluxDB answers and where Grafana is"() {
+    def "the status says whether InfluxDB answers and which Grafana instances there are"() {
         given:
         runs.configured() >> configured
         runs.ping() >> { if (failure) { throw new UncheckedIOException(failure, new IOException()) } }
-        dashboards.url() >> Optional.ofNullable(grafana)
+        dashboards.instances() >> grafana
 
         expect:
-        monitoring.status() == new MonitoringStatus(configured, reachable, failure, grafana != null, grafana)
+        monitoring.status() == new MonitoringStatus(configured, reachable, failure, grafana)
 
         where:
-        configured | failure                         | grafana                   || reachable
-        false      | null                            | null                      || false
-        true       | null                            | 'https://grafana.bbh.com' || true
-        true       | 'InfluxDB could not be read: x' | null                      || false
+        configured | failure                         | grafana                                                                                              || reachable
+        false      | null                            | []                                                                                                   || false
+        true       | null                            | [new DashboardLink('Test', 'https://grafana.bbh.com'), new DashboardLink('Prod', 'https://grafana-prod.bbh.com')] || true
+        true       | 'InfluxDB could not be read: x' | []                                                                                                   || false
     }
 
     def "the overview rates each product by its worst pipeline"() {
@@ -225,7 +226,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         then:
         1 * runs.recentRuns(tag, null, 30, 25) >> [newest, run('2026-10-03T09:00:00Z', FAILURE)]
         1 * runs.doraPoints([tag], 30) >> [(tag): [new DoraPoint(newest.time(), true, false, 3600, 600)]]
-        1 * dashboards.dashboardUrl(tag, guiFull.type(), 30) >> Optional.of('https://grafana/d/x')
+        1 * dashboards.dashboards(tag, guiFull.type(), 30) >> [new DashboardLink('Test', 'https://grafana/d/x'), new DashboardLink('Prod', 'https://grafana-prod/d/x')]
         0 * runs.latestRuns(*_)
         details.pipeline().pipeline().keys().size() == 1
         details.pipeline().jenkinsJobUrl() == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-full/'
@@ -235,7 +236,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         details.dora().runs() == 1
         details.dora().daily().size() == 30
         details.dora().daily().last().date().toString() == '2026-10-04'
-        details.dashboardUrl() == 'https://grafana/d/x'
+        details.dashboards() == [new DashboardLink('Test', 'https://grafana/d/x'), new DashboardLink('Prod', 'https://grafana-prod/d/x')]
         details.metricsError() == null
     }
 
@@ -254,14 +255,14 @@ class PipelineMonitoringServiceSpec extends Specification {
         details.lastRun() == old
         details.status() == FAILURE
         details.dora().runs() == 0
-        details.dashboardUrl() == null
+        details.dashboards() == []
     }
 
     def "when the runs cannot be read the DORA query is skipped and the Grafana dashboard is still shown"() {
         given:
         pipelines.load(101L) >> Optional.of(guiSast)
         runs.recentRuns(*_) >> { throw new UncheckedIOException(NOT_CONFIGURED, new IOException()) }
-        dashboards.dashboardUrl(_, _, 90) >> Optional.of('https://grafana/d/x')
+        dashboards.dashboards(_, _, 90) >> [new DashboardLink('Grafana', 'https://grafana/d/x')]
 
         when:
         def details = monitoring.pipeline(101L, '90d')
@@ -273,7 +274,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         details.status() == DISABLED
         details.recentRuns() == []
         details.dora().runs() == 0
-        details.dashboardUrl() == 'https://grafana/d/x'
+        details.dashboards() == [new DashboardLink('Grafana', 'https://grafana/d/x')]
     }
 
     def "when only the DORA points cannot be read the runs are still shown"() {

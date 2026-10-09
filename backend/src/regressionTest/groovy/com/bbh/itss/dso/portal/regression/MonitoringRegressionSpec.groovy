@@ -14,6 +14,8 @@ import static java.time.Duration.ofHours
 class MonitoringRegressionSpec extends PortalSpecification {
 
     static final String PIPELINE_DASHBOARD = 'http://grafana.test/d/adzfc54123/devsecops-pipeline-long?orgId=1'
+    static final String SECURITY_DASHBOARD = 'http://grafana.test/d/ad2trcm/devsecops-security'
+    static final String PROD_DASHBOARD = 'http://grafana-prod.test/d/adzfc54123/devsecops-pipeline-long'
 
     String code
     Map monitored
@@ -43,13 +45,14 @@ class MonitoringRegressionSpec extends PortalSpecification {
         influx.reset()
     }
 
-    def "the status shows InfluxDB is reachable and where Grafana is"() {
+    def "the status shows InfluxDB is reachable and which Grafana instances there are"() {
         when:
         def status = api.get('/api/monitoring/status').json
 
         then:
-        status == [influxConfigured: true, influxReachable: true, influxError: null, grafanaConfigured: true,
-                   grafanaUrl: PIPELINE_DASHBOARD]
+        status == [influxConfigured: true, influxReachable: true, influxError: null,
+                   grafana: [[name: 'Grafana test', dashboardUrl: PIPELINE_DASHBOARD],
+                             [name: 'Grafana prod', dashboardUrl: PROD_DASHBOARD]]]
         influx.requests.last().authorization == 'Token test-token'
     }
 
@@ -128,7 +131,8 @@ class MonitoringRegressionSpec extends PortalSpecification {
             failingSince == null
             daily.size() == 30
         }
-        details.grafana == [dashboardUrl: "$PIPELINE_DASHBOARD&var-project=$code-gui&from=now-30d&to=now".toString()]
+        details.grafana == [[name: 'Grafana test', dashboardUrl: "$PIPELINE_DASHBOARD&var-project=$code-gui&from=now-30d&to=now".toString()],
+                            [name: 'Grafana prod', dashboardUrl: "$PROD_DASHBOARD?var-project=$code-gui&from=now-30d&to=now".toString()]]
     }
 
     def "the activity of all pipelines adds up their DORA points"() {
@@ -144,7 +148,7 @@ class MonitoringRegressionSpec extends PortalSpecification {
         activity.dora.daily*.runs.sum() == 5
     }
 
-    def "security, SAST and Nexus IQ GoldenFix pipelines link the security dashboard"() {
+    def "security, SAST and Nexus IQ GoldenFix pipelines link the security dashboard of every instance that has one"() {
         given:
         def guiNexusIq = pipelineFor(monitored.services[0].id as long, pipeline(type: 'NEXUS_IQ'))
 
@@ -153,8 +157,10 @@ class MonitoringRegressionSpec extends PortalSpecification {
         def nexusIq = api.get("/api/monitoring/pipelines/$guiNexusIq.id?range=7d").json
 
         then:
-        details.grafana == [dashboardUrl: "http://grafana.test/d/ad2trcm/devsecops-security?var-project=$code-guisast&from=now-7d&to=now".toString()]
-        nexusIq.grafana == [dashboardUrl: "http://grafana.test/d/ad2trcm/devsecops-security?var-project=$code-guinexusiq&from=now-7d&to=now".toString()]
+        details.grafana == [[name: 'Grafana test', dashboardUrl: "$SECURITY_DASHBOARD?var-project=$code-guisast&from=now-7d&to=now".toString()],
+                            [name: 'Grafana prod', dashboardUrl: "$PROD_DASHBOARD?var-project=$code-guisast&from=now-7d&to=now".toString()]]
+        nexusIq.grafana*.dashboardUrl == ["$SECURITY_DASHBOARD?var-project=$code-guinexusiq&from=now-7d&to=now".toString(),
+                                          "$PROD_DASHBOARD?var-project=$code-guinexusiq&from=now-7d&to=now".toString()]
     }
 
     def "a pipeline without runs in the range shows the last one before it"() {
@@ -191,7 +197,8 @@ class MonitoringRegressionSpec extends PortalSpecification {
         overview.products.find { it.code == code }.statusCounts == [NO_DATA: 2, DISABLED: 1]
         details.status == 'NO_DATA'
         details.metricsError.startsWith('InfluxDB could not be read')
-        details.grafana.dashboardUrl.startsWith(PIPELINE_DASHBOARD)
+        details.grafana*.name == ['Grafana test', 'Grafana prod']
+        details.grafana[0].dashboardUrl.startsWith(PIPELINE_DASHBOARD)
     }
 
     def "InfluxDB is queried while the portal holds no database connection"() {

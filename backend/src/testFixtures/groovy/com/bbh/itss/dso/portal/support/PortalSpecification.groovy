@@ -20,8 +20,11 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
         'dso.demo-data=false',
         'dso.demo.protech-apply-delay=PT0S',
         'dso.influx.token=test-token',
-        'dso.grafana.dashboard-url=http://grafana.test/d/adzfc54123/devsecops-pipeline-long?orgId=1',
-        'dso.grafana.security-dashboard-url=http://grafana.test/d/ad2trcm/devsecops-security'])
+        'dso.grafana.instances[0].name=Grafana test',
+        'dso.grafana.instances[0].dashboard-url=http://grafana.test/d/adzfc54123/devsecops-pipeline-long?orgId=1',
+        'dso.grafana.instances[0].security-dashboard-url=http://grafana.test/d/ad2trcm/devsecops-security',
+        'dso.grafana.instances[1].name=Grafana prod',
+        'dso.grafana.instances[1].dashboard-url=http://grafana-prod.test/d/adzfc54123/devsecops-pipeline-long'])
 @ActiveProfiles('local')
 abstract class PortalSpecification extends Specification {
 
