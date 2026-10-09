@@ -10,9 +10,6 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { finalize, map } from 'rxjs';
 import { ServiceTemplateApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
@@ -49,6 +46,7 @@ import {
   fillTemplate,
   knownPlaceholders,
 } from '../shared/service-template';
+import { DsoLoading, DsoSpinner } from '../ui/loading';
 
 const MAX_LABELS = 20;
 const JOB_PATTERN = /^(?!.*\.\.)[A-Za-z0-9._ /{}-]*$/;
@@ -205,14 +203,7 @@ const EXAMPLES: { key: TemplateKey; label: string }[] = [
 
 @Component({
   selector: 'dso-service-template-page',
-  imports: [
-    ReactiveFormsModule,
-    MatButtonModule,
-    MatProgressBarModule,
-    MatProgressSpinnerModule,
-    Fields,
-    RelativeTimePipe,
-  ],
+  imports: [ReactiveFormsModule, DsoLoading, DsoSpinner, Fields, RelativeTimePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="tab-header">
@@ -231,12 +222,12 @@ const EXAMPLES: { key: TemplateKey; label: string }[] = [
     </header>
 
     @if (loading()) {
-      <mat-progress-bar mode="indeterminate" />
+      <dso-loading />
     }
 
     @if (loadError(); as error) {
       <div class="banner" role="alert">{{ error }}</div>
-      <button mat-stroked-button type="button" (click)="load()">Try again</button>
+      <button type="button" class="btn btn-outline-primary" (click)="load()">Try again</button>
     } @else if (template()) {
       @if (conflict()) {
         <div class="banner danger conflict" role="alert">
@@ -245,7 +236,7 @@ const EXAMPLES: { key: TemplateKey; label: string }[] = [
             Your changes were not saved. Reload to get the current values, then make your changes
             again.
           </div>
-          <button mat-flat-button type="button" (click)="load()">Reload</button>
+          <button type="button" class="btn btn-primary" (click)="load()">Reload</button>
         </div>
       }
       <form [formGroup]="form" (ngSubmit)="save()" novalidate>
@@ -293,12 +284,17 @@ const EXAMPLES: { key: TemplateKey; label: string }[] = [
             <span class="muted">Unsaved changes</span>
           }
           <span class="spacer"></span>
-          <button mat-button type="button" (click)="discard()" [disabled]="!form.dirty || saving()">
+          <button
+            type="button"
+            class="btn btn-link"
+            (click)="discard()"
+            [disabled]="!form.dirty || saving()"
+          >
             Discard changes
           </button>
-          <button mat-flat-button type="submit" [disabled]="saving() || conflict()">
+          <button type="submit" class="btn btn-primary" [disabled]="saving() || conflict()">
             @if (saving()) {
-              <mat-spinner diameter="18" />
+              <dso-spinner />
             }
             Save template
           </button>

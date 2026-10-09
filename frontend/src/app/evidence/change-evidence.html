@@ -5,20 +5,20 @@
       <p class="page-description">{{ section.description }}</p>
     </div>
     <div class="actions">
-      <mat-form-field class="search" subscriptSizing="dynamic">
+      <dso-form-field class="search">
         <input
-          matInput
+          dsoInput
           [formControl]="search"
           placeholder="Find a product"
           aria-label="Find a product"
           autocomplete="off"
         />
-      </mat-form-field>
+      </dso-form-field>
     </div>
   </header>
 
   @if (list.isLoading()) {
-    <mat-progress-bar mode="indeterminate" />
+    <dso-loading />
   }
 
   @if (list.error(); as error) {
@@ -28,30 +28,30 @@
       <div class="card empty-state">
         <h3>{{ query() ? 'No matching products' : 'No products yet' }}</h3>
         <p>Products appear here once they are added in DevSecOps Product Management.</p>
-        <a mat-stroked-button routerLink="/admin/products">Go to products</a>
+        <a class="btn btn-outline-primary" routerLink="/admin/products">Go to products</a>
       </div>
     } @else {
-      <mat-accordion class="wide-titles" displayMode="flat" multi>
+      <div class="accordion wide-titles">
         @for (product of list.value(); track product.id) {
-          <mat-expansion-panel #panel (opened)="opened(product.id)" hideToggle>
-            <mat-expansion-panel-header>
-              <mat-panel-title>
+          <dso-panel #panel="dsoPanel" (expandedChange)="$event && opened(product.id)">
+            <dso-panel-header>
+              <span class="panel-title">
                 <span class="code mono">{{ product.code }}</span>
                 <span class="name">{{ product.name }}</span>
-              </mat-panel-title>
-              <mat-panel-description>
+              </span>
+              <span class="panel-description">
                 <span>{{ product.ownerTeam ?? '' }}</span>
                 <span class="counts"
                   >{{ product.serviceCount | counted: 'service' }} ·
                   {{ product.pipelineCount | counted: 'pipeline' }}</span
                 >
-              </mat-panel-description>
+              </span>
               <span class="panel-toggle" aria-hidden="true">{{
-                panel.expanded ? 'Hide' : 'Show'
+                panel.expanded() ? 'Hide' : 'Show'
               }}</span>
-            </mat-expansion-panel-header>
+            </dso-panel-header>
 
-            <ng-template matExpansionPanelContent>
+            <ng-template dsoPanelContent>
               @let state = evidence().get(product.id) ?? loading;
               @if (state.status === 'loaded') {
                 @let e = state.evidence;
@@ -139,15 +139,17 @@
                 <div class="banner" role="alert">
                   <span>{{ state.message }}</span>
                   <span class="spacer"></span>
-                  <button mat-button type="button" (click)="load(product.id)">Try again</button>
+                  <button type="button" class="btn btn-link" (click)="load(product.id)">
+                    Try again
+                  </button>
                 </div>
               } @else {
-                <mat-progress-bar mode="indeterminate" />
+                <dso-loading />
               }
             </ng-template>
-          </mat-expansion-panel>
+          </dso-panel>
         }
-      </mat-accordion>
+      </div>
     }
   }
 </div>

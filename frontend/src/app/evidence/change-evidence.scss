@@ -2,6 +2,10 @@
   width: 240px;
 }
 
+dso-panel {
+  display: block;
+}
+
 .name {
   font-family: var(--dso-serif);
   font-size: 15px;
@@ -9,7 +13,7 @@
   color: var(--dso-navy);
 }
 
-mat-panel-description {
+.panel-description {
   justify-content: space-between;
   gap: 12px;
 }
