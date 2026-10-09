@@ -40,7 +40,7 @@ class AdminTabsSpec extends GuiSpecification {
 
         then:
         isOpen('Departments')
-        assertThat(page.locator('tr.mat-mdc-row td.name').first()).hasText('AI Lab')
+        assertThat(gridRows().locator('.name').first()).hasText('AI Lab')
         assertThat(page).hasTitle(~'^Departments · DevSecOps Admin')
 
         when:
@@ -105,7 +105,7 @@ class AdminTabsSpec extends GuiSpecification {
 
         where:
         label              | content
-        'Departments'      | 'tr.mat-mdc-row'
+        'Departments'      | '.ag-row'
         'Products'         | 'section.department'
         'Service template' | '.example'
         'Library defaults' | '.toc'

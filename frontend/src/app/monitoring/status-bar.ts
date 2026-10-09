@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RunResult } from '../core/models';
 import { RUN_LOOK } from '../shared/status-chip';
 
@@ -9,7 +8,6 @@ export const STATUS_ORDER = (
 
 @Component({
   selector: 'dso-status-bar',
-  imports: [MatTooltipModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar" role="img" [attr.aria-label]="summary()">
@@ -18,7 +16,7 @@ export const STATUS_ORDER = (
           class="segment swatch"
           [class]="segment.status.toLowerCase()"
           [style.flex-grow]="segment.count"
-          [matTooltip]="segment.count + ' ' + segment.label.toLowerCase()"
+          [title]="segment.count + ' ' + segment.label.toLowerCase()"
         ></span>
       } @empty {
         <span class="segment swatch no_data" style="flex-grow: 1"></span>

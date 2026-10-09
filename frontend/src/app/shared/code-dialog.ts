@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { DIALOG_DATA } from '@angular/cdk/dialog';
 import { ClipboardModule } from '@angular/cdk/clipboard';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { Notifier } from '../core/notifier';
+import { DIALOG } from '../ui/dialog';
 
 export interface CodeDialogData {
   title: string;
@@ -13,25 +13,32 @@ export interface CodeDialogData {
 
 @Component({
   selector: 'dso-code-dialog',
-  imports: [MatDialogModule, MatButtonModule, ClipboardModule],
+  imports: [DIALOG, ClipboardModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2 mat-dialog-title>{{ data.title }}</h2>
-    <mat-dialog-content>
+    <div class="modal-header">
+      <h2 dsoDialogTitle>{{ data.title }}</h2>
+    </div>
+    <div class="modal-body">
       @if (data.subtitle) {
         <p class="subtitle">{{ data.subtitle }}</p>
       }
       <pre class="code-block">{{ data.code }}</pre>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
+    </div>
+    <div class="modal-footer">
       @if (data.fileName) {
-        <button mat-button (click)="download()">Download</button>
+        <button type="button" class="btn btn-link" (click)="download()">Download</button>
       }
-      <button mat-button [cdkCopyToClipboard]="data.code" (cdkCopyToClipboardCopied)="copied()">
+      <button
+        type="button"
+        class="btn btn-link"
+        [cdkCopyToClipboard]="data.code"
+        (cdkCopyToClipboardCopied)="copied()"
+      >
         Copy
       </button>
-      <button mat-flat-button mat-dialog-close>Close</button>
-    </mat-dialog-actions>
+      <button type="button" class="btn btn-primary" dsoDialogClose>Close</button>
+    </div>
   `,
   styles: `
     .subtitle {
@@ -44,11 +51,11 @@ export interface CodeDialogData {
   `,
 })
 export class CodeDialog {
-  protected readonly data = inject<CodeDialogData>(MAT_DIALOG_DATA);
-  private readonly snackBar = inject(MatSnackBar);
+  protected readonly data = inject<CodeDialogData>(DIALOG_DATA);
+  private readonly notifier = inject(Notifier);
 
   protected copied(): void {
-    this.snackBar.open('Copied to the clipboard', undefined, { duration: 2000 });
+    this.notifier.info('Copied to the clipboard');
   }
 
   protected download(): void {

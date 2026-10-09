@@ -1,0 +1,29 @@
+.dso-activity-chart {
+  display: block;
+}
+
+.dso-activity-chart .legend {
+  margin-top: 8px;
+}
+
+.dso-activity-chart .highcharts-axis-labels text {
+  fill: #80868b;
+  font-size: 11px;
+}
+
+.dso-activity-chart .highcharts-grid-line {
+  stroke: #eceff4;
+}
+
+.dso-activity-chart .highcharts-series.success .highcharts-point {
+  fill: var(--dso-run-success);
+}
+
+.dso-activity-chart .highcharts-series.failure .highcharts-point {
+  fill: var(--dso-run-failure);
+}
+
+.dso-activity-chart .highcharts-series.deployment .highcharts-point {
+  fill: var(--dso-run-deploy);
+  stroke: var(--dso-run-deploy);
+}

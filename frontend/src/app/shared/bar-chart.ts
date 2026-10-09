@@ -1,5 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ViewEncapsulation,
+  computed,
+  input,
+} from '@angular/core';
+import { DsoChart } from '../ui/chart';
 
 export interface BarSegment {
   swatch: string;
@@ -13,68 +19,68 @@ export interface BarRow {
   segments: BarSegment[];
 }
 
+const ROW_HEIGHT = 24;
+
+export function barSummary(row: BarRow): string {
+  const counts = row.segments
+    .filter((segment) => segment.count > 0)
+    .map((segment) => `${segment.count} ${segment.label}`);
+  return `${row.label}: ${counts.join(', ') || 'none'}`;
+}
+
+export function barOptions(rows: readonly BarRow[]): Record<string, unknown> {
+  const kinds = [
+    ...new Map(
+      rows.flatMap((row) => row.segments).map((segment) => [segment.label, segment.swatch]),
+    ),
+  ];
+  return {
+    chart: { type: 'bar', height: rows.length * ROW_HEIGHT + 16, spacing: [4, 4, 4, 4] },
+    xAxis: [
+      { categories: rows.map((row) => row.label), lineWidth: 0, tickLength: 0 },
+      {
+        categories: rows.map((row) => row.note),
+        linkedTo: 0,
+        opposite: true,
+        lineWidth: 0,
+        tickLength: 0,
+      },
+    ],
+    yAxis: { visible: false, min: 0, allowDecimals: false },
+    tooltip: { pointFormat: '{point.y} {series.name}', headerFormat: '' },
+    plotOptions: {
+      series: {
+        stacking: 'normal',
+        animation: false,
+        borderWidth: 0,
+        groupPadding: 0.12,
+        pointPadding: 0,
+      },
+    },
+    series: kinds.map(([label, swatch]) => ({
+      name: label,
+      className: swatch,
+      data: rows.map((row) =>
+        row.segments
+          .filter((segment) => segment.label === label)
+          .reduce((sum, segment) => sum + segment.count, 0),
+      ),
+    })),
+  };
+}
+
 @Component({
   selector: 'dso-bar-chart',
-  imports: [MatTooltipModule],
+  imports: [DsoChart],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    @for (row of bars(); track row.label) {
-      <div class="row">
-        <span class="label">{{ row.label }}</span>
-        <div class="track" role="img" [attr.aria-label]="row.summary">
-          @for (segment of row.segments; track segment.label) {
-            <span
-              class="swatch"
-              [class]="segment.swatch"
-              [style.width.%]="segment.width"
-              [matTooltip]="segment.count + ' ' + segment.label"
-            ></span>
-          }
-        </div>
-        <span class="note muted">{{ row.note }}</span>
-      </div>
-    }
-  `,
-  styles: `
-    :host {
-      display: grid;
-      grid-template-columns: auto minmax(60px, 1fr) auto;
-      align-items: center;
-      gap: 6px 12px;
-      font-size: 12.5px;
-    }
-    .row {
-      display: contents;
-    }
-    .track {
-      display: flex;
-      gap: 2px;
-      height: 12px;
-    }
-    .note {
-      font-size: 12px;
-    }
-  `,
+  encapsulation: ViewEncapsulation.None,
+  styleUrl: './bar-chart.css',
+  host: { class: 'dso-bar-chart' },
+  template: `<dso-chart [options]="options()" [label]="summary()" />`,
 })
 export class BarChart {
   readonly rows = input.required<BarRow[]>();
 
-  protected readonly bars = computed(() => {
-    const rows = this.rows();
-    const total = (row: BarRow) => row.segments.reduce((sum, segment) => sum + segment.count, 0);
-    const largest = Math.max(1, ...rows.map(total));
-    return rows.map((row) => {
-      const segments = row.segments.filter((segment) => segment.count > 0);
-      return {
-        ...row,
-        segments: segments.map((segment) => ({
-          ...segment,
-          width: (segment.count / largest) * 100,
-        })),
-        summary:
-          `${row.label}: ` +
-          (segments.map((segment) => `${segment.count} ${segment.label}`).join(', ') || 'none'),
-      };
-    });
-  });
+  protected readonly options = computed(() => barOptions(this.rows()));
+  protected readonly summary = computed(() => this.rows().map(barSummary).join('; '));
 }

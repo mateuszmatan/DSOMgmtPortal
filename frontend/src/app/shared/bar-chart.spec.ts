@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { chartOptions } from '../testing/highcharts';
 import { BarChart, BarRow } from './bar-chart';
 
 describe('BarChart', () => {
@@ -11,7 +12,7 @@ describe('BarChart', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  it('sizes every bar against the largest row and skips empty segments', async () => {
+  it('stacks one series per segment kind with every row as a category and its note opposite', async () => {
     const page = await render([
       {
         label: 'Custody',
@@ -31,20 +32,37 @@ describe('BarChart', () => {
       },
     ]);
 
-    const widths = [...page.querySelectorAll<HTMLElement>('.track')].map((track) =>
-      [...track.querySelectorAll<HTMLElement>('.swatch')].map((bar) => bar.style.width),
+    const chart = page.querySelector('dso-chart');
+    const options = chartOptions(chart);
+    expect(options.chart.type).toBe('bar');
+    expect(options.plotOptions.series.stacking).toBe('normal');
+    expect(options.xAxis[0].categories).toEqual(['Custody', 'AI Lab']);
+    expect(options.xAxis[1].categories).toEqual(['8 pipelines', '2 pipelines']);
+    expect(options.series).toEqual([
+      { name: 'success', className: 'success', data: [6, 2] },
+      { name: 'failed', className: 'failure', data: [2, 0] },
+    ]);
+    expect(chart?.getAttribute('role')).toBe('img');
+    expect(chart?.getAttribute('aria-label')).toBe(
+      'Custody: 6 success, 2 failed; AI Lab: 2 success',
     );
-    expect(widths).toEqual([['75%', '25%'], ['25%']]);
-    expect(page.querySelector('.track')?.getAttribute('aria-label')).toBe(
-      'Custody: 6 success, 2 failed',
-    );
-    expect(page.querySelectorAll('.swatch.failure').length).toBe(1);
   });
 
-  it('names a row without any count', async () => {
+  it('names a row without any count and redraws when the rows change', async () => {
     const page = await render([{ label: 'Fund Services', note: '0 pipelines', segments: [] }]);
 
-    expect(page.querySelector('.track')?.getAttribute('aria-label')).toBe('Fund Services: none');
-    expect(page.querySelector('.note')?.textContent).toBe('0 pipelines');
+    expect(page.querySelector('dso-chart')?.getAttribute('aria-label')).toBe('Fund Services: none');
+    expect(chartOptions(page.querySelector('dso-chart')).series).toEqual([]);
+
+    fixture.componentRef.setInput('rows', [
+      {
+        label: 'Custody',
+        note: '1 pipeline',
+        segments: [{ swatch: 'active', label: 'active', count: 1 }],
+      },
+    ]);
+    await fixture.whenStable();
+
+    expect(chartOptions(page.querySelector('dso-chart')).xAxis[0].categories).toEqual(['Custody']);
   });
 });
