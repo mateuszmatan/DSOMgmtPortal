@@ -1,15 +1,26 @@
+import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { MY_DEPARTMENT_KEY } from '../beadle/my-department';
 import { PipelineHealth } from '../core/models';
 import { PipelineDialog } from '../products/pipeline-dialog';
-import { text } from '../testing/dom';
+import {
+  buttonOf,
+  choose,
+  gridCell,
+  gridColumn,
+  gridFilter,
+  gridHeaders,
+  gridRows,
+  selectOf,
+  sortBy,
+  text,
+} from '../testing/dom';
 import { department, monitoringPipeline, pipelineHealth, pipelineRun } from '../testing/fixtures';
-import { PipelineFilters, PipelineList, matches, sorted } from './pipeline-list';
+import { PipelineFilters, PipelineList, matches } from './pipeline-list';
 
 const gui = pipelineHealth();
 const api = pipelineHealth({
@@ -67,35 +78,6 @@ describe('the rows of the pipelines table', () => {
     expect(filtered({ key: 'INVALIDATED' })).toEqual(['api']);
     expect(filtered({ status: 'FAILURE' })).toEqual(['gateway']);
   });
-
-  it('sorts the type by its order, the key active first and the runs by time', () => {
-    expect(services(sorted(rows, { active: 'type', direction: 'desc' }))).toEqual([
-      'gateway',
-      'api',
-      'gui',
-    ]);
-    expect(services(sorted(rows, { active: 'key', direction: 'asc' }))).toEqual([
-      'gui',
-      'gateway',
-      'api',
-    ]);
-    expect(services(sorted(rows, { active: 'lastRun', direction: 'desc' }))).toEqual([
-      'gui',
-      'api',
-      'gateway',
-    ]);
-    expect(services(sorted(rows, { active: 'status', direction: 'asc' }))).toEqual([
-      'gui',
-      'gateway',
-      'api',
-    ]);
-    expect(services(sorted(rows, { active: 'job', direction: 'asc' }))).toEqual([
-      'gateway',
-      'api',
-      'gui',
-    ]);
-    expect(services(sorted(rows, { active: 'service', direction: '' }))).toEqual(services(rows));
-  });
 });
 
 describe('PipelineList', () => {
@@ -103,7 +85,9 @@ describe('PipelineList', () => {
   let fixture: ComponentFixture<PipelineList>;
 
   const page = () => fixture.nativeElement as HTMLElement;
-  const shownServices = () => [...page().querySelectorAll('tbody tr td:first-child')].map(text);
+  const shownServices = () => gridColumn(page(), 'service');
+  const cells = (row: HTMLElement, ...columns: string[]) =>
+    columns.map((column) => text(gridCell(row, column)));
 
   async function settle() {
     TestBed.tick();
@@ -136,26 +120,23 @@ describe('PipelineList', () => {
     await settle();
   }
 
-  async function choose(label: string, option: string) {
-    const select = [...page().querySelectorAll<HTMLElement>('mat-select')].find(
-      (element) =>
-        element.getAttribute('aria-label') === label ||
-        text(element.closest('mat-form-field')?.querySelector('mat-label')) === label,
-    )!;
-    select.click();
-    await settle();
-    [...document.querySelectorAll<HTMLElement>('mat-option')]
-      .filter((element) => text(element) === option)
-      .at(-1)!
-      .click();
+  async function pick(select: HTMLSelectElement, option: string) {
+    choose(select, option);
     await settle();
   }
 
   async function filter(label: string, value: string) {
-    const input = page().querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+    const input = gridFilter(page(), label);
     input.value = value;
     input.dispatchEvent(new Event('input'));
     await settle();
+  }
+
+  async function sort(column: string, clicks = 1) {
+    for (let click = 0; click < clicks; click++) {
+      await sortBy(page(), column);
+    }
+    return shownServices();
   }
 
   afterEach(() => {
@@ -170,9 +151,9 @@ describe('PipelineList', () => {
     expect(text(page().querySelector('.empty-state h3'))).toBe(
       'Choose your department to see its pipelines.',
     );
-    expect(page().querySelector('table')).toBeNull();
+    expect(page().querySelector('dso-grid')).toBeNull();
 
-    await choose('Your department', 'Fund Services');
+    await pick(selectOf(page(), 'Your department'), 'Fund Services');
     expect(localStorage.getItem(MY_DEPARTMENT_KEY)).toBe('5');
     http.expectOne('/api/pipelines?departmentId=5').flush({ pipelines: [], metricsError: null });
     await settle();
@@ -186,7 +167,10 @@ describe('PipelineList', () => {
   it('lists the pipelines of the remembered department with their key and last run', async () => {
     await listed();
 
-    expect([...page().querySelectorAll('thead tr:first-child th')].map(text)).toEqual([
+    expect(selectOf(page(), 'Your department').selectedOptions[0].textContent?.trim()).toBe(
+      'Corporate Technology',
+    );
+    expect(gridHeaders(page())).toEqual([
       'Service',
       'Product',
       'Type',
@@ -196,8 +180,8 @@ describe('PipelineList', () => {
       'Ran',
       '',
     ]);
-    const cells = [...page().querySelectorAll('tbody tr:first-child td')].map(text);
-    expect(cells.slice(0, 6)).toEqual([
+    const [first, second, third] = gridRows(page());
+    expect(cells(first, 'service', 'product', 'type', 'job', 'key', 'status')).toEqual([
       'gui',
       'CertScanner CERT',
       'Full',
@@ -205,67 +189,70 @@ describe('PipelineList', () => {
       '6f1c2d3e…9abc',
       'Success',
     ]);
-    expect(cells[7]).toBe('Edit');
-    const second = [...page().querySelectorAll('tbody tr:nth-child(2) td')].map(text);
-    expect(second[4]).toBe('Invalidated');
-    expect(page().querySelector('tbody tr:nth-child(2)')?.classList).toContain('revoked');
-    const third = [...page().querySelectorAll('tbody tr:nth-child(3) td')].map(text);
-    expect(third.slice(2, 4)).toEqual(['Nexus IQ GoldenFix', 'Not set']);
+    expect(text(gridCell(first, 'actions'))).toBe('Edit');
+    expect(text(gridCell(second, 'key'))).toBe('Invalidated');
+    expect(second.classList).toContain('muted');
+    expect(first.classList).not.toContain('muted');
+    expect(cells(third, 'type', 'job', 'lastRun')).toEqual(['Nexus IQ GoldenFix', 'Not set', '']);
     expect(text(page().querySelector('.shown'))).toBe('3 of 3 pipelines');
-    expect(page().querySelector('tbody td a')?.getAttribute('href')).toBe('/pipelines/100');
+    expect(gridCell(first, 'service').querySelector('a')?.getAttribute('href')).toBe(
+      '/pipelines/100',
+    );
     expect(page().querySelector('.page-header a')?.getAttribute('href')).toBe('/self-service');
 
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-    page().querySelector<HTMLElement>('tbody tr:nth-child(3)')!.click();
+    gridCell(third, 'type').click();
+    await settle();
     expect(navigate).toHaveBeenCalledWith(['/pipelines', 102]);
   });
 
-  it('filters and sorts the table in its header', async () => {
+  it('filters the table in its header', async () => {
     await listed();
 
-    await filter('Filter by product', 'pay');
+    await filter('product', 'pay');
     expect(shownServices()).toEqual(['gateway']);
     expect(text(page().querySelector('.shown'))).toBe('1 of 3 pipelines');
-    await filter('Filter by product', '');
+    await filter('product', '');
 
-    await choose('Filter by key', 'Invalidated');
+    await pick(gridFilter(page(), 'key'), 'Invalidated');
     expect(shownServices()).toEqual(['api']);
-    await choose('Filter by key', 'All');
-    await choose('Filter by type', 'Nexus IQ GoldenFix');
+    await pick(gridFilter(page(), 'key'), 'All');
+    await pick(gridFilter(page(), 'type'), 'Nexus IQ GoldenFix');
     expect(shownServices()).toEqual(['gateway']);
-    await choose('Filter by type', 'All');
-    await choose('Filter by last run', 'Failed');
+    await pick(gridFilter(page(), 'type'), 'All');
+    await pick(gridFilter(page(), 'last run'), 'Failed');
     expect(shownServices()).toEqual(['gateway']);
-    await filter('Filter by service', 'gui');
-    expect(text(page().querySelector('.no-match'))).toBe('No pipeline matches the filters.');
-    await filter('Filter by service', '');
-    await choose('Filter by last run', 'All');
-    await filter('Filter by Jenkins job', 'api-');
+    await filter('service', 'gui');
+    expect(gridRows(page())).toEqual([]);
+    expect(text(page().querySelector('.dso-grid-empty'))).toBe('No pipeline matches the filters.');
+    await filter('service', '');
+    await pick(gridFilter(page(), 'last run'), 'All');
+    await filter('Jenkins job', 'api-');
     expect(shownServices()).toEqual(['api']);
-    await filter('Filter by Jenkins job', '');
+  });
 
-    const header = (label: string) =>
-      [...page().querySelectorAll<HTMLElement>('thead tr:first-child th')].find(
-        (cell) => text(cell) === label,
-      )!;
-    header('Service').click();
-    await settle();
-    expect(shownServices()).toEqual(['api', 'gateway', 'gui']);
-    header('Service').click();
-    await settle();
-    expect(shownServices()).toEqual(['gui', 'gateway', 'api']);
+  it('sorts in the header the type by its order, the key active first and the runs by time', async () => {
+    await listed();
+
+    expect(await sort('service')).toEqual(['api', 'gateway', 'gui']);
+    expect(await sort('service')).toEqual(['gui', 'gateway', 'api']);
+    expect(await sort('service')).toEqual(['gui', 'api', 'gateway']);
+    expect(await sort('type', 2)).toEqual(['gateway', 'api', 'gui']);
+    expect(await sort('key')).toEqual(['gui', 'gateway', 'api']);
+    expect(await sort('lastRun', 2)).toEqual(['gui', 'api', 'gateway']);
+    expect(await sort('status')).toEqual(['gui', 'gateway', 'api']);
+    expect(await sort('job')).toEqual(['gateway', 'api', 'gui']);
   });
 
   it('saves the settings of a pipeline from its row and keeps its masked key', async () => {
     await listed();
     const saved = { ...gui.pipeline, agentLabels: ['docker'], activeKey: null };
-    const opened = vi.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
-      afterClosed: () => of(saved),
-    } as unknown as MatDialogRef<unknown>);
+    const opened = vi
+      .spyOn(TestBed.inject(Dialog), 'open')
+      .mockReturnValue({ closed: of(saved) } as unknown as DialogRef<unknown>);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
 
-    page()
-      .querySelector<HTMLButtonElement>('button[aria-label="Edit the Full pipeline of gui"]')!
-      .click();
+    buttonOf(page(), 'Edit the Full pipeline of gui').click();
     await settle();
 
     expect(opened.mock.calls[0][0]).toBe(PipelineDialog);
@@ -273,8 +260,8 @@ describe('PipelineList', () => {
       service: { serviceId: 10, serviceName: 'gui' },
       pipeline: gui.pipeline,
     });
-    const cells = [...page().querySelectorAll('tbody tr:first-child td')].map(text);
-    expect(cells[4]).toBe('6f1c2d3e…9abc');
+    expect(navigate).not.toHaveBeenCalled();
+    expect(text(gridCell(gridRows(page())[0], 'key'))).toBe('6f1c2d3e…9abc');
   });
 
   it('says when the metrics or the pipelines could not be read', async () => {
@@ -282,7 +269,7 @@ describe('PipelineList', () => {
 
     expect(text(page().querySelector('dso-metrics-banner'))).toContain('InfluxDB timed out');
 
-    await choose('Your department', 'Fund Services');
+    await pick(selectOf(page(), 'Your department'), 'Fund Services');
     http
       .expectOne('/api/pipelines?departmentId=5')
       .flush({ detail: 'Department 5 does not exist' }, { status: 404, statusText: 'Not Found' });

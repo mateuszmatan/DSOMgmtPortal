@@ -22,7 +22,7 @@ class PipelinesSpec extends GuiSpecification {
         assertThat(page.locator('.page-header .page-description'))
                 .hasText('The pipelines of your department with their keys, settings and last runs')
         assertThat(page.locator('.empty-state h3')).hasText('Choose your department to see its pipelines.')
-        assertThat(page.locator('.mat-mdc-menu-panel')).hasCount(0)
+        assertThat(page.locator('.dso-menu')).hasCount(0)
         api.requests('GET', '/api/pipelines').isEmpty()
 
         when:
@@ -31,8 +31,7 @@ class PipelinesSpec extends GuiSpecification {
         then:
         assertThat(column('service')).hasText(['gateway', 'gateway', 'gateway', 'ledger', 'notifications', 'mobile-app'] as String[])
         awaitRequest('GET', '/api/pipelines').params() == [departmentId: '5']
-        assertThat(page.locator('tr.mat-mdc-header-row').first().locator('th'))
-                .hasText(['Service', 'Product', 'Type', 'Jenkins job', 'Key', 'Last run', 'Ran', ''] as String[])
+        assertThat(gridHeaders()).hasText(['Service', 'Product', 'Type', 'Jenkins job', 'Key', 'Last run', 'Ran', ''] as String[])
         assertThat(column('key')).hasText(['50b4ada7…108f', '9e9f17e8…4790', '5a07b656…5627', 'fa529f98…a726',
                                            '26b4c145…64e4', 'Invalidated'] as String[])
         assertThat(column('status')).hasText(['Success', 'Success', 'Success', 'Unstable', 'Unstable', 'Key invalidated'] as String[])
@@ -41,44 +40,44 @@ class PipelinesSpec extends GuiSpecification {
         !page.locator('main').textContent().contains('5a07b656-')
 
         when:
-        filter('service').fill('gate')
+        gridFilter('service').fill('gate')
 
         then:
         assertThat(column('type')).hasText(['Extended', 'Full', 'Security'] as String[])
         assertThat(page.locator('.toolbar .shown')).hasText('3 of 6 pipelines')
 
         when:
-        filter('service').fill('')
-        choose(page.locator('tr.filters'), 'Filter by key', 'Invalidated')
+        gridFilter('service').fill('')
+        choose(page.locator('.ag-floating-filter'), 'Filter by key', 'Invalidated')
 
         then:
         assertThat(column('service')).hasText(['mobile-app'] as String[])
 
         when:
-        choose(page.locator('tr.filters'), 'Filter by key', 'All')
-        choose(page.locator('tr.filters'), 'Filter by last run', 'Unstable')
-        filter('Jenkins job').fill('ledger')
+        choose(page.locator('.ag-floating-filter'), 'Filter by key', 'All')
+        choose(page.locator('.ag-floating-filter'), 'Filter by last run', 'Unstable')
+        gridFilter('Jenkins job').fill('ledger')
 
         then:
         assertThat(column('service')).hasText(['ledger'] as String[])
 
         when:
-        filter('product').fill('certscanner')
+        gridFilter('product').fill('certscanner')
 
         then:
-        assertThat(page.locator('.no-match')).hasText('No pipeline matches the filters.')
+        assertThat(page.locator('.dso-grid-empty')).hasText('No pipeline matches the filters.')
 
         when:
-        filter('product').fill('')
-        filter('Jenkins job').fill('')
-        choose(page.locator('tr.filters'), 'Filter by last run', 'All')
-        sortBy('Type')
+        gridFilter('product').fill('')
+        gridFilter('Jenkins job').fill('')
+        choose(page.locator('.ag-floating-filter'), 'Filter by last run', 'All')
+        sortBy('type')
 
         then:
         assertThat(column('type')).hasText(['Full', 'Full', 'Full', 'Security', 'Extended', 'SAST scanning'] as String[])
 
         when:
-        sortBy('Type')
+        sortBy('type')
 
         then:
         assertThat(column('type').first()).hasText('SAST scanning')
@@ -87,7 +86,7 @@ class PipelinesSpec extends GuiSpecification {
         open('/pipelines')
 
         then:
-        assertThat(select(page.locator('.toolbar'), 'Your department')).hasText('Fund Services')
+        assertThat(select(page.locator('.toolbar'), 'Your department').locator('option:checked')).hasText('Fund Services')
         assertThat(column('service')).hasCount(6)
 
         when:
@@ -118,7 +117,7 @@ class PipelinesSpec extends GuiSpecification {
         assertThat(pair('Agents')).hasText('linux-agent')
         assertThat(pair('Jenkins job')).hasText('DevSecOps/CERTSCANNER/gui-full')
         assertThat(page.locator('pre.code-block')).containsText("devSecOpsPipeline(pipelineKey: '${GUI_FULL_KEY}')")
-        assertThat(page.locator('tbody tr')).hasCount(5)
+        assertThat(gridRows()).hasCount(5)
         assertThat(link('Metrics', true)).hasAttribute('href', '/monitoring/pipelines/1')
         assertThat(link('Product', true)).hasAttribute('href', '/admin/products/1')
         assertThat(link('Jenkins', true)).hasAttribute('href', 'https://jenkins.bbh.com/job/DevSecOps/job/CERTSCANNER/job/gui-full/')
@@ -166,7 +165,7 @@ class PipelinesSpec extends GuiSpecification {
         when:
         page.addInitScript("localStorage.setItem('dso.beadle.department', '3')")
         open('/pipelines')
-        buttonIn(page.locator('table'), 'Edit the Full pipeline of gui').click()
+        buttonIn(page.locator('dso-grid'), 'Edit the Full pipeline of gui').click()
         input(dialog(), 'Description').fill('Release build')
         dialogButton('Save').click()
 
@@ -216,15 +215,7 @@ class PipelinesSpec extends GuiSpecification {
     }
 
     Locator column(String name) {
-        page.locator("tbody td.mat-column-${name}")
-    }
-
-    Locator filter(String label) {
-        page.locator("input[aria-label='Filter by ${label}']")
-    }
-
-    void sortBy(String label) {
-        holdingText(page.locator('th[mat-sort-header]'), label).click()
+        gridCells(page.locator('body'), name)
     }
 
     Locator pair(String label) {

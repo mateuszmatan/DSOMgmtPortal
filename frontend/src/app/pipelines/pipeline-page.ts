@@ -1,40 +1,43 @@
 import { ClipboardModule } from '@angular/cdk/clipboard';
+import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
+import { ConnectedPosition } from '@angular/cdk/overlay';
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTableModule } from '@angular/material/table';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, finalize, map, of } from 'rxjs';
 import { MonitoringApi, PipelinesApi, SettingsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
-import { Pipeline, pipelineTypeLabel } from '../core/models';
+import { Pipeline, PipelineRun, pipelineTypeLabel } from '../core/models';
 import { PIPELINES, adminProduct } from '../core/sections';
 import { MetricsBanner } from '../monitoring/metrics-banner';
 import { jenkinsfile } from '../products/jenkinsfile';
 import { BuildLink } from '../shared/build-link';
-import { DurationPipe, RelativeTimePipe } from '../shared/formatting';
-import { StatusChip } from '../shared/status-chip';
+import { RelativeTimePipe, formatDuration } from '../shared/formatting';
+import { RUN_LOOK, StatusChip } from '../shared/status-chip';
+import { GRID, GridColumn } from '../ui/grid';
+import { DsoLoading } from '../ui/loading';
 import { PipelineActions } from './pipeline-actions';
 
 const RECENT_RUNS = 5;
+
+const MENU_BEFORE: ConnectedPosition[] = [
+  { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top' },
+  { originX: 'end', originY: 'top', overlayX: 'end', overlayY: 'bottom' },
+];
 
 @Component({
   selector: 'dso-pipeline-page',
   imports: [
     ClipboardModule,
+    CdkMenu,
+    CdkMenuItem,
+    CdkMenuTrigger,
     DatePipe,
     RouterLink,
-    MatButtonModule,
-    MatDividerModule,
-    MatMenuModule,
-    MatProgressBarModule,
-    MatTableModule,
+    GRID,
+    DsoLoading,
     BuildLink,
-    DurationPipe,
     MetricsBanner,
     RelativeTimePipe,
     StatusChip,
@@ -56,12 +59,12 @@ const RECENT_RUNS = 5;
       </nav>
 
       @if (pipeline.isLoading() && !pipeline.hasValue()) {
-        <mat-progress-bar mode="indeterminate" />
+        <dso-loading />
       }
 
       @if (pipeline.error(); as error) {
         <div class="banner">{{ errorMessage(error) }}</div>
-        <a mat-stroked-button [routerLink]="section.path">Back to pipelines</a>
+        <a class="btn btn-outline-primary" [routerLink]="section.path">Back to pipelines</a>
       } @else if (pipeline.hasValue()) {
         @let p = pipeline.value();
         <header class="page-header">
@@ -81,24 +84,45 @@ const RECENT_RUNS = 5;
           </div>
           <div class="actions">
             @if (p.jenkinsJobUrl; as job) {
-              <a mat-stroked-button [href]="job" target="_blank" rel="noopener">Jenkins</a>
+              <a class="btn btn-outline-primary" [href]="job" target="_blank" rel="noopener"
+                >Jenkins</a
+              >
             }
-            <a mat-stroked-button [routerLink]="['/monitoring/pipelines', p.id]">Metrics</a>
-            <a mat-stroked-button [routerLink]="productLink(p.productId)">Product</a>
-            <button mat-stroked-button type="button" [matMenuTriggerFor]="more">More</button>
-            <mat-menu #more="matMenu" xPosition="before">
-              <button mat-menu-item (click)="actions.showConfig(p)">config.yaml</button>
-              <button mat-menu-item (click)="keyHistory(p)">Key history</button>
-              <mat-divider />
-              @if (p.activeKey) {
-                <button mat-menu-item (click)="replaceKey(p)">Replace key</button>
-                <button mat-menu-item class="danger" (click)="revokeKey(p)">Invalidate key</button>
-              }
-              <button mat-menu-item class="danger" (click)="deletePipeline(p)">
-                Delete pipeline
-              </button>
-            </mat-menu>
-            <button mat-flat-button type="button" (click)="edit(p)">Edit</button>
+            <a class="btn btn-outline-primary" [routerLink]="['/monitoring/pipelines', p.id]"
+              >Metrics</a
+            >
+            <a class="btn btn-outline-primary" [routerLink]="productLink(p.productId)">Product</a>
+            <button
+              type="button"
+              class="btn btn-outline-primary"
+              [cdkMenuTriggerFor]="more"
+              [cdkMenuPosition]="menuBefore"
+            >
+              More
+            </button>
+            <ng-template #more>
+              <div cdkMenu class="dropdown-menu dso-menu">
+                <button cdkMenuItem class="dropdown-item" (click)="actions.showConfig(p)">
+                  config.yaml
+                </button>
+                <button cdkMenuItem class="dropdown-item" (click)="keyHistory(p)">
+                  Key history
+                </button>
+                <hr class="dropdown-divider" />
+                @if (p.activeKey) {
+                  <button cdkMenuItem class="dropdown-item" (click)="replaceKey(p)">
+                    Replace key
+                  </button>
+                  <button cdkMenuItem class="dropdown-item danger" (click)="revokeKey(p)">
+                    Invalidate key
+                  </button>
+                }
+                <button cdkMenuItem class="dropdown-item danger" (click)="deletePipeline(p)">
+                  Delete pipeline
+                </button>
+              </div>
+            </ng-template>
+            <button type="button" class="btn btn-primary" (click)="edit(p)">Edit</button>
           </div>
         </header>
 
@@ -109,8 +133,8 @@ const RECENT_RUNS = 5;
               next start.</span
             >
             <button
-              mat-flat-button
               type="button"
+              class="btn btn-primary"
               [disabled]="regenerating()"
               (click)="regenerateKey(p)"
             >
@@ -205,8 +229,8 @@ const RECENT_RUNS = 5;
           <header class="card-header">
             <h2>Jenkinsfile</h2>
             <button
-              mat-button
               type="button"
+              class="btn btn-link"
               [cdkCopyToClipboard]="jenkinsfileText()"
               (cdkCopyToClipboardCopied)="actions.copied()"
             >
@@ -231,34 +255,15 @@ const RECENT_RUNS = 5;
               <p>No run reported in the last 30 days.</p>
             </div>
           } @else {
-            <div class="table-scroll">
-              <table mat-table [dataSource]="runs()">
-                <ng-container matColumnDef="time">
-                  <th mat-header-cell *matHeaderCellDef>Finished</th>
-                  <td mat-cell *matCellDef="let run">{{ run.time | date: 'd MMM, HH:mm' }}</td>
-                </ng-container>
-                <ng-container matColumnDef="result">
-                  <th mat-header-cell *matHeaderCellDef>Result</th>
-                  <td mat-cell *matCellDef="let run">
-                    <dso-status-chip [status]="run.result" />
-                  </td>
-                </ng-container>
-                <ng-container matColumnDef="build">
-                  <th mat-header-cell *matHeaderCellDef>Build</th>
-                  <td mat-cell *matCellDef="let run"><dso-build-link [run]="run" /></td>
-                </ng-container>
-                <ng-container matColumnDef="branch">
-                  <th mat-header-cell *matHeaderCellDef>Branch</th>
-                  <td mat-cell *matCellDef="let run" class="mono">{{ run.branch ?? '–' }}</td>
-                </ng-container>
-                <ng-container matColumnDef="duration">
-                  <th mat-header-cell *matHeaderCellDef>Duration</th>
-                  <td mat-cell *matCellDef="let run">{{ run.durationSeconds | duration }}</td>
-                </ng-container>
-                <tr mat-header-row *matHeaderRowDef="runColumns"></tr>
-                <tr mat-row *matRowDef="let row; columns: runColumns"></tr>
-              </table>
-            </div>
+            <dso-grid label="Recent runs" [rows]="runs()" [columns]="runColumns" [rowId]="runId">
+              <ng-template dsoCell="time" let-run>
+                {{ run.time | date: 'd MMM, HH:mm' }}
+              </ng-template>
+              <ng-template dsoCell="result" let-run>
+                <dso-status-chip [status]="run.result" />
+              </ng-template>
+              <ng-template dsoCell="build" let-run><dso-build-link [run]="run" /></ng-template>
+            </dso-grid>
           }
         </section>
       }
@@ -323,7 +328,20 @@ export class PipelinePage {
   protected readonly productLink = adminProduct;
   protected readonly typeLabel = pipelineTypeLabel;
   protected readonly errorMessage = errorMessage;
-  protected readonly runColumns = ['time', 'result', 'build', 'branch', 'duration'];
+  protected readonly menuBefore = MENU_BEFORE;
+  protected readonly runId = (run: PipelineRun) => `${run.job} ${run.build} ${run.time}`;
+  protected readonly runColumns: GridColumn<PipelineRun>[] = [
+    { key: 'time', header: 'Finished', value: (run) => run.time },
+    { key: 'result', header: 'Result', value: (run) => RUN_LOOK[run.result].label },
+    { key: 'build', header: 'Build', value: (run) => run.build ?? '' },
+    { key: 'branch', header: 'Branch', value: (run) => run.branch ?? '–', cellClass: 'mono' },
+    {
+      key: 'duration',
+      header: 'Duration',
+      value: (run) => formatDuration(run.durationSeconds),
+      sortValue: (run) => run.durationSeconds ?? 0,
+    },
+  ];
 
   private readonly pipelineId = computed(() => Number(this.id()));
   protected readonly pipeline = rxResource({

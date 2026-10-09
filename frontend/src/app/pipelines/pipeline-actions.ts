@@ -1,6 +1,6 @@
+import { Dialog } from '@angular/cdk/dialog';
 import { Injectable, inject } from '@angular/core';
 import { outputToObservable } from '@angular/core/rxjs-interop';
-import { MatDialog } from '@angular/material/dialog';
 import { EMPTY, Observable, catchError, filter, map, of, switchMap, tap } from 'rxjs';
 import { PipelinesApi, SettingsApi } from '../core/api';
 import {
@@ -27,7 +27,7 @@ export function typeName(type: PipelineType): string {
 export class PipelineActions {
   private readonly api = inject(PipelinesApi);
   private readonly settings = inject(SettingsApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(Dialog);
   private readonly notifier = inject(Notifier);
 
   copied(): void {
@@ -91,9 +91,8 @@ export class PipelineActions {
 
   revokeKey(pipeline: Pipeline): Observable<Pipeline> {
     return this.dialog
-      .open<RevokeKeyDialog, Pipeline, Pipeline>(RevokeKeyDialog, { data: pipeline })
-      .afterClosed()
-      .pipe(
+      .open<Pipeline, Pipeline, RevokeKeyDialog>(RevokeKeyDialog, { data: pipeline })
+      .closed.pipe(
         filter((updated): updated is Pipeline => !!updated),
         tap(() => this.notifier.success('Key invalidated: the pipeline stops at its next start')),
       );
@@ -126,7 +125,7 @@ export class PipelineActions {
 
   showKeyHistory(pipeline: Pipeline): Observable<Pipeline> {
     return outputToObservable(
-      this.dialog.open(KeyHistoryDialog, { data: pipeline, maxWidth: '95vw' }).componentInstance
+      this.dialog.open(KeyHistoryDialog, { data: pipeline, maxWidth: '95vw' }).componentInstance!
         .keyIssued,
     );
   }
@@ -152,9 +151,8 @@ export class PipelineActions {
 
   confirm(data: ConfirmDialogData): Observable<boolean> {
     return this.dialog
-      .open<ConfirmDialog, ConfirmDialogData, boolean>(ConfirmDialog, { data })
-      .afterClosed()
-      .pipe(filter((confirmed) => confirmed === true));
+      .open<boolean, ConfirmDialogData, ConfirmDialog>(ConfirmDialog, { data })
+      .closed.pipe(filter((confirmed) => confirmed === true));
   }
 
   openCode(data: CodeDialogData): void {
@@ -166,9 +164,8 @@ export class PipelineActions {
     message: (pipeline: Pipeline) => string,
   ): Observable<Pipeline> {
     return this.dialog
-      .open<PipelineDialog, PipelineDialogData, Pipeline>(PipelineDialog, { data })
-      .afterClosed()
-      .pipe(
+      .open<Pipeline, PipelineDialogData, PipelineDialog>(PipelineDialog, { data })
+      .closed.pipe(
         filter((pipeline): pipeline is Pipeline => !!pipeline),
         tap((pipeline) => this.notifier.success(message(pipeline))),
       );
