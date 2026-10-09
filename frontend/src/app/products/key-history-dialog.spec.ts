@@ -52,18 +52,21 @@ describe('KeyHistoryDialog', () => {
   it('lists every key by its hint and never shows a key value', async () => {
     await open(pipeline({ keys: [active, revoked] }));
 
-    expect(page().querySelector('.intro')?.textContent).toContain('Full pipeline of');
+    expect(text(page().querySelector('h2'))).toBe('Key history of the pipeline gui · Full');
+    expect(text(page().querySelector('.intro'))).toBe(
+      'Every key the pipeline of gui in CertScanner has had, by its first and last characters. Only the active key works; an invalidated key cannot be used again.',
+    );
     expect(gridHeaders(page())).toEqual([
       'Key',
       'Status',
       'Issued',
-      'Last REST fetch',
+      'Last used by Jenkins',
       'Invalidated',
     ]);
     expect(cells('key')).toEqual(['6f1c2d3e…9abc', '1a2b3c4d…eeff']);
     expect(page().textContent).not.toContain(active.value!);
     expect(cells('status')).toEqual(['Active', 'Invalidated']);
-    expect(cells('lastUsedAt')[0]).toBe('');
+    expect(cells('lastUsedAt')[0]).toBe('Never');
     expect(cells('revoked')[0]).toBe('–');
     expect(cells('revoked')[1]).toContain('Leaked in a build log');
     expect(buttonOf(page(), 'Regenerate key')).toBeUndefined();
@@ -99,6 +102,9 @@ describe('KeyHistoryDialog', () => {
     await fixture.whenStable();
 
     expect(page().querySelector('.key-status .key-value')?.textContent).toBe('d'.repeat(36));
+    expect(text(page().querySelector('.key-status'))).toContain(
+      "Put it in the service's Jenkinsfile.",
+    );
     expect(cells('key')).toEqual(['dddddddd…dddd', '1a2b3c4d…eeff']);
     expect(cells('status')).toEqual(['Active', 'Invalidated']);
     expect(buttonOf(page(), 'Regenerate key')).toBeUndefined();
@@ -141,8 +147,8 @@ describe('KeyHistoryDialog of a Nexus IQ GoldenFix pipeline', () => {
       .flush({ ...nexusIq, keys: [] });
     await fixture.whenStable();
 
-    expect(text((fixture.nativeElement as HTMLElement).querySelector('.intro'))).toBe(
-      'Nexus IQ GoldenFix pipeline of gui in CertScanner.',
+    expect(text((fixture.nativeElement as HTMLElement).querySelector('h2'))).toBe(
+      'Key history of the pipeline gui · Nexus IQ GoldenFix',
     );
   });
 });

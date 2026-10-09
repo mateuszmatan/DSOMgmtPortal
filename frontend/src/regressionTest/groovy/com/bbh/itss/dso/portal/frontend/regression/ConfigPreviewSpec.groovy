@@ -18,8 +18,8 @@ class ConfigPreviewSpec extends ProductPageSpecification {
         pipelineButton('gui', 'Full', 'Config').click()
 
         then:
-        assertThat(dialog().locator('h2')).hasText('Configuration of the gui full pipeline')
-        assertThat(dialog().locator('.subtitle')).containsText('Showing it here does not count as a use of the key.')
+        assertThat(dialog().locator('h2')).hasText('Settings sent to Jenkins for gui · Full (config.yaml)')
+        assertThat(dialog().locator('.subtitle')).containsText('Opening it here does not count as a use of the key.')
         dialog().locator('pre.code-block').textContent() == yaml
         api.requests('GET', '/api/pipelines/1/config').size() == 1
 
@@ -76,7 +76,8 @@ class ConfigPreviewSpec extends ProductPageSpecification {
         pipelineAction('gui', 'SAST scanning', 'Jenkinsfile')
 
         then:
-        assertThat(dialog().locator('h2')).hasText('Jenkinsfile')
+        assertThat(dialog().locator('h2')).hasText('Jenkinsfile of gui · SAST scanning')
+        assertThat(dialog().locator('.subtitle')).hasText("The file to put in the service's repository so Jenkins runs this pipeline. It holds only the pipeline key: Jenkins fetches every other setting from this portal.")
         dialog().locator('pre.code-block').textContent() ==
                 "@Library('BbhDevSecOps@2.4') _\n\ndevSecOpsSASTScanningPipeline(pipelineKey: '2c0ca4f4-a1a6-472a-9685-0c75f22fe713')\n"
         ownErrors().isEmpty()

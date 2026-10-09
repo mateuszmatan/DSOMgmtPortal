@@ -1,16 +1,24 @@
 import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { EventEmitter } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { Pipeline, PipelineMonitoring } from '../core/models';
+import { KeyHistoryDialog } from '../products/key-history-dialog';
 import { PipelineDialog } from '../products/pipeline-dialog';
 import { RevokeKeyDialog } from '../products/revoke-key-dialog';
 import { CodeDialog } from '../shared/code-dialog';
 import { ConfirmDialog } from '../shared/confirm-dialog';
-import { buttonOf, gridColumn, gridRows, text } from '../testing/dom';
-import { globalSettings, pipeline, pipelineMonitoring, pipelineRun } from '../testing/fixtures';
+import { buttonOf, gridColumn, gridRows, text, toast } from '../testing/dom';
+import {
+  globalSettings,
+  pipeline,
+  pipelineMonitoring,
+  pipelineRun,
+  revokedKey,
+} from '../testing/fixtures';
 import { PipelinePage } from './pipeline-page';
 
 const spyOnOpen = () => vi.spyOn(TestBed.inject(Dialog), 'open');
@@ -55,12 +63,21 @@ describe('PipelinePage', () => {
     await fixture.whenStable();
   }
 
-  async function menu(label: string) {
+  async function openMore() {
     buttonOf(page(), 'More').click();
     await fixture.whenStable();
+  }
+
+  async function menu(label: string) {
+    await openMore();
     buttonOf(document, label).click();
     await fixture.whenStable();
   }
+
+  const fact = (label: string) =>
+    [...page().querySelectorAll('.rows > div')]
+      .find((row) => text(row.querySelector('dt')) === label)!
+      .querySelector('dd');
 
   it('shows the pipeline with its key, settings, Jenkinsfile and recent runs', async () => {
     await load();
@@ -69,40 +86,82 @@ describe('PipelinePage', () => {
       'DevSecOps Pipelines/CertScanner/gui · Full',
     );
     expect(text(page().querySelector('h1'))).toBe('gui · Full pipeline');
-    expect(text(page().querySelector('.title dso-status-chip'))).toBe('Passed');
+    expect(text(page().querySelector('.last-run .muted'))).toBe('Last run');
+    expect(text(page().querySelector('.last-run dso-status-chip'))).toBe('Passed');
+    expect(text(page().querySelector('.page-description'))).toBe(
+      'The automated build, test and security checks Jenkins runs for gui, a service of CertScanner CERT.',
+    );
     expect(text(page().querySelector('.key-value'))).toBe('6f1c2d3e…9abc');
-    expect([...page().querySelectorAll('.pairs dt')].map(text).slice(0, 5)).toEqual([
+    expect([...page().querySelectorAll('.rows dt')].map(text)).toEqual([
       'Issued',
-      'Last fetched over REST',
+      'Last used by Jenkins',
       'Earlier keys',
-      'Agents',
+      'What it does',
       'Jenkins job',
+      'Jenkins agents',
+      'Monitoring tags',
+      'Last changed',
     ]);
+    expect(text(fact('Last used by Jenkins'))).toBe('Not yet');
+    expect(text(fact('Earlier keys'))).toBe('None');
+    expect(text(fact('Jenkins agents')?.querySelector('.mono'))).toBe('linux-agent');
+    expect(text(fact('Jenkins agents')?.querySelector('.explain'))).toBe(
+      'The machines the pipeline runs on',
+    );
+    expect(text(page().querySelector('.jenkinsfile .section-help'))).toBe(
+      "The file to put in the service's repository so Jenkins runs this pipeline. It holds only the pipeline key: Jenkins fetches every other setting from this portal.",
+    );
     expect(text(page().querySelector('pre.code-block'))).toBe(
       "@Library('DevSecOpsJenkinsLibrary') _ devSecOpsPipeline(pipelineKey: '6f1c2d3e-0000-4abc-9def-123456789abc')",
     );
     expect(gridColumn(page(), 'result')).toEqual(['Passed', 'Failed']);
     expect(gridColumn(page(), 'build')).toEqual(['#42', '#41']);
     expect(
-      [...page().querySelectorAll<HTMLAnchorElement>('.page-header .actions a')].map((link) =>
+      [...page().querySelectorAll<HTMLAnchorElement>('.page-header .actions a')].map((link) => [
+        text(link),
         link.getAttribute('href'),
-      ),
+      ]),
     ).toEqual([
-      'https://jenkins.bbh.com/job/DevSecOps/job/CERT/job/gui-full/',
-      '/monitoring/pipelines/100',
-      '/admin/products/1',
+      ['Open in Jenkins', 'https://jenkins.bbh.com/job/DevSecOps/job/CERT/job/gui-full/'],
     ]);
+    expect(
+      [...page().querySelectorAll('.page-header .actions button')].map((button) => [
+        text(button),
+        button.classList.contains('btn-primary'),
+      ]),
+    ).toEqual([
+      ['More', false],
+      ['Edit settings', true],
+    ]);
+    expect(text(page().querySelector('.runs .section-help'))).toMatch(
+      /^Up to 5 of the latest runs Jenkins reported in the past 30 days\. Times are in your time zone, .+\.$/,
+    );
+    const runs = page().querySelector<HTMLAnchorElement>('.runs .card-header a')!;
+    expect(text(runs)).toBe('See every run and the delivery performance (DORA)');
+    expect(runs.getAttribute('href')).toBe('/monitoring/pipelines/100');
     expect(page().querySelector('.banner.danger')).toBeNull();
+
+    await openMore();
+    const product = document.querySelector<HTMLAnchorElement>('.dso-menu a.dropdown-item')!;
+    expect(text(product)).toBe('Open CertScanner in Admin');
+    expect(product.getAttribute('href')).toBe('/admin/products/1');
+    expect([...document.querySelectorAll('.dso-menu button')].map(text)).toEqual([
+      'Settings sent to Jenkins (config.yaml)',
+      'Key history',
+      'Replace key',
+      'Invalidate key',
+      'Delete pipeline',
+    ]);
   });
 
   it('reveals and hides the key', async () => {
     await load();
 
-    buttonOf(page(), 'Show').click();
+    buttonOf(page(), 'Show the key').click();
     await fixture.whenStable();
     expect(text(page().querySelector('.key-value'))).toBe('6f1c2d3e-0000-4abc-9def-123456789abc');
 
-    buttonOf(page(), 'Hide').click();
+    buttonOf(page(), 'Hide the key').click();
     await fixture.whenStable();
     expect(text(page().querySelector('.key-value'))).toBe('6f1c2d3e…9abc');
   });
@@ -120,15 +179,26 @@ describe('PipelinePage', () => {
       .flush(pipelineMonitoring({ recentRuns: [], metricsError: 'InfluxDB timed out' }));
     await fixture.whenStable();
 
-    expect(text(page().querySelector('.small-empty'))).toBe('No run reported in the last 30 days.');
+    expect(text(page().querySelector('.small-empty h3'))).toBe('No runs in the past 30 days');
+    expect(text(page().querySelector('.small-empty p'))).toBe(
+      'Runs show here once Jenkins runs this pipeline with its Jenkinsfile.',
+    );
     expect(text(page().querySelector('dso-metrics-banner'))).toContain('InfluxDB timed out');
   });
 
   it('offers to regenerate an invalidated key and reveals the new one', async () => {
-    await load(pipeline({ activeKey: null }));
+    await load(pipeline({ activeKey: null }), pipelineMonitoring({ status: 'DISABLED' }));
 
-    expect(text(page().querySelector('.banner.danger'))).toContain('The key is invalidated');
-    expect(text(page().querySelector('.panel .muted'))).toBe('No active key.');
+    expect(text(page().querySelector('.banner.danger .banner-text'))).toBe(
+      "The pipeline key is invalidated. Jenkins is refused the settings of this pipeline, so the pipeline stops at its next start. Regenerate the key, then put the new Jenkinsfile in the service's repository.",
+    );
+    expect(text(page().querySelector('.title .last-run'))).toBe('Key invalidated');
+    expect(page().querySelector('.last-run .muted')).toBeNull();
+    expect(text(page().querySelector('.no-key'))).toBe(
+      'The pipeline has no working key. Key history shows when and why it was invalidated.',
+    );
+    expect(buttonOf(page(), 'Edit settings').classList).toContain('btn-outline-primary');
+    expect(page().querySelectorAll('.btn-primary').length).toBe(1);
     expect(text(page().querySelector('pre.code-block'))).toContain('<issue a new key first>');
 
     buttonOf(page(), 'Regenerate key').click();
@@ -140,21 +210,50 @@ describe('PipelinePage', () => {
     expect(text(page().querySelector('.key-value'))).toBe('6f1c2d3e-0000-4abc-9def-123456789abc');
   });
 
+  it('counts the earlier keys and opens their history, which can issue a new key', async () => {
+    const issued = new EventEmitter<Pipeline>();
+    await load(pipeline({ keys: [pipeline().activeKey!, revokedKey()] }));
+    open.mockReturnValueOnce({ componentInstance: { keyIssued: issued } } as DialogRef<unknown>);
+
+    expect(text(fact('Earlier keys'))).toBe('1 key, all invalidated · Key history');
+
+    buttonOf(fact('Earlier keys')!, 'Key history').click();
+    await fixture.whenStable();
+    expect(opened()).toMatchObject({ component: KeyHistoryDialog, data: { id: 100 } });
+
+    const replaced = pipeline();
+    issued.emit({ ...replaced, activeKey: { ...replaced.activeKey!, value: 'c'.repeat(36) } });
+    await fixture.whenStable();
+    expect(text(page().querySelector('.key-value'))).toBe('c'.repeat(36));
+  });
+
+  it('copies the key and the Jenkinsfile and says which', async () => {
+    await load();
+
+    buttonOf(page(), 'Copy the key').click();
+    await fixture.whenStable();
+    expect(text(toast())).toContain('Key copied to the clipboard');
+
+    buttonOf(page(), 'Copy the Jenkinsfile').click();
+    await fixture.whenStable();
+    expect(text(toast())).toContain('Jenkinsfile copied to the clipboard');
+  });
+
   it('saves the settings in the pipeline dialog', async () => {
     await load();
     open.mockReturnValueOnce(closed(pipeline({ agentLabels: ['docker'] })));
 
-    buttonOf(page(), 'Edit').click();
+    buttonOf(page(), 'Edit settings').click();
     await fixture.whenStable();
 
     expect(opened().component).toBe(PipelineDialog);
-    expect(text([...page().querySelectorAll('.pairs dd')][3])).toBe('docker');
+    expect(text(fact('Jenkins agents')?.querySelector('.mono'))).toBe('docker');
   });
 
   it('shows the configuration and replaces the key once confirmed', async () => {
     await load();
 
-    await menu('config.yaml');
+    await menu('Settings sent to Jenkins (config.yaml)');
     http.expectOne('/api/pipelines/100/config').flush('projects: {}');
     expect(opened()).toMatchObject({
       component: CodeDialog,
@@ -206,7 +305,9 @@ describe('PipelinePage', () => {
       .flush(null, { status: 404, statusText: 'Not Found' });
     await fixture.whenStable();
 
-    expect(text(page().querySelector('.banner'))).toBe('Pipeline 100 does not exist');
+    expect(text(page().querySelector('.banner'))).toBe(
+      'The pipeline could not be loaded. Pipeline 100 does not exist',
+    );
     expect(page().querySelector('a.btn')?.getAttribute('href')).toBe('/pipelines');
     expect(text(page().querySelector('.breadcrumb'))).toBe('DevSecOps Pipelines/Pipeline');
   });

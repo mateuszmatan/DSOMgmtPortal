@@ -5,19 +5,27 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, finalize, map, of } from 'rxjs';
+import { TIME_ZONE_NOTE } from '../changes/change-model';
 import { MonitoringApi, PipelinesApi, SettingsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
-import { Pipeline, PipelineRun, pipelineTypeLabel } from '../core/models';
+import {
+  PIPELINE_TYPES,
+  Pipeline,
+  PipelineRun,
+  PipelineType,
+  pipelineTypeLabel,
+} from '../core/models';
 import { PIPELINES, adminProduct } from '../core/sections';
 import { MetricsBanner } from '../monitoring/metrics-banner';
 import { jenkinsfile } from '../products/jenkinsfile';
 import { BuildLink } from '../shared/build-link';
-import { RelativeTimePipe, formatDuration } from '../shared/formatting';
+import { CountedPipe, capitalized, formatDuration } from '../shared/formatting';
 import { RUN_LOOK, StatusChip } from '../shared/status-chip';
 import { GRID, GridColumn } from '../ui/grid';
 import { DsoLoading } from '../ui/loading';
 import { MENU_AT_END } from '../ui/menu';
 import { PipelineActions } from './pipeline-actions';
+import { JENKINSFILE_HELP, KEY_MEANING, pipelineName } from './pipeline-texts';
 
 const RECENT_RUNS = 5;
 
@@ -34,7 +42,7 @@ const RECENT_RUNS = 5;
     DsoLoading,
     BuildLink,
     MetricsBanner,
-    RelativeTimePipe,
+    CountedPipe,
     StatusChip,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -47,7 +55,7 @@ const RECENT_RUNS = 5;
           @let p = pipeline.value();
           <span>{{ p.productName }}</span>
           <span class="sep" aria-hidden="true">/</span>
-          <span>{{ p.serviceName }} · {{ typeLabel(p.type) }}</span>
+          <span>{{ name(p) }}</span>
         } @else {
           <span>Pipeline</span>
         }
@@ -58,7 +66,9 @@ const RECENT_RUNS = 5;
       }
 
       @if (pipeline.error(); as error) {
-        <div class="banner">{{ errorMessage(error) }}</div>
+        <div class="banner" role="alert">
+          The pipeline could not be loaded. {{ errorMessage(error) }}
+        </div>
         <a class="btn btn-outline-primary" [routerLink]="section.path">Back to pipelines</a>
       } @else if (pipeline.hasValue()) {
         @let p = pipeline.value();
@@ -69,24 +79,27 @@ const RECENT_RUNS = 5;
                 <span class="mono">{{ p.serviceName }}</span> · {{ typeLabel(p.type) }} pipeline
               </h1>
               @if (health(); as h) {
-                <dso-status-chip [status]="h.status" />
+                <span class="last-run">
+                  @if (h.status !== 'DISABLED') {
+                    <span class="muted">Last run</span>
+                  }
+                  <dso-status-chip [status]="h.status" />
+                </span>
               }
             </div>
-            <p>
-              {{ p.productName }} <span class="mono muted">{{ p.productCode }}</span> ·
-              <span class="mono">{{ p.entryPoint }}</span>
+            <p class="page-description">
+              The automated build, test and security checks Jenkins runs for
+              <span class="mono">{{ p.serviceName }}</span
+              >, a service of {{ p.productName }} <span class="mono muted">{{ p.productCode }}</span
+              >.
             </p>
           </div>
           <div class="actions">
             @if (p.jenkinsJobUrl; as job) {
               <a class="btn btn-outline-primary" [href]="job" target="_blank" rel="noopener"
-                >Jenkins</a
+                >Open in Jenkins</a
               >
             }
-            <a class="btn btn-outline-primary" [routerLink]="['/monitoring/pipelines', p.id]"
-              >Metrics</a
-            >
-            <a class="btn btn-outline-primary" [routerLink]="productLink(p.productId)">Product</a>
             <button
               type="button"
               class="btn btn-outline-primary"
@@ -97,8 +110,12 @@ const RECENT_RUNS = 5;
             </button>
             <ng-template #more>
               <div cdkMenu class="dropdown-menu dso-menu">
+                <a cdkMenuItem class="dropdown-item" [routerLink]="productLink(p.productId)"
+                  >Open {{ p.productName }} in Admin</a
+                >
+                <hr class="dropdown-divider" />
                 <button cdkMenuItem class="dropdown-item" (click)="actions.showConfig(p)">
-                  config.yaml
+                  Settings sent to Jenkins (config.yaml)
                 </button>
                 <button cdkMenuItem class="dropdown-item" (click)="keyHistory(p)">
                   Key history
@@ -117,16 +134,25 @@ const RECENT_RUNS = 5;
                 </button>
               </div>
             </ng-template>
-            <button type="button" class="btn btn-primary" (click)="edit(p)">Edit</button>
+            <button
+              type="button"
+              class="btn"
+              [class.btn-primary]="p.activeKey"
+              [class.btn-outline-primary]="!p.activeKey"
+              (click)="edit(p)"
+            >
+              Edit settings
+            </button>
           </div>
         </header>
 
         @if (!p.activeKey) {
           <div class="banner danger" role="status">
-            <span class="banner-text"
-              >The key is invalidated, so the pipeline is refused its configuration and stops at its
-              next start.</span
-            >
+            <span class="banner-text">
+              <strong>The pipeline key is invalidated.</strong> Jenkins is refused the settings of
+              this pipeline, so the pipeline stops at its next start. Regenerate the key, then put
+              the new Jenkinsfile in the service's repository.
+            </span>
             <button
               type="button"
               class="btn btn-primary"
@@ -140,7 +166,10 @@ const RECENT_RUNS = 5;
 
         <div class="columns">
           <section class="card panel">
-            <header class="card-header"><h2>Key</h2></header>
+            <header class="card-header"><h2>Pipeline key</h2></header>
+            <p class="section-help">
+              {{ keyHelp }}. Keep it private: it belongs only in the Jenkinsfile below.
+            </p>
             @if (p.activeKey; as key) {
               <div class="key row-wrap">
                 <span class="mono key-value">{{
@@ -148,7 +177,7 @@ const RECENT_RUNS = 5;
                 }}</span>
                 @if (key.value; as value) {
                   <button type="button" class="text-link" (click)="revealed.set(!revealed())">
-                    {{ revealed() ? 'Hide' : 'Show' }}
+                    {{ revealed() ? 'Hide the key' : 'Show the key' }}
                   </button>
                   <button
                     type="button"
@@ -156,55 +185,87 @@ const RECENT_RUNS = 5;
                     [cdkCopyToClipboard]="value"
                     (cdkCopyToClipboardCopied)="actions.copied()"
                   >
-                    Copy
+                    Copy the key
                   </button>
                 }
               </div>
-              <dl class="pairs">
+              <dl class="rows">
                 <div>
                   <dt>Issued</dt>
-                  <dd>{{ key.issuedAt | relative }}</dd>
+                  <dd>{{ key.issuedAt | date: dateTime }}</dd>
                 </div>
                 <div>
-                  <dt>Last fetched over REST</dt>
-                  <dd>{{ key.lastUsedAt ? (key.lastUsedAt | relative) : 'Never' }}</dd>
+                  <dt>Last used by Jenkins</dt>
+                  <dd>{{ key.lastUsedAt ? (key.lastUsedAt | date: dateTime) : 'Not yet' }}</dd>
                 </div>
                 <div>
                   <dt>Earlier keys</dt>
-                  <dd>{{ (p.keys?.length ?? 1) - 1 }}</dd>
+                  <dd>
+                    @if (earlierKeys(p); as earlier) {
+                      {{ earlier | counted: 'key' }}, all invalidated ·
+                      <button type="button" class="text-link" (click)="keyHistory(p)">
+                        Key history
+                      </button>
+                    } @else {
+                      None
+                    }
+                  </dd>
                 </div>
               </dl>
             } @else {
-              <p class="muted">No active key.</p>
+              <p class="no-key">
+                The pipeline has no working key.
+                <button type="button" class="text-link" (click)="keyHistory(p)">Key history</button>
+                shows when and why it was invalidated.
+              </p>
             }
           </section>
 
           <section class="card panel">
-            <header class="card-header"><h2>Settings</h2></header>
-            <dl class="pairs">
+            <header class="card-header"><h2>Pipeline settings</h2></header>
+            <p class="section-help">Where and how Jenkins runs this pipeline.</p>
+            <dl class="rows">
               <div>
-                <dt>Agents</dt>
-                <dd class="mono">{{ p.agentLabels.join(', ') }}</dd>
+                <dt>What it does</dt>
+                <dd>{{ typeDescription(p.type) }}</dd>
               </div>
               <div>
                 <dt>Jenkins job</dt>
                 <dd class="mono">{{ p.jenkinsJob ?? 'Not set' }}</dd>
               </div>
+              <div>
+                <dt>Jenkins agents</dt>
+                <dd>
+                  <span class="mono">{{ p.agentLabels.join(', ') }}</span>
+                  <span class="explain">The machines the pipeline runs on</span>
+                </dd>
+              </div>
               @if (p.extendedPipelineJob) {
                 <div>
                   <dt>Extended pipeline</dt>
-                  <dd class="mono">{{ p.extendedPipelineJob }}</dd>
+                  <dd>
+                    <span class="mono">{{ p.extendedPipelineJob }}</span>
+                    <span class="explain">Started after the scans of this pipeline</span>
+                  </dd>
                 </div>
               }
               @if (p.securityPipelineJob) {
                 <div>
                   <dt>Security pipeline</dt>
-                  <dd class="mono">{{ p.securityPipelineJob }}</dd>
+                  <dd>
+                    <span class="mono">{{ p.securityPipelineJob }}</span>
+                    <span class="explain">Whose build this pipeline deploys and tests</span>
+                  </dd>
                 </div>
               }
               <div>
-                <dt>Metrics tags</dt>
-                <dd class="mono">{{ p.influxProjectTag }} · {{ p.influxEnv }}</dd>
+                <dt>Monitoring tags</dt>
+                <dd>
+                  <span class="mono">{{ p.influxProjectTag }} · {{ p.influxEnv }}</span>
+                  <span class="explain"
+                    >The names the results of this pipeline are stored under</span
+                  >
+                </dd>
               </div>
               @if (p.description) {
                 <div>
@@ -213,44 +274,50 @@ const RECENT_RUNS = 5;
                 </div>
               }
               <div>
-                <dt>Changed</dt>
-                <dd>{{ p.updatedAt | relative }}</dd>
+                <dt>Last changed</dt>
+                <dd>{{ p.updatedAt | date: dateTime }}</dd>
               </div>
             </dl>
           </section>
         </div>
 
-        <section class="card">
+        <section class="card jenkinsfile">
           <header class="card-header">
             <h2>Jenkinsfile</h2>
             <button
               type="button"
               class="btn btn-link"
               [cdkCopyToClipboard]="jenkinsfileText()"
-              (cdkCopyToClipboardCopied)="actions.copied()"
+              (cdkCopyToClipboardCopied)="actions.copied('Jenkinsfile')"
             >
-              Copy
+              Copy the Jenkinsfile
             </button>
           </header>
+          <p class="section-help">{{ jenkinsfileHelp }}</p>
           <pre class="code-block">{{ jenkinsfileText() }}</pre>
         </section>
 
-        <section class="card">
+        <section class="card runs">
           <header class="card-header">
-            <h2>Recent runs</h2>
+            <h2>Latest runs</h2>
             <a class="text-link" [routerLink]="['/monitoring/pipelines', p.id]"
-              >DORA metrics and every run</a
+              >See every run and the delivery performance (DORA)</a
             >
           </header>
+          <p class="section-help">
+            Up to {{ recentRuns }} of the latest runs Jenkins reported in the past 30 days.
+            {{ timeZoneNote }}
+          </p>
           @if (monitoring.hasValue()) {
             <dso-metrics-banner [metricsError]="monitoring.value().metricsError" />
           }
           @if (runs().length === 0) {
             <div class="empty-state small-empty">
-              <p>No run reported in the last 30 days.</p>
+              <h3>No runs in the past 30 days</h3>
+              <p>Runs show here once Jenkins runs this pipeline with its Jenkinsfile.</p>
             </div>
           } @else {
-            <dso-grid label="Recent runs" [rows]="runs()" [columns]="runColumns" [rowId]="runId">
+            <dso-grid label="Latest runs" [rows]="runs()" [columns]="runColumns" [rowId]="runId">
               <ng-template dsoCell="time" let-run>
                 {{ run.time | date: 'd MMM, HH:mm' }}
               </ng-template>
@@ -267,6 +334,13 @@ const RECENT_RUNS = 5;
   styles: `
     .title {
       gap: 6px 10px;
+    }
+
+    .last-run {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
     }
 
     .columns {
@@ -294,7 +368,7 @@ const RECENT_RUNS = 5;
 
     .key {
       gap: 4px 12px;
-      margin: 8px 0;
+      margin: 0 0 8px;
     }
 
     .key-value {
@@ -306,8 +380,31 @@ const RECENT_RUNS = 5;
       flex: 1;
     }
 
-    .pairs dd {
+    .rows > div {
+      display: contents;
+    }
+
+    .rows dd {
       overflow-wrap: anywhere;
+    }
+
+    .explain {
+      display: block;
+      color: var(--dso-muted);
+      font-size: 11.5px;
+    }
+
+    .no-key {
+      margin: 0;
+      color: var(--dso-muted);
+    }
+
+    .small-empty {
+      padding: 12px 8px;
+    }
+
+    .small-empty p {
+      margin: 0;
     }
   `,
 })
@@ -322,14 +419,31 @@ export class PipelinePage {
   protected readonly section = PIPELINES;
   protected readonly productLink = adminProduct;
   protected readonly typeLabel = pipelineTypeLabel;
+  protected readonly name = pipelineName;
   protected readonly errorMessage = errorMessage;
+  protected readonly keyHelp = capitalized(KEY_MEANING);
+  protected readonly jenkinsfileHelp = JENKINSFILE_HELP;
+  protected readonly timeZoneNote = TIME_ZONE_NOTE;
+  protected readonly dateTime = 'd MMM y, HH:mm';
+  protected readonly recentRuns = RECENT_RUNS;
   protected readonly menuAtEnd = MENU_AT_END;
   protected readonly runId = (run: PipelineRun) => `${run.job} ${run.build} ${run.time}`;
   protected readonly runColumns: GridColumn<PipelineRun>[] = [
-    { key: 'time', header: 'Finished', value: (run) => run.time },
-    { key: 'result', header: 'Result', value: (run) => RUN_LOOK[run.result].label },
-    { key: 'build', header: 'Build', value: (run) => run.build ?? '' },
-    { key: 'branch', header: 'Branch', value: (run) => run.branch ?? '–', cellClass: 'mono' },
+    { key: 'time', header: 'Finished', value: (run) => run.time, minWidth: 110 },
+    {
+      key: 'result',
+      header: 'Result',
+      value: (run) => RUN_LOOK[run.result].label,
+      minWidth: 170,
+    },
+    { key: 'build', header: 'Jenkins build', value: (run) => run.build ?? '', minWidth: 120 },
+    {
+      key: 'branch',
+      header: 'Branch',
+      value: (run) => run.branch ?? '–',
+      cellClass: 'mono',
+      minWidth: 120,
+    },
     {
       key: 'duration',
       header: 'Duration',
@@ -366,6 +480,14 @@ export class PipelinePage {
   );
   protected readonly revealed = signal(false);
   protected readonly regenerating = signal(false);
+
+  protected typeDescription(type: PipelineType): string {
+    return PIPELINE_TYPES.find((option) => option.value === type)?.description ?? '';
+  }
+
+  protected earlierKeys(pipeline: Pipeline): number {
+    return Math.max((pipeline.keys?.length ?? 1) - 1, 0);
+  }
 
   protected edit(pipeline: Pipeline): void {
     this.actions.edit(pipeline).subscribe((updated) => this.pipeline.set(updated));

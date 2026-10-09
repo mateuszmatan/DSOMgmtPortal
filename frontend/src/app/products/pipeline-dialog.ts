@@ -13,6 +13,7 @@ import {
   ServicePipelines,
   ServiceTemplate,
 } from '../core/models';
+import { KEY_MEANING, pipelineName } from '../pipelines/pipeline-texts';
 import { Field, Fields, area, choice, mono } from '../shared/fields';
 import {
   applyFieldProblems,
@@ -54,6 +55,10 @@ export class PipelineDialog {
   private readonly api = inject(PipelinesApi);
 
   protected readonly editing = this.data.pipeline !== undefined;
+  protected readonly title = this.data.pipeline
+    ? `Settings of the pipeline ${pipelineName(this.data.pipeline)}`
+    : `Add a pipeline to ${this.data.service.serviceName}`;
+  protected readonly keyMeaning = KEY_MEANING;
   protected readonly types = PIPELINE_TYPES.filter(
     (type) =>
       type.value === this.data.pipeline?.type ||
@@ -103,9 +108,11 @@ export class PipelineDialog {
       mono(key, label, code, 12, { placeholder: example, hint, error: JOB_PATH_ERROR });
     return [
       choice('type', 'Pipeline type', this.types, '', 12, { hint: type?.description ?? '' }),
-      mono('agentLabels', 'Jenkins agent labels', 'agentNames', 12, {
+      mono('agentLabels', 'Jenkins agents', '', 12, {
         placeholder: 'linux-agent, linux && docker',
-        hint: 'labels or label expressions, separated by commas; the pipeline runs on an agent matching one of them',
+        hint:
+          'The machines the pipeline runs on: Jenkins agent labels or label expressions, separated by ' +
+          'commas. The pipeline runs on an agent that matches one of them. `agentNames`',
       }),
       {
         ...job(
@@ -113,7 +120,8 @@ export class PipelineDialog {
           'Jenkins job',
           '',
           'DevSecOps/CERT/backend-api-full',
-          'The job the pipeline runs in: its path, linked under the Jenkins URL of the library defaults, or its full URL',
+          'Where the pipeline runs in Jenkins: the path of its job, which the portal links under the ' +
+            'Jenkins URL of the library defaults, or the full address of the job',
         ),
         error: 'A job path such as DevSecOps/CERT/backend-api-full, or an http or https URL',
       },
@@ -122,9 +130,10 @@ export class PipelineDialog {
             job(
               'extendedPipelineJob',
               'Extended pipeline job',
-              'jenkins.pipeline.extendedPipeline',
+              '',
               'CERT/backend-api-extended',
-              'the job the security pipeline starts after its scans, if any',
+              'Optional. The extended pipeline this pipeline starts after its scans. ' +
+                '`jenkins.pipeline.extendedPipeline`',
             ),
           ]
         : []),
@@ -133,14 +142,15 @@ export class PipelineDialog {
             job(
               'securityPipelineJob',
               'Security pipeline job',
-              'securityPipeline',
+              '',
               'CERT/backend-api-security',
-              'the security pipeline whose artifacts this pipeline deploys and tests',
+              'The security pipeline whose build this pipeline deploys and tests. `securityPipeline`',
             ),
           ]
         : []),
       area('description', 'Description', '', 12, {
         placeholder: 'Nightly security scan of the develop branch',
+        hint: "Optional. Shown on the pipeline's page.",
       }),
     ];
   });
