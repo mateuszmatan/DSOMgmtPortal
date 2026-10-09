@@ -71,7 +71,6 @@ const status = (key: PipelineKey) => (key.status === 'ACTIVE' ? 'Active' : 'Inva
           [rows]="pipeline.value().keys ?? []"
           [columns]="columns"
           [rowId]="keyId"
-          empty="No keys yet."
         >
           <ng-template dsoCell="key" let-key>
             <span class="mono">{{ key.hint }}</span>

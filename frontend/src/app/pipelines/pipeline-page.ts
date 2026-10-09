@@ -1,6 +1,5 @@
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
-import { ConnectedPosition } from '@angular/cdk/overlay';
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
@@ -17,14 +16,10 @@ import { RelativeTimePipe, formatDuration } from '../shared/formatting';
 import { RUN_LOOK, StatusChip } from '../shared/status-chip';
 import { GRID, GridColumn } from '../ui/grid';
 import { DsoLoading } from '../ui/loading';
+import { MENU_AT_END } from '../ui/menu';
 import { PipelineActions } from './pipeline-actions';
 
 const RECENT_RUNS = 5;
-
-const MENU_BEFORE: ConnectedPosition[] = [
-  { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top' },
-  { originX: 'end', originY: 'top', overlayX: 'end', overlayY: 'bottom' },
-];
 
 @Component({
   selector: 'dso-pipeline-page',
@@ -96,7 +91,7 @@ const MENU_BEFORE: ConnectedPosition[] = [
               type="button"
               class="btn btn-outline-primary"
               [cdkMenuTriggerFor]="more"
-              [cdkMenuPosition]="menuBefore"
+              [cdkMenuPosition]="menuAtEnd"
             >
               More
             </button>
@@ -328,7 +323,7 @@ export class PipelinePage {
   protected readonly productLink = adminProduct;
   protected readonly typeLabel = pipelineTypeLabel;
   protected readonly errorMessage = errorMessage;
-  protected readonly menuBefore = MENU_BEFORE;
+  protected readonly menuAtEnd = MENU_AT_END;
   protected readonly runId = (run: PipelineRun) => `${run.job} ${run.build} ${run.time}`;
   protected readonly runColumns: GridColumn<PipelineRun>[] = [
     { key: 'time', header: 'Finished', value: (run) => run.time },

@@ -1,6 +1,5 @@
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
-import { ConnectedPosition } from '@angular/cdk/overlay';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
@@ -21,12 +20,8 @@ import { bitbucketRepositoryUrl } from '../shared/bitbucket';
 import { TARGET_LABELS, TOOL_LABELS } from '../shared/fields';
 import { RelativeTimePipe, counted } from '../shared/formatting';
 import { DsoLoading } from '../ui/loading';
+import { MENU_AT_END } from '../ui/menu';
 import { GeneratedKeys } from './generated-keys';
-
-const BEFORE: ConnectedPosition[] = [
-  { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top' },
-  { originX: 'end', originY: 'top', overlayX: 'end', overlayY: 'bottom' },
-];
 
 @Component({
   selector: 'dso-product-detail',
@@ -113,7 +108,7 @@ export class ProductDetail {
       : `Pipeline keys generated for ${names.length} new services: ${names.join(', ')}.`;
   });
   protected readonly errorMessage = errorMessage;
-  protected readonly menuPosition = BEFORE;
+  protected readonly menuAtEnd = MENU_AT_END;
 
   protected readonly typeLabel = pipelineTypeLabel;
   protected readonly typeName = typeName;
