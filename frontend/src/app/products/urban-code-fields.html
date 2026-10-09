@@ -10,7 +10,9 @@
     </h4>
     <span class="hint"><code>deploy.vm.dod.applications</code></span>
     <span class="spacer"></span>
-    <button mat-stroked-button type="button" (click)="addApplication()">Add application</button>
+    <button type="button" class="btn btn-outline-primary" (click)="addApplication()">
+      Add application
+    </button>
   </header>
 
   @if (f.controls.urbanCodeApplications.errors?.['server']; as message) {
@@ -26,9 +28,8 @@
         }}</strong>
         <span class="spacer"></span>
         <button
-          mat-button
           type="button"
-          class="danger"
+          class="btn btn-link danger"
           (click)="removeApplication(i)"
           [attr.aria-label]="
             'Remove ' + (application.controls.applicationName.value || 'the new application')
@@ -49,9 +50,8 @@
       ) {
         <div class="component">
           <button
-            mat-button
             type="button"
-            class="remove danger"
+            class="btn btn-link danger remove"
             (click)="removeComponent(application, j)"
             [attr.aria-label]="
               'Remove ' + (component.controls.componentName.value || 'the new component')
@@ -68,7 +68,7 @@
           No component yet. Add at least one.
         </p>
       }
-      <button mat-button type="button" class="add-component" (click)="addComponent(application)">
+      <button type="button" class="btn btn-link add-component" (click)="addComponent(application)">
         Add component
       </button>
     </div>

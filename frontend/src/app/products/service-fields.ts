@@ -1,8 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatIconModule } from '@angular/material/icon';
+import { SvgIconComponent } from 'angular-svg-icon';
 import { FLUTTER_PLATFORMS, GlobalSettings, REGIONS, Region } from '../core/models';
 import {
   Field,
@@ -26,6 +24,7 @@ import {
   addItem,
   removeItem,
 } from '../shared/form-controls';
+import { TOGGLES } from '../ui/toggle-group';
 import { GoldenFixFields } from './golden-fix-fields';
 import { OpenShiftTargetFields } from './openshift-target-fields';
 import {
@@ -71,6 +70,8 @@ const NOTES: Record<ServiceSectionId, string> = {
   flutter:
     'What a Flutter build needs besides the common settings; written only for Flutter services.',
 };
+
+const ICON_STYLE = { 'width.px': 16, 'height.px': 16, fill: 'currentColor' };
 
 const GENERAL: Field[] = [
   line('name', 'Service name', '', 5, {
@@ -275,9 +276,8 @@ const FLUTTER_PLATFORM: Field[] = [
   selector: 'dso-service-fields',
   imports: [
     ReactiveFormsModule,
-    MatButtonModule,
-    MatButtonToggleModule,
-    MatIconModule,
+    SvgIconComponent,
+    TOGGLES,
     Fields,
     GoldenFixFields,
     OpenShiftTargetFields,
@@ -298,6 +298,7 @@ export class ServiceFields {
   private readonly selected = signal<ServiceSectionId>('general');
   private readonly changes = formRevision(this.form);
 
+  protected readonly iconStyle = ICON_STYLE;
   protected readonly regions = REGIONS;
   protected readonly regionNames = REGION_NAMES;
   protected readonly general = GENERAL;

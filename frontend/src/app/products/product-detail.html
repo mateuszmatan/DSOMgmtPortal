@@ -12,12 +12,12 @@
   </nav>
 
   @if (product.isLoading() && !product.hasValue()) {
-    <mat-progress-bar mode="indeterminate" />
+    <dso-loading />
   }
 
   @if (product.error(); as error) {
     <div class="banner">{{ errorMessage(error) }}</div>
-    <a mat-stroked-button routerLink="/admin/products">Back to products</a>
+    <a class="btn btn-outline-primary" routerLink="/admin/products">Back to products</a>
   } @else if (product.hasValue()) {
     @let p = product.value();
     <header class="page-header">
@@ -63,10 +63,14 @@
         </dl>
       </div>
       <div class="actions">
-        <a mat-stroked-button [routerLink]="['/monitoring/products', p.id]">Monitoring</a>
-        <button mat-stroked-button (click)="showProductConfig(p)">config.yaml</button>
-        <a mat-flat-button [routerLink]="['/admin/products', p.id, 'edit']">Edit product</a>
-        <button mat-button class="danger" (click)="deleteProduct(p)">Delete</button>
+        <a class="btn btn-outline-primary" [routerLink]="['/monitoring/products', p.id]"
+          >Monitoring</a
+        >
+        <button type="button" class="btn btn-outline-primary" (click)="showProductConfig(p)">
+          config.yaml
+        </button>
+        <a class="btn btn-primary" [routerLink]="['/admin/products', p.id, 'edit']">Edit product</a>
+        <button type="button" class="btn btn-link danger" (click)="deleteProduct(p)">Delete</button>
       </div>
     </header>
 
@@ -97,7 +101,9 @@
         <div class="card empty-state">
           <h3>No services yet</h3>
           <p>Define the services of the product to give them DevSecOps pipelines.</p>
-          <a mat-flat-button [routerLink]="['/admin/products', p.id, 'edit']">Add services</a>
+          <a class="btn btn-primary" [routerLink]="['/admin/products', p.id, 'edit']"
+            >Add services</a
+          >
         </div>
       }
       @for (service of services.value(); track service.serviceId) {
@@ -126,16 +132,20 @@
                 }
               </div>
             </div>
-            <button
-              mat-stroked-button
-              (click)="addPipeline(p, service)"
-              [disabled]="!canAddPipeline(service)"
-              [matTooltip]="
-                canAddPipeline(service) ? '' : 'The service has a pipeline of every type'
+            <span
+              [attr.title]="
+                canAddPipeline(service) ? null : 'The service has a pipeline of every type'
               "
             >
-              Add pipeline
-            </button>
+              <button
+                type="button"
+                class="btn btn-outline-primary"
+                (click)="addPipeline(p, service)"
+                [disabled]="!canAddPipeline(service)"
+              >
+                Add pipeline
+              </button>
+            </span>
           </header>
 
           @if (service.pipelines.length === 0) {
@@ -183,17 +193,17 @@
                           [href]="pipeline.jenkinsJobUrl"
                           target="_blank"
                           rel="noopener"
-                          matTooltip="Open the Jenkins job"
+                          title="Open the Jenkins job"
                           >{{ pipeline.jenkinsJob }}</a
                         >
                       } @else if (pipeline.jenkinsJob) {
                         <span
                           class="mono"
-                          matTooltip="Set the Jenkins URL in the library defaults to link the job"
+                          title="Set the Jenkins URL in the library defaults to link the job"
                           >{{ pipeline.jenkinsJob }}</span
                         >
                       } @else {
-                        <span class="not-recorded" matTooltip="Set the job in the pipeline settings"
+                        <span class="not-recorded" title="Set the job in the pipeline settings"
                           >Not set</span
                         >
                       }
@@ -211,7 +221,7 @@
                       <dd class="mono">{{ pipeline.securityPipelineJob }}</dd>
                     </div>
                   }
-                  <div matTooltip="InfluxDB project and env tags of its metrics">
+                  <div title="InfluxDB project and env tags of its metrics">
                     <dt>Metrics tags</dt>
                     <dd class="mono">{{ pipeline.influxProjectTag }} · {{ pipeline.influxEnv }}</dd>
                   </div>
@@ -269,54 +279,113 @@
               </div>
               <div class="pipeline-actions">
                 @if (pipeline.jenkinsJobUrl) {
-                  <a mat-button [href]="pipeline.jenkinsJobUrl" target="_blank" rel="noopener"
+                  <a
+                    class="btn btn-link"
+                    [href]="pipeline.jenkinsJobUrl"
+                    target="_blank"
+                    rel="noopener"
                     >Jenkins</a
                   >
                 }
-                <a mat-button [routerLink]="['/monitoring/pipelines', pipeline.id]">Metrics</a>
-                <button mat-button (click)="showPipelineConfig(pipeline)">Config</button>
+                <a class="btn btn-link" [routerLink]="['/monitoring/pipelines', pipeline.id]"
+                  >Metrics</a
+                >
+                <button type="button" class="btn btn-link" (click)="showPipelineConfig(pipeline)">
+                  Config
+                </button>
                 <button
-                  mat-button
-                  [matMenuTriggerFor]="pipelineMenu"
+                  type="button"
+                  class="btn btn-link"
+                  [cdkMenuTriggerFor]="pipelineMenu"
+                  [cdkMenuPosition]="menuPosition"
                   [attr.aria-label]="'More actions of the ' + typeName(pipeline.type) + ' pipeline'"
                 >
                   More
                 </button>
-                <mat-menu #pipelineMenu="matMenu" xPosition="before">
-                  <button mat-menu-item (click)="showJenkinsfile(pipeline)">Jenkinsfile</button>
-                  @if (sameTypeElsewhere(pipeline).length) {
-                    <button mat-menu-item (click)="showJenkinsfile(pipeline, true)">
-                      Jenkinsfile for several services
-                    </button>
-                  }
-                  <button mat-menu-item (click)="showKeyHistory(pipeline)">Key history</button>
-                  <button mat-menu-item (click)="editPipeline(pipeline)">Settings</button>
-                  <mat-divider />
-                  @if (pipeline.activeKey) {
-                    <button mat-menu-item (click)="replaceKey(pipeline)">Replace key</button>
-                    <button mat-menu-item class="danger" (click)="revokeKey(pipeline)">
-                      Invalidate key
-                    </button>
-                  } @else {
+                <ng-template #pipelineMenu>
+                  <div cdkMenu class="dropdown-menu dso-menu">
                     <button
-                      mat-menu-item
-                      (click)="regenerateKey(pipeline)"
-                      [disabled]="regenerating().has(pipeline.id)"
+                      type="button"
+                      cdkMenuItem
+                      class="dropdown-item"
+                      (cdkMenuItemTriggered)="showJenkinsfile(pipeline)"
                     >
-                      Regenerate key
+                      Jenkinsfile
                     </button>
-                  }
-                  <button mat-menu-item class="danger" (click)="deletePipeline(pipeline)">
-                    Delete pipeline
-                  </button>
-                </mat-menu>
+                    @if (sameTypeElsewhere(pipeline).length) {
+                      <button
+                        type="button"
+                        cdkMenuItem
+                        class="dropdown-item"
+                        (cdkMenuItemTriggered)="showJenkinsfile(pipeline, true)"
+                      >
+                        Jenkinsfile for several services
+                      </button>
+                    }
+                    <button
+                      type="button"
+                      cdkMenuItem
+                      class="dropdown-item"
+                      (cdkMenuItemTriggered)="showKeyHistory(pipeline)"
+                    >
+                      Key history
+                    </button>
+                    <button
+                      type="button"
+                      cdkMenuItem
+                      class="dropdown-item"
+                      (cdkMenuItemTriggered)="editPipeline(pipeline)"
+                    >
+                      Settings
+                    </button>
+                    <hr class="dropdown-divider" />
+                    @if (pipeline.activeKey) {
+                      <button
+                        type="button"
+                        cdkMenuItem
+                        class="dropdown-item"
+                        (cdkMenuItemTriggered)="replaceKey(pipeline)"
+                      >
+                        Replace key
+                      </button>
+                      <button
+                        type="button"
+                        cdkMenuItem
+                        class="dropdown-item danger"
+                        (cdkMenuItemTriggered)="revokeKey(pipeline)"
+                      >
+                        Invalidate key
+                      </button>
+                    } @else {
+                      @let busy = regenerating().has(pipeline.id);
+                      <button
+                        type="button"
+                        cdkMenuItem
+                        class="dropdown-item"
+                        [cdkMenuItemDisabled]="busy"
+                        [disabled]="busy"
+                        (cdkMenuItemTriggered)="regenerateKey(pipeline)"
+                      >
+                        Regenerate key
+                      </button>
+                    }
+                    <button
+                      type="button"
+                      cdkMenuItem
+                      class="dropdown-item danger"
+                      (cdkMenuItemTriggered)="deletePipeline(pipeline)"
+                    >
+                      Delete pipeline
+                    </button>
+                  </div>
+                </ng-template>
               </div>
             </div>
           }
         </section>
       }
     } @else {
-      <mat-progress-bar mode="indeterminate" />
+      <dso-loading />
     }
   }
 </div>

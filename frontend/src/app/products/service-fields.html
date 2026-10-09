@@ -10,7 +10,7 @@
         [attr.aria-current]="section.id === current() ? 'true' : null"
         (click)="select(section.id)"
       >
-        <mat-icon aria-hidden="true">{{ section.icon }}</mat-icon>
+        <svg-icon aria-hidden="true" [name]="section.icon" [svgStyle]="iconStyle" />
         <span>{{ section.label }}</span>
         @if (section.problem) {
           <span class="problem-mark" role="img" aria-label="Needs your attention"></span>
@@ -76,14 +76,14 @@
 
       @case ('deployment') {
         <div class="form-fields">
-          <mat-button-toggle-group
+          <dso-toggle-group
             class="span-12"
             [formControl]="f.controls.deployment.controls.target"
             aria-label="Deployment target"
           >
-            <mat-button-toggle value="VM">Virtual machine</mat-button-toggle>
-            <mat-button-toggle value="OPENSHIFT">OpenShift</mat-button-toggle>
-          </mat-button-toggle-group>
+            <button dsoToggle="VM">Virtual machine</button>
+            <button dsoToggle="OPENSHIFT">OpenShift</button>
+          </dso-toggle-group>
           <dso-fields [group]="f.controls.deployment" [fields]="deploymentFields()" />
         </div>
         @if (isVm() && tool() === 'MAVEN') {
@@ -179,7 +179,7 @@
             </h4>
             <span class="hint"><code>tools.nexusIq.application</code></span>
             <span class="spacer"></span>
-            <button mat-stroked-button type="button" (click)="addNexusIqApplication()">
+            <button type="button" class="btn btn-outline-primary" (click)="addNexusIqApplication()">
               Add application
             </button>
           </header>
@@ -195,9 +195,8 @@
                 }}</strong>
                 <span class="spacer"></span>
                 <button
-                  mat-button
                   type="button"
-                  class="danger"
+                  class="btn btn-link danger"
                   (click)="removeNexusIqApplication(i)"
                   [attr.aria-label]="
                     'Remove ' + (application.controls.application.value || 'the new application')
@@ -228,14 +227,14 @@
       @case ('goldenFix') {
         <div class="form-fields">
           <dso-fields [group]="f.controls.goldenFix" [fields]="goldenFixField()" />
-          <mat-button-toggle-group
+          <dso-toggle-group
             class="span-8"
             [formControl]="f.controls.goldenFix.controls.inherit"
             aria-label="GoldenFix policy"
           >
-            <mat-button-toggle [value]="true">Inherit the library defaults</mat-button-toggle>
-            <mat-button-toggle [value]="false">Override for this service</mat-button-toggle>
-          </mat-button-toggle-group>
+            <button [dsoToggle]="true">Inherit the library defaults</button>
+            <button [dsoToggle]="false">Override for this service</button>
+          </dso-toggle-group>
           @if (f.controls.goldenFix.controls.inherit.value) {
             <p class="note span-12">{{ inheritedGoldenFix() }}</p>
           } @else {

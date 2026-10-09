@@ -1,39 +1,35 @@
 import { ClipboardModule } from '@angular/cdk/clipboard';
+import { DIALOG_DATA } from '@angular/cdk/dialog';
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTableModule } from '@angular/material/table';
 import { finalize } from 'rxjs';
 import { PipelinesApi } from '../core/api';
 import { errorMessage } from '../core/errors';
-import { Pipeline, pipelineTypeName } from '../core/models';
+import { Pipeline, PipelineKey, pipelineTypeName } from '../core/models';
 import { Notifier } from '../core/notifier';
 import { RelativeTimePipe, capitalized } from '../shared/formatting';
+import { DIALOG } from '../ui/dialog';
+import { GRID, GridColumn } from '../ui/grid';
+import { DsoLoading } from '../ui/loading';
+
+const status = (key: PipelineKey) => (key.status === 'ACTIVE' ? 'Active' : 'Invalidated');
 
 @Component({
   selector: 'dso-key-history-dialog',
-  imports: [
-    ClipboardModule,
-    DatePipe,
-    MatButtonModule,
-    MatDialogModule,
-    MatProgressBarModule,
-    MatTableModule,
-    RelativeTimePipe,
-  ],
+  imports: [ClipboardModule, DatePipe, DIALOG, GRID, DsoLoading, RelativeTimePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2 mat-dialog-title>Key history</h2>
-    <mat-dialog-content>
+    <div class="modal-header">
+      <h2 dsoDialogTitle>Key history</h2>
+    </div>
+    <div class="modal-body">
       <p class="intro">
         {{ typeName }} pipeline of <strong class="mono">{{ data.serviceName }}</strong> in
         {{ data.productName }}.
       </p>
       @if (pipeline.isLoading()) {
-        <mat-progress-bar mode="indeterminate" />
+        <dso-loading />
       }
       @if (pipeline.error(); as error) {
         <div class="banner">{{ errorMessage(error) }}</div>
@@ -70,55 +66,48 @@ import { RelativeTimePipe, capitalized } from '../shared/formatting';
         @if (regenerateError(); as error) {
           <div class="banner">{{ error }}</div>
         }
-        <div class="table-scroll">
-          <table mat-table [dataSource]="pipeline.value().keys ?? []">
-            <ng-container matColumnDef="key">
-              <th mat-header-cell *matHeaderCellDef>Key</th>
-              <td mat-cell *matCellDef="let key" class="mono nowrap">{{ key.hint }}</td>
-            </ng-container>
-            <ng-container matColumnDef="status">
-              <th mat-header-cell *matHeaderCellDef>Status</th>
-              <td mat-cell *matCellDef="let key">
-                <span class="chip" [class]="key.status === 'ACTIVE' ? 'success' : 'danger'">{{
-                  key.status === 'ACTIVE' ? 'Active' : 'Invalidated'
-                }}</span>
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="issuedAt">
-              <th mat-header-cell *matHeaderCellDef>Issued</th>
-              <td mat-cell *matCellDef="let key" [title]="key.issuedAt | date: 'medium'">
-                {{ key.issuedAt | date: 'd MMM y, HH:mm' }}
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="lastUsedAt">
-              <th mat-header-cell *matHeaderCellDef>Last REST fetch</th>
-              <td mat-cell *matCellDef="let key">
-                {{ key.lastUsedAt ? (key.lastUsedAt | relative) : '' }}
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="revoked">
-              <th mat-header-cell *matHeaderCellDef>Invalidated</th>
-              <td mat-cell *matCellDef="let key">
-                @if (key.revokedAt) {
-                  <div>{{ key.revokedAt | date: 'd MMM y, HH:mm' }}</div>
-                  <div class="muted reason">{{ key.revokeReason }}</div>
-                } @else {
-                  <span class="muted">–</span>
-                }
-              </td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="columns"></tr>
-            <tr mat-row *matRowDef="let row; columns: columns"></tr>
-          </table>
-        </div>
+        <dso-grid
+          label="Keys"
+          [rows]="pipeline.value().keys ?? []"
+          [columns]="columns"
+          [rowId]="keyId"
+          empty="No keys yet."
+        >
+          <ng-template dsoCell="key" let-key>
+            <span class="mono">{{ key.hint }}</span>
+          </ng-template>
+          <ng-template dsoCell="status" let-key>
+            <span class="chip" [class]="key.status === 'ACTIVE' ? 'success' : 'danger'">{{
+              status(key)
+            }}</span>
+          </ng-template>
+          <ng-template dsoCell="issuedAt" let-key>
+            <span [title]="key.issuedAt | date: 'medium'">{{
+              key.issuedAt | date: 'd MMM y, HH:mm'
+            }}</span>
+          </ng-template>
+          <ng-template dsoCell="lastUsedAt" let-key>
+            {{ key.lastUsedAt ? (key.lastUsedAt | relative) : '' }}
+          </ng-template>
+          <ng-template dsoCell="revoked" let-key>
+            @if (key.revokedAt) {
+              <div>
+                <div>{{ key.revokedAt | date: 'd MMM y, HH:mm' }}</div>
+                <div class="muted reason">{{ key.revokeReason }}</div>
+              </div>
+            } @else {
+              <span class="muted">–</span>
+            }
+          </ng-template>
+        </dso-grid>
       }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-flat-button mat-dialog-close>Close</button>
-    </mat-dialog-actions>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-primary" dsoDialogClose>Close</button>
+    </div>
   `,
   styles: `
-    mat-dialog-content {
+    .modal-body {
       width: min(860px, 86vw);
     }
     .intro {
@@ -131,26 +120,32 @@ import { RelativeTimePipe, capitalized } from '../shared/formatting';
     }
     .reason {
       font-size: 12.5px;
-      max-width: 260px;
-    }
-    td.mat-mdc-cell {
-      padding-top: 4px;
-      padding-bottom: 4px;
-    }
-    .nowrap {
-      white-space: nowrap;
     }
   `,
 })
 export class KeyHistoryDialog {
   readonly keyIssued = output<Pipeline>();
 
-  protected readonly data = inject<Pipeline>(MAT_DIALOG_DATA);
+  protected readonly data = inject<Pipeline>(DIALOG_DATA);
   protected readonly typeName = capitalized(pipelineTypeName(this.data.type));
   private readonly api = inject(PipelinesApi);
   private readonly notifier = inject(Notifier);
 
-  protected readonly columns = ['key', 'status', 'issuedAt', 'lastUsedAt', 'revoked'];
+  protected readonly status = status;
+  protected readonly keyId = (key: PipelineKey) => key.id;
+  protected readonly columns: GridColumn<PipelineKey>[] = [
+    { key: 'key', header: 'Key', value: (key) => key.hint, width: 150 },
+    { key: 'status', header: 'Status', value: status, width: 120 },
+    { key: 'issuedAt', header: 'Issued', value: (key) => key.issuedAt, width: 150 },
+    { key: 'lastUsedAt', header: 'Last REST fetch', value: (key) => key.lastUsedAt, width: 140 },
+    {
+      key: 'revoked',
+      header: 'Invalidated',
+      value: (key) => key.revokedAt,
+      minWidth: 200,
+      wrap: true,
+    },
+  ];
   protected readonly pipeline = rxResource({ stream: () => this.api.get(this.data.id) });
   protected readonly regenerating = signal(false);
   protected readonly regenerateError = signal<string | null>(null);

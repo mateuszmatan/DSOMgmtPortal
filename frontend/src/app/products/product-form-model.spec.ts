@@ -725,10 +725,13 @@ describe('values unique within a product', () => {
 
     expect(second.controls.name.errors).toEqual({ rule: SAME_NAME });
     expect(first.controls.name.valid).toBe(true);
+    const statuses: string[] = [];
+    second.controls.name.statusChanges.subscribe((status) => statuses.push(status));
 
     first.controls.name.setValue('web');
 
     expect(second.controls.name.valid).toBe(true);
+    expect(statuses).toEqual(['VALID']);
     expect(form.valid).toBe(true);
   });
 

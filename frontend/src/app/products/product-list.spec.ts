@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { Department, ProductSummary } from '../core/models';
-import { text } from '../testing/dom';
+import { gridCell, gridHeaders, gridRows, settleGrid, text } from '../testing/dom';
 import { department, productSummary } from '../testing/fixtures';
 import { ProductList } from './product-list';
 
@@ -48,7 +48,7 @@ describe('ProductList', () => {
 
   it('lists the products of every department with the tally of its pipelines', async () => {
     await load();
-    const row = card('Corporate Technology').querySelector('tr.mat-mdc-row')!;
+    const row = gridRows(card('Corporate Technology'))[0];
 
     expect(cards().map((section) => text(section.querySelector('h2')))).toEqual([
       'Corporate Technology',
@@ -64,11 +64,19 @@ describe('ProductList', () => {
       'No products in Fund Services yet.',
     );
     expect(text(page().querySelector('.count'))).toBe('1 product in 2 departments');
+    expect(gridHeaders(card('Corporate Technology'))).toEqual([
+      'Product',
+      'Owner team',
+      'Services',
+      'Pipelines',
+      'Last change',
+    ]);
+    expect(row.classList).toContain('clickable');
     expect(row.querySelector('.name')?.textContent).toBe('CertScanner');
     expect(row.querySelector('.code')?.textContent).toBe('CERT');
-    expect(row.querySelector('.mat-column-services')?.textContent?.trim()).toBe('2');
+    expect(text(gridCell(row, 'services'))).toBe('2');
     expect(row.querySelector('.revoked')?.textContent?.trim()).toBe('· 1 invalidated');
-    expect(row.querySelector('.mat-column-updatedAt')?.textContent?.trim()).toBe('just now');
+    expect(text(gridCell(row, 'updatedAt'))).toBe('just now');
     expect(page().querySelector('.hint')).toBeNull();
   });
 
@@ -104,7 +112,7 @@ describe('ProductList', () => {
     expect(text(unassigned.querySelector('.hint'))).toBe(
       'Edit these products to choose their department.',
     );
-    expect(unassigned.querySelectorAll('tr.mat-mdc-row').length).toBe(2);
+    expect(gridRows(unassigned).length).toBe(2);
     expect(text(page().querySelector('.count'))).toBe(
       '1 product in 2 departments · 2 not in a department',
     );
@@ -191,6 +199,7 @@ describe('ProductList', () => {
 
   it('shows a product without team or pipelines and opens it from its row', async () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const follow = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     await load([
       {
         ...summary,
@@ -202,15 +211,21 @@ describe('ProductList', () => {
       },
       { ...summary, id: 5, activePipelineCount: 3 },
     ]);
-    const rows = page().querySelectorAll<HTMLElement>('tr.mat-mdc-row');
+    const rows = gridRows(page());
 
-    expect(rows[0].querySelector('.mat-column-ownerTeam')?.textContent?.trim()).toBe('–');
+    expect(text(gridCell(rows[0], 'ownerTeam'))).toBe('–');
     expect(rows[0].querySelector('.description')).toBeNull();
-    expect(rows[0].querySelector('.mat-column-pipelines')?.textContent?.trim()).toBe('None yet');
+    expect(text(gridCell(rows[0], 'pipelines'))).toBe('None yet');
     expect(rows[1].querySelector('.revoked')).toBeNull();
     expect(rows[1].querySelector('.pipelines')?.textContent).toContain('3 active');
 
-    rows[0].click();
+    rows[0].querySelector<HTMLAnchorElement>('a.name')!.click();
+    await settleGrid();
+    expect(String(follow.mock.calls[0][0])).toBe('/admin/products/4');
+    expect(navigate).not.toHaveBeenCalled();
+
+    gridCell(rows[0], 'ownerTeam').click();
+    await settleGrid();
     expect(navigate).toHaveBeenCalledWith(['/admin/products', 4]);
   });
 });

@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { fieldOf } from '../testing/dom';
 import { service } from '../testing/fixtures';
 import { OpenShiftTargetFields } from './openshift-target-fields';
 import { ServiceForm, createServiceForm } from './product-form-model';
@@ -21,14 +22,11 @@ describe('OpenShiftTargetFields', () => {
   const headings = () =>
     [...page().querySelectorAll('.sub-heading')].map((heading) => heading.textContent?.trim());
   const toggle = (label: string) =>
-    [...page().querySelectorAll<HTMLButtonElement>('mat-button-toggle button')].find((button) =>
+    [...page().querySelectorAll<HTMLButtonElement>('dso-toggle-group button')].find((button) =>
       button.textContent?.includes(label),
     )!;
 
-  const field = (label: string) =>
-    [...page().querySelectorAll<HTMLElement>('mat-form-field')].find(
-      (element) => element.querySelector('mat-label')?.textContent === label,
-    )!;
+  const field = (label: string) => fieldOf(page(), label);
 
   async function choose(label: string) {
     toggle(label).click();
@@ -44,14 +42,15 @@ describe('OpenShiftTargetFields', () => {
       'Deployment repository',
       'Pinned image',
     ]);
-    expect(field('Internal image URL')).toBeDefined();
+    expect(field('Internal image URL')).not.toBeNull();
     expect(toggle('RD region').querySelector('.problem-mark')).not.toBeNull();
+    expect(toggle('RD region').getAttribute('aria-checked')).toBe('true');
 
-    const projectBuild = field('Build project');
+    const projectBuild = field('Build project')!;
     projectBuild.querySelector('input')!.dispatchEvent(new Event('blur'));
     await fixture.whenStable();
-    expect(projectBuild.querySelector('mat-error')?.textContent).toBe('Required');
-    expect(field('File added to the image').querySelector('mat-error')).toBeNull();
+    expect(projectBuild.querySelector('dso-error')?.textContent).toBe('Required');
+    expect(field('File added to the image')!.querySelector('dso-error')).toBeNull();
 
     form.controls.openShiftTargets.controls.RD.patchValue({
       projectBuild: 'cert-build',
@@ -70,8 +69,9 @@ describe('OpenShiftTargetFields', () => {
 
     expect(page().querySelector('.region-note')?.textContent).toContain('deploy.openshift.qc');
     expect(headings()).not.toContain('Image build');
-    expect(field('Build tag')).toBeDefined();
-    expect(field('Internal image URL')).toBeUndefined();
+    expect(toggle('QC region').getAttribute('aria-checked')).toBe('true');
+    expect(field('Build tag')).not.toBeNull();
+    expect(field('Internal image URL')).toBeNull();
 
     form.controls.openShiftTargets.controls.QC.controls.dockerFilePath.setValue('Dockerfile.qc');
     await choose('RD region');

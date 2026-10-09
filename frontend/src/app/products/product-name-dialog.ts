@@ -1,13 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { Department } from '../core/models';
 import { filled, max, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
+import { DIALOG } from '../ui/dialog';
+import { FORM_FIELD } from '../ui/form-field';
 
 export interface ProductNameDialogData {
   departments: readonly Department[];
@@ -21,46 +19,41 @@ export interface NamedProduct {
 
 @Component({
   selector: 'dso-product-name-dialog',
-  imports: [
-    ReactiveFormsModule,
-    MatButtonModule,
-    MatDialogModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-  ],
+  imports: [ReactiveFormsModule, DIALOG, FORM_FIELD],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2 mat-dialog-title>Add product</h2>
+    <div class="modal-header">
+      <h2 dsoDialogTitle>Add product</h2>
+    </div>
     <form [formGroup]="form" (ngSubmit)="next()" novalidate>
-      <mat-dialog-content>
+      <div class="modal-body">
         <p>
           Start with the product's department and name. The portal makes the product's unique code
           from the name.
         </p>
-        <mat-form-field class="full-width">
-          <mat-label>Department</mat-label>
-          <mat-select formControlName="departmentId">
+        <dso-form-field class="full-width">
+          <dso-label>Department</dso-label>
+          <select dsoInput formControlName="departmentId">
             @for (department of data.departments; track department.id) {
-              <mat-option [value]="department.id">{{ department.name }}</mat-option>
+              <option [ngValue]="department.id">{{ department.name }}</option>
             }
-          </mat-select>
-          <mat-error>{{ errorText(form.controls.departmentId) }}</mat-error>
-        </mat-form-field>
-        <mat-form-field class="full-width">
-          <mat-label>Product name</mat-label>
-          <input matInput formControlName="name" placeholder="CertScanner" required />
-          <mat-error>{{ errorText(name) }}</mat-error>
-        </mat-form-field>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancel</button>
-        <button mat-flat-button type="submit">Continue</button>
-      </mat-dialog-actions>
+          </select>
+          <dso-error>{{ errorText(form.controls.departmentId) }}</dso-error>
+        </dso-form-field>
+        <dso-form-field class="full-width">
+          <dso-label>Product name</dso-label>
+          <input dsoInput formControlName="name" placeholder="CertScanner" required />
+          <dso-error>{{ errorText(name) }}</dso-error>
+        </dso-form-field>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" dsoDialogClose>Cancel</button>
+        <button type="submit" class="btn btn-primary">Continue</button>
+      </div>
     </form>
   `,
   styles: `
-    mat-dialog-content {
+    .modal-body {
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -72,8 +65,8 @@ export interface NamedProduct {
   `,
 })
 export class ProductNameDialog {
-  protected readonly data = inject<ProductNameDialogData>(MAT_DIALOG_DATA);
-  private readonly dialogRef = inject<MatDialogRef<ProductNameDialog, NamedProduct>>(MatDialogRef);
+  protected readonly data = inject<ProductNameDialogData>(DIALOG_DATA);
+  private readonly dialogRef = inject<DialogRef<NamedProduct, ProductNameDialog>>(DialogRef);
 
   protected readonly form = new FormGroup({
     departmentId: new FormControl(

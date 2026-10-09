@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { pipeline } from '../testing/fixtures';
 import { RevokeKeyDialog } from './revoke-key-dialog';
 
@@ -16,8 +16,8 @@ describe('RevokeKeyDialog', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: MAT_DIALOG_DATA, useValue: pipeline() },
-        { provide: MatDialogRef, useValue: { close } },
+        { provide: DIALOG_DATA, useValue: pipeline() },
+        { provide: DialogRef, useValue: { close } },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -47,7 +47,7 @@ describe('RevokeKeyDialog', () => {
     await submit('');
 
     http.expectNone('/api/pipelines/100/keys/revoke');
-    expect(page().querySelector('mat-error')?.textContent).toBe('Required');
+    expect(page().querySelector('dso-error')?.textContent).toBe('Required');
   });
 
   it('invalidates the key with the trimmed reason and closes with the updated pipeline', async () => {
@@ -83,8 +83,8 @@ describe('RevokeKeyDialog of a Nexus IQ GoldenFix pipeline', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: MAT_DIALOG_DATA, useValue: pipeline({ type: 'NEXUS_IQ' }) },
-        { provide: MatDialogRef, useValue: { close: vi.fn() } },
+        { provide: DIALOG_DATA, useValue: pipeline({ type: 'NEXUS_IQ' }) },
+        { provide: DialogRef, useValue: { close: vi.fn() } },
       ],
     });
     const fixture = TestBed.createComponent(RevokeKeyDialog);

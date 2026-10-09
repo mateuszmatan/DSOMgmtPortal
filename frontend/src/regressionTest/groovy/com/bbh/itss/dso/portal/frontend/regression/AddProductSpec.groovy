@@ -38,7 +38,7 @@ class AddProductSpec extends EditorSpecification {
 
         then:
         assertThat(dialog()).hasCount(0)
-        assertThat(select(productFields(), 'Department')).hasText('Fund Services')
+        assertThat(selected(productFields(), 'Department')).hasText('Fund Services')
         assertThat(input(productFields(), 'Name')).hasValue('Cert Scanner')
         assertThat(input(productFields(), 'Code')).hasValue('CERTSCANNER')
 
@@ -67,7 +67,7 @@ class AddProductSpec extends EditorSpecification {
 
         then:
         assertThat(page).hasURL(~'/admin/products/new\\?department=4$')
-        assertThat(select(dialog(), 'Department')).hasText('Custody')
+        assertThat(selected(dialog(), 'Department')).hasText('Custody')
 
         when:
         input(dialog(), 'Product name').fill('Trade Archive')
@@ -75,7 +75,7 @@ class AddProductSpec extends EditorSpecification {
 
         then:
         assertThat(dialog()).hasCount(0)
-        assertThat(select(productFields(), 'Department')).hasText('Custody')
+        assertThat(selected(productFields(), 'Department')).hasText('Custody')
         assertThat(input(productFields(), 'Code')).hasValue('TRADEARCHIVE')
         ownErrors().isEmpty()
     }

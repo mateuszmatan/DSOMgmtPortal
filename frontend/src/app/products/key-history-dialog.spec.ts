@@ -1,11 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { DIALOG_DATA } from '@angular/cdk/dialog';
 import { Pipeline, PipelineKey } from '../core/models';
 import { pipeline, revokedKey } from '../testing/fixtures';
 import { KeyHistoryDialog } from './key-history-dialog';
-import { buttonOf, text } from '../testing/dom';
+import { buttonOf, gridColumn, gridHeaders, text } from '../testing/dom';
 
 describe('KeyHistoryDialog', () => {
   let fixture: ComponentFixture<KeyHistoryDialog>;
@@ -29,7 +29,7 @@ describe('KeyHistoryDialog', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: MAT_DIALOG_DATA, useValue: pipeline() },
+        { provide: DIALOG_DATA, useValue: pipeline() },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -41,8 +41,7 @@ describe('KeyHistoryDialog', () => {
   afterEach(() => http.verify());
 
   const page = () => fixture.nativeElement as HTMLElement;
-  const cells = (column: string) =>
-    [...page().querySelectorAll(`td.mat-column-${column}`)].map((cell) => cell.textContent?.trim());
+  const cells = (column: string) => gridColumn(page(), column);
 
   async function open(loaded: Pipeline) {
     fixture.detectChanges();
@@ -54,6 +53,13 @@ describe('KeyHistoryDialog', () => {
     await open(pipeline({ keys: [active, revoked] }));
 
     expect(page().querySelector('.intro')?.textContent).toContain('Full pipeline of');
+    expect(gridHeaders(page())).toEqual([
+      'Key',
+      'Status',
+      'Issued',
+      'Last REST fetch',
+      'Invalidated',
+    ]);
     expect(cells('key')).toEqual(['6f1c2d3e…9abc', '1a2b3c4d…eeff']);
     expect(page().textContent).not.toContain(active.value!);
     expect(cells('status')).toEqual(['Active', 'Invalidated']);
@@ -71,7 +77,7 @@ describe('KeyHistoryDialog', () => {
     await fixture.whenStable();
 
     expect(page().querySelector('.banner')?.textContent).toBe('Pipeline 100 was not found');
-    expect(page().querySelector('table')).toBeNull();
+    expect(page().querySelector('dso-grid')).toBeNull();
   });
 
   it('offers to regenerate the key of a pipeline whose key was invalidated', async () => {
@@ -79,7 +85,7 @@ describe('KeyHistoryDialog', () => {
 
     expect(page().querySelector('.key-status')?.textContent).toContain('Key invalidated');
     expect(buttonOf(page(), 'Regenerate key')).toBeDefined();
-    expect(page().querySelector('mat-icon')).toBeNull();
+    expect(page().querySelector('svg-icon')).toBeNull();
   });
 
   it('regenerates the key, shows the new one and keeps the old key in the history', async () => {
@@ -125,7 +131,7 @@ describe('KeyHistoryDialog of a Nexus IQ GoldenFix pipeline', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: MAT_DIALOG_DATA, useValue: nexusIq },
+        { provide: DIALOG_DATA, useValue: nexusIq },
       ],
     });
     const fixture = TestBed.createComponent(KeyHistoryDialog);

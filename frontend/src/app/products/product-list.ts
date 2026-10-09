@@ -1,11 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTableModule } from '@angular/material/table';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, map } from 'rxjs';
 import { DepartmentsApi, ProductsApi } from '../core/api';
@@ -13,20 +8,14 @@ import { errorMessage } from '../core/errors';
 import { ProductSummary } from '../core/models';
 import { ADMIN_PRODUCTS, adminProduct } from '../core/sections';
 import { RelativeTimePipe, counted } from '../shared/formatting';
+import { DsoInput } from '../ui/form-field';
+import { GRID, GridColumn } from '../ui/grid';
+import { DsoLoading } from '../ui/loading';
 import { byDepartment, tally } from './departments';
 
 @Component({
   selector: 'dso-product-list',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatProgressBarModule,
-    MatTableModule,
-    RelativeTimePipe,
-  ],
+  imports: [ReactiveFormsModule, RouterLink, DsoInput, GRID, DsoLoading, RelativeTimePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './product-list.html',
   styleUrl: './product-list.scss',
@@ -38,7 +27,37 @@ export class ProductList {
 
   protected readonly newProduct = `${ADMIN_PRODUCTS.path}/new`;
   protected readonly adminProduct = adminProduct;
-  protected readonly columns = ['product', 'ownerTeam', 'services', 'pipelines', 'updatedAt'];
+  protected readonly productId = (product: ProductSummary) => product.id;
+  protected readonly clickable = () => 'clickable';
+  protected readonly columns: GridColumn<ProductSummary>[] = [
+    {
+      key: 'product',
+      header: 'Product',
+      value: (product) => product.name,
+      minWidth: 260,
+      wrap: true,
+    },
+    {
+      key: 'ownerTeam',
+      header: 'Owner team',
+      value: (product) => product.ownerTeam ?? '–',
+      width: 200,
+    },
+    {
+      key: 'services',
+      header: 'Services',
+      value: (product) => product.serviceCount,
+      numeric: true,
+      width: 110,
+    },
+    {
+      key: 'pipelines',
+      header: 'Pipelines',
+      value: (product) => product.pipelineCount,
+      width: 220,
+    },
+    { key: 'updatedAt', header: 'Last change', value: (product) => product.updatedAt, width: 130 },
+  ];
   protected readonly search = new FormControl('', { nonNullable: true });
   protected readonly query = toSignal(
     this.search.valueChanges.pipe(

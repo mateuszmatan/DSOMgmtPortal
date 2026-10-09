@@ -1,9 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { catchError, finalize, of } from 'rxjs';
 import { PipelinesApi, ServiceTemplateApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
@@ -28,6 +26,8 @@ import {
   text,
 } from '../shared/form-controls';
 import { fillTemplate } from '../shared/service-template';
+import { DIALOG } from '../ui/dialog';
+import { DsoSpinner } from '../ui/loading';
 
 export interface PipelineDialogData {
   service: Pick<ServicePipelines, 'serviceId' | 'serviceName' | 'pipelines'>;
@@ -43,20 +43,14 @@ const MAX_LABELS = 20;
 
 @Component({
   selector: 'dso-pipeline-dialog',
-  imports: [
-    ReactiveFormsModule,
-    MatButtonModule,
-    MatDialogModule,
-    MatProgressSpinnerModule,
-    Fields,
-  ],
+  imports: [ReactiveFormsModule, DIALOG, DsoSpinner, Fields],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './pipeline-dialog.html',
   styleUrl: './pipeline-dialog.scss',
 })
 export class PipelineDialog {
-  protected readonly data = inject<PipelineDialogData>(MAT_DIALOG_DATA);
-  private readonly dialogRef = inject<MatDialogRef<PipelineDialog, Pipeline>>(MatDialogRef);
+  protected readonly data = inject<PipelineDialogData>(DIALOG_DATA);
+  private readonly dialogRef = inject<DialogRef<Pipeline, PipelineDialog>>(DialogRef);
   private readonly api = inject(PipelinesApi);
 
   protected readonly editing = this.data.pipeline !== undefined;

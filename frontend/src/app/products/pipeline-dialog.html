@@ -1,6 +1,8 @@
-<h2 mat-dialog-title>{{ editing ? 'Pipeline settings' : 'Add pipeline' }}</h2>
+<div class="modal-header">
+  <h2 dsoDialogTitle>{{ editing ? 'Pipeline settings' : 'Add pipeline' }}</h2>
+</div>
 <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-  <mat-dialog-content>
+  <div class="modal-body">
     <p class="intro">
       Service <strong class="mono">{{ data.service.serviceName }}</strong
       >.
@@ -20,14 +22,14 @@
     @if (error(); as message) {
       <div class="banner" role="alert">{{ message }}</div>
     }
-  </mat-dialog-content>
-  <mat-dialog-actions align="end">
-    <button mat-button type="button" mat-dialog-close>Cancel</button>
-    <button mat-flat-button type="submit" [disabled]="saving() || types.length === 0">
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-link" dsoDialogClose>Cancel</button>
+    <button type="submit" class="btn btn-primary" [disabled]="saving() || types.length === 0">
       @if (saving()) {
-        <mat-spinner diameter="18" />
+        <dso-spinner />
       }
       {{ editing ? 'Save' : 'Add pipeline' }}
     </button>
-  </mat-dialog-actions>
+  </div>
 </form>
