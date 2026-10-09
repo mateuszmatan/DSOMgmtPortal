@@ -180,11 +180,11 @@ class GuiSmokeSpec extends GuiSpecification {
         '/beadle/changes'           | 0
         '/beadle/new-change'        | 0
         '/beadle/changes/4'         | 0
-        '/beadle/changes/4/edit'    | 13
+        '/beadle/changes/4/edit'    | 19
         '/beadle/changes/2'         | 0
         '/beadle/admin/departments' | 0
         '/beadle/admin/products'    | 0
-        '/beadle/admin/products/1'  | 13
+        '/beadle/admin/products/1'  | 19
     }
 
     @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
