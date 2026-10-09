@@ -128,8 +128,10 @@ other BBH themes), the Angular CDK overlay styles and `src/styles.scss` last. Th
 `ui/design-system.ts`), together with the few portal icons of `ui/icons.ts` (Material Icons outlines, Apache License
 2.0).
 
-- Tables are AG Grid Enterprise 33 (`dso-grid`): a column filters in its header row and sorts on a click of its title;
-  cells that hold links or buttons are `ng-template[dsoCell]` templates. `-PagGridLicenseKey` sets BBH's licence key.
+- Tables are AG Grid 33 from `ag-grid-enterprise` (`dso-grid`): a column filters in its header row and sorts on a click
+  of its title; cells that hold links or buttons are `ng-template[dsoCell]` templates and stay in the Tab order. Only
+  community modules are registered, so the grids need no licence; an Enterprise module added to `ui/grid.ts` gets BBH's
+  key from `-PagGridLicenseKey`.
 - Charts are Highcharts 6 in styled mode (`dso-chart`), coloured by CSS and described by an `aria-label`.
 - Dialogs, the header menus and the toasts use the Angular CDK (`Dialog`, `cdkMenu`, `Overlay`) with Bootstrap's
   modal, dropdown and toast styles.
