@@ -23,7 +23,7 @@
   fill: var(--dso-run-failure);
 }
 
-.dso-activity-chart .highcharts-series.deployment .highcharts-point {
+.dso-activity-chart .highcharts-markers.deployment .highcharts-point {
   fill: var(--dso-run-deploy);
   stroke: var(--dso-run-deploy);
 }

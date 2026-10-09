@@ -60,6 +60,9 @@ class MonitoringSpec extends GuiSpecification {
         assertThat(page.locator('dso-dora-tiles .tile-value')).hasText(['1.4 / day', '41h 33m', '29.0%', '13h 24m'] as String[])
         assertThat(page.locator('.portfolio .card-header .muted')).hasText('62 runs in the last 30 days')
         assertThat(page.locator('.portfolio .highcharts-series.success .highcharts-point').first()).isVisible()
+        page.locator('.portfolio .highcharts-markers.deployment .highcharts-point').first()
+                .evaluate('point => getComputedStyle(point).fill') ==
+                page.locator('.portfolio .legend .swatch.deployment').evaluate('swatch => getComputedStyle(swatch).backgroundColor')
         assertThat(page.locator('.by-department .highcharts-xaxis-labels').first().locator('text')).hasCount(5)
         assertThat(page.locator('.by-department dso-chart')).hasAttribute('aria-label',
                 'AI Lab: none; Capital Partners: none; Corporate Technology: 3 success; Custody: none; ' +
