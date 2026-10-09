@@ -156,3 +156,9 @@ Evidence, and the Admin tabs with the pipeline form filled from the template and
 (Static Application Security Tests) - HCL AppScan, OSA (Open Source Analysis) (NexusIQ with Golden Fix and Golden Pull
 Request), Security and Full with what each one runs in smaller print, for a new product and for a product in the
 portal, and in a narrow window.
+
+`screenshots/v17` shows the New Change wizard with the template values as defaults everywhere: step 1 without a
+product description, a FixVersion released in the past and the Schedule planned on the next day at the template's
+times, the risk assessment with the template's answers and its option lists exactly as ProTech has them, with no "Not
+assessed" entry, the review, and in Beadle Admin the change template of a product without a product description, its
+risk assessment and a new product whose answers start at the first option of each list.
