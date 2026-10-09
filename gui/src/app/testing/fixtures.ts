@@ -729,7 +729,9 @@ export function pipelineMonitoring(
     lastRun: pipelineRun(),
     dora: doraSummary(),
     recentRuns: [pipelineRun(), pipelineRun({ build: 41, buildUrl: null, result: 'FAILURE' })],
-    grafana: { dashboardUrl: 'https://grafana.bbh.com/d/adzfc54123/pipeline?var-project=CERT-gui' },
+    grafana: [
+      { name: 'Grafana', dashboardUrl: 'https://grafana.bbh.com/d/adzfc54123/pipeline?var-project=CERT-gui' },
+    ],
     metricsError: null,
     ...overrides,
   };

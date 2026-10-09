@@ -10,6 +10,7 @@ import com.bbh.itss.dso.portal.application.monitoring.port.in.ProductHealth;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.ProductMonitoring;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelineView;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
+import com.bbh.itss.dso.portal.domain.monitoring.DashboardLink;
 import com.bbh.itss.dso.portal.domain.monitoring.DoraSummary;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
@@ -37,7 +38,7 @@ public class MonitoringController {
     public StatusResponse status() {
         MonitoringStatus status = monitoring.status();
         return new StatusResponse(status.metricsConfigured(), status.metricsReachable(), status.metricsError(),
-                status.dashboardsConfigured(), status.dashboardsUrl());
+                status.dashboards().stream().map(Grafana::of).toList());
     }
 
     @GetMapping("/products")
@@ -64,7 +65,7 @@ public class MonitoringController {
         return new PipelineMonitoringResponse(monitored(view), found.status(),
                 RunResponse.of(found.lastRun(), view), found.dora(),
                 found.recentRuns().stream().map(run -> RunResponse.of(run, view)).toList(),
-                found.dashboardUrl() == null ? null : new Grafana(found.dashboardUrl()), found.metricsError());
+                found.dashboards().stream().map(Grafana::of).toList(), found.metricsError());
     }
 
     @GetMapping("/activity")
@@ -73,7 +74,7 @@ public class MonitoringController {
     }
 
     public record StatusResponse(boolean influxConfigured, boolean influxReachable, String influxError,
-                                 boolean grafanaConfigured, String grafanaUrl) {
+                                 List<Grafana> grafana) {
     }
 
     public record OverviewResponse(List<ProductHealthResponse> products, String metricsError) {
@@ -105,7 +106,7 @@ public class MonitoringController {
     }
 
     public record PipelineMonitoringResponse(PipelineResponse pipeline, RunResult status, RunResponse lastRun,
-                                             DoraSummary dora, List<RunResponse> recentRuns, Grafana grafana,
+                                             DoraSummary dora, List<RunResponse> recentRuns, List<Grafana> grafana,
                                              String metricsError) {
     }
 
@@ -120,6 +121,10 @@ public class MonitoringController {
         }
     }
 
-    public record Grafana(String dashboardUrl) {
+    public record Grafana(String name, String dashboardUrl) {
+
+        static Grafana of(DashboardLink link) {
+            return new Grafana(link.name(), link.url());
+        }
     }
 }

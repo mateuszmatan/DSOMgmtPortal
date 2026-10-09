@@ -53,8 +53,8 @@ overlay per environment: `rd`, `qc` and `prod`, each starting the Spring profile
    ```
 
 3. Set `INFLUX_URL` and the Grafana dashboard links in the overlay's `configMapGenerator` (add them next to
-   `SPRING_PROFILES_ACTIVE`). The links must be reachable from the users' browsers, because the monitoring pages
-   embed the dashboards.
+   `SPRING_PROFILES_ACTIVE`), with the `GRAFANA_2_*` links when a second Grafana instance holds dashboards too. The
+   links must be reachable from the users' browsers, because the monitoring pages embed the dashboards.
 
 4. Apply the overlay:
 
@@ -77,5 +77,7 @@ terminates TLS at the edge and redirects plain HTTP. Memory is limited to 1 GiB 
 | `INFLUX_URL` | ConfigMap | Your InfluxDB with the DORA metrics DSOEnhanced writes |
 | `INFLUX_ORG`, `INFLUX_BUCKET` | ConfigMap (optional) | Default to `DevSecOps` and `DORA-metrics`, as DSOEnhanced writes them |
 | `INFLUX_TOKEN` | Secret `dso-portal-influx` (optional) | InfluxDB read token |
-| `GRAFANA_DASHBOARD_URL` | ConfigMap | Link to the DSOEnhanced pipeline dashboard on your Grafana |
+| `GRAFANA_DASHBOARD_URL` | ConfigMap (optional) | Link to the DSOEnhanced pipeline dashboard on your Grafana; without any Grafana link the pipeline page shows no dashboard |
 | `GRAFANA_SECURITY_DASHBOARD_URL` | ConfigMap (optional) | Link to the DSOEnhanced security dashboard, used for SECURITY, SAST and NEXUS_IQ pipelines |
+| `GRAFANA_NAME` | ConfigMap (optional) | Name of that Grafana instance on the pipeline page, `Grafana` by default |
+| `GRAFANA_2_DASHBOARD_URL`, `GRAFANA_2_SECURITY_DASHBOARD_URL`, `GRAFANA_2_NAME` | ConfigMap (optional) | The same links and name (`Grafana 2` by default) for a second Grafana instance; the pipeline page shows both |

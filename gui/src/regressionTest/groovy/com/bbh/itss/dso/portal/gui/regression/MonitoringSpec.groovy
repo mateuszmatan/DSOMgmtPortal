@@ -152,9 +152,11 @@ class MonitoringSpec extends GuiSpecification {
         ownErrors().isEmpty()
     }
 
-    def "the pipeline page links Jenkins, Grafana and every build its runs recorded"() {
+    def "the pipeline page links Jenkins, every Grafana instance and every build its runs recorded"() {
         given:
         def monitoring = fixture('monitoring-pipeline-1.json') as Map
+        def dashboards = monitoring.grafana as List<Map>
+        dashboards << [name: 'Grafana prod', dashboardUrl: 'https://grafana-prod.bbh.com/d/adzfc54123/devsecops-pipeline-long?var-project=CertScanner&from=now-30d&to=now']
         def runs = monitoring.recentRuns as List<Map>
         runs[1].buildUrl = 'https://jenkins.bbh.com/job/CERTSCANNER-gui/job/full/job/feature%252Flogin/60/'
         runs[2].buildUrl = null
@@ -163,7 +165,8 @@ class MonitoringSpec extends GuiSpecification {
 
         expect:
         assertThat(link('Jenkins', true)).hasAttribute('href', 'https://jenkins.bbh.com/job/DevSecOps/job/CERTSCANNER/job/gui-full/')
-        assertThat(link('Open in Grafana', true)).hasAttribute('href', monitoring.grafana.dashboardUrl as String)
+        assertThat(link('Open in Grafana', true)).hasAttribute('href', dashboards[0].dashboardUrl as String)
+        assertThat(link('Open in Grafana prod', true)).hasAttribute('href', dashboards[1].dashboardUrl as String)
         assertThat(page.locator('.last-run a.build-link')).hasAttribute('href', monitoring.lastRun.buildUrl as String)
         def links = recentRuns().locator('tr.mat-mdc-row')
         assertThat(links).hasCount(runs.size())
@@ -177,7 +180,9 @@ class MonitoringSpec extends GuiSpecification {
             }
             true
         }
-        assertThat(page.locator('.grafana iframe')).hasAttribute('src', "${monitoring.grafana.dashboardUrl}&kiosk".toString())
+        assertThat(page.locator('.grafana h2')).hasText(['Grafana', 'Grafana prod'] as String[])
+        assertThat(page.locator('.grafana iframe').first()).hasAttribute('src', "${dashboards[0].dashboardUrl}&kiosk".toString())
+        assertThat(page.locator('.grafana iframe').last()).hasAttribute('src', "${dashboards[1].dashboardUrl}&kiosk".toString())
         ownErrors().isEmpty()
     }
 
@@ -200,7 +205,7 @@ class MonitoringSpec extends GuiSpecification {
         def activity = fixture('monitoring-activity.json') as Map
         api.respond('GET', '/api/monitoring/activity', activity + [dora: (activity.dora as Map) + [runs: 0, deployments: 0, daily: []]])
         def pipeline = fixture('monitoring-pipeline-1.json') as Map
-        pipeline += [status: 'NO_DATA', lastRun: null, recentRuns: [], grafana: null,
+        pipeline += [status: 'NO_DATA', lastRun: null, recentRuns: [], grafana: [],
                      dora  : (pipeline.dora as Map) + [runs: 0, deployments: 0, daily: []]]
         api.respond('GET', '/api/monitoring/pipelines/1', pipeline)
 

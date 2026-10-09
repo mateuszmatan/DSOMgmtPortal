@@ -1,11 +1,14 @@
 package com.bbh.itss.dso.portal.adapter.out.grafana;
 
+import com.bbh.itss.dso.portal.adapter.out.grafana.GrafanaProperties.Instance;
 import com.bbh.itss.dso.portal.application.monitoring.port.out.DashboardLinksPort;
+import com.bbh.itss.dso.portal.domain.monitoring.DashboardLink;
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -25,15 +28,25 @@ class GrafanaDashboardLinksAdapter implements DashboardLinksPort {
     private final GrafanaProperties grafana;
 
     @Override
-    public Optional<String> url() {
-        return Optional.ofNullable(grafana.dashboardUrl());
+    public List<DashboardLink> instances() {
+        return grafana.instances().stream()
+                .map(instance -> new DashboardLink(instance.name(),
+                        getIfNull(instance.dashboardUrl(), instance.securityDashboardUrl())))
+                .toList();
     }
 
     @Override
-    public Optional<String> dashboardUrl(MetricsTag tag, PipelineType type, int rangeDays) {
-        String dashboard = SECURITY_DASHBOARD.contains(type)
-                ? getIfNull(grafana.securityDashboardUrl(), grafana.dashboardUrl()) : grafana.dashboardUrl();
-        return Optional.ofNullable(dashboard).map(link -> link + (link.contains("?") ? "&" : "?") + "var-project="
-                + encodeQueryParam(tag.project(), UTF_8) + "&from=now-" + rangeDays + "d&to=now");
+    public List<DashboardLink> dashboards(MetricsTag tag, PipelineType type, int rangeDays) {
+        return grafana.instances().stream()
+                .flatMap(instance -> dashboard(instance, type).stream()
+                        .map(link -> new DashboardLink(instance.name(), link + (link.contains("?") ? "&" : "?")
+                                + "var-project=" + encodeQueryParam(tag.project(), UTF_8)
+                                + "&from=now-" + rangeDays + "d&to=now")))
+                .toList();
+    }
+
+    private static Optional<String> dashboard(Instance instance, PipelineType type) {
+        return Optional.ofNullable(SECURITY_DASHBOARD.contains(type)
+                ? getIfNull(instance.securityDashboardUrl(), instance.dashboardUrl()) : instance.dashboardUrl());
     }
 }
