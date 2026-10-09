@@ -5,7 +5,12 @@
       <p class="page-description">{{ section.description }}</p>
     </div>
     <div class="actions">
-      <button mat-stroked-button (click)="refresh()" [disabled]="overview.isLoading()">
+      <button
+        type="button"
+        class="btn btn-outline-primary"
+        (click)="refresh()"
+        [disabled]="overview.isLoading()"
+      >
         Refresh
       </button>
     </div>
@@ -52,14 +57,14 @@
   </div>
 
   <div class="toolbar">
-    <mat-form-field class="search">
+    <dso-form-field class="search">
       <input
-        matInput
+        dsoInput
         [formControl]="search"
         placeholder="Filter products"
         aria-label="Filter products"
       />
-    </mat-form-field>
+    </dso-form-field>
     <div class="legend">
       @for (entry of statusOrder; track entry.status) {
         <span><i class="swatch" [class]="entry.status.toLowerCase()"></i>{{ entry.label }}</span>
@@ -68,7 +73,7 @@
   </div>
 
   @if (overview.isLoading() || departments.isLoading()) {
-    <mat-progress-bar mode="indeterminate" />
+    <dso-loading />
   }
 
   @if (overview.error() ?? departments.error(); as error) {
@@ -84,7 +89,7 @@
             Products added in DevSecOps Product Management appear here with the status of their
             pipelines.
           </p>
-          <a mat-flat-button routerLink="/admin/products/new">Add product</a>
+          <a class="btn btn-primary" routerLink="/admin/products/new">Add product</a>
         }
       </div>
     } @else {

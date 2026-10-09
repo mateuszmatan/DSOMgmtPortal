@@ -9,6 +9,7 @@ import {
   PortfolioActivity,
 } from '../core/models';
 import { text } from '../testing/dom';
+import { chartOptions } from '../testing/highcharts';
 import {
   department,
   doraSummary,
@@ -99,13 +100,13 @@ describe('MonitoringOverview', () => {
     expect(cards()[1].textContent).toContain('No runs yet');
     expect(cards()[1].classList).toContain('overall-disabled');
     expect(headings()).toEqual(['Corporate Technology', 'Fund Services']);
-    expect(
-      [...page().querySelectorAll('.by-department .track')].map((track) =>
-        track.getAttribute('aria-label'),
-      ),
-    ).toEqual([
-      'Corporate Technology: 1 failed, 2 success',
-      'Fund Services: 1 unstable, 1 key invalidated',
+    const chart = page().querySelector('.by-department dso-chart');
+    expect(chart?.getAttribute('aria-label')).toBe(
+      'Corporate Technology: 1 failed, 2 success; Fund Services: 1 unstable, 1 key invalidated',
+    );
+    expect(chartOptions(chart).xAxis[1].categories).toEqual([
+      '3 pipelines · 1 product',
+      '2 pipelines · 1 product',
     ]);
   });
 
@@ -122,7 +123,9 @@ describe('MonitoringOverview', () => {
     expect(text(page().querySelector('.portfolio .card-header .muted'))).toBe(
       '40 runs in the last 30 days',
     );
-    expect(page().querySelector('.portfolio dso-activity-chart svg')).not.toBeNull();
+    expect(page().querySelector('.portfolio dso-activity-chart dso-chart')?.classList).toContain(
+      'drawn',
+    );
   });
 
   it('leaves the portfolio charts out until a pipeline has run', async () => {

@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { PipelineMonitoring } from '../core/models';
+import { buttonOf, gridCell, gridRows } from '../testing/dom';
 import {
   doraSummary,
   monitoringPipeline,
@@ -71,7 +72,7 @@ describe('PipelineMonitoringPage', () => {
     expect(page().querySelector('.last-run a.build-link')?.getAttribute('href')).toBe(
       'https://jenkins.bbh.com/job/DevSecOps/job/CERT/job/gui-full/job/develop/42/',
     );
-    const builds = [...page().querySelectorAll('td.mat-column-build')];
+    const builds = gridRows(page()).map((row) => gridCell(row, 'build'));
     expect(builds[0].querySelector('a')?.getAttribute('href')).toBe(
       'https://jenkins.bbh.com/job/DevSecOps/job/CERT/job/gui-full/job/develop/42/',
     );
@@ -89,8 +90,14 @@ describe('PipelineMonitoringPage', () => {
     await load(
       pipelineMonitoring({
         grafana: [
-          { name: 'Grafana test', dashboardUrl: 'https://grafana.bbh.com/d/adzfc54123/p?var-project=CERT-gui' },
-          { name: 'Grafana prod', dashboardUrl: 'https://grafana-prod.bbh.com/d/ad2trcm/s?var-project=CERT-gui' },
+          {
+            name: 'Grafana test',
+            dashboardUrl: 'https://grafana.bbh.com/d/adzfc54123/p?var-project=CERT-gui',
+          },
+          {
+            name: 'Grafana prod',
+            dashboardUrl: 'https://grafana-prod.bbh.com/d/ad2trcm/s?var-project=CERT-gui',
+          },
         ],
       }),
     );
@@ -132,7 +139,8 @@ describe('PipelineMonitoringPage', () => {
     fixture.componentRef.setInput('range', '5y');
     await load();
 
-    page().querySelectorAll<HTMLButtonElement>('mat-button-toggle button')[2].click();
+    expect(buttonOf(page(), '30d').getAttribute('aria-checked')).toBe('true');
+    buttonOf(page(), '90d').click();
 
     expect(router.navigate).toHaveBeenCalledWith(
       [],
@@ -148,7 +156,7 @@ describe('PipelineMonitoringPage', () => {
     await fixture.whenStable();
 
     expect(text('.banner')).toBe('Pipeline 100 was not found');
-    expect(text('a[mat-stroked-button]')).toBe('Back to monitoring');
+    expect(text('a.btn')).toBe('Back to monitoring');
   });
 
   it('reads the metrics again on refresh and shows the progress meanwhile', async () => {
@@ -156,19 +164,19 @@ describe('PipelineMonitoringPage', () => {
     const refresh = page().querySelector<HTMLButtonElement>(
       'button[aria-label="Refresh the pipeline metrics"]',
     )!;
-    expect(page().querySelector('mat-progress-bar')).toBeNull();
+    expect(page().querySelector('dso-loading')).toBeNull();
 
     refresh.click();
     TestBed.tick();
 
-    expect(page().querySelector('mat-progress-bar')).not.toBeNull();
+    expect(page().querySelector('dso-loading')).not.toBeNull();
     expect(refresh.disabled).toBe(true);
     http
       .expectOne('/api/monitoring/pipelines/100?range=30d')
       .flush(pipelineMonitoring({ dora: doraSummary({ deployments: 13 }) }));
     await fixture.whenStable();
 
-    expect(page().querySelector('mat-progress-bar')).toBeNull();
+    expect(page().querySelector('dso-loading')).toBeNull();
     expect(refresh.disabled).toBe(false);
   });
 
