@@ -8,7 +8,7 @@
     <div class="actions row-wrap">
       @if (p.jenkinsJobUrl) {
         <a class="btn btn-link" [href]="p.jenkinsJobUrl" target="_blank" rel="noopener"
-          >Jenkins job</a
+          >Open in Jenkins</a
         >
       } @else {
         <span class="not-recorded">No Jenkins job</span>
@@ -19,12 +19,18 @@
         [cdkCopyToClipboard]="text()"
         (cdkCopyToClipboardCopied)="copied($event)"
       >
-        Copy for ServiceNow
+        Copy for ProTech
       </button>
     </div>
   </header>
 
   @if (p.run; as run) {
+    <div class="stages-head">
+      <h5>Stages of the latest build</h5>
+      @if (stageCounts(); as counts) {
+        <span class="stage-counts">{{ counts }}</span>
+      }
+    </div>
     <div class="stages" aria-label="Stages">
       @for (stage of run.stages; track $index) {
         <span class="stage" [class]="stage.status.toLowerCase()" [title]="stageTip(stage)">{{
@@ -36,6 +42,57 @@
     </div>
 
     <div class="grid">
+      <section>
+        <h5>Release gate</h5>
+        @if (run.releaseGate; as g) {
+          <p class="gate" [class.allowed]="g.allowed">
+            <span>
+              <strong>{{ g.allowed ? 'Release allowed' : 'Release blocked' }}</strong>
+              @if (!g.allowed && g.violations !== null) {
+                · {{ g.violations | counted: 'violation' }}
+              }
+              @if (g.reason) {
+                <span class="detail">{{ g.reason }}</span>
+              }
+            </span>
+          </p>
+        } @else {
+          <p class="not-recorded">Not recorded</p>
+        }
+      </section>
+      <section>
+        <h5>Unit test coverage</h5>
+        @if (run.coverage; as c) {
+          <div class="coverage">
+            <span class="value">{{ percent(c.linePercent) ?? '–' }}</span>
+            <dso-check-chip [status]="c.status" />
+          </div>
+          <div class="meter" aria-hidden="true">
+            <span
+              class="fill"
+              [class]="c.status.toLowerCase()"
+              [style.width.%]="c.linePercent ?? 0"
+            ></span>
+            @if (c.requiredPercent !== null) {
+              <span class="required" [style.left.%]="c.requiredPercent"></span>
+            }
+          </div>
+          <p class="detail">
+            Required
+            @if (percent(c.requiredPercent); as required) {
+              {{ required }}
+            } @else {
+              <span class="not-recorded">not recorded</span>
+            }
+            @if (c.coveredLines !== null && c.totalLines !== null) {
+              · {{ c.coveredLines }} of {{ c.totalLines }} lines
+            }
+          </p>
+        } @else {
+          <p class="not-recorded">Not recorded</p>
+        }
+      </section>
+
       <section>
         <h5>Jenkins build</h5>
         @let b = run.build;
@@ -83,58 +140,6 @@
             }
           }
         </div>
-      </section>
-
-      <section>
-        <h5>Unit test coverage</h5>
-        @if (run.coverage; as c) {
-          <div class="coverage">
-            <span class="value">{{ percent(c.linePercent) ?? '–' }}</span>
-            <dso-check-chip [status]="c.status" />
-          </div>
-          <div class="meter" aria-hidden="true">
-            <span
-              class="fill"
-              [class]="c.status.toLowerCase()"
-              [style.width.%]="c.linePercent ?? 0"
-            ></span>
-            @if (c.requiredPercent !== null) {
-              <span class="required" [style.left.%]="c.requiredPercent"></span>
-            }
-          </div>
-          <p class="detail">
-            Required
-            @if (percent(c.requiredPercent); as required) {
-              {{ required }}
-            } @else {
-              <span class="not-recorded">not recorded</span>
-            }
-            @if (c.coveredLines !== null && c.totalLines !== null) {
-              · {{ c.coveredLines }} of {{ c.totalLines }} lines
-            }
-          </p>
-        } @else {
-          <p class="not-recorded">Not recorded</p>
-        }
-      </section>
-
-      <section>
-        <h5>Release gate</h5>
-        @if (run.releaseGate; as g) {
-          <p class="gate" [class.allowed]="g.allowed">
-            <span>
-              <strong>{{ g.allowed ? 'Release allowed' : 'Release blocked' }}</strong>
-              @if (!g.allowed && g.violations !== null) {
-                · {{ g.violations | counted: 'violation' }}
-              }
-              @if (g.reason) {
-                <span class="detail">{{ g.reason }}</span>
-              }
-            </span>
-          </p>
-        } @else {
-          <p class="not-recorded">Not recorded</p>
-        }
       </section>
     </div>
 
@@ -244,13 +249,15 @@
             </tbody>
           </table>
         </div>
-        <p class="limits-note">Counts read as findings / limit of the BBH policy.</p>
+        <p class="limits-note">
+          2 / 5 means 2 findings were found and the BBH policy allows at most 5.
+        </p>
       </section>
     </div>
 
     @if (run.goldenFix; as fix) {
       <section class="golden-fix">
-        <h5>GoldenFix</h5>
+        <h5>Golden pull request (GoldenFix)</h5>
         <p>
           <strong>{{ goldenFixResult(fix) }}</strong> · {{ goldenFixUpgrades(fix) }}
           @if (fix.pullRequestUrl) {

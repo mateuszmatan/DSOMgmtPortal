@@ -51,7 +51,14 @@ describe('PipelineMonitoringPage', () => {
       'Change failure rate',
       'Time to restore',
     ]);
-    expect(text('.last-run')).toContain('10 passed · 1 warned · 1 failed · 0 blocked · 0 skipped');
+    expect(text('.last-run')).toContain('10 passed, 1 with warnings, 1 failed');
+    expect(text('.last-run')).not.toContain('blocked');
+    expect(text('.page-header .tags')?.replace(/\s+/g, ' ')).toBe(
+      "Monitoring tags (the names this pipeline's results are stored under): project=CERT-gui, env=test",
+    );
+    expect(text('a.jenkins')).toBe('Open in Jenkins');
+    expect(text('.page-header .actions a')).toBe('Manage pipeline');
+    expect(text('.toolbar .zone')).toMatch(/^Times are in your time zone, .+\.$/);
     expect(text('.grafana h2')).toBe('Grafana');
     expect(page().querySelector('.grafana iframe')?.getAttribute('src')).toBe(
       'https://grafana.bbh.com/d/adzfc54123/pipeline?var-project=CERT-gui&kiosk',
@@ -129,8 +136,11 @@ describe('PipelineMonitoringPage', () => {
     );
 
     expect(text('.last-run')).toContain('No run reported yet');
-    expect(text('.page')).toContain('No runs in this range.');
-    expect(text('.grafana')).toContain('Grafana is not configured');
+    expect(text('.page')).toContain('No runs in this period.');
+    expect(text('.grafana h2')).toBe('Grafana dashboard');
+    expect(text('.grafana .missing')?.replace(/\s+/g, ' ')).toBe(
+      'No Grafana dashboard is linked to the portal, so the detailed charts of this pipeline are not shown here. For the administrator: set GRAFANA_DASHBOARD_URL, and GRAFANA_2_DASHBOARD_URL for a second Grafana.',
+    );
     expect(text('.page')).toContain('InfluxDB timed out');
     expect(page().querySelector('a.jenkins')).toBeNull();
   });
@@ -139,8 +149,17 @@ describe('PipelineMonitoringPage', () => {
     fixture.componentRef.setInput('range', '5y');
     await load();
 
-    expect(buttonOf(page(), '30d').getAttribute('aria-checked')).toBe('true');
-    buttonOf(page(), '90d').click();
+    expect(text('.toolbar .period-label')).toBe('Period');
+    expect(page().querySelector('dso-toggle-group')?.getAttribute('aria-labelledby')).toBe(
+      'period-label',
+    );
+    expect(
+      [...page().querySelectorAll('dso-toggle-group button')].map((button) =>
+        button.textContent?.trim(),
+      ),
+    ).toEqual(['7 days', '30 days', '90 days', '180 days']);
+    expect(buttonOf(page(), '30 days').getAttribute('aria-checked')).toBe('true');
+    buttonOf(page(), '90 days').click();
 
     expect(router.navigate).toHaveBeenCalledWith(
       [],
@@ -155,8 +174,11 @@ describe('PipelineMonitoringPage', () => {
       .flush({ detail: 'Pipeline 100 was not found' }, { status: 404, statusText: 'Not Found' });
     await fixture.whenStable();
 
-    expect(text('.banner')).toBe('Pipeline 100 was not found');
+    expect(text('.banner span')).toBe(
+      'The pipeline could not be loaded. Pipeline 100 was not found',
+    );
     expect(text('a.btn')).toBe('Back to monitoring');
+    expect(buttonOf(page(), 'Try again')).toBeTruthy();
   });
 
   it('reads the metrics again on refresh and shows the progress meanwhile', async () => {
@@ -185,6 +207,8 @@ describe('PipelineMonitoringPage', () => {
 
     const alerts = page().querySelectorAll('.tile-alert');
     expect(alerts.length).toBe(1);
-    expect(alerts[0].textContent).toMatch(/^Failing since 4 Oct, \d\d:00$/);
+    expect(alerts[0].textContent).toMatch(
+      /^Not recovered yet: a deployment failed on 4 Oct, \d\d:00 \S+ and its pipeline has not deployed successfully since$/,
+    );
   });
 });

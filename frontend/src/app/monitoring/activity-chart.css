@@ -15,8 +15,12 @@
   stroke: #eceff4;
 }
 
-.dso-activity-chart .highcharts-series.success .highcharts-point {
-  fill: var(--dso-run-success);
+.dso-activity-chart .highcharts-series.runs .highcharts-point {
+  fill: #7f8b9c;
+}
+
+.dso-activity-chart .legend .swatch.runs {
+  background: #7f8b9c;
 }
 
 .dso-activity-chart .highcharts-series.failure .highcharts-point {

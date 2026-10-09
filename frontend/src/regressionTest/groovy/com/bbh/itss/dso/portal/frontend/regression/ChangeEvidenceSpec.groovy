@@ -15,6 +15,8 @@ class ChangeEvidenceSpec extends GuiSpecification {
         open('/evidence')
 
         expect:
+        assertThat(page.locator('section.department h3')).hasText(['Corporate Technology', 'Fund Services'] as String[])
+        assertThat(panel('CertScanner').locator('.panel-toggle')).hasText('Show evidence')
         assertThat(panel('CertScanner').locator('.counts')).hasText('2 services · 3 pipelines')
         assertThat(panel('Payments Hub').locator('.counts')).hasText('4 services · 6 pipelines')
         api.requests('GET', '/api/evidence/products/.*').isEmpty()
@@ -23,12 +25,15 @@ class ChangeEvidenceSpec extends GuiSpecification {
         header('CertScanner').click()
 
         then:
-        assertThat(panel('CertScanner').locator('.panel-toggle')).hasText('Hide')
+        assertThat(panel('CertScanner').locator('.panel-toggle')).hasText('Hide evidence')
+        assertThat(panel('CertScanner').locator('.checks dt')).hasText(['Unit tests', 'Smoke, regression and performance tests', 'SAST',
+                                                                       'DAST', 'SonarQube', 'Nexus IQ', 'Golden pull request',
+                                                                       'Release gate'] as String[])
         assertThat(panel('CertScanner').locator('.service h3')).hasText(['gui', 'backend-api'] as String[])
         assertThat(panel('CertScanner').locator('.product-facts a')).hasAttribute('href', 'mailto:ta-team@bbh.com')
         assertThat(card('CertScanner', 'gui', 'Full').locator('a.build-link'))
                 .hasAttribute('href', 'https://jenkins.bbh.com/job/CERTSCANNER-gui/job/full/62/')
-        assertThat(card('CertScanner', 'gui', 'Full').getByRole(LINK, new Locator.GetByRoleOptions().setName('Jenkins job')))
+        assertThat(card('CertScanner', 'gui', 'Full').getByRole(LINK, new Locator.GetByRoleOptions().setName('Open in Jenkins')))
                 .hasAttribute('href', 'https://jenkins.bbh.com/job/DevSecOps/job/CERTSCANNER/job/gui-full/')
         assertThat(service('CertScanner', 'backend-api').locator('.identifiers')).containsText('cert-scanner-backend.jar')
         api.requests('GET', '/api/evidence/products/1').size() == 1
@@ -37,7 +42,7 @@ class ChangeEvidenceSpec extends GuiSpecification {
         header('CertScanner').click()
 
         then:
-        assertThat(panel('CertScanner').locator('.panel-toggle')).hasText('Show')
+        assertThat(panel('CertScanner').locator('.panel-toggle')).hasText('Show evidence')
         assertThat(panel('CertScanner').locator('.service').first()).isHidden()
 
         when:
@@ -49,17 +54,17 @@ class ChangeEvidenceSpec extends GuiSpecification {
         ownErrors().isEmpty()
     }
 
-    def "the evidence of a pipeline is copied for ServiceNow as plain text"() {
+    def "the evidence of a pipeline is copied for ProTech as plain text"() {
         given:
         recordClipboard()
         open('/evidence')
         header('CertScanner').click()
 
         when:
-        buttonIn(card('CertScanner', 'gui', 'Full'), 'Copy for ServiceNow', false).click()
+        buttonIn(card('CertScanner', 'gui', 'Full'), 'Copy for ProTech', false).click()
 
         then:
-        assertThat(snackBar()).containsText('Evidence copied for ServiceNow')
+        assertThat(snackBar()).containsText('Evidence of gui · Full pipeline copied. Paste it into the ProTech change.')
         copiedTexts() == [ChangeEvidenceSpec.getResource('evidence-certscanner-gui-full.txt').getText('UTF-8')]
         ownErrors().isEmpty()
     }
@@ -86,10 +91,10 @@ class ChangeEvidenceSpec extends GuiSpecification {
         assertThat(card('Payments Hub', 'ledger', 'Full').locator('.golden-fix')).hasCount(0)
 
         when:
-        buttonIn(nexusIq, 'Copy for ServiceNow', false).click()
+        buttonIn(nexusIq, 'Copy for ProTech', false).click()
 
         then:
-        assertThat(snackBar()).containsText('Evidence copied for ServiceNow')
+        assertThat(snackBar()).containsText('Evidence of ledger · Nexus IQ GoldenFix pipeline copied. Paste it into the ProTech change.')
         copiedTexts().size() == 1
         copiedTexts()[0].startsWith('DevSecOps change evidence: Payments Hub (PAYHUB), ledger, Nexus IQ GoldenFix pipeline\n')
         copiedTexts()[0].contains('\n\nGoldenFix\n- Result: Pull request raised\n- Upgrades: 2 of 3 upgrades applied, 1 unresolved\n' +
@@ -125,7 +130,7 @@ class ChangeEvidenceSpec extends GuiSpecification {
         header('Payments Hub').click()
 
         then:
-        assertThat(panel('Payments Hub').locator('.banner')).containsText('InfluxDB did not answer within 10 seconds')
+        assertThat(panel('Payments Hub').locator('.banner')).containsText('The evidence could not be loaded. InfluxDB did not answer within 10 seconds')
 
         when:
         api.respond('GET', '/api/evidence/products/2', fixture('evidence-product-2.json'))
@@ -148,10 +153,10 @@ class ChangeEvidenceSpec extends GuiSpecification {
 
         when:
         header('CertScanner').click()
-        buttonIn(card('CertScanner', 'backend-api', 'Full'), 'Copy for ServiceNow', false).click()
+        buttonIn(card('CertScanner', 'backend-api', 'Full'), 'Copy for ProTech', false).click()
 
         then:
-        assertThat(panel('CertScanner').locator('.banner')).containsText('The run metrics cannot be read, so the runs show as not recorded: InfluxDB is not reachable')
+        assertThat(panel('CertScanner').locator('.banner')).containsText('The run results could not be loaded, so the runs below show as not recorded (InfluxDB is not reachable).')
         copiedTexts().size() == 1
         copiedTexts()[0].endsWith('- Status: No runs yet\n- Jenkins job: https://jenkins.bbh.com/job/DevSecOps/job/CERTSCANNER/job/backend-api-full/\n\n- Latest run: Not recorded\n')
         ownErrors().isEmpty()

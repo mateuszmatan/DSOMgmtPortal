@@ -12,6 +12,7 @@ import {
 } from '../testing/fixtures';
 import { ChangeEvidencePage } from './change-evidence';
 import { evidenceText } from './evidence-text';
+import { buttonOf, text } from '../testing/dom';
 
 function summary(overrides: Partial<ProductSummary> = {}): ProductSummary {
   return {
@@ -67,7 +68,7 @@ describe('ChangeEvidencePage', () => {
     );
     expect(
       [...page().querySelectorAll('.panel-toggle')].map((toggle) => toggle.textContent?.trim()),
-    ).toEqual(['Show', 'Show']);
+    ).toEqual(['Show evidence', 'Show evidence']);
     expect(
       [...page().querySelectorAll('.panel-title .name')].map((name) => name.textContent),
     ).toEqual(['CertScanner', 'PayHub']);
@@ -75,6 +76,42 @@ describe('ChangeEvidencePage', () => {
       '1 pipeline',
     );
     http.expectNone((request) => request.url.startsWith('/api/evidence'));
+  });
+
+  it('groups the products by department, in name order, and explains how to use the evidence', async () => {
+    await list([
+      summary({
+        id: 2,
+        code: 'PAY',
+        name: 'PayHub',
+        departmentId: 5,
+        departmentName: 'Fund Services',
+      }),
+      summary({ id: 3, code: 'ORPH', name: 'Orphan', departmentId: null, departmentName: null }),
+      summary({ id: 4, code: 'ACC', name: 'Access Hub' }),
+      summary(),
+    ]);
+
+    expect(
+      [...page().querySelectorAll('.department')].map(
+        (group) =>
+          `${text(group.querySelector('h3'))}: ${text(group.querySelector('.department-title .muted'))}`,
+      ),
+    ).toEqual([
+      'Corporate Technology: 2 products',
+      'Fund Services: 1 product',
+      'Not in a department: 1 product',
+    ]);
+    expect([...page().querySelectorAll('.panel-title .name')].map(text)).toEqual([
+      'Access Hub',
+      'CertScanner',
+      'PayHub',
+      'Orphan',
+    ]);
+    expect(text(page().querySelector('.products > .card-header'))).toContain('4 products');
+    expect(text(page().querySelector('.products > .section-help'))).toBe(
+      'Open a product to see the evidence of each of its pipelines. To attach it to a ProTech change, press Copy for ProTech on the pipeline that built the release and paste the text into the change.',
+    );
   });
 
   it('loads the evidence of a product once, when it is opened', async () => {
@@ -85,10 +122,22 @@ describe('ChangeEvidencePage', () => {
     await fixture.whenStable();
 
     expect(page().querySelector('.service-head h3')?.textContent).toBe('gui');
-    expect(page().querySelector('.panel-toggle')?.textContent?.trim()).toBe('Hide');
+    expect(page().querySelector('.panel-toggle')?.textContent?.trim()).toBe('Hide evidence');
+    expect(
+      [...page().querySelectorAll('.checks dt')].map((term) => term.textContent?.trim()),
+    ).toEqual([
+      'Unit tests',
+      'Smoke, regression and performance tests',
+      'SAST',
+      'DAST',
+      'SonarQube',
+      'Nexus IQ',
+      'Golden pull request',
+      'Release gate',
+    ]);
     expect(page().querySelectorAll('dso-pipeline-evidence-card').length).toBe(1);
     expect(page().querySelector('.library-note')?.textContent).toContain(
-      'older than the portal integration record no unit test counts',
+      'older than the portal integration record less: no unit test counts',
     );
 
     await expand(0);
@@ -104,7 +153,9 @@ describe('ChangeEvidencePage', () => {
       .flush({ detail: 'Product 1 not found' }, { status: 404, statusText: 'Not Found' });
     await fixture.whenStable();
 
-    expect(page().querySelector('.banner')?.textContent).toContain('Product 1 not found');
+    expect(text(page().querySelector('.banner span'))).toBe(
+      'The evidence could not be loaded. Product 1 not found',
+    );
 
     page().querySelector<HTMLButtonElement>('.banner button')!.click();
     await fixture.whenStable();
@@ -145,7 +196,7 @@ describe('ChangeEvidencePage', () => {
     expect(card.querySelector('.gate')?.textContent).toContain('Release blocked');
   });
 
-  it('copies the evidence of a pipeline for ServiceNow', async () => {
+  it('copies the evidence of a pipeline for ProTech', async () => {
     const copy = vi.spyOn(TestBed.inject(Clipboard), 'copy').mockReturnValue(true);
     const evidence = productEvidence({
       services: [serviceEvidence({ pipelines: [pipelineEvidence({ run: runEvidence() })] })],
@@ -157,7 +208,7 @@ describe('ChangeEvidencePage', () => {
 
     const button = [
       ...page().querySelectorAll<HTMLButtonElement>('dso-pipeline-evidence-card button'),
-    ].find((b) => b.textContent?.includes('Copy for ServiceNow'))!;
+    ].find((b) => b.textContent?.includes('Copy for ProTech'))!;
     button.click();
     await fixture.whenStable();
 
@@ -172,15 +223,27 @@ describe('ChangeEvidencePage', () => {
       .flush({ detail: 'The database is not available' }, { status: 503, statusText: '' });
     await fixture.whenStable();
 
-    expect(page().querySelector('[role=alert]')?.textContent).toBe('The database is not available');
+    expect(text(page().querySelector('[role=alert] span'))).toBe(
+      'Products could not be loaded. The database is not available',
+    );
     expect(page().querySelector('.accordion')).toBeNull();
+
+    buttonOf(page(), 'Try again').click();
+    fixture.detectChanges();
+    http.expectOne('/api/products').flush([summary()]);
+    await fixture.whenStable();
+
+    expect(page().querySelector('[role=alert]')).toBeNull();
+    expect(page().querySelectorAll('dso-panel').length).toBe(1);
   });
 
   it('leads to the Admin products while there are no products', async () => {
     await list([]);
 
     expect(page().querySelector('.empty-state h3')?.textContent).toBe('No products yet');
-    expect(page().querySelector('.empty-state a')?.getAttribute('href')).toBe('/admin/products');
+    expect(page().querySelector('.empty-state a')?.getAttribute('href')).toBe(
+      '/admin/products/new',
+    );
   });
 
   it('finds products by the trimmed search term and says when none matches', async () => {
@@ -199,6 +262,10 @@ describe('ChangeEvidencePage', () => {
     await fixture.whenStable();
 
     expect(page().querySelector('.empty-state h3')?.textContent).toBe('No matching products');
+    expect(text(page().querySelector('.empty-state p'))).toBe(
+      'No product name or code contains "pay".',
+    );
+    expect(page().querySelector('.empty-state a')).toBeNull();
   });
 
   it('warns when the run metrics cannot be read and shows the contact', async () => {
@@ -212,8 +279,8 @@ describe('ChangeEvidencePage', () => {
     );
     await fixture.whenStable();
 
-    expect(page().querySelector('.banner')?.textContent).toContain(
-      'The run metrics cannot be read, so the runs show as not recorded: InfluxDB is not reachable',
+    expect(text(page().querySelector('.banner'))).toBe(
+      'The run results could not be loaded, so the runs below show as not recorded (InfluxDB is not reachable). Try again in a moment; if it keeps failing, tell the portal administrator.',
     );
     expect(page().querySelector<HTMLAnchorElement>('.product-facts a')?.href).toBe(
       'mailto:arch@bbh.com',

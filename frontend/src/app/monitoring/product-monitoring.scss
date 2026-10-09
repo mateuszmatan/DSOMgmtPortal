@@ -1,10 +1,13 @@
+.card {
+  padding: 10px 14px 4px;
+}
+
 .summary {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 16px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--dso-border);
+  gap: 4px 16px;
+  margin-bottom: 8px;
   font-size: 12.5px;
 }
 
@@ -13,19 +16,21 @@
 }
 
 .stages {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
   font-size: 12.5px;
-  font-weight: 600;
+  line-height: 1.35;
 
-  .passed {
-    color: var(--dso-success);
-  }
-  .warned {
+  .stage-problems {
     color: var(--dso-warning);
+    font-weight: 600;
+
+    &.failing {
+      color: var(--dso-danger);
+    }
   }
-  .failed {
-    color: var(--dso-danger);
+}
+
+@media (max-width: 760px) {
+  .summary {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

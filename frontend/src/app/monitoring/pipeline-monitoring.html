@@ -14,7 +14,11 @@
   </nav>
 
   @if (resource.error(); as error) {
-    <div class="banner">{{ errorMessage(error) }}</div>
+    <div class="banner">
+      <span>The pipeline could not be loaded. {{ errorMessage(error) }}</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-link" (click)="resource.reload()">Try again</button>
+    </div>
     <a class="btn btn-outline-primary" routerLink="/monitoring">Back to monitoring</a>
   } @else if (data(); as d) {
     <header class="page-header">
@@ -26,32 +30,21 @@
           </h1>
           <dso-status-chip [status]="d.status" />
         </div>
-        <p>
-          {{ d.pipeline.productName }} · <span class="mono">{{ d.pipeline.entryPoint }}</span> ·
-          tags <span class="mono">project={{ d.pipeline.influxProjectTag }}</span
-          >, <span class="mono">env={{ d.pipeline.influxEnv }}</span>
+        <p class="page-description">
+          How this pipeline of {{ d.pipeline.productName }} is doing: its latest run, how often and
+          how safely it delivers changes, and its runs in the chosen period.
+        </p>
+        <p class="tags small">
+          Monitoring tags (the names this pipeline's results are stored under):
+          <span class="mono">project={{ d.pipeline.influxProjectTag }}</span
+          >,
+          <span class="mono">env={{ d.pipeline.influxEnv }}</span>
         </p>
       </div>
       <div class="actions">
-        <dso-toggle-group
-          [value]="selectedRange()"
-          (valueChange)="selectRange($any($event))"
-          aria-label="Time range"
+        <a class="btn btn-outline-primary" [routerLink]="['/pipelines', d.pipeline.id]"
+          >Manage pipeline</a
         >
-          @for (range of ranges; track range) {
-            <button [dsoToggle]="range">{{ range }}</button>
-          }
-        </dso-toggle-group>
-        <button
-          type="button"
-          class="btn btn-outline-primary"
-          (click)="resource.reload()"
-          [disabled]="resource.isLoading()"
-          aria-label="Refresh the pipeline metrics"
-        >
-          Refresh
-        </button>
-        <a class="btn btn-outline-primary" [routerLink]="['/pipelines', d.pipeline.id]">Manage</a>
         @if (d.pipeline.jenkinsJobUrl; as job) {
           <a
             class="btn btn-outline-primary jenkins"
@@ -59,30 +52,52 @@
             target="_blank"
             rel="noopener"
             [attr.title]="d.pipeline.jenkinsJob"
-            >Jenkins</a
+            >Open in Jenkins</a
           >
         }
       </div>
     </header>
 
-    @if (resource.isLoading()) {
-      <dso-loading class="loading" />
-    }
-
     @if (!d.pipeline.activeKey) {
       <div class="banner">
-        The key of this pipeline is invalidated, so the pipeline stops at start-up. Its earlier runs
-        are still shown.
+        The key of this pipeline is invalidated, so the pipeline is refused its settings and stops
+        until a new key is issued under Manage pipeline. Its earlier runs are still shown.
       </div>
     }
     <dso-metrics-banner [metricsError]="d.metricsError" />
+
+    <div class="toolbar">
+      <span class="period-label" id="period-label">Period</span>
+      <dso-toggle-group
+        [value]="selectedRange()"
+        (valueChange)="selectRange($any($event))"
+        aria-labelledby="period-label"
+      >
+        @for (range of ranges; track range.value) {
+          <button [dsoToggle]="range.value">{{ range.label }}</button>
+        }
+      </dso-toggle-group>
+      <button
+        type="button"
+        class="btn btn-outline-primary"
+        (click)="resource.reload()"
+        [disabled]="resource.isLoading()"
+        aria-label="Refresh the pipeline metrics"
+      >
+        Refresh
+      </button>
+      <span class="muted zone">{{ timeZoneNote }}</span>
+    </div>
+    @if (resource.isLoading()) {
+      <dso-loading class="loading" />
+    }
 
     <dso-dora-tiles [dora]="d.dora" />
 
     <div class="split">
       <section class="card activity">
         <header class="card-header">
-          <h2>Activity</h2>
+          <h2>Runs per day</h2>
           <span class="muted"
             >{{ d.dora.runs | counted: 'run' }} · average duration
             {{ d.dora.averageDurationSeconds | duration }}</span
@@ -98,7 +113,7 @@
             <dt>Result</dt>
             <dd><dso-status-chip [status]="run.result" /></dd>
             <dt>Finished</dt>
-            <dd [title]="run.time | date: 'medium'">{{ run.time | relative }}</dd>
+            <dd>{{ run.time | date: 'd MMM y, HH:mm' }} · {{ run.time | relative }}</dd>
             <dt>Build</dt>
             <dd>
               <dso-build-link [run]="run" />
@@ -112,7 +127,7 @@
             @if (run.stagesTotal) {
               <dt>Stages</dt>
               <dd>
-                <div class="stage-bar">
+                <div class="stage-bar" aria-hidden="true">
                   <span class="swatch passed" [style.flex-grow]="run.passed ?? 0"></span>
                   <span class="swatch warned" [style.flex-grow]="run.warned ?? 0"></span>
                   <span
@@ -121,18 +136,14 @@
                   ></span>
                   <span class="swatch skipped" [style.flex-grow]="run.skipped ?? 0"></span>
                 </div>
-                <div class="muted small">
-                  {{ run.passed ?? 0 }} passed · {{ run.warned ?? 0 }} warned ·
-                  {{ run.failed ?? 0 }} failed · {{ run.blocked ?? 0 }} blocked ·
-                  {{ run.skipped ?? 0 }} skipped
-                </div>
+                <div class="small">{{ stageSummary(run) }}</div>
               </dd>
             }
           </dl>
         } @else {
           <div class="empty-state small-empty">
             <p>
-              No run reported yet. Runs appear once the pipeline writes its metrics to InfluxDB.
+              No run reported yet. Runs appear here once the pipeline has run and reported them.
             </p>
           </div>
         }
@@ -147,6 +158,7 @@
             >Open in {{ dashboard.name }}</a
           >
         </header>
+        <p class="section-help">The detailed charts of this pipeline in {{ dashboard.name }}.</p>
         <iframe
           [src]="dashboard.embedded"
           [title]="'DevSecOps pipeline dashboard in ' + dashboard.name"
@@ -155,12 +167,15 @@
       </section>
     } @empty {
       <section class="card grafana">
-        <header class="card-header"><h2>Grafana</h2></header>
-        <div class="banner info">
-          Grafana is not configured. Set <code>GRAFANA_DASHBOARD_URL</code>, and
-          <code>GRAFANA_2_DASHBOARD_URL</code> for a second Grafana, to embed the DevSecOps
-          dashboard of this pipeline here.
-        </div>
+        <header class="card-header"><h2>Grafana dashboard</h2></header>
+        <p class="missing">
+          No Grafana dashboard is linked to the portal, so the detailed charts of this pipeline are
+          not shown here.
+          <span class="admin"
+            >For the administrator: set <code>GRAFANA_DASHBOARD_URL</code>, and
+            <code>GRAFANA_2_DASHBOARD_URL</code> for a second Grafana.</span
+          >
+        </p>
       </section>
     }
 
@@ -170,7 +185,7 @@
         <span class="muted">Newest first, within the last {{ d.dora.rangeDays }} days</span>
       </header>
       @if (d.recentRuns.length === 0) {
-        <div class="empty-state small-empty"><p>No runs in this range.</p></div>
+        <div class="empty-state small-empty"><p>No runs in this period.</p></div>
       } @else {
         <dso-grid label="Recent runs" [rows]="d.recentRuns" [columns]="runColumns" [rowId]="runId">
           <ng-template dsoCell="time" let-run>

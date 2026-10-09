@@ -103,9 +103,9 @@ export class MonitoringOverview {
     const totals = statusTotals(this.overview.hasValue() ? this.overview.value().products : []);
     return [
       { label: 'Pipelines', value: pipelineCount(totals), tone: 'info' },
-      { label: 'Succeeded', value: totals.SUCCESS ?? 0, tone: 'success' },
+      { label: 'Passed', value: totals.SUCCESS ?? 0, tone: 'success' },
       {
-        label: 'Failing or unstable',
+        label: 'Failed or passed with warnings',
         value: (totals.FAILURE ?? 0) + (totals.UNSTABLE ?? 0),
         tone: 'danger',
       },
@@ -120,6 +120,11 @@ export class MonitoringOverview {
     this.status.reload();
     this.overview.reload();
     this.activity.reload();
+  }
+
+  protected retry(): void {
+    this.refresh();
+    this.departments.reload();
   }
 }
 

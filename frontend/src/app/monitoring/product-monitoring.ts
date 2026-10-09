@@ -10,7 +10,8 @@ import { RUN_LOOK, StatusChip } from '../shared/status-chip';
 import { GRID, GridColumn } from '../ui/grid';
 import { DsoLoading } from '../ui/loading';
 import { MetricsBanner } from './metrics-banner';
-import { StatusBar } from './status-bar';
+import { stageProblems } from './stages';
+import { StatusBar, statusSummary } from './status-bar';
 
 @Component({
   selector: 'dso-product-monitoring',
@@ -49,12 +50,19 @@ export class ProductMonitoringPage {
     }
     return counts;
   });
+  protected readonly summary = computed(() => statusSummary(this.counts()));
 
   protected readonly typeLabel = pipelineTypeLabel;
   protected readonly pipelineId = (health: PipelineHealth) => health.pipeline.id;
   protected readonly clickable = () => 'clickable';
   protected readonly columns: GridColumn<PipelineHealth>[] = [
-    { key: 'service', header: 'Service', value: (health) => health.pipeline.serviceName },
+    {
+      key: 'service',
+      header: 'Service',
+      value: (health) => health.pipeline.serviceName,
+      wrap: true,
+      minWidth: 130,
+    },
     {
       key: 'type',
       header: 'Pipeline',
@@ -87,13 +95,15 @@ export class ProductMonitoringPage {
       header: 'Stages',
       value: (health) =>
         health.lastRun?.stagesTotal
-          ? `${health.lastRun.passed ?? 0} / ${health.lastRun.stagesTotal}`
+          ? `${health.lastRun.passed ?? 0} of ${health.lastRun.stagesTotal} passed`
           : '–',
-      width: 120,
+      wrap: true,
+      width: 150,
     },
-    { key: 'jenkins', header: 'Jenkins', width: 100 },
+    { key: 'jenkins', header: 'Jenkins', width: 140 },
   ];
   protected readonly errorMessage = errorMessage;
+  protected readonly stageProblems = stageProblems;
 
   protected open(health: PipelineHealth): void {
     this.router.navigate(['/monitoring/pipelines', health.pipeline.id]);
