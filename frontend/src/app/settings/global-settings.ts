@@ -44,15 +44,30 @@ const SCANNER_INFO: Record<
   Scanner,
   { label: string; tool: string; gateKey: string; path: string }
 > = {
-  SAST: { label: 'SAST', tool: 'HCL AppScan static analysis', gateKey: 'sast', path: 'sast' },
-  SCA: { label: 'SCA', tool: 'HCL AppScan open source analysis', gateKey: 'sca', path: 'sca' },
+  SAST: {
+    label: 'SAST',
+    tool: 'Scan of the source code by HCL AppScan',
+    gateKey: 'sast',
+    path: 'sast',
+  },
+  SCA: {
+    label: 'SCA',
+    tool: 'Scan of the open source libraries by HCL AppScan',
+    gateKey: 'sca',
+    path: 'sca',
+  },
   NEXUS_IQ: {
     label: 'Nexus IQ',
-    tool: 'Sonatype Nexus IQ policy evaluation',
+    tool: 'Policy check of the open source libraries by Sonatype Nexus IQ',
     gateKey: 'niq',
     path: 'tools.nexusIq',
   },
-  DAST: { label: 'DAST', tool: 'HCL AppScan dynamic analysis', gateKey: 'dast', path: 'dast' },
+  DAST: {
+    label: 'DAST',
+    tool: 'Scan of the running service by HCL AppScan',
+    gateKey: 'dast',
+    path: 'dast',
+  },
 };
 
 @Component({
@@ -95,7 +110,6 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
   protected readonly limitFields = LIMIT_FIELDS;
   protected readonly releaseGateFields = RELEASE_GATE_FIELDS;
   protected readonly goldenFixEnabled = GOLDEN_FIX_ENABLED;
-  protected readonly note = chips;
 
   ngOnInit(): void {
     this.load();
@@ -119,7 +133,7 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
 
   protected gateHint(): string {
     const keys = SCANNERS.map((scanner) => `\`${SCANNER_INFO[scanner].gateKey}\``).join(', ');
-    return chips(`\`releaseGate.scanners\` · written as ${keys}`);
+    return chips(`Click a scan to add or remove it · \`releaseGate.scanners\`, written as ${keys}`);
   }
 
   protected scrollTo(id: SettingsSectionId): void {
@@ -148,7 +162,9 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
       .subscribe({
         next: (settings) => {
           this.apply(settings);
-          this.notifier.success('The DSOEnhanced library defaults are saved');
+          this.notifier.success(
+            'Library defaults saved. Every pipeline gets them the next time it runs.',
+          );
         },
         error: (error) => this.showSaveError(error),
       });
@@ -175,11 +191,11 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
             width: '880px',
             maxWidth: '95vw',
             data: {
-              title: 'Generated global configuration',
-              subtitle: this.form.dirty
-                ? 'The platform and defaults sections every pipeline receives, from the saved settings. ' +
-                  'Your unsaved changes are not included.'
-                : 'The platform and defaults sections every pipeline receives with its configuration.',
+              title: 'Shared settings sent to Jenkins (config.yaml)',
+              subtitle:
+                'The part of config.yaml every pipeline receives along with the settings of its ' +
+                'own service, built from the saved library defaults.' +
+                (this.form.dirty ? ' Your unsaved changes are not included.' : ''),
               code,
               fileName: 'devsecops-global.yaml',
             },

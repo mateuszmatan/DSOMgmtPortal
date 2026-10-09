@@ -1,19 +1,23 @@
 <div class="settings">
   <header class="tab-header">
-    <p class="meta">
-      The tools, policy and defaults the DSOEnhanced library applies to every pipeline. A service
-      can replace only the deployment, service and GoldenFix defaults.
-      @if (settings(); as s) {
-        Version {{ s.version }} · saved {{ s.updatedAt | relative }}
-      }
-    </p>
+    <div class="intro">
+      <p class="lead">
+        Only change these settings if the DevSecOps team asks you to. They apply to every pipeline
+        from its next run.
+      </p>
+      <p class="meta">
+        The BBH tools every pipeline uses, the security limits it must meet and the defaults a new
+        service starts with. A service can set its own deployment, service and GoldenFix values in
+        the product editor. Fields marked * are required.
+      </p>
+    </div>
     <button
       type="button"
       class="btn btn-outline-primary"
       (click)="showConfig()"
       [disabled]="!settings() || loadingConfig()"
     >
-      Generated configuration
+      Show settings sent to Jenkins
     </button>
   </header>
 
@@ -22,8 +26,10 @@
   }
 
   @if (loadError(); as error) {
-    <div class="banner" role="alert">{{ error }}</div>
-    <button type="button" class="btn btn-outline-primary" (click)="load()">Try again</button>
+    <div class="banner" role="alert">
+      <span class="banner-text">The library defaults could not be loaded: {{ error }}</span>
+      <button type="button" class="btn btn-outline-primary" (click)="load()">Try again</button>
+    </div>
   } @else if (settings()) {
     @if (conflict()) {
       <div class="banner danger conflict" role="alert">
@@ -74,7 +80,7 @@
           <section class="card section" [id]="'settings-' + section.id">
             <header class="section-head">
               <h2>{{ section.label }}</h2>
-              <p [innerHTML]="note(section.note)"></p>
+              <p class="section-help">{{ section.note }}</p>
             </header>
 
             @if (section.fields; as fields) {
@@ -98,12 +104,6 @@
             @switch (section.id) {
               @case ('limits') {
                 <div class="limits">
-                  <div class="limits-head">
-                    <span>Scanner</span>
-                    <span>Critical</span>
-                    <span>High</span>
-                    <span>Medium</span>
-                  </div>
                   @for (scanner of scanners; track scanner) {
                     <div class="limits-row">
                       <div class="scanner">
@@ -124,11 +124,11 @@
               @case ('releaseGate') {
                 <div class="form-fields gate">
                   <div class="span-12">
-                    <span class="field-label">Scanners the gate checks</span>
+                    <span class="field-label">Scans the gate checks</span>
                     <dso-toggle-group
                       [formControl]="form.controls.releaseGate.controls.scanners"
                       multiple
-                      aria-label="Scanners the release gate checks"
+                      aria-label="Scans the release gate checks"
                     >
                       @for (scanner of scanners; track scanner) {
                         <button [dsoToggle]="scanner">{{ scannerInfo[scanner].label }}</button>
@@ -159,6 +159,10 @@
             <span class="save-error" role="alert">{{ error }}</span>
           } @else if (form.dirty) {
             <span class="muted">Unsaved changes</span>
+          } @else if (settings(); as s) {
+            <span class="muted saved"
+              >Last saved {{ s.updatedAt | relative }} (version {{ s.version }})</span
+            >
           }
           <span class="spacer"></span>
           <button

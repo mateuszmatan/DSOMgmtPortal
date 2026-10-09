@@ -67,14 +67,14 @@ class ApiFailureSpec extends EditorSpecification {
         open('/admin/settings')
 
         then:
-        assertThat(page.locator('.banner')).hasText(DETAIL)
+        assertThat(page.locator('.banner .banner-text')).hasText("The library defaults could not be loaded: $DETAIL")
 
         when:
         api.respond('GET', '/api/settings', fixture('settings.json'))
         button('Try again', true).click()
 
         then:
-        assertThat(page.locator('.tab-header .meta')).containsText('Version 1')
+        assertThat(page.locator('.save-bar .saved')).containsText('(version 1)')
         assertThat(field('Jenkins URL')).hasValue('https://jenkins.bbh.com')
     }
 

@@ -15,10 +15,11 @@ class ServiceTemplateSpec extends EditorSpecification {
 
         then:
         assertThat(page).hasTitle(~'^Service template · DevSecOps Admin')
-        assertThat(page.locator('.meta')).containsText('Version 2')
+        assertThat(page.locator('.save-bar .saved')).containsText('(version 2)')
         assertThat(page.locator('.section h2'))
-                .hasText(['Pipelines', 'Build', 'Nexus IQ and Bitbucket', 'OpenShift', 'Example'] as String[])
-        hasValues(page.locator('form'), ['Jenkins agent labels': 'linux-agent',
+                .hasText(['Pipelines', 'Build', 'Nexus IQ and Bitbucket', 'OpenShift', 'What a new service gets'] as String[])
+        assertThat(page.locator('.example .placeholders dt')).hasText(['{CODE}', '{code}', '{service}', '{type}'] as String[])
+        hasValues(page.locator('form'), ['Jenkins agents'      : 'linux-agent',
                                          'Jenkins job'         : 'DevSecOps/{CODE}/{service}-{type}',
                                          'Gradle tasks'        : 'clean build', 'Maven goals': 'clean verify',
                                          'OpenShift project'   : '{code}-{service}',
@@ -50,8 +51,8 @@ class ServiceTemplateSpec extends EditorSpecification {
         button('Save template', true).click()
 
         then:
-        assertThat(snackBar()).containsText('The service template is saved')
-        assertThat(page.locator('.meta')).containsText('Version 3')
+        assertThat(snackBar()).containsText('Service template saved. New services and pipelines get these values from now on.')
+        assertThat(page.locator('.save-bar .saved')).containsText('(version 3)')
         with(awaitRequest('PUT', '/api/service-template').json()) {
             version == 2
             jenkinsJob == 'Teams/{CODE}/{service}/{type}'
