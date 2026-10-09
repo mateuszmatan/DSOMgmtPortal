@@ -1,7 +1,7 @@
+import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { Pipeline, PipelineMonitoring } from '../core/models';
@@ -9,11 +9,11 @@ import { PipelineDialog } from '../products/pipeline-dialog';
 import { RevokeKeyDialog } from '../products/revoke-key-dialog';
 import { CodeDialog } from '../shared/code-dialog';
 import { ConfirmDialog } from '../shared/confirm-dialog';
-import { buttonOf, text } from '../testing/dom';
+import { buttonOf, gridColumn, gridRows, text } from '../testing/dom';
 import { globalSettings, pipeline, pipelineMonitoring, pipelineRun } from '../testing/fixtures';
 import { PipelinePage } from './pipeline-page';
 
-const spyOnOpen = () => vi.spyOn(TestBed.inject(MatDialog), 'open');
+const spyOnOpen = () => vi.spyOn(TestBed.inject(Dialog), 'open');
 
 describe('PipelinePage', () => {
   let fixture: ComponentFixture<PipelinePage>;
@@ -21,8 +21,7 @@ describe('PipelinePage', () => {
   let router: Router;
   let open: ReturnType<typeof spyOnOpen>;
 
-  const closed = (result: unknown) =>
-    ({ afterClosed: () => of(result) }) as unknown as MatDialogRef<unknown>;
+  const closed = (result: unknown) => ({ closed: of(result) }) as unknown as DialogRef<unknown>;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -82,7 +81,8 @@ describe('PipelinePage', () => {
     expect(text(page().querySelector('pre.code-block'))).toBe(
       "@Library('DevSecOpsJenkinsLibrary') _ devSecOpsPipeline(pipelineKey: '6f1c2d3e-0000-4abc-9def-123456789abc')",
     );
-    expect(page().querySelectorAll('tbody tr').length).toBe(2);
+    expect(gridColumn(page(), 'result')).toEqual(['Success', 'Failed']);
+    expect(gridColumn(page(), 'build')).toEqual(['#42', '#41']);
     expect(
       [...page().querySelectorAll<HTMLAnchorElement>('.page-header .actions a')].map((link) =>
         link.getAttribute('href'),
@@ -110,7 +110,7 @@ describe('PipelinePage', () => {
   it('shows at most five runs and says when none was reported', async () => {
     const runs = Array.from({ length: 7 }, (_, index) => pipelineRun({ build: 40 + index }));
     await load(undefined, pipelineMonitoring({ recentRuns: runs }));
-    expect(page().querySelectorAll('tbody tr').length).toBe(5);
+    expect(gridRows(page()).length).toBe(5);
 
     fixture.componentRef.setInput('id', '101');
     fixture.detectChanges();
@@ -207,7 +207,7 @@ describe('PipelinePage', () => {
     await fixture.whenStable();
 
     expect(text(page().querySelector('.banner'))).toBe('Pipeline 100 does not exist');
-    expect(page().querySelector('a.mat-mdc-button-base')?.getAttribute('href')).toBe('/pipelines');
+    expect(page().querySelector('a.btn')?.getAttribute('href')).toBe('/pipelines');
     expect(text(page().querySelector('.breadcrumb'))).toBe('DevSecOps Pipelines/Pipeline');
   });
 });
