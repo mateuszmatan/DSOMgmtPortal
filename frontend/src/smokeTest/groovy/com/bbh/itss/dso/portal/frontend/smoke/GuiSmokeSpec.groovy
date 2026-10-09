@@ -12,21 +12,21 @@ class GuiSmokeSpec extends GuiSpecification {
 
     static final List<Map<String, String>> SECTIONS = [
             [menu       : 'DevSecOps Management', label: 'Pipelines', heading: 'DevSecOps Pipelines', path: '/pipelines',
-             description: 'The pipelines of your department with their keys, settings and last runs'],
+             description: 'Every automated build, test and security pipeline of your department\'s products. Open one to see its key, its Jenkinsfile and its latest runs.'],
             [menu       : 'DevSecOps Management', label: 'Self-service', heading: 'DevSecOps Self-service', path: '/self-service',
-             description: 'Set up or change the DevSecOps pipelines of your product, step by step'],
+             description: 'Set up the DevSecOps pipelines of your product, or change them, in five guided steps. No DevSecOps knowledge needed.'],
             [menu       : 'DevSecOps Management', label: 'Pipeline Monitoring', heading: 'DevSecOps Pipeline Monitoring',
-             path       : '/monitoring', description: 'Pipeline status and DORA metrics'],
+             path       : '/monitoring', description: 'How the pipelines of every product are doing: whether their latest runs passed, and how often and how safely changes reach production.'],
             [menu       : 'DevSecOps Management', label: 'Change Evidence', heading: 'DevSecOps Change Evidence', path: '/evidence',
-             description: 'Builds, tests and scans for ServiceNow changes'],
+             description: 'Proof for a ProTech change: the builds, tests and security scans behind each pipeline of a product.'],
             [menu       : 'DevSecOps Management', label: 'Admin', heading: 'DevSecOps Admin', path: '/admin/products',
-             description: 'Departments, products, services, the template of a new service and the DSOEnhanced library defaults'],
+             description: 'Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.'],
             [menu       : 'Beadle', label: 'Changes', heading: 'ProTech Changes', path: '/beadle/changes',
-             description: 'The ProTech changes of your department, read from ProTech each time you open them'],
+             description: 'The ProTech changes of your department and where each one is in its approval workflow. A change is read again from ProTech when you open it.'],
             [menu       : 'Beadle', label: 'New Change', heading: 'New ProTech Change', path: '/beadle/new-change',
-             description: 'Raise a ProTech change (CHG) with its change tasks (CTASK), written from Jira'],
+             description: 'Raise a ProTech change for a production release in guided steps. The product\'s change template fills in the answers and Jira provides the scope.'],
             [menu       : 'Beadle', label: 'Admin', heading: 'Beadle Admin', path: '/beadle/admin/products',
-             description: 'Departments, products and the change template of each product']]
+             description: 'Departments, products and each product\'s change template: the answers every new change of the product starts with.']]
 
     static final Map<String, Map<String, String>> ADMIN_TABS = [
             'DevSecOps Admin': [Departments       : '/admin/departments', Products: '/admin/products',

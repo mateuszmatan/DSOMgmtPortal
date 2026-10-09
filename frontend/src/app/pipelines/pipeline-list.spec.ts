@@ -187,7 +187,7 @@ describe('PipelineList', () => {
       'Full',
       'DevSecOps/CERT/gui-full',
       '6f1c2d3e…9abc',
-      'Success',
+      'Passed',
     ]);
     expect(text(gridCell(first, 'actions'))).toBe('Edit');
     expect(text(gridCell(second, 'key'))).toBe('Invalidated');

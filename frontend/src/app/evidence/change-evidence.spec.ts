@@ -63,7 +63,7 @@ describe('ChangeEvidencePage', () => {
 
     expect(page().querySelector('h1')?.textContent).toBe('DevSecOps Change Evidence');
     expect(page().querySelector('.page-description')?.textContent).toBe(
-      'Builds, tests and scans for ServiceNow changes',
+      'Proof for a ProTech change: the builds, tests and security scans behind each pipeline of a product.',
     );
     expect(
       [...page().querySelectorAll('.panel-toggle')].map((toggle) => toggle.textContent?.trim()),

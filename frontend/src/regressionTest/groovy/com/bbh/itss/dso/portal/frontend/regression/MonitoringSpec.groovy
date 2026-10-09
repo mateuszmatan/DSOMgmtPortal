@@ -65,8 +65,8 @@ class MonitoringSpec extends GuiSpecification {
                 page.locator('.portfolio .legend .swatch.deployment').evaluate('swatch => getComputedStyle(swatch).backgroundColor')
         assertThat(page.locator('.by-department .highcharts-xaxis-labels').first().locator('text')).hasCount(5)
         assertThat(page.locator('.by-department dso-chart')).hasAttribute('aria-label',
-                'AI Lab: none; Capital Partners: none; Corporate Technology: 3 success; Custody: none; ' +
-                        'Fund Services: 2 unstable, 3 success, 1 key invalidated')
+                'AI Lab: none; Capital Partners: none; Corporate Technology: 3 passed; Custody: none; ' +
+                        'Fund Services: 2 passed with warnings, 3 passed, 1 key invalidated')
         api.lastRequest('GET', '/api/monitoring/activity').params() == [range: '30d']
         ownErrors().isEmpty()
     }

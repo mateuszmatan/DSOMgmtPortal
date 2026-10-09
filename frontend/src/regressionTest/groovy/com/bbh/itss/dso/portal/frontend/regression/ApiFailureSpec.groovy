@@ -119,6 +119,6 @@ class ApiFailureSpec extends EditorSpecification {
         open('/admin/products')
 
         then:
-        assertThat(page.locator('.banner')).hasText('The portal API cannot be reached.')
+        assertThat(page.locator('.banner')).hasText('The portal cannot be reached. Check your network connection and try again.')
     }
 }

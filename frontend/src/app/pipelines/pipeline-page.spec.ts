@@ -69,7 +69,7 @@ describe('PipelinePage', () => {
       'DevSecOps Pipelines/CertScanner/gui · Full',
     );
     expect(text(page().querySelector('h1'))).toBe('gui · Full pipeline');
-    expect(text(page().querySelector('.title dso-status-chip'))).toBe('Success');
+    expect(text(page().querySelector('.title dso-status-chip'))).toBe('Passed');
     expect(text(page().querySelector('.key-value'))).toBe('6f1c2d3e…9abc');
     expect([...page().querySelectorAll('.pairs dt')].map(text).slice(0, 5)).toEqual([
       'Issued',
@@ -81,7 +81,7 @@ describe('PipelinePage', () => {
     expect(text(page().querySelector('pre.code-block'))).toBe(
       "@Library('DevSecOpsJenkinsLibrary') _ devSecOpsPipeline(pipelineKey: '6f1c2d3e-0000-4abc-9def-123456789abc')",
     );
-    expect(gridColumn(page(), 'result')).toEqual(['Success', 'Failed']);
+    expect(gridColumn(page(), 'result')).toEqual(['Passed', 'Failed']);
     expect(gridColumn(page(), 'build')).toEqual(['#42', '#41']);
     expect(
       [...page().querySelectorAll<HTMLAnchorElement>('.page-header .actions a')].map((link) =>

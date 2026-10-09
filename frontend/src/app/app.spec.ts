@@ -62,11 +62,11 @@ describe('App', () => {
     const panel = await open('DevSecOps Management');
 
     expect(SECTIONS.map((section) => section.description)).toEqual([
-      'The pipelines of your department with their keys, settings and last runs',
-      'Set up or change the DevSecOps pipelines of your product, step by step',
-      'Pipeline status and DORA metrics',
-      'Builds, tests and scans for ServiceNow changes',
-      'Departments, products, services, the template of a new service and the DSOEnhanced library defaults',
+      "Every automated build, test and security pipeline of your department's products. Open one to see its key, its Jenkinsfile and its latest runs.",
+      'Set up the DevSecOps pipelines of your product, or change them, in five guided steps. No DevSecOps knowledge needed.',
+      'How the pipelines of every product are doing: whether their latest runs passed, and how often and how safely changes reach production.',
+      'Proof for a ProTech change: the builds, tests and security scans behind each pipeline of a product.',
+      'Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.',
     ]);
     expect(SECTIONS.some((section) => text(panel).includes(section.description))).toBe(false);
     expect(page().querySelector('header svg-icon, header svg')).toBeNull();
@@ -101,13 +101,16 @@ describe('App', () => {
     expect(MENUS[0].sections.map((section) => [section.heading, section.description])).toEqual([
       [
         'ProTech Changes',
-        'The ProTech changes of your department, read from ProTech each time you open them',
+        'The ProTech changes of your department and where each one is in its approval workflow. A change is read again from ProTech when you open it.',
       ],
       [
         'New ProTech Change',
-        'Raise a ProTech change (CHG) with its change tasks (CTASK), written from Jira',
+        "Raise a ProTech change for a production release in guided steps. The product's change template fills in the answers and Jira provides the scope.",
       ],
-      ['Beadle Admin', 'Departments, products and the change template of each product'],
+      [
+        'Beadle Admin',
+        "Departments, products and each product's change template: the answers every new change of the product starts with.",
+      ],
     ]);
   });
 

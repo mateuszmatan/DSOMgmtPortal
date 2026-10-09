@@ -20,7 +20,7 @@ class PipelinesSpec extends GuiSpecification {
         then:
         assertThat(page.locator('h1')).hasText('DevSecOps Pipelines')
         assertThat(page.locator('.page-header .page-description'))
-                .hasText('The pipelines of your department with their keys, settings and last runs')
+                .hasText('Every automated build, test and security pipeline of your department\'s products. Open one to see its key, its Jenkinsfile and its latest runs.')
         assertThat(page.locator('.empty-state h3')).hasText('Choose your department to see its pipelines.')
         assertThat(page.locator('.dso-menu')).hasCount(0)
         api.requests('GET', '/api/pipelines').isEmpty()
@@ -34,7 +34,7 @@ class PipelinesSpec extends GuiSpecification {
         assertThat(gridHeaders()).hasText(['Service', 'Product', 'Type', 'Jenkins job', 'Key', 'Last run', 'Ran', ''] as String[])
         assertThat(column('key')).hasText(['50b4ada7…108f', '9e9f17e8…4790', '5a07b656…5627', 'fa529f98…a726',
                                            '26b4c145…64e4', 'Invalidated'] as String[])
-        assertThat(column('status')).hasText(['Success', 'Success', 'Success', 'Unstable', 'Unstable', 'Key invalidated'] as String[])
+        assertThat(column('status')).hasText(['Passed', 'Passed', 'Passed', 'Passed with warnings', 'Passed with warnings', 'Key invalidated'] as String[])
         assertThat(page.locator('.toolbar .shown')).hasText('6 of 6 pipelines')
         assertThat(link('gateway').first()).hasAttribute('href', '/pipelines/6')
         !page.locator('main').textContent().contains('5a07b656-')
@@ -55,7 +55,7 @@ class PipelinesSpec extends GuiSpecification {
 
         when:
         choose(page.locator('.ag-floating-filter'), 'Filter by key', 'All')
-        choose(page.locator('.ag-floating-filter'), 'Filter by last run', 'Unstable')
+        choose(page.locator('.ag-floating-filter'), 'Filter by last run', 'Passed with warnings')
         gridFilter('Jenkins job').fill('ledger')
 
         then:
@@ -112,7 +112,7 @@ class PipelinesSpec extends GuiSpecification {
         assertThat(page.locator('.breadcrumb a, .breadcrumb span:not(.sep)'))
                 .hasText(['DevSecOps Pipelines', 'CertScanner', 'gui · Full'] as String[])
         assertThat(page.locator('h1')).hasText('gui · Full pipeline')
-        assertThat(page.locator('.title .chip')).hasText('Success')
+        assertThat(page.locator('.title .chip')).hasText('Passed')
         assertThat(page.locator('.key-value')).hasText('7b62170e…299e')
         assertThat(pair('Agents')).hasText('linux-agent')
         assertThat(pair('Jenkins job')).hasText('DevSecOps/CERTSCANNER/gui-full')

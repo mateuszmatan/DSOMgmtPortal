@@ -102,7 +102,7 @@ describe('MonitoringOverview', () => {
     expect(headings()).toEqual(['Corporate Technology', 'Fund Services']);
     const chart = page().querySelector('.by-department dso-chart');
     expect(chart?.getAttribute('aria-label')).toBe(
-      'Corporate Technology: 1 failed, 2 success; Fund Services: 1 unstable, 1 key invalidated',
+      'Corporate Technology: 1 failed, 2 passed; Fund Services: 1 passed with warnings, 1 key invalidated',
     );
     expect(chartOptions(chart).xAxis[1].categories).toEqual([
       '3 pipelines · 1 product',
