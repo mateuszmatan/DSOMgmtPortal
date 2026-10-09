@@ -59,11 +59,11 @@ class MonitoringSpec extends GuiSpecification {
         then:
         assertThat(page.locator('dso-dora-tiles .tile-value')).hasText(['1.4 / day', '41h 33m', '29.0%', '13h 24m'] as String[])
         assertThat(page.locator('.portfolio .card-header .muted')).hasText('62 runs in the last 30 days')
-        assertThat(page.locator('.portfolio svg rect.success').first()).isVisible()
-        assertThat(page.locator('.by-department .track')).hasCount(5)
-        page.locator('.by-department .track').evaluateAll('tracks => tracks.map(track => track.getAttribute("aria-label"))') == [
-                'AI Lab: none', 'Capital Partners: none', 'Corporate Technology: 3 success', 'Custody: none',
-                'Fund Services: 2 unstable, 3 success, 1 key invalidated']
+        assertThat(page.locator('.portfolio .highcharts-series.success .highcharts-point').first()).isVisible()
+        assertThat(page.locator('.by-department .highcharts-xaxis-labels').first().locator('text')).hasCount(5)
+        assertThat(page.locator('.by-department dso-chart')).hasAttribute('aria-label',
+                'AI Lab: none; Capital Partners: none; Corporate Technology: 3 success; Custody: none; ' +
+                        'Fund Services: 2 unstable, 3 success, 1 key invalidated')
         api.lastRequest('GET', '/api/monitoring/activity').params() == [range: '30d']
         ownErrors().isEmpty()
     }
@@ -77,7 +77,7 @@ class MonitoringSpec extends GuiSpecification {
         open('/monitoring/products/2')
 
         expect:
-        assertThat(page.locator('tr.mat-mdc-row td.service')).hasText(health*.pipeline*.serviceName as String[])
+        assertThat(gridCells(page.locator('body'), 'service')).hasText(health*.pipeline*.serviceName as String[])
         health.every { item ->
             def row = row(item.pipeline.id as int)
             assertThat(row.getByRole(LINK, new Locator.GetByRoleOptions().setName("Open the Jenkins job of ${item.pipeline.serviceName}")))
@@ -102,7 +102,7 @@ class MonitoringSpec extends GuiSpecification {
 
         when:
         popup.close()
-        row(7).locator('td.service').click()
+        gridCell(row(7), 'service').click()
         page.waitForURL('**/monitoring/pipelines/7')
 
         then:
@@ -120,20 +120,20 @@ class MonitoringSpec extends GuiSpecification {
         open('/monitoring/pipelines/1')
 
         expect:
-        assertThat(radio(page.locator('mat-button-toggle-group'), '30d')).hasAttribute('aria-checked', 'true')
+        assertThat(radio(page.locator('dso-toggle-group'), '30d')).hasAttribute('aria-checked', 'true')
         assertThat(recentRunsNote()).hasText('Newest first, within the last 30 days')
 
         when:
         ['7d', '90d', '180d'].each { range ->
-            radio(page.locator('mat-button-toggle-group'), range).click()
+            radio(page.locator('dso-toggle-group'), range).click()
             page.waitForURL("**/monitoring/pipelines/1?range=$range")
             assertThat(recentRunsNote()).hasText("Newest first, within the last ${range - 'd'} days")
         }
-        assertThat(page.locator('mat-progress-bar.loading')).hasCount(0)
+        assertThat(page.locator('dso-loading.loading')).hasCount(0)
         button('Refresh the pipeline metrics', true).click()
 
         then:
-        assertThat(radio(page.locator('mat-button-toggle-group'), '180d')).hasAttribute('aria-checked', 'true')
+        assertThat(radio(page.locator('dso-toggle-group'), '180d')).hasAttribute('aria-checked', 'true')
         awaitRequest('GET', '/api/monitoring/pipelines/1', 5).params() == [range: '180d']
         api.requests('GET', '/api/monitoring/pipelines/1')*.params()*.range == ['30d', '7d', '90d', '180d', '180d']
 
@@ -142,7 +142,7 @@ class MonitoringSpec extends GuiSpecification {
 
         then:
         api.lastRequest('GET', '/api/monitoring/pipelines/1').params() == [range: '90d']
-        assertThat(radio(page.locator('mat-button-toggle-group'), '90d')).hasAttribute('aria-checked', 'true')
+        assertThat(radio(page.locator('dso-toggle-group'), '90d')).hasAttribute('aria-checked', 'true')
 
         when:
         open('/monitoring/pipelines/1?range=1y')
@@ -168,10 +168,10 @@ class MonitoringSpec extends GuiSpecification {
         assertThat(link('Open in Grafana', true)).hasAttribute('href', dashboards[0].dashboardUrl as String)
         assertThat(link('Open in Grafana prod', true)).hasAttribute('href', dashboards[1].dashboardUrl as String)
         assertThat(page.locator('.last-run a.build-link')).hasAttribute('href', monitoring.lastRun.buildUrl as String)
-        def links = recentRuns().locator('tr.mat-mdc-row')
+        def links = gridRows(recentRuns())
         assertThat(links).hasCount(runs.size())
         runs.withIndex().every { run, index ->
-            def cell = links.nth(index).locator('td').nth(2)
+            def cell = gridCell(links.nth(index), 'build')
             if (run.buildUrl) {
                 assertThat(cell.locator('a.build-link')).hasAttribute('href', run.buildUrl as String)
             } else {
@@ -256,7 +256,7 @@ class MonitoringSpec extends GuiSpecification {
     }
 
     Locator row(int pipelineId) {
-        holding(page.locator('tr.mat-mdc-row'), "a.pipeline-link[href='/monitoring/pipelines/${pipelineId}']")
+        holding(gridRows(), "a.pipeline-link[href='/monitoring/pipelines/${pipelineId}']")
     }
 
     Locator recentRuns() {

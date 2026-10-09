@@ -8,19 +8,17 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTableModule } from '@angular/material/table';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MonitoringApi } from '../core/api';
 import { errorMessage } from '../core/errors';
-import { PipelineMonitoring, pipelineTypeLabel } from '../core/models';
+import { PipelineMonitoring, PipelineRun, pipelineTypeLabel } from '../core/models';
 import { BuildLink } from '../shared/build-link';
-import { CountedPipe, DurationPipe, RelativeTimePipe } from '../shared/formatting';
-import { StatusChip } from '../shared/status-chip';
+import { CountedPipe, DurationPipe, RelativeTimePipe, formatDuration } from '../shared/formatting';
+import { RUN_LOOK, StatusChip } from '../shared/status-chip';
+import { GRID, GridColumn } from '../ui/grid';
+import { DsoLoading } from '../ui/loading';
+import { TOGGLES } from '../ui/toggle-group';
 import { ActivityChart } from './activity-chart';
 import { DoraTiles } from './dora-tiles';
 import { MetricsBanner } from './metrics-banner';
@@ -32,11 +30,9 @@ const RANGES = ['7d', '30d', '90d', '180d'];
   imports: [
     DatePipe,
     RouterLink,
-    MatButtonModule,
-    MatButtonToggleModule,
-    MatProgressBarModule,
-    MatTableModule,
-    MatTooltipModule,
+    GRID,
+    DsoLoading,
+    TOGGLES,
     ActivityChart,
     BuildLink,
     CountedPipe,
@@ -84,14 +80,32 @@ export class PipelineMonitoringPage {
     })),
   );
 
-  protected readonly runColumns = [
-    'time',
-    'result',
-    'build',
-    'branch',
-    'commit',
-    'duration',
-    'stages',
+  protected readonly runId = (run: PipelineRun) => `${run.time} ${run.build}`;
+  protected readonly runColumns: GridColumn<PipelineRun>[] = [
+    { key: 'time', header: 'Finished', value: (run) => run.time, width: 130 },
+    { key: 'result', header: 'Result', value: (run) => RUN_LOOK[run.result]?.label, width: 140 },
+    { key: 'build', header: 'Build', value: (run) => run.build, width: 90 },
+    { key: 'branch', header: 'Branch', value: (run) => run.branch ?? '–', cellClass: 'mono' },
+    {
+      key: 'commit',
+      header: 'Commit',
+      value: (run) => (run.commit ? run.commit.slice(0, 10) : '–'),
+      cellClass: 'mono',
+      width: 130,
+    },
+    {
+      key: 'duration',
+      header: 'Duration',
+      value: (run) => formatDuration(run.durationSeconds),
+      sortValue: (run) => run.durationSeconds ?? -1,
+      width: 110,
+    },
+    {
+      key: 'stages',
+      header: 'Stages passed',
+      value: (run) => (run.stagesTotal ? `${run.passed ?? 0} / ${run.stagesTotal}` : '–'),
+      width: 140,
+    },
   ];
   protected readonly errorMessage = errorMessage;
 
