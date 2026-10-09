@@ -151,3 +151,8 @@ pages in a narrow window.
 headers, the page of a pipeline with its key, settings, Jenkinsfile and recent runs, a pipeline with an invalidated
 key, the Self-service wizard with the defaults of the library and the service template, Pipeline Monitoring, Change
 Evidence, and the Admin tabs with the pipeline form filled from the template and the Service template page itself.
+
+`screenshots/v16` shows step 2 of the Self-service wizard with the pipelines in their new order and names: SAST
+(Static Application Security Tests) - HCL AppScan, OSA (Open Source Analysis) (NexusIQ with Golden Fix and Golden Pull
+Request), Security and Full with what each one runs in smaller print, for a new product and for a product in the
+portal, and in a narrow window.

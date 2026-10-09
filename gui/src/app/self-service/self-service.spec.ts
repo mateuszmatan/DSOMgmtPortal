@@ -263,12 +263,20 @@ describe('SelfService', () => {
     expect(text(page().querySelector('.lead'))).toBe(
       'A pipeline checks your code automatically every time it runs. Choosing one adds it to every service that lacks it and keeps the other pipelines.',
     );
-    expect(all('.today li')).toEqual([
-      'gui · Full, Static scan',
-      'api · Full',
-      'batch · no pipeline yet',
+    expect(all('.today li')).toEqual(['gui · Full, SAST', 'api · Full', 'batch · no pipeline yet']);
+    expect(all('.tile-label')).toEqual([
+      'SAST (Static Application Security Tests) - HCL AppScan',
+      'OSA (Open Source Analysis) (NexusIQ with Golden Fix and Golden Pull Request)',
+      'Security',
+      'Full',
     ]);
-    expect(all('.tile-label')).toEqual(['Static scan', 'Nexus IQ GoldenFix', 'Security', 'Full']);
+    expect(all('.tile-description')).toEqual([
+      'Unit Tests, NexusIQ, SAST, SonarQube',
+      'Static Security (unit test, NexusIQ, SAST, SonarQube) + Extended (lower test region deployment, regression, performance, smoke, DAST, *higher test region deployment)',
+    ]);
+    expect(page().querySelector('.tile')?.getAttribute('aria-description')).toBe(
+      '1 of 3 services has it',
+    );
     expect(all('.tile-note')).toEqual([
       '1 of 3 services has it',
       'No service has it yet',
@@ -317,7 +325,7 @@ describe('SelfService', () => {
     expect(rows()[0].classList).toContain('removed');
     expect(text(rows()[0].querySelector('.tag'))).toBe('Removed');
     expect(text(rows()[0].querySelector('.removal'))).toBe(
-      'Saving deletes gui, its pipelines (Full, Static scan) and their keys. Jenkins jobs that use these keys stop working.',
+      'Saving deletes gui, its pipelines (Full, SAST) and their keys. Jenkins jobs that use these keys stop working.',
     );
     expect(wizard().hasUnsavedChanges()).toBe(true);
 
@@ -335,7 +343,7 @@ describe('SelfService', () => {
       'gui · Gradle · runs on Virtual machines',
       'api · Gradle · runs on Virtual machines',
     ]);
-    expect(all('.removal-warning li')).toEqual(['gui · Full, Static scan']);
+    expect(all('.removal-warning li')).toEqual(['gui · Full, SAST']);
 
     await next();
     const request = http.expectOne({ method: 'PUT', url: '/api/products/1?pipelineType=SECURITY' });

@@ -21,6 +21,8 @@ class SelfServiceSpec extends EditorSpecification {
     static final String SECURITY_KEY_OF_GATEWAY = '5a07b656-ed5b-46b6-b3af-eb043ca15627'
     static final String GUI_REPOSITORY = 'https://bitbucket.bbh.com/projects/TA/repos/cert-scanner-gui'
     static final String SCANNER_REPOSITORY = 'https://bitbucket.bbh.com/projects/TA/repos/cert-scanner-batch'
+    static final String SAST = 'SAST (Static Application Security Tests) - HCL AppScan'
+    static final String OSA = 'OSA (Open Source Analysis) (NexusIQ with Golden Fix and Golden Pull Request)'
 
     def "a product manager adds a new product with a Security pipeline step by step"() {
         given:
@@ -61,7 +63,9 @@ class SelfServiceSpec extends EditorSpecification {
         then:
         assertThat(currentStep()).hasText('Pipeline')
         assertThat(step().locator('h2')).hasText('Which pipeline does Trade Archive need?')
-        assertThat(step().locator('.tile-label')).hasText(['Static scan', 'Nexus IQ GoldenFix', 'Security', 'Full'] as String[])
+        assertThat(step().locator('.tile-label')).hasText([SAST, OSA, 'Security', 'Full'] as String[])
+        assertThat(step().locator('.tile-description')).hasText(['Unit Tests, NexusIQ, SAST, SonarQube',
+                                                                 'Static Security (unit test, NexusIQ, SAST, SonarQube) + Extended (lower test region deployment, regression, performance, smoke, DAST, *higher test region deployment)'] as String[])
         assertThat(step().locator('.tile-note')).hasCount(0)
         assertThat(step().locator('.today')).hasCount(0)
         assertThat(choiceError()).hasText('Choose a pipeline to continue')
@@ -173,7 +177,7 @@ class SelfServiceSpec extends EditorSpecification {
         ownErrors().findAll { !it.contains('400') }.isEmpty()
     }
 
-    def "a product in the portal gets a Static scan pipeline next to the pipelines it has, a new service included"() {
+    def "a product in the portal gets a SAST pipeline next to the pipelines it has, a new service included"() {
         given:
         def store = ProductStore.recorded(api, 1)
         def stored = fixture('product-1.json') as Map
@@ -208,12 +212,12 @@ class SelfServiceSpec extends EditorSpecification {
         assertThat(currentStep()).hasText('Pipeline')
         assertThat(step().locator('.lead'))
                 .containsText('Choosing one adds it to every service that lacks it and keeps the other pipelines.')
-        assertThat(step().locator('.today li')).hasText(['gui · Full, Static scan', 'backend-api · Full'] as String[])
+        assertThat(step().locator('.today li')).hasText(['gui · Full, SAST', 'backend-api · Full'] as String[])
         assertThat(step().locator('.tile-note'))
                 .hasText(['1 of 2 services has it', 'No service has it yet', 'No service has it yet', 'Every service has it'] as String[])
 
         when:
-        radio(step(), 'Static scan').click()
+        radio(step(), SAST).click()
         button('Continue', true).click()
 
         then:
@@ -249,7 +253,7 @@ class SelfServiceSpec extends EditorSpecification {
 
         then:
         assertThat(step().locator('.lead'))
-                .hasText('Saving updates CertScanner and gives every service a Static scan pipeline with its own key, unless it has one already.')
+                .hasText('Saving updates CertScanner and gives every service a SAST pipeline with its own key, unless it has one already.')
         assertThat(review('Added').locator('li')).hasText(['scanner · Maven'] as String[])
         assertThat(review('Changed').locator('li')).hasText(['gui · new description'] as String[])
         assertThat(review('Unchanged').locator('li')).hasText(['backend-api · Maven · runs on OpenShift'] as String[])
@@ -290,17 +294,17 @@ class SelfServiceSpec extends EditorSpecification {
         ownErrors().isEmpty()
     }
 
-    def "a product in the portal gets a Nexus IQ GoldenFix pipeline that raises golden pull requests in Bitbucket"() {
+    def "a product in the portal gets an OSA pipeline that raises golden pull requests in Bitbucket"() {
         given:
         def store = ProductStore.recorded(api, 1)
         def stored = fixture('product-1.json') as Map
 
         when:
         openProduct('Corporate Technology', 'CertScanner (CERTSCANNER)')
-        radio(step(), 'Nexus IQ GoldenFix').click()
+        radio(step(), OSA).click()
 
         then:
-        assertThat(radio(step(), 'Nexus IQ GoldenFix')).hasAttribute('aria-checked', 'true')
+        assertThat(radio(step(), OSA)).hasAttribute('aria-checked', 'true')
         assertThat(step().locator('.prepare li').last())
                 .hasText('The Nexus IQ application and the Bitbucket repository of each service')
 
@@ -308,7 +312,7 @@ class SelfServiceSpec extends EditorSpecification {
         button('Continue', true).click()
 
         then:
-        assertThat(step().locator('.lead')).containsText('Each one gets its own Nexus IQ GoldenFix pipeline.')
+        assertThat(step().locator('.lead')).containsText('Each one gets its own OSA pipeline.')
         assertThat(serviceRow('gui').locator('.muted').first())
                 .hasText('Gradle · runs on Virtual machines · Nexus IQ cert-scanner-gui')
 
@@ -343,7 +347,7 @@ class SelfServiceSpec extends EditorSpecification {
         button('Continue', true).click()
 
         then:
-        assertThat(review('Pipeline')).hasText('Nexus IQ GoldenFix · added to every service')
+        assertThat(review('Pipeline')).hasText('OSA · added to every service')
         assertThat(review('Added').locator('li')).hasText(['scanner · Maven · Nexus IQ cert-scanner-batch'] as String[])
         assertThat(review('Changed').locator('li'))
                 .hasText(['gui · new Nexus IQ application; new Bitbucket repository'] as String[])
@@ -421,7 +425,7 @@ class SelfServiceSpec extends EditorSpecification {
 
         when:
         button('Continue', true).click()
-        radio(step(), 'Static scan').click()
+        radio(step(), SAST).click()
         button('Continue', true).click()
         button('Continue', true).click()
 
@@ -558,7 +562,7 @@ class SelfServiceSpec extends EditorSpecification {
         assertThat(currentStep()).hasText('Pipeline')
         assertThat(step().locator('h2')).hasText('Which pipeline does Payments Hub need?')
         assertThat(step().locator('.today li')).hasText(['gateway · Full, Security, Extended', 'ledger · Full',
-                                                         'notifications · Full', 'mobile-app · Static scan'] as String[])
+                                                         'notifications · Full', 'mobile-app · SAST'] as String[])
         assertThat(step().locator('.tile-note'))
                 .hasText(['1 of 4 services has it', 'No service has it yet', '1 of 4 services has it', '3 of 4 services have it'] as String[])
 

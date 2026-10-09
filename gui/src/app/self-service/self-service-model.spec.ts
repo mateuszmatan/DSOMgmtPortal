@@ -634,13 +634,11 @@ describe('self-service model', () => {
       servicePipelines({ serviceName: 'api', pipelines: [pipeline({ type: 'SECURITY' })] }),
     ];
 
-    expect(pipelineNames(services[0])).toBe(
-      'Full, Security, Extended, Static scan, Nexus IQ GoldenFix',
-    );
+    expect(pipelineNames(services[0])).toBe('Full, Security, Extended, SAST, OSA');
     expect(pipelineNames(servicePipelines({ pipelines: [] }))).toBe('');
-    expect(pipelineChoices(services).map((choice) => [choice.label, choice.note])).toEqual([
-      ['Static scan', '1 of 2 services has it'],
-      ['Nexus IQ GoldenFix', '1 of 2 services has it'],
+    expect(pipelineChoices(services).map((choice) => [choice.name, choice.note])).toEqual([
+      ['SAST', '1 of 2 services has it'],
+      ['OSA', '1 of 2 services has it'],
       ['Security', 'Every service has it'],
       ['Full', '1 of 2 services has it'],
     ]);
@@ -662,9 +660,7 @@ describe('self-service model', () => {
     const api = added({ id: 2, name: 'api' });
     const batch = added({ name: 'batch' });
 
-    expect(pipelineReach('SAST', [gui, api, batch], stored)).toBe(
-      'Static scan · added to api and batch',
-    );
+    expect(pipelineReach('SAST', [gui, api, batch], stored)).toBe('SAST · added to api and batch');
     expect(pipelineReach('FULL', [api], stored)).toBe('Full · every service has it already');
     expect(pipelineReach('SECURITY', [gui, api], stored)).toBe('Security · added to every service');
     expect(pipelineReach('FULL', [batch], null)).toBe('Full · added to every service');
