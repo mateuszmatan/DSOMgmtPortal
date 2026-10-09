@@ -71,9 +71,9 @@ class GuiPerformanceSpec extends GuiSpecification {
         'Product page from the product list'       | 1500  | '/admin/products'         | null                   | "a.name[href='/admin/products/ID']"                      | 'section.service .pipeline'                                 | PIPELINES
         'Product editor from the product page'     | 2000  | '/admin/products/ID'      | null                   | "a[href='/admin/products/ID/edit']"                      | 'mat-expansion-panel-header .service-name'                  | SERVICES
         'A service expanded in the editor'         | 500   | '/admin/products/ID/edit' | null                   | 'mat-expansion-panel-header >> nth=8'                    | 'mat-expansion-panel.mat-expanded dso-service-fields input' | 1
-        'Monitoring overview from the menu'        | 1000  | '/admin/products'         | 'DevSecOps Management' | ".mat-mdc-menu-panel a[href='/monitoring']"              | 'a.card.product'                                            | PRODUCTS
+        'Monitoring overview from the menu'        | 1000  | '/admin/products'         | 'DevSecOps Management' | ".dso-menu a[href='/monitoring']"                         | 'a.card.product'                                            | PRODUCTS
         "A product's monitoring from the overview" | 1000  | '/monitoring'             | null                   | "a.card.product[href='/monitoring/products/ID']"         | 'a.pipeline-link'                                           | PIPELINES
-        "A product's change evidence expanded"     | 1500  | '/evidence'               | null                   | "mat-expansion-panel-header:has(.code:text-is('CATID'))" | 'dso-pipeline-evidence-card'                                | PIPELINES
+        "A product's change evidence expanded"     | 1500  | '/evidence'               | null                   | "dso-panel:has(.code:text-is('CATID')) .accordion-button" | 'dso-pipeline-evidence-card'                                | PIPELINES
     }
 
     double measure(String from, String menu, String click, int product, Map ready) {
