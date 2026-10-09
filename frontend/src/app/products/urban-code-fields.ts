@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
 import { GlobalSettings } from '../core/models';
 import { addItem, removeItem } from '../shared/form-controls';
 import {
@@ -96,7 +95,7 @@ const COMPONENT: Field[] = [
 
 @Component({
   selector: 'dso-urban-code-fields',
-  imports: [ReactiveFormsModule, MatButtonModule, Fields],
+  imports: [ReactiveFormsModule, Fields],
   changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './urban-code-fields.html',
   styles: `

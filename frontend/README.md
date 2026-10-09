@@ -5,6 +5,7 @@ portal.
 
 ```bash
 ./gradlew :frontend:installNpmCIDeps  # npm ci from package-lock.json
+./gradlew :frontend:installDesignSystem # the BBH Design System packages from the BBH npm registry, inside BBH only
 ./gradlew :frontend:buildAngular      # production bundle in frontend/dist, checked against the angular.json budgets
 ./gradlew :frontend:testAngular       # Vitest unit tests with coverage, thresholds in angular.json
 ./gradlew :frontend:copyToBackend     # frontend/dist into backend/src/main/resources/static
@@ -13,6 +14,7 @@ portal.
 ./gradlew :frontend:performanceTest   # a generated catalogue of 25 products x 16 services, timed in the browser
 ./gradlew :frontend:check             # all of the above
 cd frontend && npm start              # http://localhost:4200, /api is proxied to the backend on port 8080
+cd frontend && npm run start:public   # the same without the BBH Design System, for a machine outside BBH
 ```
 
 The tasks run `npm` and `npx` from the `PATH`: Node.js 20.19 or a later 20.x with npm 10.8 or a later 10.x, as
@@ -31,15 +33,16 @@ The tasks run `npm` and `npx` from the `PATH`: Node.js 20.19 or a later 20.x wit
 | `beadle/`     | Beadle: the department the user works for (remembered in the browser), the Beadle Admin products list and the product page with its facts and change template |
 | `changes/`    | Beadle Changes and New Change: the ProTech changes of a department in a table filtered and sorted in its header, the change page with its workflow progress and update status, the edit page that publishes to ProTech, the change wizard, and the ProTech fields form and change tasks editor shared with Beadle Admin |
 | `shared/`     | field definitions and the field component, form controls, dialogs, formatting, Bitbucket links |
-| `testing/`    | fixtures for the unit tests |
+| `ui/`         | the UI kit every page builds on: form field, checkbox, toggle group, panel, dialog, toast, loading bar, the AG Grid table (`dso-grid`), the Highcharts chart (`dso-chart`) and the BBH Design System icons |
+| `testing/`    | fixtures, DOM helpers and a stand-in for Highcharts for the unit tests |
 
 ## Forms from field definitions
 
 A form field is written once, as data. `shared/fields.ts` holds the `Field` interface (key, label, the
 `config.yaml` path shown as its hint, span of the 12 column grid, kind, placeholder, hint, error message, select
 options and number range) with the small builders `line`, `mono`, `area`, `check`, `count` and `choice`, and the
-`dso-fields` component that renders a list of them into a `.form-fields` grid: a Material field or checkbox per
-entry, bound to the control of that key in the group it is given. The service editor
+`dso-fields` component that renders a list of them into a `.form-fields` grid: a `dso-form-field` with a Bootstrap
+input, select or text area, or a `dso-checkbox`, per entry, bound to the control of that key in the group it is given. The service editor
 (`products/service-fields.ts`), its child editors and the Library defaults tab (`settings/settings-fields.ts`)
 therefore describe their sections as lists of fields; only the parts that are not a plain field (the tool command
 blocks, the test job list, the UrbanCode applications, the OpenShift targets and the toggle groups) have markup of
@@ -104,15 +107,38 @@ every feature land in `build/reports/frontend/screenshots`.
   section description under it.
 - The pages show no icons. The only icons are those of the vertical section menu in the service editor and the
   magnifier of each lookup field.
-- Fields are compact (Material density -4, 32px inputs). Forms reflow to two columns below 760px and to one below
+- Fields are compact (Bootstrap small controls, 30px inputs). Forms reflow to two columns below 760px and to one below
   480px; the menu wraps and wide tables scroll inside their own container, so no page scrolls sideways at 800px or
   600px.
 - On/off settings are checkboxes and expandable panels say Show or Hide.
 - `src/styles.scss` holds everything more than one page draws: the page header and breadcrumb, cards, tables
   and the 12 column form grid, the chips (`chip` with its tones for run results, checks, DORA levels and key
   states), the run colours as `--dso-run-*` with the `swatch` class, the fact lists (`pairs` and `rows`), the
-  quiet links, the side navigation of the service editor and the settings (`side-nav`) and the expansion
-  panels. A component stylesheet keeps only what that page alone needs.
+  quiet links, the side navigation of the service editor and the settings (`side-nav`), and the look of the UI
+  kit (`dso-panel`, `dso-form-field`, `dso-grid`, dialogs, menus and toasts) on top of Bootstrap. A component
+  stylesheet keeps only what that page alone needs; a chart's series colours sit in the chart's own CSS file.
+
+## BBH Design System
+
+The GUI follows the BBH Design System on Bootstrap 5.3.8, with no Angular Material. `angular.json` loads the styles in
+the order the design system asks for: Bootstrap, the other libraries (Highcharts and AG Grid), the BBH table theme
+`@v6/v6-table`, `@v6/v6-themes` `main.min.css`, then the Jersey theme (Boston, London, Cracow and Caymanes are the
+other BBH themes), the Angular CDK overlay styles and `src/styles.scss` last. The `@v6/v6-icons` SVGs are copied to
+`@v6/v6-icons/assets/icons` and registered with `angular-svg-icon` at start-up (`v6RegisterIcons` in
+`ui/design-system.ts`), together with the few portal icons of `ui/icons.ts` (Material Icons outlines, Apache License
+2.0).
+
+- Tables are AG Grid 33 from `ag-grid-enterprise` (`dso-grid`): a column filters in its header row and sorts on a click
+  of its title; cells that hold links or buttons are `ng-template[dsoCell]` templates and stay in the Tab order. Only
+  community modules are registered, so the grids need no licence; an Enterprise module added to `ui/grid.ts` gets BBH's
+  key from `-PagGridLicenseKey`.
+- Charts are Highcharts 6 in styled mode (`dso-chart`), coloured by CSS and described by an `aria-label`.
+- Dialogs, the header menus and the toasts use the Angular CDK (`Dialog`, `cdkMenu`, `Overlay`) with Bootstrap's
+  modal, dropdown and toast styles.
+- The `public` configuration (`npm run start:public`, and the Gradle build with `bbhNetwork=false`) replaces
+  `ui/design-system.ts` with `ui/design-system.public.ts` and the design system styles with
+  `src/styles/public-theme.scss`, a navy Bootstrap theme, so the GUI builds and runs where the BBH npm registry is out
+  of reach. The unit tests use that configuration too.
 
 ## Bitbucket repository
 

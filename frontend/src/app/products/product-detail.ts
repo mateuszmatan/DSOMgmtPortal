@@ -1,11 +1,7 @@
 import { ClipboardModule } from '@angular/cdk/clipboard';
+import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, finalize, of, switchMap, tap } from 'rxjs';
 import { DepartmentsApi, PipelinesApi, ProductsApi } from '../core/api';
@@ -23,6 +19,8 @@ import { PipelineActions, typeName } from '../pipelines/pipeline-actions';
 import { bitbucketRepositoryUrl } from '../shared/bitbucket';
 import { TARGET_LABELS, TOOL_LABELS } from '../shared/fields';
 import { RelativeTimePipe, counted } from '../shared/formatting';
+import { DsoLoading } from '../ui/loading';
+import { MENU_AT_END } from '../ui/menu';
 import { GeneratedKeys } from './generated-keys';
 
 @Component({
@@ -30,11 +28,10 @@ import { GeneratedKeys } from './generated-keys';
   imports: [
     ClipboardModule,
     RouterLink,
-    MatButtonModule,
-    MatDividerModule,
-    MatMenuModule,
-    MatProgressBarModule,
-    MatTooltipModule,
+    CdkMenu,
+    CdkMenuItem,
+    CdkMenuTrigger,
+    DsoLoading,
     RelativeTimePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -111,6 +108,7 @@ export class ProductDetail {
       : `Pipeline keys generated for ${names.length} new services: ${names.join(', ')}.`;
   });
   protected readonly errorMessage = errorMessage;
+  protected readonly menuAtEnd = MENU_AT_END;
 
   protected readonly typeLabel = pipelineTypeLabel;
   protected readonly typeName = typeName;

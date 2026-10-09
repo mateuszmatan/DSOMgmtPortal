@@ -28,7 +28,7 @@ describe('App', () => {
       .find((trigger) => text(trigger) === label)!
       .click();
     await fixture.whenStable();
-    return [...document.querySelectorAll<HTMLElement>('.mat-mdc-menu-panel')].at(-1)!;
+    return [...document.querySelectorAll<HTMLElement>('.dso-menu')].at(-1)!;
   }
 
   it('names the portal in its header and offers the Beadle and DevSecOps Management menus', () => {
@@ -51,7 +51,7 @@ describe('App', () => {
     ],
   ])('opens %s with the links of its sections in order', async (label, labels, paths) => {
     const panel = await open(label);
-    const links = [...panel.querySelectorAll('a[mat-menu-item]')];
+    const links = [...panel.querySelectorAll('a[role=menuitem]')];
 
     expect(panel.getAttribute('aria-label')).toBe(label);
     expect(links.map(text)).toEqual(labels);
@@ -69,8 +69,8 @@ describe('App', () => {
       'Departments, products, services, the template of a new service and the DSOEnhanced library defaults',
     ]);
     expect(SECTIONS.some((section) => text(panel).includes(section.description))).toBe(false);
-    expect(page().querySelector('header mat-icon, header .material-icons')).toBeNull();
-    expect(panel.querySelector('mat-icon, .mat-mdc-menu-submenu-icon')).toBeNull();
+    expect(page().querySelector('header svg-icon, header svg')).toBeNull();
+    expect(panel.querySelector('svg-icon, svg')).toBeNull();
   });
 
   it('marks the menu and the item of the current page', async () => {

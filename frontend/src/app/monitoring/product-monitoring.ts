@@ -1,16 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTableModule } from '@angular/material/table';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { MonitoringApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { PipelineHealth, RunResult, pipelineTypeLabel } from '../core/models';
 import { BuildLink } from '../shared/build-link';
-import { CountedPipe, DurationPipe, RelativeTimePipe } from '../shared/formatting';
-import { StatusChip } from '../shared/status-chip';
+import { CountedPipe, RelativeTimePipe, formatDuration } from '../shared/formatting';
+import { RUN_LOOK, StatusChip } from '../shared/status-chip';
+import { GRID, GridColumn } from '../ui/grid';
+import { DsoLoading } from '../ui/loading';
 import { MetricsBanner } from './metrics-banner';
 import { StatusBar } from './status-bar';
 
@@ -18,13 +16,10 @@ import { StatusBar } from './status-bar';
   selector: 'dso-product-monitoring',
   imports: [
     RouterLink,
-    MatButtonModule,
-    MatProgressBarModule,
-    MatTableModule,
-    MatTooltipModule,
+    GRID,
+    DsoLoading,
     BuildLink,
     CountedPipe,
-    DurationPipe,
     MetricsBanner,
     RelativeTimePipe,
     StatusBar,
@@ -55,18 +50,50 @@ export class ProductMonitoringPage {
     return counts;
   });
 
-  protected readonly columns = [
-    'service',
-    'type',
-    'status',
-    'lastRun',
-    'duration',
-    'stages',
-    'jenkins',
+  protected readonly typeLabel = pipelineTypeLabel;
+  protected readonly pipelineId = (health: PipelineHealth) => health.pipeline.id;
+  protected readonly clickable = () => 'clickable';
+  protected readonly columns: GridColumn<PipelineHealth>[] = [
+    { key: 'service', header: 'Service', value: (health) => health.pipeline.serviceName },
+    {
+      key: 'type',
+      header: 'Pipeline',
+      value: (health) => pipelineTypeLabel(health.pipeline.type),
+      wrap: true,
+      minWidth: 180,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      value: (health) => RUN_LOOK[health.status]?.label,
+      width: 150,
+    },
+    {
+      key: 'lastRun',
+      header: 'Latest run',
+      value: (health) => health.lastRun?.time ?? '',
+      wrap: true,
+      minWidth: 180,
+    },
+    {
+      key: 'duration',
+      header: 'Duration',
+      value: (health) => formatDuration(health.lastRun?.durationSeconds),
+      sortValue: (health) => health.lastRun?.durationSeconds ?? -1,
+      width: 110,
+    },
+    {
+      key: 'stages',
+      header: 'Stages',
+      value: (health) =>
+        health.lastRun?.stagesTotal
+          ? `${health.lastRun.passed ?? 0} / ${health.lastRun.stagesTotal}`
+          : '–',
+      width: 120,
+    },
+    { key: 'jenkins', header: 'Jenkins', width: 100 },
   ];
   protected readonly errorMessage = errorMessage;
-
-  protected readonly typeLabel = pipelineTypeLabel;
 
   protected open(health: PipelineHealth): void {
     this.router.navigate(['/monitoring/pipelines', health.pipeline.id]);

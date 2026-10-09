@@ -15,7 +15,7 @@
 
   @if (resource.error(); as error) {
     <div class="banner">{{ errorMessage(error) }}</div>
-    <a mat-stroked-button routerLink="/monitoring">Back to monitoring</a>
+    <a class="btn btn-outline-primary" routerLink="/monitoring">Back to monitoring</a>
   } @else if (data(); as d) {
     <header class="page-header">
       <div>
@@ -33,32 +33,32 @@
         </p>
       </div>
       <div class="actions">
-        <mat-button-toggle-group
+        <dso-toggle-group
           [value]="selectedRange()"
-          (change)="selectRange($event.value)"
+          (valueChange)="selectRange($any($event))"
           aria-label="Time range"
         >
           @for (range of ranges; track range) {
-            <mat-button-toggle [value]="range">{{ range }}</mat-button-toggle>
+            <button [dsoToggle]="range">{{ range }}</button>
           }
-        </mat-button-toggle-group>
+        </dso-toggle-group>
         <button
-          mat-stroked-button
+          type="button"
+          class="btn btn-outline-primary"
           (click)="resource.reload()"
           [disabled]="resource.isLoading()"
           aria-label="Refresh the pipeline metrics"
         >
           Refresh
         </button>
-        <a mat-stroked-button [routerLink]="['/pipelines', d.pipeline.id]">Manage</a>
+        <a class="btn btn-outline-primary" [routerLink]="['/pipelines', d.pipeline.id]">Manage</a>
         @if (d.pipeline.jenkinsJobUrl; as job) {
           <a
-            mat-stroked-button
-            class="jenkins"
+            class="btn btn-outline-primary jenkins"
             [href]="job"
             target="_blank"
             rel="noopener"
-            [matTooltip]="d.pipeline.jenkinsJob ?? ''"
+            [attr.title]="d.pipeline.jenkinsJob"
             >Jenkins</a
           >
         }
@@ -66,7 +66,7 @@
     </header>
 
     @if (resource.isLoading()) {
-      <mat-progress-bar mode="indeterminate" class="loading" />
+      <dso-loading class="loading" />
     }
 
     @if (!d.pipeline.activeKey) {
@@ -79,7 +79,7 @@
 
     <dso-dora-tiles [dora]="d.dora" />
 
-    <div class="row">
+    <div class="split">
       <section class="card activity">
         <header class="card-header">
           <h2>Activity</h2>
@@ -158,8 +158,8 @@
         <header class="card-header"><h2>Grafana</h2></header>
         <div class="banner info">
           Grafana is not configured. Set <code>GRAFANA_DASHBOARD_URL</code>, and
-          <code>GRAFANA_2_DASHBOARD_URL</code> for a second Grafana, to embed the DevSecOps dashboard
-          of this pipeline here.
+          <code>GRAFANA_2_DASHBOARD_URL</code> for a second Grafana, to embed the DevSecOps
+          dashboard of this pipeline here.
         </div>
       </section>
     }
@@ -172,55 +172,20 @@
       @if (d.recentRuns.length === 0) {
         <div class="empty-state small-empty"><p>No runs in this range.</p></div>
       } @else {
-        <div class="table-scroll">
-          <table mat-table [dataSource]="d.recentRuns">
-            <ng-container matColumnDef="time">
-              <th mat-header-cell *matHeaderCellDef>Finished</th>
-              <td mat-cell *matCellDef="let run" [title]="run.time | date: 'medium'">
-                {{ run.time | date: 'd MMM, HH:mm' }}
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="result">
-              <th mat-header-cell *matHeaderCellDef>Result</th>
-              <td mat-cell *matCellDef="let run"><dso-status-chip [status]="run.result" /></td>
-            </ng-container>
-            <ng-container matColumnDef="build">
-              <th mat-header-cell *matHeaderCellDef>Build</th>
-              <td mat-cell *matCellDef="let run">
-                <dso-build-link [run]="run" />
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="branch">
-              <th mat-header-cell *matHeaderCellDef>Branch</th>
-              <td mat-cell *matCellDef="let run" class="mono">{{ run.branch ?? '–' }}</td>
-            </ng-container>
-            <ng-container matColumnDef="commit">
-              <th mat-header-cell *matHeaderCellDef>Commit</th>
-              <td mat-cell *matCellDef="let run" class="mono">
-                {{ run.commit ? run.commit.slice(0, 10) : '–' }}
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="duration">
-              <th mat-header-cell *matHeaderCellDef>Duration</th>
-              <td mat-cell *matCellDef="let run">{{ run.durationSeconds | duration }}</td>
-            </ng-container>
-            <ng-container matColumnDef="stages">
-              <th mat-header-cell *matHeaderCellDef>Stages passed</th>
-              <td mat-cell *matCellDef="let run">
-                @if (run.stagesTotal) {
-                  {{ run.passed ?? 0 }} / {{ run.stagesTotal }}
-                } @else {
-                  –
-                }
-              </td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="runColumns"></tr>
-            <tr mat-row *matRowDef="let row; columns: runColumns"></tr>
-          </table>
-        </div>
+        <dso-grid label="Recent runs" [rows]="d.recentRuns" [columns]="runColumns" [rowId]="runId">
+          <ng-template dsoCell="time" let-run>
+            <span [title]="run.time | date: 'medium'">{{ run.time | date: 'd MMM, HH:mm' }}</span>
+          </ng-template>
+          <ng-template dsoCell="result" let-run>
+            <dso-status-chip [status]="run.result" />
+          </ng-template>
+          <ng-template dsoCell="build" let-run>
+            <dso-build-link [run]="run" />
+          </ng-template>
+        </dso-grid>
       }
     </section>
   } @else {
-    <mat-progress-bar mode="indeterminate" />
+    <dso-loading />
   }
 </div>

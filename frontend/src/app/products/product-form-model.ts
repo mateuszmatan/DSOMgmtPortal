@@ -788,11 +788,19 @@ function unique(key: string, message: string): ValidatorFn {
 
 function revalidateUniqueValues(form: ProductForm): void {
   form.controls.services.controls.forEach((service) => {
-    service.controls.name.updateValueAndValidity({ emitEvent: false });
+    revalidate(service.controls.name);
     service.controls.nexusIqApplications.controls.forEach((application) =>
-      application.controls.application.updateValueAndValidity({ emitEvent: false }),
+      revalidate(application.controls.application),
     );
   });
+}
+
+function revalidate(control: AbstractControl): void {
+  const status = control.status;
+  control.updateValueAndValidity({ emitEvent: false });
+  if (control.status !== status) {
+    control.updateValueAndValidity({ onlySelf: true });
+  }
 }
 
 export function applyProductProblems(form: ProductForm, problems: FieldProblem[]): FieldProblem[] {

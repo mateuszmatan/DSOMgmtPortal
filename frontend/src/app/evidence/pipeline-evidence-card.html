@@ -7,13 +7,15 @@
     </div>
     <div class="actions row-wrap">
       @if (p.jenkinsJobUrl) {
-        <a mat-button [href]="p.jenkinsJobUrl" target="_blank" rel="noopener">Jenkins job</a>
+        <a class="btn btn-link" [href]="p.jenkinsJobUrl" target="_blank" rel="noopener"
+          >Jenkins job</a
+        >
       } @else {
         <span class="not-recorded">No Jenkins job</span>
       }
       <button
-        mat-stroked-button
         type="button"
+        class="btn btn-outline-primary"
         [cdkCopyToClipboard]="text()"
         (cdkCopyToClipboardCopied)="copied($event)"
       >
@@ -25,7 +27,7 @@
   @if (p.run; as run) {
     <div class="stages" aria-label="Stages">
       @for (stage of run.stages; track $index) {
-        <span class="stage" [class]="stage.status.toLowerCase()" [matTooltip]="stageTip(stage)">{{
+        <span class="stage" [class]="stage.status.toLowerCase()" [title]="stageTip(stage)">{{
           stage.name
         }}</span>
       } @empty {

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { inputOf, text } from '../testing/dom';
+import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
+import { choose, inputOf, optionsOf, selectOf, text } from '../testing/dom';
 import { department } from '../testing/fixtures';
 import { ProductNameDialog, ProductNameDialogData } from './product-name-dialog';
 
@@ -14,10 +14,10 @@ describe('ProductNameDialog', () => {
       imports: [ProductNameDialog],
       providers: [
         {
-          provide: MAT_DIALOG_DATA,
+          provide: DIALOG_DATA,
           useValue: { departments, departmentId } satisfies ProductNameDialogData,
         },
-        { provide: MatDialogRef, useValue: { close } },
+        { provide: DialogRef, useValue: { close } },
       ],
     });
     fixture = TestBed.createComponent(ProductNameDialog);
@@ -53,9 +53,13 @@ describe('ProductNameDialog', () => {
 
     expect(departmentId().value).toBeNull();
     expect(close).not.toHaveBeenCalled();
-    expect(text(page().querySelector('mat-error'))).toBe('Required');
+    expect(text(page().querySelector('dso-error'))).toBe('Required');
 
-    departmentId().setValue(3);
+    expect(optionsOf(selectOf(page(), 'Department'))).toEqual([
+      'Corporate Technology',
+      'Fund Services',
+    ]);
+    choose(selectOf(page(), 'Department'), 'Corporate Technology');
     await submit('CertScanner');
 
     expect(close).toHaveBeenCalledWith({ name: 'CertScanner', departmentId: 3 });
@@ -67,6 +71,6 @@ describe('ProductNameDialog', () => {
     await submit('   ');
 
     expect(close).not.toHaveBeenCalled();
-    expect(page().querySelector('mat-error')?.textContent).toBe('Required');
+    expect(page().querySelector('dso-error')?.textContent).toBe('Required');
   });
 });

@@ -124,8 +124,7 @@ class GlobalSettingsSpec extends GuiSpecification {
 
         then:
         assertThat(page.locator('.save-bar .save-error')).hasText('The portal did not accept some values. They are marked below.')
-        assertThat(holding(page.locator('mat-form-field'), "mat-label:text-is('SonarQube server URL')").locator('mat-error'))
-                .hasText('SonarQube does not answer at this address')
+        assertThat(errorOf(page.locator('form'), 'SonarQube server URL')).hasText('SonarQube does not answer at this address')
         assertThat(page.locator('.problems li')).hasText(['audit.retentionDays: must be at least 30'] as String[])
         assertThat(page.locator('.toc-item.problem')).hasText(['Platform and tools'] as String[])
 

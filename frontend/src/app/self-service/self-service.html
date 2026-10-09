@@ -30,18 +30,18 @@
           Choose its department, then start a new product or pick one that is already in the portal.
         </p>
         <div class="fields">
-          <mat-form-field>
-            <mat-label>Department</mat-label>
-            <mat-select [formControl]="productForm.controls.departmentId">
+          <dso-form-field>
+            <dso-label>Department</dso-label>
+            <select dsoInput [formControl]="productForm.controls.departmentId">
               @for (department of departments(); track department.id) {
-                <mat-option [value]="department.id">{{ department.name }}</mat-option>
+                <option [ngValue]="department.id">{{ department.name }}</option>
               }
-            </mat-select>
+            </select>
             @if (needsDepartment()) {
-              <mat-hint>Saving moves the product into this department</mat-hint>
+              <dso-hint>Saving moves the product into this department</dso-hint>
             }
-            <mat-error>{{ errorText(productForm.controls.departmentId) }}</mat-error>
-          </mat-form-field>
+            <dso-error>{{ errorText(productForm.controls.departmentId) }}</dso-error>
+          </dso-form-field>
         </div>
         @if (departmentsError(); as error) {
           <p class="choice-error">The departments could not be loaded: {{ error }}</p>
@@ -57,68 +57,68 @@
         />
         @if (mode() === 'new') {
           <form class="fields" [formGroup]="productForm" novalidate>
-            <mat-form-field>
-              <mat-label>Product name</mat-label>
+            <dso-form-field>
+              <dso-label>Product name</dso-label>
               <input
-                matInput
+                dsoInput
                 formControlName="name"
                 placeholder="CertScanner"
                 autocomplete="off"
                 required
               />
-              <mat-hint>{{
+              <dso-hint>{{
                 code() ? 'Its code will be ' + code() : 'The portal makes a unique code from it'
-              }}</mat-hint>
-              <mat-error>{{ errorText(productForm.controls.name) }}</mat-error>
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Owner team</mat-label>
-              <input matInput formControlName="ownerTeam" placeholder="Technology Architecture" />
-              <mat-hint>Optional</mat-hint>
-              <mat-error>{{ errorText(productForm.controls.ownerTeam) }}</mat-error>
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Contact e-mail</mat-label>
+              }}</dso-hint>
+              <dso-error>{{ errorText(productForm.controls.name) }}</dso-error>
+            </dso-form-field>
+            <dso-form-field>
+              <dso-label>Owner team</dso-label>
+              <input dsoInput formControlName="ownerTeam" placeholder="Technology Architecture" />
+              <dso-hint>Optional</dso-hint>
+              <dso-error>{{ errorText(productForm.controls.ownerTeam) }}</dso-error>
+            </dso-form-field>
+            <dso-form-field>
+              <dso-label>Contact e-mail</dso-label>
               <input
-                matInput
+                dsoInput
                 type="email"
                 formControlName="contactEmail"
                 placeholder="team@bbh.com"
               />
-              <mat-hint>Optional</mat-hint>
-              <mat-error>{{ errorText(productForm.controls.contactEmail) }}</mat-error>
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>AppScan API key ID</mat-label>
+              <dso-hint>Optional</dso-hint>
+              <dso-error>{{ errorText(productForm.controls.contactEmail) }}</dso-error>
+            </dso-form-field>
+            <dso-form-field>
+              <dso-label>AppScan API key ID</dso-label>
               <input
-                matInput
+                dsoInput
                 class="mono"
                 formControlName="appScanKeyId"
                 placeholder="bbh_..."
                 autocomplete="off"
                 required
               />
-              <mat-hint>The Application Security team gives it to you</mat-hint>
-              <mat-error>{{ errorText(productForm.controls.appScanKeyId) }}</mat-error>
-            </mat-form-field>
+              <dso-hint>The Application Security team gives it to you</dso-hint>
+              <dso-error>{{ errorText(productForm.controls.appScanKeyId) }}</dso-error>
+            </dso-form-field>
           </form>
         } @else {
           <div class="fields">
-            <mat-form-field>
-              <mat-label>Product</mat-label>
-              <mat-select [formControl]="productId">
+            <dso-form-field>
+              <dso-label>Product</dso-label>
+              <select dsoInput [formControl]="productId">
                 @for (group of productGroups(); track group.name) {
-                  <mat-optgroup [label]="group.name">
+                  <optgroup [label]="group.name">
                     @for (product of group.products; track product.id) {
-                      <mat-option [value]="product.id"
-                        >{{ product.name }} ({{ product.code }})</mat-option
-                      >
+                      <option [ngValue]="product.id">
+                        {{ product.name }} ({{ product.code }})
+                      </option>
                     }
-                  </mat-optgroup>
+                  </optgroup>
                 }
-              </mat-select>
-              <mat-hint>{{ choosable() }} to choose from</mat-hint>
-            </mat-form-field>
+              </select>
+              <dso-hint>{{ choosable() }} to choose from</dso-hint>
+            </dso-form-field>
           </div>
           @if (productError(); as error) {
             <p class="choice-error">The product could not be loaded: {{ error }}</p>
@@ -131,23 +131,23 @@
             </dl>
             @if (needsAppScanKey()) {
               <div class="fields">
-                <mat-form-field>
-                  <mat-label>AppScan API key ID</mat-label>
+                <dso-form-field>
+                  <dso-label>AppScan API key ID</dso-label>
                   <input
-                    matInput
+                    dsoInput
                     class="mono"
                     [formControl]="productForm.controls.appScanKeyId"
                     placeholder="bbh_..."
                     autocomplete="off"
                     required
                   />
-                  <mat-hint>The Application Security team gives it to you</mat-hint>
-                  <mat-error>{{ errorText(productForm.controls.appScanKeyId) }}</mat-error>
-                </mat-form-field>
+                  <dso-hint>The Application Security team gives it to you</dso-hint>
+                  <dso-error>{{ errorText(productForm.controls.appScanKeyId) }}</dso-error>
+                </dso-form-field>
               </div>
             }
           } @else if (productId.value !== null) {
-            <mat-progress-bar mode="indeterminate" />
+            <dso-loading />
             @if (checked()) {
               <p class="choice-error">Wait until the product is loaded</p>
             }
@@ -168,7 +168,7 @@
         </p>
         @if (existing()) {
           @if (current.isLoading()) {
-            <mat-progress-bar mode="indeterminate" />
+            <dso-loading />
           }
           @if (current.error(); as error) {
             <p class="choice-error">Its pipelines could not be loaded: {{ errorMessage(error) }}</p>
@@ -240,8 +240,8 @@
                 </div>
                 @if (isRemoved(service)) {
                   <button
-                    mat-button
                     type="button"
+                    class="btn btn-link"
                     [attr.aria-label]="'Undo removing ' + service.name"
                     (click)="keepService(service)"
                   >
@@ -249,17 +249,16 @@
                   </button>
                 } @else {
                   <button
-                    mat-button
                     type="button"
+                    class="btn btn-link"
                     [attr.aria-label]="'Change ' + service.name"
                     (click)="openService(index)"
                   >
                     Change
                   </button>
                   <button
-                    mat-button
                     type="button"
-                    class="danger"
+                    class="btn btn-link danger"
                     [attr.aria-label]="'Remove ' + service.name"
                     (click)="removeService(index)"
                   >
@@ -272,7 +271,9 @@
         } @else {
           <p class="empty">No services yet. Add the first one.</p>
         }
-        <button mat-stroked-button type="button" (click)="openService(null)">Add a service</button>
+        <button type="button" class="btn btn-outline-primary" (click)="openService(null)">
+          Add a service
+        </button>
         @if (checked() && !kept().length) {
           <p class="choice-error">
             {{ services().length ? 'Keep at least one service' : 'Add at least one service' }}
@@ -340,7 +341,7 @@
           The DevSecOps team can fine-tune them in {{ admin }}.
         </p>
         @if (saving()) {
-          <mat-progress-bar mode="indeterminate" />
+          <dso-loading />
         }
         @if (saveError(); as error) {
           <div class="banner danger save-problem" role="alert">
@@ -373,8 +374,8 @@
                     <strong>{{ start.serviceName }}</strong>
                     @if (start.pipeline) {
                       <button
-                        mat-button
                         type="button"
+                        class="btn btn-link"
                         [attr.aria-label]="'Copy the Jenkinsfile of ' + start.serviceName"
                         [cdkCopyToClipboard]="jenkinsfileOf(start)"
                         (cdkCopyToClipboardCopied)="copied()"
@@ -447,16 +448,20 @@
     <div class="step-actions">
       @if (step() === 4) {
         @if (result(); as done) {
-          <a mat-button [routerLink]="adminProduct(done.product.id)">Open in {{ admin }}</a>
+          <a class="btn btn-link" [routerLink]="adminProduct(done.product.id)"
+            >Open in {{ admin }}</a
+          >
         }
         <span class="spacer"></span>
-        <button mat-flat-button type="button" (click)="restart()">Start again</button>
+        <button type="button" class="btn btn-primary" (click)="restart()">Start again</button>
       } @else {
         @if (step() > 0) {
-          <button mat-button type="button" [disabled]="saving()" (click)="back()">Back</button>
+          <button type="button" class="btn btn-link" [disabled]="saving()" (click)="back()">
+            Back
+          </button>
         }
         <span class="spacer"></span>
-        <button mat-flat-button type="button" [disabled]="saving()" (click)="next()">
+        <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="next()">
           {{ nextLabel() }}
         </button>
       }

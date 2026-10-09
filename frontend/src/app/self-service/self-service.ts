@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ClipboardModule } from '@angular/cdk/clipboard';
+import { Dialog } from '@angular/cdk/dialog';
 import {
   AbstractControl,
   FormControl,
@@ -16,12 +17,6 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
 import {
   Observable,
@@ -53,6 +48,8 @@ import { filled, max, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
 import { ChoiceTiles } from '../shared/choice-tiles';
+import { FORM_FIELD } from '../ui/form-field';
+import { DsoLoading } from '../ui/loading';
 import {
   NewProduct,
   WizardPipeline,
@@ -88,17 +85,7 @@ const STEPS = ['Product', 'Pipeline', 'Services', 'Review', 'Next steps'];
 
 @Component({
   selector: 'dso-self-service',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-    ClipboardModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatProgressBarModule,
-    MatSelectModule,
-    ChoiceTiles,
-  ],
+  imports: [ReactiveFormsModule, RouterLink, ClipboardModule, FORM_FIELD, DsoLoading, ChoiceTiles],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './self-service.html',
   styleUrl: '../shared/wizard.scss',
@@ -106,7 +93,7 @@ const STEPS = ['Product', 'Pipeline', 'Services', 'Review', 'Next steps'];
 export class SelfService implements HasUnsavedChanges {
   private readonly productsApi = inject(ProductsApi);
   private readonly pipelinesApi = inject(PipelinesApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(Dialog);
   private readonly notifier = inject(Notifier);
   private readonly destroyRef = inject(DestroyRef);
   private readonly myDepartment = inject(MyDepartment);
@@ -448,7 +435,7 @@ export class SelfService implements HasUnsavedChanges {
   protected openService(index: number | null): void {
     const services = this.services();
     this.dialog
-      .open<ServiceDialog, ServiceDialogData, WizardService>(ServiceDialog, {
+      .open<WizardService, ServiceDialogData, ServiceDialog>(ServiceDialog, {
         data: {
           pipeline: this.pipeline()!,
           service: index === null ? null : services[index],
@@ -458,8 +445,7 @@ export class SelfService implements HasUnsavedChanges {
           defaults: this.defaults(),
         },
       })
-      .afterClosed()
-      .subscribe((service) => {
+      .closed.subscribe((service) => {
         if (!service) {
           return;
         }

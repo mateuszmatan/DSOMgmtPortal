@@ -54,7 +54,7 @@ describe('ChangeEvidencePage', () => {
   }
 
   async function expand(index: number) {
-    page().querySelectorAll<HTMLElement>('mat-expansion-panel-header')[index].click();
+    page().querySelectorAll<HTMLElement>('dso-panel .accordion-button')[index].click();
     await fixture.whenStable();
   }
 
@@ -69,9 +69,9 @@ describe('ChangeEvidencePage', () => {
       [...page().querySelectorAll('.panel-toggle')].map((toggle) => toggle.textContent?.trim()),
     ).toEqual(['Show', 'Show']);
     expect(
-      [...page().querySelectorAll('mat-panel-title .name')].map((name) => name.textContent),
+      [...page().querySelectorAll('.panel-title .name')].map((name) => name.textContent),
     ).toEqual(['CertScanner', 'PayHub']);
-    expect(page().querySelectorAll('mat-panel-description .counts')[1].textContent).toContain(
+    expect(page().querySelectorAll('.panel-description .counts')[1].textContent).toContain(
       '1 pipeline',
     );
     http.expectNone((request) => request.url.startsWith('/api/evidence'));
@@ -131,7 +131,7 @@ describe('ChangeEvidencePage', () => {
       'Unit test report',
       'Artifacts',
     ]);
-    expect(card.querySelector('mat-icon')).toBeNull();
+    expect(card.querySelector('svg-icon')).toBeNull();
     expect(card.querySelector('.coverage .value')?.textContent).toBe('84.25%');
     expect(
       [...card.querySelectorAll('.stage')].map((stage) =>
@@ -173,7 +173,7 @@ describe('ChangeEvidencePage', () => {
     await fixture.whenStable();
 
     expect(page().querySelector('[role=alert]')?.textContent).toBe('The database is not available');
-    expect(page().querySelector('mat-accordion')).toBeNull();
+    expect(page().querySelector('.accordion')).toBeNull();
   });
 
   it('leads to the Admin products while there are no products', async () => {

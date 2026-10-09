@@ -10,7 +10,7 @@ import {
   productMonitoring,
 } from '../testing/fixtures';
 import { ProductMonitoringPage } from './product-monitoring';
-import { buttonOf } from '../testing/dom';
+import { buttonOf, gridCell, gridRows, settleGrid } from '../testing/dom';
 
 describe('ProductMonitoringPage', () => {
   let fixture: ComponentFixture<ProductMonitoringPage>;
@@ -32,7 +32,7 @@ describe('ProductMonitoringPage', () => {
   afterEach(() => http.verify());
 
   const page = () => fixture.nativeElement as HTMLElement;
-  const rows = () => [...page().querySelectorAll<HTMLElement>('tr.mat-mdc-row')];
+  const rows = () => gridRows(page());
 
   async function load(data: ProductMonitoring = productMonitoring()) {
     fixture.detectChanges();
@@ -50,14 +50,15 @@ describe('ProductMonitoringPage', () => {
       'https://jenkins.bbh.com/job/DevSecOps/job/CERT/job/gui-full/job/develop/42/',
     );
     expect(link.textContent?.trim()).toBe('#42');
-    expect(rows()[0].querySelector('.mat-column-lastRun')?.textContent).toContain('develop');
+    expect(gridCell(rows()[0], 'lastRun').textContent).toContain('develop');
     expect(rows()[0].querySelector('.stages')?.textContent).toContain('/ 12');
   });
 
   it('opens a pipeline when its row is clicked', async () => {
     await load();
 
-    rows()[0].click();
+    gridCell(rows()[0], 'service').click();
+    await settleGrid();
 
     expect(router.navigate).toHaveBeenCalledWith(['/monitoring/pipelines', 100]);
   });
@@ -88,12 +89,12 @@ describe('ProductMonitoringPage', () => {
     refresh.click();
     TestBed.tick();
 
-    expect(page().querySelector('mat-progress-bar')).not.toBeNull();
+    expect(page().querySelector('dso-loading')).not.toBeNull();
     expect(refresh.disabled).toBe(true);
     http.expectOne('/api/monitoring/products/1').flush(productMonitoring());
     await fixture.whenStable();
 
-    expect(page().querySelector('mat-progress-bar')).toBeNull();
+    expect(page().querySelector('dso-loading')).toBeNull();
     expect(page().querySelector('h1')?.textContent).toBe('CertScanner');
   });
 });

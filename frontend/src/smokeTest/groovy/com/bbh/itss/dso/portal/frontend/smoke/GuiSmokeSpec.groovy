@@ -49,7 +49,7 @@ class GuiSmokeSpec extends GuiSpecification {
         assertThat(page.locator('nav.menu .menu-group.active')).hasText('DevSecOps Management')
         MENUS.every { name, labels ->
             menuButton(name).click()
-            def panel = page.locator('.mat-mdc-menu-panel')
+            def panel = page.locator('.dso-menu')
             assertThat(panel.getByRole(MENUITEM)).hasText(labels as String[])
             assert SECTIONS.every { section -> !panel.textContent().contains(section.description) }
             page.keyboard().press('Escape')
@@ -158,9 +158,9 @@ class GuiSmokeSpec extends GuiSpecification {
         open(path)
 
         then:
-        assertThat(page.locator('button.lookup mat-icon')).hasCount(lookups)
-        page.locator('mat-icon').count() == lookups
-        page.locator('mat-icon').allTextContents().every { it.trim() == 'search' }
+        assertThat(page.locator('button.lookup svg-icon')).hasCount(lookups)
+        page.locator('svg-icon').count() == lookups
+        page.locator("button.lookup svg-icon[name='search']").count() == lookups
         ownErrors().isEmpty()
 
         where:
@@ -191,11 +191,11 @@ class GuiSmokeSpec extends GuiSpecification {
     def "the service editor keeps icons only in its vertical section menu"() {
         when:
         open('/admin/products/1/edit')
-        page.locator('mat-expansion-panel-header').first().click()
+        page.locator('dso-panel .accordion-button').first().click()
 
         then:
-        assertThat(page.locator('.rail mat-icon').first()).isVisible()
-        page.locator('mat-icon').count() == page.locator('.rail mat-icon').count()
+        assertThat(page.locator('.rail svg-icon svg').first()).isVisible()
+        page.locator('svg-icon').count() == page.locator('.rail svg-icon').count()
         ownErrors().isEmpty()
     }
 
@@ -233,14 +233,14 @@ class GuiSmokeSpec extends GuiSpecification {
         then:
         assertThat(regenerate).hasCount(1)
         assertThat(regenerate).isVisible()
-        regenerate.locator('mat-icon').count() == 0
+        regenerate.locator('svg-icon').count() == 0
 
         when:
         regenerate.click()
 
         then:
         assertThat(page.locator('.key-value', new Page.LocatorOptions().setHasText(REGENERATED_KEY))).isVisible()
-        assertThat(page.locator('mat-snack-bar-container'))
+        assertThat(snackBar())
                 .containsText('SAST scanning pipeline of mobile-app has a new key')
         assertThat(button('Regenerate key')).hasCount(0)
         api.requests('POST', '/api/pipelines/9/keys').size() == 1
@@ -262,7 +262,7 @@ class GuiSmokeSpec extends GuiSpecification {
 
         when:
         open('/admin/products/1/edit')
-        page.locator('mat-expansion-panel-header').first().click()
+        page.locator('dso-panel .accordion-button').first().click()
         button('Duplicate').first().click()
         button('Save changes').click()
         page.waitForURL('**/admin/products/1')

@@ -10,12 +10,8 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { Dialog } from '@angular/cdk/dialog';
 import { ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatDialog } from '@angular/material/dialog';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { finalize } from 'rxjs';
 import { SettingsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
@@ -28,6 +24,8 @@ import { Fields, chips } from '../shared/fields';
 import { applyFieldProblems, revalidateAll } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { RelativeTimePipe } from '../shared/formatting';
+import { DsoLoading, DsoSpinner } from '../ui/loading';
+import { TOGGLES } from '../ui/toggle-group';
 import {
   GOLDEN_FIX_ENABLED,
   LIMIT_FIELDS,
@@ -61,10 +59,9 @@ const SCANNER_INFO: Record<
   selector: 'dso-global-settings',
   imports: [
     ReactiveFormsModule,
-    MatButtonModule,
-    MatButtonToggleModule,
-    MatProgressBarModule,
-    MatProgressSpinnerModule,
+    TOGGLES,
+    DsoLoading,
+    DsoSpinner,
     Fields,
     GoldenFixFields,
     RelativeTimePipe,
@@ -76,7 +73,7 @@ const SCANNER_INFO: Record<
 export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
   private readonly api = inject(SettingsApi);
   private readonly notifier = inject(Notifier);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(Dialog);
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -174,7 +171,7 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
       )
       .subscribe({
         next: (code) =>
-          this.dialog.open<CodeDialog, CodeDialogData>(CodeDialog, {
+          this.dialog.open<void, CodeDialogData, CodeDialog>(CodeDialog, {
             width: '880px',
             maxWidth: '95vw',
             data: {
@@ -244,7 +241,7 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
       () => {
         const target = section && document.getElementById(`settings-${section}`);
         const field =
-          target?.querySelector('.mat-form-field-invalid, .field-error') ??
+          target?.querySelector('.dso-form-field.has-error, .field-error') ??
           (this.unmatchedProblems().length ? document.querySelector('.settings .problems') : null);
         (field ?? target)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
       },

@@ -6,22 +6,24 @@
       </a>
       <nav class="menu" aria-label="Main">
         @for (menu of menus; track menu.label) {
-          <div class="menu-group" routerLinkActive="active">
-            <button type="button" class="menu-trigger" [matMenuTriggerFor]="items">
+          <div class="menu-group" [class.active]="menu.active()">
+            <button type="button" class="menu-trigger" [cdkMenuTriggerFor]="items">
               {{ menu.label }}
             </button>
-            <mat-menu #items="matMenu" [aria-label]="menu.label">
-              @for (item of menu.sections; track item.path) {
-                <a
-                  mat-menu-item
-                  class="menu-item"
-                  [routerLink]="item.path"
-                  routerLinkActive="active"
-                  ariaCurrentWhenActive="page"
-                  >{{ item.label }}</a
-                >
-              }
-            </mat-menu>
+            <ng-template #items>
+              <div cdkMenu class="dropdown-menu dso-menu" [attr.aria-label]="menu.label">
+                @for (item of menu.sections; track item.path) {
+                  <a
+                    cdkMenuItem
+                    class="dropdown-item menu-item"
+                    [routerLink]="item.path"
+                    routerLinkActive="active"
+                    ariaCurrentWhenActive="page"
+                    >{{ item.label }}</a
+                  >
+                }
+              </div>
+            </ng-template>
           </div>
         }
       </nav>

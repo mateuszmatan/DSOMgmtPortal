@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { Pipeline, Product } from '../core/models';
@@ -22,7 +22,7 @@ import { KeyHistoryDialog } from './key-history-dialog';
 import { PipelineDialog } from './pipeline-dialog';
 import { ProductDetail } from './product-detail';
 import { RevokeKeyDialog } from './revoke-key-dialog';
-import { buttonOf } from '../testing/dom';
+import { buttonOf, text, toast } from '../testing/dom';
 
 describe('ProductDetail', () => {
   let fixture: ComponentFixture<ProductDetail>;
@@ -64,10 +64,7 @@ describe('ProductDetail', () => {
       },
     });
   const stats = () => [...page().querySelectorAll('.stat')].map((stat) => stat.textContent?.trim());
-  const snackText = () =>
-    [...document.querySelectorAll('mat-snack-bar-container')]
-      .map((container) => container.textContent)
-      .join(' ');
+  const snackText = () => text(toast());
 
   function withScm(scm: Partial<Product['services'][number]['scm']>): Product {
     const stored = service();
@@ -89,7 +86,7 @@ describe('ProductDetail', () => {
       '0Invalidated keys',
     ]);
     expect(page().querySelector('.pipeline-title strong')?.textContent).toBe('Full pipeline');
-    expect(page().querySelector('mat-icon')).toBeNull();
+    expect(page().querySelector('svg-icon')).toBeNull();
   });
 
   it('leaves the department out of a product that is not in one', async () => {
@@ -175,9 +172,7 @@ describe('ProductDetail', () => {
     await fixture.whenStable();
 
     expect(page().querySelector('.banner')?.textContent).toBe('Product 1 does not exist');
-    expect(
-      page().querySelector<HTMLAnchorElement>('a[href="/admin/products"].mat-mdc-button-base'),
-    ).not.toBeNull();
+    expect(page().querySelector<HTMLAnchorElement>('a[href="/admin/products"].btn')).not.toBeNull();
     expect(page().querySelector('.breadcrumb')?.textContent).toContain('Product');
     expect(page().querySelector('h1')).toBeNull();
   });
@@ -255,7 +250,7 @@ describe('ProductDetail', () => {
   describe('invalidated keys', () => {
     it('regenerates the key without asking and shows the new one', async () => {
       await load(product(), [invalidated()]);
-      const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
+      const open = vi.spyOn(TestBed.inject(Dialog), 'open');
 
       buttonOf(page(), 'Regenerate key')!.click();
       await fixture.whenStable();
@@ -277,10 +272,9 @@ describe('ProductDetail', () => {
   });
 
   describe('actions', () => {
-    const spyOnOpen = () => vi.spyOn(TestBed.inject(MatDialog), 'open');
+    const spyOnOpen = () => vi.spyOn(TestBed.inject(Dialog), 'open');
     let open: ReturnType<typeof spyOnOpen>;
-    const closed = (result: unknown) =>
-      ({ afterClosed: () => of(result) }) as unknown as MatDialogRef<unknown>;
+    const closed = (result: unknown) => ({ closed: of(result) }) as unknown as DialogRef<unknown>;
 
     beforeEach(() => {
       open = spyOnOpen().mockReturnValue(closed(undefined));
@@ -293,10 +287,7 @@ describe('ProductDetail', () => {
       component: open.mock.calls[index][0],
       data: open.mock.calls[index][1]?.data as Record<string, unknown>,
     });
-    const snack = () =>
-      [...document.querySelectorAll('mat-snack-bar-container')]
-        .map((container) => container.textContent)
-        .join(' ');
+    const snack = snackText;
 
     async function menu(label: string) {
       buttonOf(page(), 'More').click();

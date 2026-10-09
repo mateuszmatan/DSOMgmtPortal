@@ -1,7 +1,6 @@
-import { Component } from '@angular/core';
+import { DEFAULT_DIALOG_CONFIG, Dialog, DialogRef } from '@angular/cdk/dialog';
+import { ApplicationInitStatus, Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
-import { MatIconRegistry } from '@angular/material/icon';
 import { Title } from '@angular/platform-browser';
 import {
   ActivatedRouteSnapshot,
@@ -12,6 +11,7 @@ import {
   TitleStrategy,
   provideRouter,
 } from '@angular/router';
+import { SvgIconRegistryService } from 'angular-svg-icon';
 import { Observable, firstValueFrom, of } from 'rxjs';
 import { appConfig } from './app.config';
 import { routes } from './app.routes';
@@ -181,11 +181,9 @@ describe('unsavedChangesGuard', () => {
 
   it('asks before discarding changes and stays unless the user confirms', async () => {
     const open = vi
-      .spyOn(TestBed.inject(MatDialog), 'open')
-      .mockReturnValueOnce({ afterClosed: () => of(true) } as unknown as MatDialogRef<unknown>)
-      .mockReturnValueOnce({
-        afterClosed: () => of(undefined),
-      } as unknown as MatDialogRef<unknown>);
+      .spyOn(TestBed.inject(Dialog), 'open')
+      .mockReturnValueOnce({ closed: of(true) } as unknown as DialogRef<unknown>)
+      .mockReturnValueOnce({ closed: of(undefined) } as unknown as DialogRef<unknown>);
 
     expect(await firstValueFrom(guard(true) as Observable<boolean>)).toBe(true);
     expect(await firstValueFrom(guard(true) as Observable<boolean>)).toBe(false);
@@ -196,12 +194,17 @@ describe('unsavedChangesGuard', () => {
 });
 
 describe('appConfig', () => {
-  it('sets the portal title strategy and the outlined icon font', () => {
+  it('sets the portal title strategy, square dialogs and registers the portal icons', async () => {
     TestBed.configureTestingModule({ providers: appConfig.providers });
+    await TestBed.inject(ApplicationInitStatus).donePromise;
 
     expect(TestBed.inject(TitleStrategy)).toBeInstanceOf(PortalTitleStrategy);
-    expect(TestBed.inject(MatIconRegistry).getDefaultFontSetClass()).toEqual([
-      'material-icons-outlined',
-    ]);
+    expect(TestBed.inject(DEFAULT_DIALOG_CONFIG)).toEqual(
+      expect.objectContaining({ panelClass: 'dso-dialog' }),
+    );
+    const svg = await firstValueFrom(
+      TestBed.inject(SvgIconRegistryService).getSvgByName('search')!,
+    );
+    expect(svg?.tagName.toLowerCase()).toBe('svg');
   });
 });

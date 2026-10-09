@@ -1,11 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { DepartmentsApi, MonitoringApi } from '../core/api';
@@ -16,6 +11,8 @@ import { byDepartment } from '../products/departments';
 import { BarChart, BarRow } from '../shared/bar-chart';
 import { CountedPipe, RelativeTimePipe, counted } from '../shared/formatting';
 import { StatusChip } from '../shared/status-chip';
+import { FORM_FIELD } from '../ui/form-field';
+import { DsoLoading } from '../ui/loading';
 import { ActivityChart } from './activity-chart';
 import { DoraTiles } from './dora-tiles';
 import { MetricsBanner } from './metrics-banner';
@@ -28,11 +25,8 @@ const ACTIVITY_RANGE = '30d';
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatProgressBarModule,
-    MatTooltipModule,
+    FORM_FIELD,
+    DsoLoading,
     ActivityChart,
     BarChart,
     CountedPipe,

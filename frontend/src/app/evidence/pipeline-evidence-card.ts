@@ -1,7 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { ClipboardModule } from '@angular/cdk/clipboard';
-import { MatButtonModule } from '@angular/material/button';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import {
   PipelineEvidence,
   ProductEvidence,
@@ -28,15 +26,7 @@ import {
 
 @Component({
   selector: 'dso-pipeline-evidence-card',
-  imports: [
-    ClipboardModule,
-    MatButtonModule,
-    MatTooltipModule,
-    CheckChip,
-    CountedPipe,
-    DurationPipe,
-    StatusChip,
-  ],
+  imports: [ClipboardModule, CheckChip, CountedPipe, DurationPipe, StatusChip],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './pipeline-evidence-card.html',
   styleUrl: './pipeline-evidence-card.scss',

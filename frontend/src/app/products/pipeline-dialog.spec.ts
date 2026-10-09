@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { inputOf } from '../testing/dom';
 import { pipeline, servicePipelines, serviceTemplate } from '../testing/fixtures';
 import { ServiceTemplate } from '../core/models';
@@ -21,8 +21,8 @@ describe('PipelineDialog', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: MAT_DIALOG_DATA, useValue: data },
-        { provide: MatDialogRef, useValue: { close } },
+        { provide: DIALOG_DATA, useValue: data },
+        { provide: DialogRef, useValue: { close } },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -58,7 +58,7 @@ describe('PipelineDialog', () => {
     await fixture.whenStable();
   };
   const labels = () =>
-    [...page().querySelectorAll('mat-label')].map((label) => label.textContent?.trim());
+    [...page().querySelectorAll('dso-label')].map((label) => label.textContent?.trim());
   const every = () =>
     servicePipelines({
       pipelines: (['FULL', 'SECURITY', 'EXTENDED', 'SAST', 'NEXUS_IQ'] as const).map(
@@ -87,7 +87,7 @@ describe('PipelineDialog', () => {
     expect(page().querySelector('h2')?.textContent).toBe('Add pipeline');
     expect(page().querySelector('.intro')?.textContent).toContain('gets its own unique key');
     expect(inputOf(page(), 'Jenkins agent labels').value).toBe('linux-agent');
-    expect(page().querySelector('mat-hint')?.textContent).toContain(
+    expect(page().querySelector('dso-hint')?.textContent).toContain(
       'Build, scans, tests, deployment and release',
     );
     expect(labels()).not.toContain('Extended pipeline job');
@@ -100,7 +100,7 @@ describe('PipelineDialog', () => {
     expect(page().querySelector('.banner.info')?.textContent).toBe(
       'The service already has a pipeline of every type.',
     );
-    expect(page().querySelector('mat-select')).toBeNull();
+    expect(page().querySelector('select')).toBeNull();
     expect(page().querySelector<HTMLButtonElement>('button[type=submit]')?.disabled).toBe(true);
   });
 
@@ -137,7 +137,7 @@ describe('PipelineDialog', () => {
       jenkinsJob: null,
       description: 'Release build',
     });
-    expect(page().querySelector('mat-spinner')).not.toBeNull();
+    expect(page().querySelector('dso-spinner')).not.toBeNull();
     await submit();
     http.expectNone({ method: 'PUT', url: '/api/pipelines/100' });
 
@@ -155,7 +155,7 @@ describe('PipelineDialog', () => {
 
     expect(dialog()['types'].map((type) => type.label)).toEqual(['Nexus IQ GoldenFix']);
     expect(form().controls.type.value).toBe('NEXUS_IQ');
-    expect(page().querySelector('mat-hint')?.textContent).toContain(
+    expect(page().querySelector('dso-hint')?.textContent).toContain(
       "GoldenFix opens a pull request with safe versions in the service's Bitbucket repository",
     );
     expect(labels()).toEqual([
@@ -190,7 +190,7 @@ describe('PipelineDialog', () => {
     await submit();
 
     http.expectNone('/api/services/10/pipelines');
-    const errors = [...page().querySelectorAll('mat-error')].map((e) => e.textContent?.trim());
+    const errors = [...page().querySelectorAll('dso-error')].map((e) => e.textContent?.trim());
     expect(errors).toContain(`At most 100 characters per label: ${'x'.repeat(101)}`);
     expect(errors).toContain(
       'A job path such as DevSecOps/CERT/backend-api-full, or an http or https URL',
@@ -219,7 +219,7 @@ describe('PipelineDialog', () => {
       server: 'is used by the full pipeline of api',
     });
     expect(page().querySelector('[role=alert]')?.textContent).toBe('the service was deleted');
-    expect(page().querySelector('mat-spinner')).toBeNull();
+    expect(page().querySelector('dso-spinner')).toBeNull();
     expect(close).not.toHaveBeenCalled();
   });
 

@@ -248,8 +248,8 @@ class EditProductSpec extends EditorSpecification {
         hasValues(openService(), ['Repository URL': 'https://bitbucket.bbh.com/projects/TA/repos/cert-scanner',
                                   'Credentials ID': 'bitbucket-http-credentials', 'Bitbucket API URL': 'https://bitbucket.bbh.com',
                                   'Workspace'     : '', 'Project key': 'TA', 'Repository slug': 'cert-scanner'])
-        assertThat(select(openService(), 'Sign-in')).hasText('User name and password or token')
-        assertThat(select(openService(), 'Bitbucket')).hasText('Detected from the URL')
+        assertThat(selected(openService(), 'Sign-in')).hasText('User name and password or token')
+        assertThat(selected(openService(), 'Bitbucket')).hasText('Detected from the URL')
         assertThat(hintOf(openService(), 'Workspace')).hasText('scm.bitbucket.workspace · Bitbucket Cloud')
 
         when:
@@ -298,8 +298,8 @@ class EditProductSpec extends EditorSpecification {
         then:
         hasValues(openService(), ['Repository URL': '', 'Workspace': 'bbh-technology', 'Project key': '',
                                   'Repository slug': 'cert-scanner-ui', 'Reviewers': 'jsmith, akowalski'])
-        assertThat(select(openService(), 'Sign-in')).hasText('HTTP access token')
-        assertThat(select(openService(), 'Bitbucket')).hasText('Cloud')
+        assertThat(selected(openService(), 'Sign-in')).hasText('HTTP access token')
+        assertThat(selected(openService(), 'Bitbucket')).hasText('Cloud')
         ownErrors().isEmpty()
     }
 
@@ -312,7 +312,7 @@ class EditProductSpec extends EditorSpecification {
         showSection('GoldenFix')
 
         then:
-        assertThat(select(openService(), 'Run GoldenFix')).hasText('Global default')
+        assertThat(selected(openService(), 'Run GoldenFix')).hasText('Global default')
         assertThat(hintOf(openService(), 'Run GoldenFix')).hasText('goldenFix.enabled · Global default: on')
 
         when:
@@ -321,7 +321,7 @@ class EditProductSpec extends EditorSpecification {
         showSection('GoldenFix')
 
         then:
-        assertThat(select(openService(), 'Run GoldenFix')).hasText('Off')
+        assertThat(selected(openService(), 'Run GoldenFix')).hasText('Off')
 
         when:
         choose(openService(), 'Run GoldenFix', 'Global default')

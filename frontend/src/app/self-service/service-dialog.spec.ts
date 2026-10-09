@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { inputOf, text } from '../testing/dom';
 import { serviceTemplate } from '../testing/fixtures';
 import { WizardDefaults, WizardService } from './self-service-model';
@@ -23,9 +23,9 @@ describe('ServiceDialog', () => {
     TestBed.configureTestingModule({
       imports: [ServiceDialog],
       providers: [
-        { provide: MatDialogRef, useValue: { close } },
+        { provide: DialogRef, useValue: { close } },
         {
-          provide: MAT_DIALOG_DATA,
+          provide: DIALOG_DATA,
           useValue: {
             pipeline: 'FULL',
             service: null,
@@ -61,7 +61,7 @@ describe('ServiceDialog', () => {
     await fixture.whenStable();
   }
 
-  const errors = () => [...page().querySelectorAll('mat-error, .choice-error')].map(text);
+  const errors = () => [...page().querySelectorAll('dso-error, .choice-error')].map(text);
 
   it('asks about the service first and refuses a taken name and a malformed AppScan ID', async () => {
     await open();
@@ -145,7 +145,7 @@ describe('ServiceDialog', () => {
     );
 
     await type('Bitbucket repository', REPOSITORY);
-    page().querySelector<HTMLButtonElement>('mat-dialog-actions button[type=button]')!.click();
+    page().querySelector<HTMLButtonElement>('.modal-footer button[type=button]')!.click();
     await fixture.whenStable();
     await type('Service name', 'ledger');
     await submit();
@@ -164,7 +164,7 @@ describe('ServiceDialog', () => {
     expect(inputOf(page(), 'Nexus IQ application')).toBeUndefined();
     expect(inputOf(page(), 'Bitbucket repository')).toBeUndefined();
 
-    page().querySelector<HTMLButtonElement>('mat-dialog-actions button[type=button]')!.click();
+    page().querySelector<HTMLButtonElement>('.modal-footer button[type=button]')!.click();
     await fixture.whenStable();
     expect(inputOf(page(), 'Service name').value).toBe('scanner');
 

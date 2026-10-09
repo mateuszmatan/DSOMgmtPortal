@@ -1,32 +1,26 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { finalize } from 'rxjs';
 import { PipelinesApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { Pipeline, pipelineTypeName } from '../core/models';
 import { filled, max, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
+import { DIALOG } from '../ui/dialog';
+import { FORM_FIELD } from '../ui/form-field';
+import { DsoSpinner } from '../ui/loading';
 
 @Component({
   selector: 'dso-revoke-key-dialog',
-  imports: [
-    ReactiveFormsModule,
-    MatButtonModule,
-    MatDialogModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatProgressSpinnerModule,
-  ],
+  imports: [ReactiveFormsModule, DIALOG, FORM_FIELD, DsoSpinner],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2 mat-dialog-title>Invalidate the pipeline key?</h2>
+    <div class="modal-header">
+      <h2 dsoDialogTitle>Invalidate the pipeline key?</h2>
+    </div>
     <form [formGroup]="form" (ngSubmit)="revoke()" novalidate>
-      <mat-dialog-content>
+      <div class="modal-body">
         <div class="banner">
           <span>
             The {{ typeName }} pipeline of
@@ -35,43 +29,43 @@ import { errorText } from '../shared/form-errors';
             later.
           </span>
         </div>
-        <mat-form-field class="full-width">
-          <mat-label>Reason</mat-label>
+        <dso-form-field class="full-width">
+          <dso-label>Reason</dso-label>
           <textarea
-            matInput
+            dsoInput
             formControlName="reason"
             required
             rows="3"
             placeholder="Service retired, key leaked in a build log, ..."
           ></textarea>
-          <mat-hint>Kept in the key history and shown to the pipeline when it is refused</mat-hint>
-          <mat-error>{{ errorText(reason) }}</mat-error>
-        </mat-form-field>
+          <dso-hint>Kept in the key history and shown to the pipeline when it is refused</dso-hint>
+          <dso-error>{{ errorText(reason) }}</dso-error>
+        </dso-form-field>
         @if (error(); as message) {
           <div class="banner" role="alert">{{ message }}</div>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancel</button>
-        <button mat-flat-button type="submit" class="danger" [disabled]="saving()">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" dsoDialogClose>Cancel</button>
+        <button type="submit" class="btn btn-danger" [disabled]="saving()">
           @if (saving()) {
-            <mat-spinner diameter="18" />
+            <dso-spinner />
           }
           Invalidate key
         </button>
-      </mat-dialog-actions>
+      </div>
     </form>
   `,
   styles: `
-    mat-dialog-content {
+    .modal-body {
       width: min(520px, 80vw);
     }
   `,
 })
 export class RevokeKeyDialog {
-  protected readonly pipeline = inject<Pipeline>(MAT_DIALOG_DATA);
+  protected readonly pipeline = inject<Pipeline>(DIALOG_DATA);
   protected readonly typeName = pipelineTypeName(this.pipeline.type);
-  private readonly dialogRef = inject<MatDialogRef<RevokeKeyDialog, Pipeline>>(MatDialogRef);
+  private readonly dialogRef = inject<DialogRef<Pipeline, RevokeKeyDialog>>(DialogRef);
   private readonly api = inject(PipelinesApi);
 
   protected readonly form = new FormGroup({

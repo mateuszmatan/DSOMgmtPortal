@@ -15,18 +15,19 @@ class DepartmentSpec extends GuiSpecification {
 
         then:
         assertThat(names()).hasText(DEPARTMENTS as String[])
-        assertThat(page.locator('th.mat-mdc-header-cell')).hasText(['Department', 'Products', 'Services', 'DevSecOps pipelines', ''] as String[])
+        assertThat(gridHeaders()).hasText(['Department', 'Products', 'Services', 'DevSecOps pipelines', ''] as String[])
         assertThat(page.locator('.toolbar .count')).hasText('5 departments · 2 products · 6 services')
         assertThat(cells('Fund Services')).hasText(['Fund Services', '1', '4', '6 · 5 active · 1 invalidated'] as String[])
         assertThat(cells('Corporate Technology')).hasText(['Corporate Technology', '1', '2', '3 · 3 active'] as String[])
         assertThat(cells('AI Lab')).hasText(['AI Lab', '0', '0', 'None yet'] as String[])
         assertThat(page.locator('section.chart h2')).hasText('DevSecOps pipelines by department')
-        assertThat(page.locator('section.chart .note')).hasText(['0 pipelines · 0 products', '0 pipelines · 0 products',
-                                                                 '3 pipelines · 1 product', '0 pipelines · 0 products',
-                                                                 '6 pipelines · 1 product'] as String[])
-        page.locator('section.chart .track').evaluateAll('tracks => tracks.map(track => track.ariaLabel)') ==
-                ['AI Lab: none', 'Capital Partners: none', 'Corporate Technology: 3 active', 'Custody: none',
-                 'Fund Services: 5 active, 1 invalidated']
+        assertThat(page.locator('section.chart .highcharts-xaxis-labels').nth(1).locator('text')).hasText(
+                ['0 pipelines · 0 products', '0 pipelines · 0 products', '3 pipelines · 1 product',
+                 '0 pipelines · 0 products', '6 pipelines · 1 product'] as String[])
+        assertThat(page.locator('section.chart dso-chart')).hasAttribute('aria-label',
+                'AI Lab: none; Capital Partners: none; Corporate Technology: 3 active; Custody: none; ' +
+                        'Fund Services: 5 active, 1 invalidated')
+        assertThat(page.locator('section.chart .highcharts-series.disabled .highcharts-point')).not().hasCount(0)
         api.requests('GET', '/api/departments').size() == 1
         ownErrors().isEmpty()
     }
@@ -153,14 +154,14 @@ class DepartmentSpec extends GuiSpecification {
     }
 
     Locator names() {
-        page.locator('tr.mat-mdc-row td.name')
+        gridRows().locator('.name')
     }
 
     Locator row(String name) {
-        holding(page.locator('tr.mat-mdc-row'), "td.name:text-is('${name}')")
+        holding(gridRows(), ".name:text-is('${name}')")
     }
 
     Locator cells(String name) {
-        row(name).locator('td:not(.actions)')
+        row(name).locator(".ag-cell:not([col-id='actions'])")
     }
 }

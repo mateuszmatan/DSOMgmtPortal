@@ -17,7 +17,7 @@
         <dso-fields [group]="f.controls.tests" [fields]="stageFields(stage)" />
       </div>
       <span class="spacer"></span>
-      <button mat-stroked-button type="button" (click)="add(stage.value)">
+      <button type="button" class="btn btn-outline-primary" (click)="add(stage.value)">
         Add {{ stage.noun }} job
       </button>
     </header>
@@ -29,8 +29,8 @@
           <strong class="mono">{{ jobName(job) }}</strong>
           <span class="spacer"></span>
           <button
-            mat-button
             type="button"
+            class="btn btn-link"
             (click)="move(job, -1)"
             [disabled]="$first"
             [attr.aria-label]="'Start ' + jobName(job) + ' earlier'"
@@ -38,8 +38,8 @@
             Up
           </button>
           <button
-            mat-button
             type="button"
+            class="btn btn-link"
             (click)="move(job, 1)"
             [disabled]="$last"
             [attr.aria-label]="'Start ' + jobName(job) + ' later'"
@@ -47,9 +47,8 @@
             Down
           </button>
           <button
-            mat-button
             type="button"
-            class="danger"
+            class="btn btn-link danger"
             (click)="remove(job)"
             [attr.aria-label]="'Remove ' + jobName(job)"
           >
