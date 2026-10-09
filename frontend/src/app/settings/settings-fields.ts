@@ -187,7 +187,8 @@ const SECTIONS: SettingsSection[] = [
     label: 'Security limits',
     note:
       'How many findings of each severity a security scan may report before it fails the ' +
-      'pipeline. 0 allows none.',
+      'pipeline. 0 allows none. A higher limit lets more security problems through, so agree ' +
+      'it with the DevSecOps team first.',
   },
   {
     id: 'scans',
@@ -307,7 +308,8 @@ const SECTIONS: SettingsSection[] = [
     label: 'Release gate',
     note:
       'The last check of a run before its build may be released: the scans whose security ' +
-      'limits must hold and, if ticked, the minimum line coverage.',
+      'limits must hold and, if ticked, the minimum line coverage. A scan left out here no ' +
+      'longer stops a release.',
   },
   {
     id: 'serviceDefaults',
