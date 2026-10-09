@@ -6,6 +6,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import { Dialog } from '@angular/cdk/dialog';
@@ -59,18 +60,17 @@ import {
   ServiceStart,
   WizardDefaults,
   appScanAccount,
-  changesOf,
   deploys,
   fromService,
   jobName,
+  notLoaded,
   pipelineChoices,
-  pipelineReach,
   pipelineLabel,
   pipelineNames,
   preparation,
   problemText,
   productRequest,
-  reviewGroups,
+  reviewEntries,
   serviceSummary,
   servicesToStart,
 } from './self-service-model';
@@ -85,10 +85,18 @@ const STEPS = ['Product', 'Pipeline', 'Services', 'Review', 'Next steps'];
 
 @Component({
   selector: 'dso-self-service',
-  imports: [ReactiveFormsModule, RouterLink, ClipboardModule, FORM_FIELD, DsoLoading, ChoiceTiles],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    NgTemplateOutlet,
+    ClipboardModule,
+    FORM_FIELD,
+    DsoLoading,
+    ChoiceTiles,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './self-service.html',
-  styleUrl: '../shared/wizard.scss',
+  styleUrls: ['../shared/wizard.scss', './self-service.scss'],
 })
 export class SelfService implements HasUnsavedChanges {
   private readonly productsApi = inject(ProductsApi);
@@ -105,6 +113,7 @@ export class SelfService implements HasUnsavedChanges {
   protected readonly modes = PRODUCT_MODES;
   protected readonly errorText = errorText;
   protected readonly errorMessage = errorMessage;
+  protected readonly notLoaded = notLoaded;
   protected readonly preparation = preparation;
   protected readonly jobName = jobName;
   protected readonly pipelineNames = pipelineNames;
@@ -243,19 +252,13 @@ export class SelfService implements HasUnsavedChanges {
       'not set'
     );
   });
-  protected readonly reach = computed(() =>
-    pipelineReach(
-      this.pipeline()!,
-      this.kept(),
-      this.current.hasValue() ? this.current.value() : null,
-    ),
-  );
   protected readonly review = computed(() =>
-    reviewGroups(
+    reviewEntries(
       this.pipeline()!,
       this.services(),
       this.existing()?.services ?? [],
       this.removed(),
+      this.current.hasValue() ? this.current.value() : null,
     ),
   );
   protected readonly doomed = computed(() =>
@@ -268,7 +271,11 @@ export class SelfService implements HasUnsavedChanges {
   );
 
   protected readonly nextLabel = computed(() =>
-    this.step() !== 3 ? 'Continue' : this.existing() ? 'Save the changes' : 'Create the pipelines',
+    this.step() < 3
+      ? `Next: ${STEPS[this.step() + 1]}`
+      : this.existing()
+        ? 'Save the changes'
+        : 'Create the pipelines',
   );
 
   constructor() {
@@ -359,11 +366,6 @@ export class SelfService implements HasUnsavedChanges {
 
   protected isRemoved(service: WizardService): boolean {
     return service.id !== null && this.removed().includes(service.id);
-  }
-
-  protected isChanged(service: WizardService): boolean {
-    const stored = this.existing()?.services.find((candidate) => candidate.id === service.id);
-    return !!stored && changesOf(this.pipeline()!, service, stored).length > 0;
   }
 
   protected removeService(index: number): void {
@@ -518,7 +520,7 @@ export class SelfService implements HasUnsavedChanges {
         switchMap((product) =>
           this.pipelinesApi.listForProduct(product.id).pipe(
             catchError(() => of([])),
-            map((services) => ({ product, starts: servicesToStart(services, pipeline) })),
+            map((services) => ({ product, starts: servicesToStart(services, pipeline, product) })),
           ),
         ),
         finalize(() => this.saving.set(false)),

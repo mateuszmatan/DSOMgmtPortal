@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { MY_DEPARTMENT_KEY } from '../beadle/my-department';
+import { RETRY } from '../core/errors';
 import { buttonOf, fieldOf, text } from '../testing/dom';
 import {
   anotherService,
@@ -64,6 +65,10 @@ describe('SelfService', () => {
   const page = () => fixture.nativeElement as HTMLElement;
   const all = (selector: string) => [...page().querySelectorAll(selector)].map(text);
   const review = () => all('dl.rows dt');
+  const entries = () =>
+    [...page().querySelectorAll('.review-list li')].map((entry) =>
+      [...entry.querySelectorAll('strong, .tag, .review-text')].map(text).join(' · '),
+    );
   const groups = () =>
     wizard()
       ['productGroups']()
@@ -102,6 +107,7 @@ describe('SelfService', () => {
       'Next steps',
     ]);
     expect(text(page().querySelector('.fields dso-label'))).toBe('Department');
+    expect(text(page().querySelector('.step-actions .btn-primary'))).toBe('Next: Pipeline');
 
     await next();
 
@@ -120,19 +126,20 @@ describe('SelfService', () => {
     expect(text(page().querySelector('h2'))).toBe('Which pipeline does Trade Archive need?');
     expect(page().querySelector('.today')).toBeNull();
     expect(page().querySelector('.tile-note')).toBeNull();
+    expect(all('.step-actions button')).toEqual(['Back', 'Next: Services']);
 
     wizard()['pipeline'].set('SAST');
     await next();
     wizard()['services'].set([added]);
+    await fixture.whenStable();
+
+    expect(text(page().querySelector('.step-actions .btn-primary'))).toBe('Next: Review');
+
     await next();
 
-    expect(review()).toEqual([
-      'Product',
-      'Department',
-      'Owner team',
-      'Contact e-mail',
-      'Pipeline',
-      'Added',
+    expect(review()).toEqual(['Product', 'Department', 'Owner team', 'Contact e-mail', 'Pipeline']);
+    expect(entries()).toEqual([
+      'archive-api · New · Added with a SAST pipeline and its own key. Built with Gradle.',
     ]);
     expect(wizard()['departmentName']()).toBe('Fund Services');
     expect(text(buttonOf(page(), 'Create the pipelines'))).toBe('Create the pipelines');
@@ -247,7 +254,7 @@ describe('SelfService', () => {
     expect(wizard()['mode']()).toBe('existing');
     expect(wizard()['existing']()).toBeNull();
     expect(text(page().querySelector('.choice-error'))).toBe(
-      'The product could not be loaded: Product 2 was not found',
+      `The product could not be loaded. Product 2 was not found. ${RETRY}`,
     );
     expect(fieldOf(page(), 'Product name')).toBeNull();
   });
@@ -261,7 +268,7 @@ describe('SelfService', () => {
     await next();
 
     expect(text(page().querySelector('.lead'))).toBe(
-      'A pipeline checks your code automatically every time it runs. Choosing one adds it to every service that lacks it and keeps the other pipelines.',
+      "A pipeline is the automated build, test and security checks Jenkins runs on a service's code; the one you choose is added to every service that does not have it yet, and the pipelines they have stay.",
     );
     expect(all('.today li')).toEqual(['gui · Full, SAST', 'api · Full', 'batch · no pipeline yet']);
     expect(all('.tile-label')).toEqual([
@@ -297,7 +304,7 @@ describe('SelfService', () => {
     await next();
 
     expect(text(page().querySelector('.choice-error'))).toBe(
-      'Its pipelines could not be loaded: Database unavailable',
+      `Its pipelines could not be loaded. Database unavailable. ${RETRY}`,
     );
     expect(page().querySelector('.tile-note')).toBeNull();
   });
@@ -338,10 +345,10 @@ describe('SelfService', () => {
     await click(rows()[1], 'Undo');
     await next();
 
-    expect(review()).toEqual(['Product', 'Department', 'Pipeline', 'Removed', 'Unchanged']);
-    expect(all('.review-list li')).toEqual([
-      'gui · Gradle · runs on Virtual machines',
-      'api · Gradle · runs on Virtual machines',
+    expect(review()).toEqual(['Product', 'Department', 'Pipeline']);
+    expect(entries()).toEqual([
+      'gui · Removed · Deleted, with its pipelines and their keys.',
+      'api · Gets a Security pipeline with its own key; nothing else changes.',
     ]);
     expect(all('.removal-warning li')).toEqual(['gui · Full, SAST']);
 
@@ -392,10 +399,9 @@ describe('SelfService', () => {
 
     await next();
 
-    expect(review()).toContain('Changed');
-    expect(text(page().querySelector('.review-list li'))).toBe(
-      'web · renamed from gui; built with Maven instead of Gradle, with the default build settings',
-    );
+    expect(entries()).toEqual([
+      'web · Changed · Keeps its Full pipeline. Renamed from gui; built with Maven instead of Gradle, with the default build settings.',
+    ]);
     expect(page().querySelector('.removal-warning')).toBeNull();
 
     await next();
@@ -412,9 +418,10 @@ describe('SelfService', () => {
     http.expectOne('/api/products/1/pipelines').flush([servicePipelines()]);
     await fixture.whenStable();
 
-    expect(text(page().querySelector('a[href="/admin/products/1"]'))).toBe(
-      'Open in DevSecOps Admin',
+    expect(text(page().querySelector('.step-actions a[href="/admin/products/1"]'))).toBe(
+      'Open CertScanner in DevSecOps Admin',
     );
+    expect(all('.step-actions button')).toEqual(['Set up another product']);
     expect(buttonOf(page(), 'Copy the Jenkinsfile of gui')).toBeDefined();
   });
 
@@ -427,7 +434,7 @@ describe('SelfService', () => {
 
     expect(wizard()['step']()).toBe(2);
     expect(text(page().querySelector('.choice-error'))).toBe(
-      'Choose where these services run: archive-api',
+      'Use Change to say where these services run: archive-api',
     );
 
     wizard()['services'].set([{ ...unplaced, target: 'OPENSHIFT' }]);
@@ -439,13 +446,15 @@ describe('SelfService', () => {
     ]);
     await next();
     expect(wizard()['step']()).toBe(3);
-    expect(text(page().querySelector('.review-list li'))).toBe(
-      'archive-api · Gradle · runs on OpenShift · project ta-archive',
-    );
+    expect(entries()).toEqual([
+      'archive-api · New · Added with a Security pipeline and its own key. Built with Gradle, runs on OpenShift in project ta-archive.',
+    ]);
 
     wizard()['pipeline'].set('SAST');
     await fixture.whenStable();
-    expect(text(page().querySelector('.review-list li'))).toBe('archive-api · Gradle');
+    expect(entries()).toEqual([
+      'archive-api · New · Added with a SAST pipeline and its own key. Built with Gradle.',
+    ]);
   });
 
   it('asks for the Nexus IQ application and repository of every service and points to the golden pull requests', async () => {
@@ -467,16 +476,16 @@ describe('SelfService', () => {
 
     expect(wizard()['step']()).toBe(2);
     expect(text(page().querySelector('.choice-error'))).toBe(
-      'Add the Nexus IQ application and Bitbucket repository of these services: api',
+      'Use Change to add the Nexus IQ application and Bitbucket repository of these services: api',
     );
 
     wizard()['services'].update(([gui, api]) => [gui, { ...api, nexusIqApplication: 'cert-api' }]);
     await next();
 
     expect(wizard()['step']()).toBe(3);
-    expect(all('.review-list li')).toEqual([
-      'api · new Nexus IQ application',
-      'gui · Gradle · runs on Virtual machines · Nexus IQ cert-gui',
+    expect(entries()).toEqual([
+      'gui · Gets an OSA pipeline with its own key; nothing else changes.',
+      'api · Changed · Gets an OSA pipeline with its own key. New Nexus IQ application.',
     ]);
 
     await next();
@@ -509,13 +518,16 @@ describe('SelfService', () => {
     await fixture.whenStable();
 
     expect(all('.next-steps > li h3')).toEqual([
-      'Put the Jenkinsfile in each repository',
-      'Create a Jenkins job for each service',
+      "Put the Jenkinsfile in each service's repository",
+      'Ask your Jenkins administrator for a job for each service',
       'Run each job once',
       'Review the golden pull requests',
       'Follow the results',
     ]);
-    expect(all('.next-steps code').at(-1)).toBe('DevSecOps/CERT/gui-nexusiq');
+    expect(all('.jenkinsfile-head')).toEqual([
+      'gui · goes into https://bitbucket.bbh.com/projects/CERT/repos/gui Copy',
+    ]);
+    expect(all('.job-names li')).toEqual(['gui: DevSecOps/CERT/gui-nexusiq']);
     expect(text(page().querySelector('.jenkinsfile .code-block'))).toContain(
       'devSecOpsNexusIqGoldenFixPipeline(',
     );
@@ -534,7 +546,7 @@ describe('SelfService', () => {
     await chooseProduct(3, product({ appScan: null, services: [] }), []);
 
     expect(text(fieldOf(page(), 'AppScan API key ID')?.querySelector('dso-hint'))).toBe(
-      'The Application Security team gives it to you',
+      'The key the pipelines use to send the code to HCL AppScan, the security scanner. The Application Security team gives it to you.',
     );
 
     await next();
@@ -618,7 +630,7 @@ describe('SelfService without products', () => {
     await fixture.whenStable();
 
     expect(text((fixture.nativeElement as HTMLElement).querySelector('.choice-error'))).toBe(
-      'The products could not be loaded: Database unavailable',
+      `The products could not be loaded. Database unavailable. ${RETRY}`,
     );
     http.verify();
   });
