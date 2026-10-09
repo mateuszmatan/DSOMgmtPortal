@@ -271,11 +271,7 @@
         } @else {
           <p class="empty">No services yet. Add the first one.</p>
         }
-        <button
-          type="button"
-          class="btn btn-outline-primary align-self-start"
-          (click)="openService(null)"
-        >
+        <button type="button" class="btn btn-outline-primary" (click)="openService(null)">
           Add a service
         </button>
         @if (checked() && !kept().length) {

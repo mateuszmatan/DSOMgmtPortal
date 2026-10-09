@@ -89,12 +89,6 @@ const STEPS = ['Product', 'Pipeline', 'Services', 'Review', 'Next steps'];
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './self-service.html',
   styleUrl: '../shared/wizard.scss',
-  styles: `
-    .lead {
-      font-size: inherit;
-      font-weight: inherit;
-    }
-  `,
 })
 export class SelfService implements HasUnsavedChanges {
   private readonly productsApi = inject(ProductsApi);
