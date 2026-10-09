@@ -37,7 +37,7 @@ public record NexusIqSettings(String serverUrl, String credentialsId, String sca
         String path = "tools.nexusIq.";
         config.set(path + "serverUrl", serverUrl).set(path + "credentialsId", credentialsId);
         if (applications.size() == 1) {
-            NexusIqApplication only = applications.getFirst();
+            NexusIqApplication only = applications.get(0);
             config.set(path + "application", only.application()).set(path + "scanPatterns", only.scanPatterns())
                     .set(path + "stage", only.stage()).set(path + "failOnNetworkError", only.failOnNetworkError());
         } else if (applications.size() > 1) {

@@ -50,7 +50,7 @@ class DemoRunHistory {
         Instant now = clock.instant().truncatedTo(SECONDS);
         List<StoredPoint> points = new ArrayList<>();
         byJob.forEach((key, views) -> {
-            PipelineView first = views.getFirst();
+            PipelineView first = views.get(0);
             boolean retired = views.stream().noneMatch(view -> view.pipeline().isEnabled());
             points.addAll(new RunHistory(first.metricsTag(), first.pipeline().settings().jobPath(),
                     first.pipeline().type(), repositories(views), new Random(SEED + key.hashCode()))

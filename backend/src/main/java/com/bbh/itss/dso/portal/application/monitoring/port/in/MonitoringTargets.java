@@ -24,7 +24,7 @@ public record MonitoringTargets(List<Product> products, List<PipelineView> pipel
 
     public Product product() {
         isTrue(products.size() == 1, "these monitoring targets are not those of one product");
-        return products.getFirst();
+        return products.get(0);
     }
 
     public Set<MetricsTag> tags() {
@@ -33,6 +33,6 @@ public record MonitoringTargets(List<Product> products, List<PipelineView> pipel
 
     public PipelineView pipeline() {
         isTrue(pipelines.size() == 1, "these monitoring targets are not those of one pipeline");
-        return pipelines.getFirst();
+        return pipelines.get(0);
     }
 }

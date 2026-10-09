@@ -111,7 +111,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
                 ? new MetricsReading<>(List.of(), recent.error())
                 : MetricsReading.of(() -> runs.doraPoints(List.of(tag), days).getOrDefault(tag, List.of()), List.of());
         List<PipelineRun> recentRuns = recent.value();
-        PipelineRun last = recentRuns.isEmpty() ? null : recentRuns.getFirst();
+        PipelineRun last = recentRuns.isEmpty() ? null : recentRuns.get(0);
         if (last == null && attributable && !recent.failed()) {
             last = latestRuns(monitored).value().of(tag, pipeline);
         }

@@ -77,7 +77,7 @@ public class PipelineEntity extends AuditedEntity {
             if (key.id() == null) {
                 PipelineKeyEntity added = new PipelineKeyEntity(this, key.value(), key.issuedAt());
                 added.state(key.status(), key.revokedAt(), key.revokeReason());
-                keys.addFirst(added);
+                keys.add(0, added);
             }
         }
     }
