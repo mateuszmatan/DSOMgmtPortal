@@ -105,7 +105,7 @@ class ChangeEvidenceSpec extends GuiSpecification {
         page.getByLabel('Find a product').fill('  pay  ')
 
         then:
-        assertThat(page.locator('mat-expansion-panel .name')).hasText(['Payments Hub'] as String[])
+        assertThat(page.locator('dso-panel .name')).hasText(['Payments Hub'] as String[])
         api.lastRequest('GET', '/api/products').params() == [search: 'pay']
 
         when:
@@ -158,11 +158,11 @@ class ChangeEvidenceSpec extends GuiSpecification {
     }
 
     Locator panel(String name) {
-        holding(page.locator('mat-expansion-panel'), ".name:text-is('${name}')")
+        holding(page.locator('dso-panel'), ".name:text-is('${name}')")
     }
 
     Locator header(String name) {
-        panel(name).locator('mat-expansion-panel-header')
+        panel(name).locator('.accordion-button')
     }
 
     Locator service(String product, String name) {

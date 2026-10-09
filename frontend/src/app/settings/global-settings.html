@@ -8,8 +8,8 @@
       }
     </p>
     <button
-      mat-stroked-button
       type="button"
+      class="btn btn-outline-primary"
       (click)="showConfig()"
       [disabled]="!settings() || loadingConfig()"
     >
@@ -18,12 +18,12 @@
   </header>
 
   @if (loading()) {
-    <mat-progress-bar mode="indeterminate" />
+    <dso-loading />
   }
 
   @if (loadError(); as error) {
     <div class="banner" role="alert">{{ error }}</div>
-    <button mat-stroked-button type="button" (click)="load()">Try again</button>
+    <button type="button" class="btn btn-outline-primary" (click)="load()">Try again</button>
   } @else if (settings()) {
     @if (conflict()) {
       <div class="banner danger conflict" role="alert">
@@ -32,7 +32,7 @@
           Your changes were not saved, so nothing was overwritten. Reload to get the current values,
           then make your changes again.
         </div>
-        <button mat-flat-button type="button" (click)="load()">Reload</button>
+        <button type="button" class="btn btn-primary" (click)="load()">Reload</button>
       </div>
     }
 
@@ -125,17 +125,15 @@
                 <div class="form-fields gate">
                   <div class="span-12">
                     <span class="field-label">Scanners the gate checks</span>
-                    <mat-button-toggle-group
+                    <dso-toggle-group
                       [formControl]="form.controls.releaseGate.controls.scanners"
                       multiple
                       aria-label="Scanners the release gate checks"
                     >
                       @for (scanner of scanners; track scanner) {
-                        <mat-button-toggle [value]="scanner">{{
-                          scannerInfo[scanner].label
-                        }}</mat-button-toggle>
+                        <button [dsoToggle]="scanner">{{ scannerInfo[scanner].label }}</button>
                       }
-                    </mat-button-toggle-group>
+                    </dso-toggle-group>
                     <span class="field-hint" [innerHTML]="gateHint()"></span>
                     @if (form.controls.releaseGate.controls.scanners.invalid) {
                       <span class="field-error">{{
@@ -163,12 +161,17 @@
             <span class="muted">Unsaved changes</span>
           }
           <span class="spacer"></span>
-          <button mat-button type="button" (click)="discard()" [disabled]="!form.dirty || saving()">
+          <button
+            type="button"
+            class="btn btn-link"
+            (click)="discard()"
+            [disabled]="!form.dirty || saving()"
+          >
             Discard changes
           </button>
-          <button mat-flat-button type="submit" [disabled]="saving() || conflict()">
+          <button type="submit" class="btn btn-primary" [disabled]="saving() || conflict()">
             @if (saving()) {
-              <mat-spinner diameter="18" />
+              <dso-spinner />
             }
             Save settings
           </button>

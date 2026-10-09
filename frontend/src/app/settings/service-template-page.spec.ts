@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { buttonOf, inputOf, text } from '../testing/dom';
+import { buttonOf, inputOf, text, toast } from '../testing/dom';
 import { serviceTemplate } from '../testing/fixtures';
 import {
   ServiceTemplatePage,
@@ -110,7 +110,7 @@ describe('ServiceTemplatePage', () => {
       ['Bitbucket repository', 'https://bitbucket.bbh.com/projects/CERT/repos/cert-backend-api'],
       ['OpenShift projects', 'cert-backend-api-build, cert-backend-api-rd, cert-backend-api-qc'],
     ]);
-    expect(page().querySelector('mat-icon')).toBeNull();
+    expect(page().querySelector('svg-icon')).toBeNull();
     expect(templatePage().hasUnsavedChanges()).toBe(false);
   });
 
@@ -145,9 +145,7 @@ describe('ServiceTemplatePage', () => {
 
     expect(text(page().querySelector('.meta'))).toContain('Version 3');
     expect(templatePage().hasUnsavedChanges()).toBe(false);
-    expect([...document.querySelectorAll('mat-snack-bar-container')].map(text).join(' ')).toContain(
-      'The service template is saved',
-    );
+    expect(text(toast())).toContain('The service template is saved');
   });
 
   it('sends nothing while a pattern is invalid', async () => {

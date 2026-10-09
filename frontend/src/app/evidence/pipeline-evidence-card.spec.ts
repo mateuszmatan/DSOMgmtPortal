@@ -1,6 +1,7 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PipelineEvidence, RunEvidence } from '../core/models';
+import { toast } from '../testing/dom';
 import {
   goldenFixEvidence,
   pipelineEvidence,
@@ -207,9 +208,8 @@ describe('PipelineEvidenceCard', () => {
     card().querySelector<HTMLButtonElement>('.actions button')!.click();
     await fixture.whenStable();
 
-    expect(document.querySelector('.snack-error')?.textContent).toContain(
-      'The evidence could not be copied to the clipboard.',
-    );
+    expect(toast()?.classList).toContain('error');
+    expect(toast()?.textContent).toContain('The evidence could not be copied to the clipboard.');
   });
 
   it('confirms a copied evidence text', async () => {
@@ -219,8 +219,6 @@ describe('PipelineEvidenceCard', () => {
     card().querySelector<HTMLButtonElement>('.actions button')!.click();
     await fixture.whenStable();
 
-    expect(document.querySelector('mat-snack-bar-container')?.textContent).toContain(
-      'Evidence copied for ServiceNow',
-    );
+    expect(toast()?.textContent).toContain('Evidence copied for ServiceNow');
   });
 });

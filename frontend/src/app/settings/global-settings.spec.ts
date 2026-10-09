@@ -1,8 +1,10 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialog } from '@angular/material/dialog';
+import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { provideRouter } from '@angular/router';
+import { of } from 'rxjs';
+import { buttonOf, text } from '../testing/dom';
 import { globalSettings } from '../testing/fixtures';
 import { GlobalSettingsPage } from './global-settings';
 
@@ -57,7 +59,7 @@ describe('GlobalSettingsPage', () => {
       'Service defaults',
       'GoldenFix defaults',
     ]);
-    expect(page().querySelector('mat-icon')).toBeNull();
+    expect(page().querySelector('svg-icon')).toBeNull();
     expect(page().querySelector('.meta')?.textContent).toContain('Version 4');
     expect(form().controls.platform.controls.jenkinsUrl.value).toBe('https://jenkins.bbh.com');
     expect(settingsPage().hasUnsavedChanges()).toBe(false);
@@ -173,6 +175,33 @@ describe('GlobalSettingsPage', () => {
     );
   });
 
+  it('toggles the scanners the release gate checks and needs at least one', async () => {
+    await load();
+    const group = page().querySelector<HTMLElement>(
+      'dso-toggle-group[aria-label="Scanners the release gate checks"]',
+    )!;
+    const toggles = () => [...group.querySelectorAll('button')];
+    const pressed = () => toggles().map((toggle) => toggle.getAttribute('aria-pressed'));
+
+    expect(toggles().map(text)).toEqual(['SAST', 'SCA', 'Nexus IQ', 'DAST']);
+    expect(pressed()).toEqual(['true', 'true', 'true', 'true']);
+
+    toggles().forEach((toggle) => toggle.click());
+    await fixture.whenStable();
+
+    expect(form().controls.releaseGate.controls.scanners.value).toEqual([]);
+    expect(pressed()).toEqual(['false', 'false', 'false', 'false']);
+    expect(text(page().querySelector('.gate .field-error'))).toBe('Select at least one scanner');
+    expect(settingsPage().hasUnsavedChanges()).toBe(true);
+
+    buttonOf(group, 'Nexus IQ').click();
+    await fixture.whenStable();
+
+    expect(form().controls.releaseGate.controls.scanners.value).toEqual(['NEXUS_IQ']);
+    expect(pressed()).toEqual(['false', 'false', 'true', 'false']);
+    expect(page().querySelector('.gate .field-error')).toBeNull();
+  });
+
   it('discards the changes made on the page', async () => {
     await load();
     form().controls.platform.controls.jenkinsLibrary.setValue('Other');
@@ -188,7 +217,9 @@ describe('GlobalSettingsPage', () => {
 
   it('previews the generated global configuration', async () => {
     await load();
-    const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
+    const open = vi
+      .spyOn(TestBed.inject(Dialog), 'open')
+      .mockReturnValue({ closed: of(undefined) } as unknown as DialogRef<unknown>);
 
     page().querySelector<HTMLButtonElement>('.tab-header button')!.click();
     await fixture.whenStable();
