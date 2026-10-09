@@ -2,13 +2,11 @@ package com.bbh.itss.dso.portal.frontend.regression
 
 import com.bbh.itss.dso.portal.frontend.support.ProductStore
 import com.microsoft.playwright.Locator
-import com.microsoft.playwright.Page
 
 import static com.bbh.itss.dso.portal.frontend.support.StubApi.fixture
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.BUTTON
-import static com.microsoft.playwright.options.AriaRole.OPTION
 import static com.microsoft.playwright.options.AriaRole.RADIOGROUP
 
 class SelfServiceSpec extends EditorSpecification {
@@ -43,7 +41,7 @@ class SelfServiceSpec extends EditorSpecification {
                 .hasText(['Product', 'Pipeline', 'Services', 'Review', 'Next steps'] as String[])
         assertThat(currentStep()).hasText('Product')
         assertThat(radio(step(), 'A new product')).hasAttribute('aria-checked', 'true')
-        assertThat(step().locator('.fields mat-label').first()).hasText('Department')
+        assertThat(step().locator('.fields dso-label').first()).hasText('Department')
         hasErrors(step(), ['Department'        : 'Required',
                            'Product name'      : 'This product is already in the portal: choose "A product in the portal" above',
                            'AppScan API key ID': 'Required'])
@@ -193,13 +191,13 @@ class SelfServiceSpec extends EditorSpecification {
 
         when:
         choose(step(), 'Department', 'Corporate Technology')
-        select(step(), 'Product').click()
 
         then:
-        assertThat(page.locator('mat-optgroup .mat-mdc-optgroup-label')).hasText(['Corporate Technology'] as String[])
+        assertThat(productGroups()).hasCount(1)
+        assertThat(productGroups()).hasAttribute('label', 'Corporate Technology')
 
         when:
-        page.getByRole(OPTION, new Page.GetByRoleOptions().setName('CertScanner (CERTSCANNER)').setExact(true)).click()
+        choose(step(), 'Product', 'CertScanner (CERTSCANNER)')
 
         then:
         assertThat(hintOf(step(), 'Product')).hasText('1 product to choose from')
@@ -402,13 +400,13 @@ class SelfServiceSpec extends EditorSpecification {
         when:
         open('/self-service')
         radio(step(), 'A product in the portal').click()
-        select(step(), 'Product').click()
 
         then:
-        assertThat(page.locator('mat-optgroup .mat-mdc-optgroup-label')).hasText(['Not in a department'] as String[])
+        assertThat(productGroups()).hasCount(1)
+        assertThat(productGroups()).hasAttribute('label', 'Not in a department')
 
         when:
-        page.getByRole(OPTION, new Page.GetByRoleOptions().setName('Payments Hub (PAYHUB)').setExact(true)).click()
+        choose(step(), 'Product', 'Payments Hub (PAYHUB)')
         assertThat(step().locator('dl.rows dt')).hasText(['Owner team', 'Services'] as String[])
         button('Continue', true).click()
 
@@ -421,7 +419,7 @@ class SelfServiceSpec extends EditorSpecification {
 
         then:
         assertThat(hintOf(step(), 'Department')).hasText('Saving moves the product into this department')
-        assertThat(select(step(), 'Product')).containsText('Payments Hub (PAYHUB)')
+        assertThat(select(step(), 'Product').locator('option:checked')).hasText('Payments Hub (PAYHUB)')
 
         when:
         button('Continue', true).click()
@@ -649,8 +647,17 @@ class SelfServiceSpec extends EditorSpecification {
         dialogButton('Add service').click()
     }
 
+    @Override
+    Locator hintOf(Locator scope, String label) {
+        formField(scope, label).locator('dso-hint')
+    }
+
     Locator step() {
         page.locator('section.step')
+    }
+
+    Locator productGroups() {
+        select(step(), 'Product').locator('optgroup')
     }
 
     Locator currentStep() {

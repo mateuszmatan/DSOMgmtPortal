@@ -101,12 +101,12 @@ describe('SelfService', () => {
       'Review',
       'Next steps',
     ]);
-    expect(text(page().querySelector('.fields mat-label'))).toBe('Department');
+    expect(text(page().querySelector('.fields dso-label'))).toBe('Department');
 
     await next();
 
     expect(wizard()['step']()).toBe(0);
-    expect(text(fieldOf(page(), 'Department')?.querySelector('mat-error'))).toBe('Required');
+    expect(text(fieldOf(page(), 'Department')?.querySelector('dso-error'))).toBe('Required');
 
     wizard()['productForm'].patchValue({
       departmentId: 5,
@@ -155,7 +155,7 @@ describe('SelfService', () => {
       ['Fund Services', [3]],
       ['Not in a department', [2]],
     ]);
-    expect(text(fieldOf(page(), 'Product')?.querySelector('mat-hint'))).toBe(
+    expect(text(fieldOf(page(), 'Product')?.querySelector('dso-hint'))).toBe(
       '2 products to choose from',
     );
 
@@ -165,7 +165,7 @@ describe('SelfService', () => {
     http.expectOne('/api/products/2/pipelines').flush([servicePipelines()]);
     await fixture.whenStable();
 
-    expect(text(fieldOf(page(), 'Department')?.querySelector('mat-hint'))).toBe(
+    expect(text(fieldOf(page(), 'Department')?.querySelector('dso-hint'))).toBe(
       'Saving moves the product into this department',
     );
     expect(review()).toEqual(['Owner team', 'Services']);
@@ -524,7 +524,7 @@ describe('SelfService', () => {
   it('keeps the department of a product in the portal', async () => {
     await chooseProduct(3);
 
-    expect(text(fieldOf(page(), 'Department')?.querySelector('mat-hint'))).toBe('');
+    expect(text(fieldOf(page(), 'Department')?.querySelector('dso-hint'))).toBe('');
     expect(review()).toEqual(['Owner team', 'Services']);
     expect(wizard()['departmentName']()).toBe('Corporate Technology');
     expect(fieldOf(page(), 'AppScan API key ID')).toBeNull();
@@ -533,14 +533,14 @@ describe('SelfService', () => {
   it('asks for the AppScan key of a product in the portal that has none and sends it', async () => {
     await chooseProduct(3, product({ appScan: null, services: [] }), []);
 
-    expect(text(fieldOf(page(), 'AppScan API key ID')?.querySelector('mat-hint'))).toBe(
+    expect(text(fieldOf(page(), 'AppScan API key ID')?.querySelector('dso-hint'))).toBe(
       'The Application Security team gives it to you',
     );
 
     await next();
 
     expect(wizard()['step']()).toBe(0);
-    expect(text(fieldOf(page(), 'AppScan API key ID')?.querySelector('mat-error'))).toBe(
+    expect(text(fieldOf(page(), 'AppScan API key ID')?.querySelector('dso-error'))).toBe(
       'Required',
     );
 
