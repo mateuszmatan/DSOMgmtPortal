@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import {
   AbstractControl,
   FormGroup,
@@ -6,15 +7,13 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { BuildTool, DeployTarget } from '../core/models';
 import { SERVICE_NAME, UUID } from '../products/product-form-model';
 import { HTTP_URL_ERROR, filled, max, text, url } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { ChoiceTiles } from '../shared/choice-tiles';
+import { DIALOG } from '../ui/dialog';
+import { FORM_FIELD } from '../ui/form-field';
 import {
   NamedDefaults,
   OPENSHIFT_PROJECT,
@@ -40,54 +39,49 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
 
 @Component({
   selector: 'dso-service-dialog',
-  imports: [
-    ReactiveFormsModule,
-    MatButtonModule,
-    MatDialogModule,
-    MatFormFieldModule,
-    MatInputModule,
-    ChoiceTiles,
-  ],
+  imports: [ReactiveFormsModule, DIALOG, FORM_FIELD, ChoiceTiles],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2 mat-dialog-title>{{ data.service ? 'Change ' + data.service.name : 'Add a service' }}</h2>
+    <div class="modal-header">
+      <h2 dsoDialogTitle>{{ data.service ? 'Change ' + data.service.name : 'Add a service' }}</h2>
+    </div>
     <form [formGroup]="form" (ngSubmit)="next()" novalidate>
-      <mat-dialog-content>
+      <div class="modal-body">
         <p class="page-count">
           Part {{ page() }} of 2 · {{ page() === 1 ? 'About the service' : 'Build and run' }}
         </p>
         @if (page() === 1) {
-          <mat-form-field class="full-width">
-            <mat-label>Service name</mat-label>
+          <dso-form-field class="full-width">
+            <dso-label>Service name</dso-label>
             <input
-              matInput
+              dsoInput
               formControlName="name"
               placeholder="backend-api"
               autocomplete="off"
               required
             />
-            <mat-hint>A short name, for example gui or backend-api</mat-hint>
-            <mat-error>{{ errorText(form.controls.name, nameHelp) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="full-width">
-            <mat-label>What it does</mat-label>
-            <input matInput formControlName="description" placeholder="REST API of the product" />
-            <mat-hint>Optional</mat-hint>
-            <mat-error>{{ errorText(form.controls.description) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="full-width">
-            <mat-label>AppScan application ID</mat-label>
+            <dso-hint>A short name, for example gui or backend-api</dso-hint>
+            <dso-error>{{ errorText(form.controls.name, nameHelp) }}</dso-error>
+          </dso-form-field>
+          <dso-form-field class="full-width">
+            <dso-label>What it does</dso-label>
+            <input dsoInput formControlName="description" placeholder="REST API of the product" />
+            <dso-hint>Optional</dso-hint>
+            <dso-error>{{ errorText(form.controls.description) }}</dso-error>
+          </dso-form-field>
+          <dso-form-field class="full-width">
+            <dso-label>AppScan application ID</dso-label>
             <input
-              matInput
+              dsoInput
               class="mono"
               formControlName="appScanId"
               placeholder="109f44ac-cc06-4ca0-884e-d944904f7019"
               autocomplete="off"
               required
             />
-            <mat-hint>The Application Security team gives it to you</mat-hint>
-            <mat-error>{{ errorText(form.controls.appScanId, appScanHelp) }}</mat-error>
-          </mat-form-field>
+            <dso-hint>The Application Security team gives it to you</dso-hint>
+            <dso-error>{{ errorText(form.controls.appScanId, appScanHelp) }}</dso-error>
+          </dso-form-field>
         } @else {
           <h3>What builds the code?</h3>
           <dso-choice-tiles label="Build tool" [options]="tools" [(value)]="tool" />
@@ -101,47 +95,47 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
               <p class="choice-error">Choose where the service runs</p>
             }
             @if (needsProject()) {
-              <mat-form-field class="full-width project">
-                <mat-label>OpenShift project</mat-label>
+              <dso-form-field class="full-width project">
+                <dso-label>OpenShift project</dso-label>
                 <input
-                  matInput
+                  dsoInput
                   class="mono"
                   formControlName="openShiftProject"
                   placeholder="pay-payhub"
                   autocomplete="off"
                 />
-                <mat-hint>The name of its projects without -rd or -qc at the end</mat-hint>
-                <mat-error>{{ errorText(form.controls.openShiftProject, projectHelp) }}</mat-error>
-              </mat-form-field>
+                <dso-hint>The name of its projects without -rd or -qc at the end</dso-hint>
+                <dso-error>{{ errorText(form.controls.openShiftProject, projectHelp) }}</dso-error>
+              </dso-form-field>
             }
           }
           @if (scans) {
             <h3>Nexus IQ and Bitbucket</h3>
-            <mat-form-field class="full-width">
-              <mat-label>Nexus IQ application</mat-label>
+            <dso-form-field class="full-width">
+              <dso-label>Nexus IQ application</dso-label>
               <input
-                matInput
+                dsoInput
                 class="mono"
                 formControlName="nexusIqApplication"
                 placeholder="cert-scanner-gui"
                 autocomplete="off"
                 required
               />
-              <mat-hint>The application ID of the service in Nexus IQ</mat-hint>
-              <mat-error>{{ errorText(form.controls.nexusIqApplication) }}</mat-error>
-            </mat-form-field>
-            <mat-form-field class="full-width">
-              <mat-label>Bitbucket repository</mat-label>
+              <dso-hint>The application ID of the service in Nexus IQ</dso-hint>
+              <dso-error>{{ errorText(form.controls.nexusIqApplication) }}</dso-error>
+            </dso-form-field>
+            <dso-form-field class="full-width">
+              <dso-label>Bitbucket repository</dso-label>
               <input
-                matInput
+                dsoInput
                 formControlName="repositoryUrl"
                 placeholder="https://bitbucket.bbh.com/projects/TA/repos/cert-scanner"
                 autocomplete="off"
                 required
               />
-              <mat-hint>GoldenFix opens its pull requests here</mat-hint>
-              <mat-error>{{ errorText(form.controls.repositoryUrl, urlHelp) }}</mat-error>
-            </mat-form-field>
+              <dso-hint>GoldenFix opens its pull requests here</dso-hint>
+              <dso-error>{{ errorText(form.controls.repositoryUrl, urlHelp) }}</dso-error>
+            </dso-form-field>
           }
           @if (existing) {
             <p class="note">
@@ -153,19 +147,19 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
             </p>
           }
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
+      </div>
+      <div class="modal-footer">
         @if (page() === 2) {
-          <button mat-button type="button" (click)="page.set(1)">Back</button>
+          <button type="button" class="btn btn-link" (click)="page.set(1)">Back</button>
         } @else {
-          <button mat-button type="button" mat-dialog-close>Cancel</button>
+          <button type="button" class="btn btn-link" dsoDialogClose>Cancel</button>
         }
-        <button mat-flat-button type="submit">{{ submitLabel() }}</button>
-      </mat-dialog-actions>
+        <button type="submit" class="btn btn-primary">{{ submitLabel() }}</button>
+      </div>
     </form>
   `,
   styles: `
-    mat-dialog-content {
+    .modal-body {
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -202,8 +196,8 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
   `,
 })
 export class ServiceDialog {
-  protected readonly data = inject<ServiceDialogData>(MAT_DIALOG_DATA);
-  private readonly dialogRef = inject<MatDialogRef<ServiceDialog, WizardService>>(MatDialogRef);
+  protected readonly data = inject<ServiceDialogData>(DIALOG_DATA);
+  private readonly dialogRef = inject<DialogRef<WizardService, ServiceDialog>>(DialogRef);
 
   private readonly start = this.data.service;
   protected readonly existing = this.start?.id != null;
