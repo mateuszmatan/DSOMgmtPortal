@@ -11,11 +11,13 @@ import {
   ProductRequest,
   Region,
   Service,
+  ServiceDefaults,
   ServicePipelines,
   ServiceTemplateValues,
   pipelineTypeLabel,
   pipelineTypeSlug,
 } from '../core/models';
+import { RETRY, UNREACHABLE } from '../core/errors';
 import {
   ServiceForm,
   createNexusIqApplicationForm,
@@ -66,6 +68,10 @@ const TOOL_NAMES: readonly Choice<BuildTool>[] = [
   ...TOOLS,
   { value: 'FLUTTER', label: 'Flutter', description: 'The code has a pubspec.yaml file' },
 ];
+
+export function toolName(tool: BuildTool): string {
+  return choiceLabel(TOOL_NAMES, tool);
+}
 
 export const TARGETS: readonly Choice<DeployTarget>[] = [
   {
@@ -122,30 +128,6 @@ function coverage(services: readonly ServicePipelines[], type: PipelineType): st
     : `${count} of ${services.length} services ${count === 1 ? 'has' : 'have'} it`;
 }
 
-export function pipelineReach(
-  pipeline: WizardPipeline,
-  services: readonly WizardService[],
-  current: readonly ServicePipelines[] | null,
-): string {
-  const has = (service: WizardService) =>
-    current?.some(
-      (stored) =>
-        stored.serviceId === service.id &&
-        stored.pipelines.some((candidate) => candidate.type === pipeline),
-    ) ?? false;
-  const gaining = services.filter((service) => !has(service)).map((service) => service.name);
-  if (!gaining.length) {
-    return `${pipelineLabel(pipeline)} · every service has it already`;
-  }
-  return gaining.length === services.length
-    ? `${pipelineLabel(pipeline)} · added to every service`
-    : `${pipelineLabel(pipeline)} · added to ${listed(gaining)}`;
-}
-
-function listed(names: readonly string[]): string {
-  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0];
-}
-
 export function pipelineChoices(
   services: readonly ServicePipelines[] | null,
 ): readonly PipelineChoice[] {
@@ -162,17 +144,20 @@ export function deploys(pipeline: WizardPipeline): boolean {
   return pipeline === 'SECURITY' || pipeline === 'FULL';
 }
 
+export function aPipeline(pipeline: WizardPipeline): string {
+  return `${pipeline === 'NEXUS_IQ' ? 'an' : 'a'} ${pipelineLabel(pipeline)} pipeline`;
+}
+
 export function preparation(pipeline: WizardPipeline): string[] {
   const needs = [
-    "Your product's AppScan API key ID, from the Application Security team",
-    'The name and the AppScan application ID of each service',
-    'Whether each service is built with Gradle or Maven',
+    'The name of each service and its AppScan application ID, from the Application Security team',
+    'Whether each service is built with Gradle or Maven; a developer of the service knows',
   ];
   if (pipeline === 'NEXUS_IQ') {
     return [...needs, 'The Nexus IQ application and the Bitbucket repository of each service'];
   }
   return deploys(pipeline)
-    ? [...needs, 'Whether each service runs on virtual machines or OpenShift']
+    ? [...needs, 'Whether each service runs on virtual machines or on OpenShift']
     : needs;
 }
 
@@ -235,19 +220,28 @@ export function deploysWith(pipeline: WizardPipeline, service: WizardService): D
   return !deploys(pipeline) && service.id === null ? 'VM' : service.target;
 }
 
+function place(target: DeployTarget | null): string {
+  return target === 'VM' ? 'virtual machines' : choiceLabel(TARGETS, target);
+}
+
+function runsOn(target: DeployTarget | null, project: string): string {
+  return `runs on ${place(target)}${project ? ` in project ${project}` : ''}`;
+}
+
+function sentence(text: string): string {
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
+}
+
 export function serviceSummary(pipeline: WizardPipeline, service: WizardService): string {
   const target = deploysWith(pipeline, service);
-  const parts = [choiceLabel(TOOL_NAMES, service.tool)];
+  const parts = [`built with ${toolName(service.tool)}`];
   if (target && (deploys(pipeline) || service.id !== null)) {
-    parts.push(`runs on ${choiceLabel(TARGETS, target)}`);
-  }
-  if (target === 'OPENSHIFT' && service.openShiftProject) {
-    parts.push(`project ${service.openShiftProject}`);
+    parts.push(runsOn(target, target === 'OPENSHIFT' ? service.openShiftProject : ''));
   }
   if (pipeline === 'NEXUS_IQ' && service.nexusIqApplication) {
-    parts.push(`Nexus IQ ${service.nexusIqApplication}`);
+    parts.push(`Nexus IQ application ${service.nexusIqApplication}`);
   }
-  return parts.join(' · ');
+  return sentence(parts.join(', '));
 }
 
 export function changesOf(
@@ -267,13 +261,12 @@ export function changesOf(
   }
   if (service.tool !== stored.build.tool) {
     changes.push(
-      `built with ${choiceLabel(TOOLS, service.tool)} instead of ${choiceLabel(TOOL_NAMES, stored.build.tool)}, with the default build settings`,
+      `built with ${toolName(service.tool)} instead of ${toolName(stored.build.tool)}, with the default build settings`,
     );
   }
   if (service.target !== stored.deployment.target) {
-    const project = service.openShiftProject ? ` in project ${service.openShiftProject}` : '';
     changes.push(
-      `runs on ${choiceLabel(TARGETS, service.target)}${project} instead of ${choiceLabel(TARGETS, stored.deployment.target)}, with the default deployment settings`,
+      `${runsOn(service.target, service.openShiftProject)} instead of ${place(stored.deployment.target)}, with the default deployment settings`,
     );
   }
   if (pipeline === 'NEXUS_IQ' && service.nexusIqApplication !== nexusIqApplicationOf(stored)) {
@@ -285,18 +278,12 @@ export function changesOf(
   return changes;
 }
 
-const REVIEW_LABELS = ['Added', 'Changed', 'Removed', 'Unchanged'] as const;
+export type ReviewTag = 'New' | 'Changed' | 'Removed';
 
-type ReviewLabel = (typeof REVIEW_LABELS)[number];
-
-interface ReviewEntry {
+export interface ReviewEntry {
   name: string;
+  tag: ReviewTag | null;
   text: string;
-}
-
-export interface ReviewGroup {
-  label: ReviewLabel;
-  services: ReviewEntry[];
 }
 
 function reviewEntry(
@@ -304,34 +291,54 @@ function reviewEntry(
   service: WizardService,
   stored: readonly Service[],
   removed: readonly number[],
-): [ReviewLabel, ReviewEntry] {
+  current: readonly ServicePipelines[] | null,
+): ReviewEntry {
+  const name = service.name;
   const before = stored.find((candidate) => candidate.id === service.id);
   if (!before) {
-    return ['Added', { name: service.name, text: serviceSummary(pipeline, service) }];
+    return {
+      name,
+      tag: 'New',
+      text: `Added with ${aPipeline(pipeline)} and its own key. ${serviceSummary(pipeline, service)}`,
+    };
   }
   if (removed.includes(before.id)) {
-    return ['Removed', { name: service.name, text: serviceSummary(pipeline, service) }];
+    return { name, tag: 'Removed', text: 'Deleted, with its pipelines and their keys.' };
   }
+  const has = !!current?.some(
+    (candidate) =>
+      candidate.serviceId === before.id &&
+      candidate.pipelines.some((existing) => existing.type === pipeline),
+  );
   const changes = changesOf(pipeline, service, before);
-  return changes.length
-    ? ['Changed', { name: service.name, text: changes.join('; ') }]
-    : ['Unchanged', { name: service.name, text: serviceSummary(pipeline, service) }];
+  if (!changes.length) {
+    return {
+      name,
+      tag: null,
+      text: has
+        ? `Already has ${aPipeline(pipeline)}; nothing changes.`
+        : `Gets ${aPipeline(pipeline)} with its own key; nothing else changes.`,
+    };
+  }
+  const pipelineText = has
+    ? `Keeps its ${pipelineLabel(pipeline)} pipeline.`
+    : `Gets ${aPipeline(pipeline)} with its own key.`;
+  return { name, tag: 'Changed', text: `${pipelineText} ${sentence(changes.join('; '))}` };
 }
 
-export function reviewGroups(
+export function reviewEntries(
   pipeline: WizardPipeline,
   services: readonly WizardService[],
   stored: readonly Service[],
   removed: readonly number[],
-): ReviewGroup[] {
-  const entries = services.map((service) => reviewEntry(pipeline, service, stored, removed));
-  return REVIEW_LABELS.map((label) => ({
-    label,
-    services: entries.filter(([group]) => group === label).map(([, entry]) => entry),
-  })).filter((group) => group.services.length);
+  current: readonly ServicePipelines[] | null,
+): ReviewEntry[] {
+  return services.map((service) => reviewEntry(pipeline, service, stored, removed, current));
 }
 
 type TargetText = Partial<Omit<Record<keyof OpenShiftTarget, string>, 'skipConfigDeploy'>>;
+
+const dockerContext = (tool: BuildTool) => (tool === 'MAVEN' ? 'target/docker' : 'build/docker');
 
 export function openShiftTargets(
   project: string,
@@ -352,7 +359,7 @@ export function openShiftTargets(
       projectBuild: `${project}-build`,
       buildConfigPath: 'openshift/buildconfig.yaml',
       dockerFilePath: 'openshift/Dockerfile',
-      buildContext: tool === 'MAVEN' ? 'target/docker' : 'build/docker',
+      buildContext: dockerContext(tool),
       dockerRepoPush: image,
       certDir: '/etc/pki/openshift',
       nexusAuthFile: '/home/jenkins/.docker/nexus-auth.json',
@@ -363,15 +370,32 @@ export function openShiftTargets(
   };
 }
 
+function resets(pipeline: WizardPipeline, service: WizardService, existing?: Service) {
+  const target = deploysWith(pipeline, service) ?? 'VM';
+  return {
+    target,
+    retooled: existing?.build.tool !== service.tool,
+    moved: existing?.deployment.target !== target,
+  };
+}
+
+export function takesDefaults(
+  pipeline: WizardPipeline,
+  service: WizardService,
+  existing?: Service,
+): boolean {
+  const { retooled, moved } = resets(pipeline, service, existing);
+  return retooled || moved;
+}
+
 export function serviceRequest(
   service: WizardService,
   pipeline: WizardPipeline,
   template: ServiceTemplateValues | null,
   existing?: Service,
+  defaults: ServiceDefaults | null = null,
 ) {
-  const target = deploysWith(pipeline, service) ?? 'VM';
-  const retooled = existing?.build.tool !== service.tool;
-  const moved = existing?.deployment.target !== target;
+  const { target, retooled, moved } = resets(pipeline, service, existing);
   const openShift = target === 'OPENSHIFT';
   const build = buildDefaults(template, service.tool);
   const form = createServiceForm(
@@ -382,6 +406,7 @@ export function serviceRequest(
       deployment: moved ? undefined : existing.deployment,
       openShiftTargets: moved ? undefined : existing.openShiftTargets,
     },
+    defaults,
   );
   form.patchValue({
     name: service.name,
@@ -393,7 +418,6 @@ export function serviceRequest(
       build: {
         tool: service.tool,
         autoSetup: true,
-        buildPath: build.artifact,
         command: { tasks: build.tasks },
       },
     });
@@ -411,7 +435,16 @@ export function serviceRequest(
     });
   }
   if (retooled || moved) {
+    const { buildPath } = form.controls.build.controls;
     form.patchValue({ delivery: { tasks: template?.deliveryTasks ?? '' } });
+    if (!buildPath.value.trim()) {
+      buildPath.setValue(build.artifact);
+    }
+    if (openShift) {
+      form.controls.openShiftTargets.controls.RD.controls.buildContext.setValue(
+        dockerContext(service.tool),
+      );
+    }
   }
   if (pipeline === 'NEXUS_IQ') {
     scanWithNexusIq(form, service, build.scanPattern, template, existing);
@@ -467,6 +500,7 @@ export function productRequest(
   pipeline: WizardPipeline,
   departmentId: number | null = null,
   template: ServiceTemplateValues | null = null,
+  defaults: ServiceDefaults | null = null,
 ): ProductRequest {
   const stored = 'id' in product ? product : null;
   const requests = services.map((service) =>
@@ -475,6 +509,7 @@ export function productRequest(
       pipeline,
       template,
       stored?.services.find((candidate) => candidate.id === service.id),
+      defaults,
     ),
   );
   if (stored) {
@@ -526,17 +561,26 @@ export function problemText(problem: FieldProblem, services: readonly WizardServ
   return `${service}, ${fieldName(match[2])}: ${problem.message}`;
 }
 
+export function notLoaded(what: string, reason: string, reloadable = false): string {
+  const told = reloadable || reason.includes(RETRY) || reason === UNREACHABLE;
+  const ended = /[.!?]$/.test(reason) ? reason : `${reason}.`;
+  return `${what} could not be loaded. ${ended}${told ? '' : ` ${RETRY}`}`;
+}
+
 export interface ServiceStart {
   serviceName: string;
+  repository: string;
   pipeline: Pipeline | null;
 }
 
 export function servicesToStart(
   services: readonly ServicePipelines[],
   pipeline: WizardPipeline,
+  product: Product,
 ): ServiceStart[] {
   return services.map((service) => ({
     serviceName: service.serviceName,
+    repository: repositoryOf(product.services.find((stored) => stored.id === service.serviceId)),
     pipeline: service.pipelines.find((candidate) => candidate.type === pipeline) ?? null,
   }));
 }
