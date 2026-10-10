@@ -268,7 +268,7 @@ describe('SelfService', () => {
     await next();
 
     expect(text(page().querySelector('.lead'))).toBe(
-      "A pipeline is the automated build, test and security checks Jenkins runs on a service's code; the one you choose is added to every service that does not have it yet, and the pipelines they have stay.",
+      "A pipeline is the automated build, test and security checks Jenkins runs on a service's code; the one you choose is added to every service that does not have it yet, and their other pipelines stay as they are.",
     );
     expect(all('.today li')).toEqual(['gui · Full, SAST', 'api · Full', 'batch · no pipeline yet']);
     expect(all('.tile-label')).toEqual([

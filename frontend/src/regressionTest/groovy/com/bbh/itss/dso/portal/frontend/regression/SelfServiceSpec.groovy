@@ -211,7 +211,7 @@ class SelfServiceSpec extends EditorSpecification {
         then:
         assertThat(currentStep()).hasText('Pipeline')
         assertThat(step().locator('.lead'))
-                .containsText('the one you choose is added to every service that does not have it yet, and the pipelines they have stay.')
+                .containsText('the one you choose is added to every service that does not have it yet, and their other pipelines stay as they are.')
         assertThat(step().locator('.today li')).hasText(['gui · Full, SAST', 'backend-api · Full'] as String[])
         assertThat(step().locator('.tile-note'))
                 .hasText(['1 of 2 services has it', 'No service has it yet', 'No service has it yet', 'Every service has it'] as String[])
