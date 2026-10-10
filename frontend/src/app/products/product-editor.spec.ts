@@ -147,6 +147,34 @@ describe('ProductEditor', () => {
     expect(added.delivery.tasks).toBe('deploy');
   });
 
+  it('swaps the template build of a new service for the one of its new build tool', async () => {
+    await start();
+    const build = editor()['form'].controls.services.at(0).controls.build.controls;
+    const values = () => [build.command.controls.tasks.value, build.buildPath.value];
+    expect(values()).toEqual(['clean install', 'target/*.jar']);
+
+    build.tool.setValue('GRADLE');
+    expect(values()).toEqual(['clean build', 'build/libs/*.jar']);
+
+    build.command.controls.tasks.setValue('clean assemble');
+    build.tool.setValue('MAVEN');
+    expect(values()).toEqual(['clean assemble', 'target/*.jar']);
+
+    build.tool.setValue('FLUTTER');
+    build.tool.setValue('GRADLE');
+    expect(values()).toEqual(['clean assemble', 'build/libs/*.jar']);
+  });
+
+  it('keeps the build of a stored service when its build tool changes', async () => {
+    await edit();
+    const build = editor()['form'].controls.services.at(0).controls.build.controls;
+    const stored = [build.command.controls.tasks.value, build.buildPath.value];
+
+    build.tool.setValue(build.tool.value === 'MAVEN' ? 'GRADLE' : 'MAVEN');
+
+    expect([build.command.controls.tasks.value, build.buildPath.value]).toEqual(stored);
+  });
+
   it('asks for the department and the name first and makes the unique code from the name', async () => {
     const open = naming('Payments Hub', 5);
     fixture.componentRef.setInput('department', '5');

@@ -25,6 +25,8 @@ import {
   forkJoin,
   map,
   of,
+  pairwise,
+  startWith,
   switchMap,
 } from 'rxjs';
 import {
@@ -256,11 +258,24 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   protected addService(): void {
     const service = createServiceForm(undefined, this.settings()?.serviceDefaults);
     const template = this.template();
-    const build = buildDefaults(template, service.controls.build.controls.tool.value);
+    const { tool, buildPath, command } = service.controls.build.controls;
+    const build = buildDefaults(template, tool.value);
     service.patchValue({
       build: { buildPath: build.artifact, command: { tasks: build.tasks } },
       delivery: { tasks: template?.deliveryTasks ?? '' },
     });
+    tool.valueChanges
+      .pipe(startWith(tool.value), pairwise(), takeUntilDestroyed(this.destroyRef))
+      .subscribe(([previous, next]) => {
+        const before = buildDefaults(template, previous);
+        const after = buildDefaults(template, next);
+        if (buildPath.value === before.artifact) {
+          buildPath.setValue(after.artifact);
+        }
+        if (command.controls.tasks.value === before.tasks) {
+          command.controls.tasks.setValue(after.tasks);
+        }
+      });
     addItem(this.form.controls.services, service);
     this.expanded.set(this.form.controls.services.length - 1);
   }

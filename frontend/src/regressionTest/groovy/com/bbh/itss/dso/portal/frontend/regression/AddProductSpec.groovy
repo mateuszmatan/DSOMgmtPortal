@@ -117,6 +117,29 @@ class AddProductSpec extends EditorSpecification {
         ownErrors().isEmpty()
     }
 
+    def "a new service takes the template build of the build tool chosen for it and keeps what was typed"() {
+        given:
+        startProduct('CertScanner Next')
+        showSection('Build')
+
+        expect:
+        hasValues(openService(), ['Gradle tasks': 'clean build', 'Artifact path': 'build/libs/*.jar'])
+
+        when:
+        choose(openService(), 'Build tool', 'Maven')
+
+        then:
+        hasValues(openService(), ['Maven goals': 'clean verify', 'Artifact path': 'target/*.jar'])
+
+        when:
+        input(openService(), 'Artifact path').fill('target/cert.jar')
+        choose(openService(), 'Build tool', 'Gradle')
+
+        then:
+        hasValues(openService(), ['Gradle tasks': 'clean build', 'Artifact path': 'target/cert.jar'])
+        ownErrors().isEmpty()
+    }
+
     def "a product with two services is added after the server's field errors are corrected"() {
         given:
         api.respond('POST', '/api/products', problem(400, 'Bad Request', 'Some values are not valid', [errors: [
