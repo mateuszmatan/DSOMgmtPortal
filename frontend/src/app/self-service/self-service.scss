@@ -81,3 +81,14 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.template-problem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+
+  .choice-error {
+    flex: 1 1 320px;
+  }
+}

@@ -11,6 +11,7 @@ import {
   ProductRequest,
   Region,
   Service,
+  ServiceDefaults,
   ServicePipelines,
   ServiceTemplateValues,
   pipelineTypeLabel,
@@ -337,6 +338,8 @@ export function reviewEntries(
 
 type TargetText = Partial<Omit<Record<keyof OpenShiftTarget, string>, 'skipConfigDeploy'>>;
 
+const dockerContext = (tool: BuildTool) => (tool === 'MAVEN' ? 'target/docker' : 'build/docker');
+
 export function openShiftTargets(
   project: string,
   service: string,
@@ -356,7 +359,7 @@ export function openShiftTargets(
       projectBuild: `${project}-build`,
       buildConfigPath: 'openshift/buildconfig.yaml',
       dockerFilePath: 'openshift/Dockerfile',
-      buildContext: tool === 'MAVEN' ? 'target/docker' : 'build/docker',
+      buildContext: dockerContext(tool),
       dockerRepoPush: image,
       certDir: '/etc/pki/openshift',
       nexusAuthFile: '/home/jenkins/.docker/nexus-auth.json',
@@ -367,15 +370,32 @@ export function openShiftTargets(
   };
 }
 
+function resets(pipeline: WizardPipeline, service: WizardService, existing?: Service) {
+  const target = deploysWith(pipeline, service) ?? 'VM';
+  return {
+    target,
+    retooled: existing?.build.tool !== service.tool,
+    moved: existing?.deployment.target !== target,
+  };
+}
+
+export function takesDefaults(
+  pipeline: WizardPipeline,
+  service: WizardService,
+  existing?: Service,
+): boolean {
+  const { retooled, moved } = resets(pipeline, service, existing);
+  return retooled || moved;
+}
+
 export function serviceRequest(
   service: WizardService,
   pipeline: WizardPipeline,
   template: ServiceTemplateValues | null,
   existing?: Service,
+  defaults: ServiceDefaults | null = null,
 ) {
-  const target = deploysWith(pipeline, service) ?? 'VM';
-  const retooled = existing?.build.tool !== service.tool;
-  const moved = existing?.deployment.target !== target;
+  const { target, retooled, moved } = resets(pipeline, service, existing);
   const openShift = target === 'OPENSHIFT';
   const build = buildDefaults(template, service.tool);
   const form = createServiceForm(
@@ -386,6 +406,7 @@ export function serviceRequest(
       deployment: moved ? undefined : existing.deployment,
       openShiftTargets: moved ? undefined : existing.openShiftTargets,
     },
+    defaults,
   );
   form.patchValue({
     name: service.name,
@@ -397,7 +418,6 @@ export function serviceRequest(
       build: {
         tool: service.tool,
         autoSetup: true,
-        buildPath: build.artifact,
         command: { tasks: build.tasks },
       },
     });
@@ -415,7 +435,16 @@ export function serviceRequest(
     });
   }
   if (retooled || moved) {
+    const { buildPath } = form.controls.build.controls;
     form.patchValue({ delivery: { tasks: template?.deliveryTasks ?? '' } });
+    if (!buildPath.value.trim()) {
+      buildPath.setValue(build.artifact);
+    }
+    if (openShift) {
+      form.controls.openShiftTargets.controls.RD.controls.buildContext.setValue(
+        dockerContext(service.tool),
+      );
+    }
   }
   if (pipeline === 'NEXUS_IQ') {
     scanWithNexusIq(form, service, build.scanPattern, template, existing);
@@ -471,6 +500,7 @@ export function productRequest(
   pipeline: WizardPipeline,
   departmentId: number | null = null,
   template: ServiceTemplateValues | null = null,
+  defaults: ServiceDefaults | null = null,
 ): ProductRequest {
   const stored = 'id' in product ? product : null;
   const requests = services.map((service) =>
@@ -479,6 +509,7 @@ export function productRequest(
       pipeline,
       template,
       stored?.services.find((candidate) => candidate.id === service.id),
+      defaults,
     ),
   );
   if (stored) {
@@ -530,8 +561,8 @@ export function problemText(problem: FieldProblem, services: readonly WizardServ
   return `${service}, ${fieldName(match[2])}: ${problem.message}`;
 }
 
-export function notLoaded(what: string, reason: string): string {
-  const told = reason.includes(RETRY) || reason === UNREACHABLE;
+export function notLoaded(what: string, reason: string, reloadable = false): string {
+  const told = reloadable || reason.includes(RETRY) || reason === UNREACHABLE;
   const ended = /[.!?]$/.test(reason) ? reason : `${reason}.`;
   return `${what} could not be loaded. ${ended}${told ? '' : ` ${RETRY}`}`;
 }

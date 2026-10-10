@@ -25,6 +25,7 @@ class SelfServiceSpec extends EditorSpecification {
     def "a product manager adds a new product with a Security pipeline step by step"() {
         given:
         recordClipboard()
+        useSourceFolder('app')
         api.respond('POST', '/api/products', problem(400, 'Bad Request', 'The portal did not accept some values.',
                 [errors: [[field: 'services[1].appScan.applicationId', message: 'the AppScan application belongs to CertScanner']]]))
 
@@ -152,6 +153,7 @@ class SelfServiceSpec extends EditorSpecification {
             services*.name == ['archive-api', 'archive-gui']
             services*.appScan*.applicationId == [SelfServiceSpec.API_APPLICATION, SelfServiceSpec.GUI_APPLICATION]
             services*.build*.tool == ['MAVEN', 'GRADLE']
+            services*.build*.sourceDir == ['app', 'app']
             services*.deployment*.target == ['OPENSHIFT', 'VM']
             services[0].openShiftTargets.RD.projectDeployment == 'cus-archive-rd'
             services[0].openShiftTargets.QC.projectDeployment == 'cus-archive-qc'
@@ -607,6 +609,155 @@ class SelfServiceSpec extends EditorSpecification {
         ownErrors().isEmpty()
     }
 
+    def "a service on OpenShift that gets another build tool builds its image from the folder of that tool"() {
+        given:
+        def store = ProductStore.recorded(api, 1)
+        def stored = fixture('product-1.json') as Map
+        def targets = stored.services[1].openShiftTargets as Map
+        useSourceFolder('app')
+
+        when:
+        openProduct('Corporate Technology', 'CertScanner (CERTSCANNER)')
+        radio(step(), 'Full').click()
+        button('Next: Services', true).click()
+        buttonIn(serviceRow('backend-api'), 'Change backend-api').click()
+        dialogButton('Next: Build and run').click()
+        radio(dialog(), 'Gradle').click()
+        dialogButton('Save service').click()
+        button('Next: Review', true).click()
+
+        then:
+        hasEntries(['gui'        : 'Already has a Full pipeline; nothing changes.',
+                    'backend-api': 'Changed · Keeps its Full pipeline. Built with Gradle instead of Maven, with the default build settings.'])
+
+        when:
+        button('Save the changes', true).click()
+
+        then:
+        assertThat(step().locator('h2')).hasText('CertScanner is saved. Now do these steps in order')
+        with(awaitRequest('PUT', '/api/products/1').json() as Map) {
+            services[0].build == stored.services[0].build
+            services[1].build.tool == 'GRADLE'
+            services[1].build.sourceDir == 'app'
+            services[1].build.buildPath == 'build/libs/*.jar'
+            services[1].deployment == stored.services[1].deployment
+            services[1].openShiftTargets == targets + [RD: targets.RD + [buildContext: 'build/docker']]
+        }
+        store.generatedKeys.isEmpty()
+        ownErrors().isEmpty()
+    }
+
+    def "a remembered department that is no longer listed has to be chosen again"() {
+        given:
+        page.addInitScript("localStorage.setItem('dso.beadle.department', '99')")
+
+        when:
+        open('/self-service')
+        button('Next: Pipeline', true).click()
+
+        then:
+        assertThat(currentStep()).hasText('Product')
+        assertThat(select(step(), 'Department')).hasValue('')
+        assertThat(errorOf(step(), 'Department')).hasText('Required')
+        ownErrors().isEmpty()
+    }
+
+    def "new services wait for the service template, which can be loaded again"() {
+        given:
+        ProductStore.recorded(api, 1)
+        api.respond('GET', '/api/service-template', problem(503, 'Service Unavailable', 'The database is not reachable'))
+
+        when:
+        openProduct('Corporate Technology', 'CertScanner (CERTSCANNER)')
+        radio(step(), SAST).click()
+        button('Next: Services', true).click()
+        button('Next: Review', true).click()
+
+        then:
+        assertThat(currentStep()).hasText('Review')
+
+        when:
+        button('Back', true).click()
+        addService('scanner', API_APPLICATION, 'Maven')
+        button('Next: Review', true).click()
+
+        then:
+        assertThat(currentStep()).hasText('Services')
+        assertThat(choiceError()).hasText(['The service template could not be loaded. The database is not reachable. New services, and services that change how they are built or where they run, get their build settings from it.',
+                                           'These services get their build settings from the service template, which has to load first: scanner'] as String[])
+
+        when:
+        api.respond('GET', '/api/service-template', fixture('service-template.json'))
+        button('Try again', true).click()
+
+        then:
+        assertThat(button('Try again', true)).hasCount(0)
+
+        when:
+        button('Next: Review', true).click()
+
+        then:
+        assertThat(currentStep()).hasText('Review')
+        ownErrors().findAll { !it.contains('503') }.isEmpty()
+    }
+
+    def "a service whose key is invalidated is sent to its pipeline page for a new key"() {
+        given:
+        def store = ProductStore.recorded(api, 1)
+        def sast = store.services[0].pipelines.find { it.type == 'SAST' } as Map
+        sast.activeKey = null
+        sast.enabled = false
+
+        when:
+        openProduct('Corporate Technology', 'CertScanner (CERTSCANNER)')
+        radio(step(), SAST).click()
+        button('Next: Services', true).click()
+        button('Next: Review', true).click()
+        button('Save the changes', true).click()
+
+        then:
+        assertThat(step().locator('h2')).hasText('CertScanner is saved. Now do these steps in order')
+        assertThat(page.locator('.jenkinsfile strong')).hasText(['gui', 'backend-api'] as String[])
+        assertThat(button('Copy the Jenkinsfile of gui', true)).hasCount(0)
+        assertThat(page.locator('.jenkinsfile .code-block')).hasText(
+                ["@Library('DevSecOpsJenkinsLibrary') _ devSecOpsSASTScanningPipeline(pipelineKey: '${store.generatedKeys['backend-api']}')".toString()] as String[])
+        assertThat(page.locator('.jenkinsfile-missing')).hasText(
+                'Its key is invalidated, so the pipeline is refused its settings and stops. Issue a new key on its pipeline page and copy the Jenkinsfile from there.')
+
+        when:
+        link('its pipeline page', true).click()
+
+        then:
+        page.waitForURL("**/pipelines/${sast.id}")
+        ownErrors().isEmpty()
+    }
+
+    def "a new service that has the name of a service of the product chosen after it has to be renamed"() {
+        given:
+        ProductStore.recorded(api, 1)
+        ProductStore.recorded(api, 2)
+
+        when:
+        openProduct('Corporate Technology', 'CertScanner (CERTSCANNER)')
+        radio(step(), SAST).click()
+        button('Next: Services', true).click()
+        addService('ledger', API_APPLICATION, 'Gradle')
+        page.locator('.step-bar').getByRole(BUTTON).filter(new Locator.FilterOptions().setHasText('Product')).click()
+        choose(step(), 'Department', 'Fund Services')
+        choose(step(), 'Product', 'Payments Hub (PAYHUB)')
+        button('Next: Pipeline', true).click()
+        button('Next: Services', true).click()
+        button('Next: Review', true).click()
+
+        then:
+        assertThat(currentStep()).hasText('Services')
+        assertThat(step().locator('.service-list strong'))
+                .hasText(['gateway', 'ledger', 'notifications', 'mobile-app', 'ledger'] as String[])
+        assertThat(choiceError())
+                .hasText('Use Change to rename these services, as another service of Payments Hub has the same name: ledger')
+        ownErrors().isEmpty()
+    }
+
     def "leaving the wizard with answers asks before they are lost"() {
         when:
         open('/self-service')
@@ -641,6 +792,12 @@ class SelfServiceSpec extends EditorSpecification {
         choose(step(), 'Product', product)
         assertThat(step().locator('dl.rows')).isVisible()
         button('Next: Pipeline', true).click()
+    }
+
+    void useSourceFolder(String folder) {
+        def settings = fixture('settings.json') as Map
+        settings.serviceDefaults.sourceDir = folder
+        api.respond('GET', '/api/settings', settings)
     }
 
     void addService(String name, String applicationId, String tool, String target = null, Map<String, String> details = [:]) {

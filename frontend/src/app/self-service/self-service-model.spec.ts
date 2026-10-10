@@ -1,5 +1,12 @@
 import { RETRY, UNREACHABLE } from '../core/errors';
-import { pipeline, product, service, servicePipelines, serviceTemplate } from '../testing/fixtures';
+import {
+  globalSettings,
+  pipeline,
+  product,
+  service,
+  servicePipelines,
+  serviceTemplate,
+} from '../testing/fixtures';
 import {
   WizardService,
   changesOf,
@@ -411,6 +418,71 @@ describe('self-service model', () => {
     expect(request.build).toEqual(stored.build);
   });
 
+  it('builds a new service, and one that gets another build tool, from the source folder of the library defaults', () => {
+    const defaults = globalSettings().serviceDefaults;
+    const stored = service();
+    const created = serviceRequest(added(), 'SECURITY', TEMPLATE, undefined, defaults);
+    const retooled = serviceRequest(
+      { ...fromService(stored), tool: 'MAVEN' },
+      'FULL',
+      TEMPLATE,
+      stored,
+      defaults,
+    );
+
+    expect(defaults.sourceDir).toBe('app');
+    expect(created.build).toEqual(expect.objectContaining({ tool: 'GRADLE', sourceDir: 'app' }));
+    expect(created.deployment.target).toBe('VM');
+    expect(retooled.build).toEqual(expect.objectContaining({ tool: 'MAVEN', sourceDir: 'app' }));
+    expect(serviceRequest(fromService(stored), 'FULL', TEMPLATE, stored, defaults).build).toEqual(
+      stored.build,
+    );
+  });
+
+  it('gives a service of the portal on OpenShift the image build context of its new build tool', () => {
+    const stored = service({
+      ...serviceRequest(
+        added({ name: 'gui', target: 'OPENSHIFT', openShiftProject: 'cert-gui' }),
+        'FULL',
+        TEMPLATE,
+      ),
+      id: 10,
+    });
+    const request = serviceRequest(
+      { ...fromService(stored), tool: 'MAVEN' },
+      'FULL',
+      TEMPLATE,
+      stored,
+    );
+
+    expect(stored.openShiftTargets.RD?.buildContext).toBe('build/docker');
+    expect(request.deployment).toEqual(stored.deployment);
+    expect(request.openShiftTargets).toEqual({
+      ...stored.openShiftTargets,
+      RD: { ...stored.openShiftTargets.RD, buildContext: 'target/docker' },
+    });
+  });
+
+  it('gives a Maven service of the portal without a build path one when it moves to virtual machines', () => {
+    const stored = service({
+      build: { ...service().build, tool: 'MAVEN', buildPath: null },
+      deployment: {
+        target: 'OPENSHIFT',
+        appName: 'gui',
+        artifactName: 'gui.jar',
+        baseArtifactName: null,
+      },
+    });
+    const request = serviceRequest(
+      { ...fromService(stored), target: 'VM' },
+      'FULL',
+      TEMPLATE,
+      stored,
+    );
+
+    expect(request.build).toEqual({ ...stored.build, buildPath: 'target/*.jar' });
+  });
+
   it('reads a service of the portal back for the wizard', () => {
     expect(fromService(service({ description: null }))).toEqual({
       id: 10,
@@ -675,6 +747,9 @@ describe('self-service model', () => {
     );
     expect(notLoaded('The products', UNREACHABLE)).toBe(
       `The products could not be loaded. ${UNREACHABLE}`,
+    );
+    expect(notLoaded('The service template', 'Database unavailable', true)).toBe(
+      'The service template could not be loaded. Database unavailable.',
     );
   });
 

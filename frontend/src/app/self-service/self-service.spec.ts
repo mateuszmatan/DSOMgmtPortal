@@ -569,11 +569,53 @@ describe('SelfService', () => {
     expect(request.request.body.services.map((service: { name: string }) => service.name)).toEqual([
       'archive-api',
     ]);
+    expect(request.request.body.services[0].build.sourceDir).toBe('app');
     request.flush(product());
     http.expectOne('/api/products/1/pipelines').flush([]);
     await fixture.whenStable();
 
     expect(wizard()['step']()).toBe(4);
+  });
+
+  it('asks to rename a new service that has the name of a service of the product chosen after it', async () => {
+    await chooseProduct(3, product({ id: 2, name: 'Payments Hub', services: [] }), []);
+    wizard()['services'].set([{ ...added, name: 'GUI' }]);
+    await chooseProduct(3);
+    await next();
+    wizard()['pipeline'].set('SAST');
+    await next();
+
+    expect(all('.service-list strong')).toEqual(['gui', 'GUI']);
+
+    await next();
+
+    expect(wizard()['step']()).toBe(2);
+    expect(all('.choice-error')).toEqual([
+      'Use Change to rename these services, as another service of CertScanner has the same name: GUI',
+    ]);
+  });
+
+  it('points to the pipeline page of a service whose key is invalidated instead of its Jenkinsfile', async () => {
+    await chooseProduct(3);
+    await next();
+    wizard()['pipeline'].set('FULL');
+    await next();
+    await next();
+    await next();
+    http.expectOne({ method: 'PUT', url: '/api/products/1?pipelineType=FULL' }).flush(product());
+    http
+      .expectOne('/api/products/1/pipelines')
+      .flush([servicePipelines({ pipelines: [pipeline({ activeKey: null })] })]);
+    await fixture.whenStable();
+
+    expect(buttonOf(page(), 'Copy the Jenkinsfile of gui')).toBeUndefined();
+    expect(page().querySelector('.code-block')).toBeNull();
+    expect(all('.jenkinsfile-missing')).toEqual([
+      'Its key is invalidated, so the pipeline is refused its settings and stops. Issue a new key on its pipeline page and copy the Jenkinsfile from there.',
+    ]);
+    expect(page().querySelector('.jenkinsfile-missing a')?.getAttribute('href')).toBe(
+      '/pipelines/100',
+    );
   });
 });
 
@@ -637,29 +679,102 @@ describe('SelfService without products', () => {
 });
 
 describe('SelfService in your department', () => {
-  afterEach(() => localStorage.removeItem(MY_DEPARTMENT_KEY));
+  let fixture: ComponentFixture<SelfService>;
+  let http: HttpTestingController;
 
-  it('starts in the department you chose and says when the service template cannot be read', async () => {
-    localStorage.setItem(MY_DEPARTMENT_KEY, '5');
+  afterEach(() => {
+    http.verify();
+    localStorage.removeItem(MY_DEPARTMENT_KEY);
+  });
+
+  const wizard = () => fixture.componentInstance;
+  const page = () => fixture.nativeElement as HTMLElement;
+
+  function open(departmentId: string) {
+    localStorage.setItem(MY_DEPARTMENT_KEY, departmentId);
     TestBed.configureTestingModule({
       imports: [SelfService],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
-    const http = TestBed.inject(HttpTestingController);
-    const fixture = TestBed.createComponent(SelfService);
-    const wizard = fixture.componentInstance;
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(SelfService);
     fixture.detectChanges();
     http.expectOne('/api/products').flush([productSummary()]);
     http.expectOne('/api/departments').flush([department({ id: 5, name: 'Fund Services' })]);
     http.expectOne('/api/settings').flush(globalSettings());
+  }
+
+  async function next() {
+    wizard()['next']();
+    await fixture.whenStable();
+  }
+
+  it('starts in the department you chose and says when the service template cannot be read', async () => {
+    open('5');
     http
       .expectOne('/api/service-template')
       .flush({ detail: 'Database unavailable' }, { status: 500, statusText: 'Server Error' });
     await fixture.whenStable();
 
-    expect(wizard['productForm'].controls.departmentId.value).toBe(5);
-    expect(wizard['departmentName']()).toBe('Fund Services');
-    expect(wizard['templateError']()).toContain('Database unavailable');
-    http.verify();
+    expect(wizard()['productForm'].controls.departmentId.value).toBe(5);
+    expect(wizard()['departmentName']()).toBe('Fund Services');
+
+    wizard()['chooseMode']('existing');
+    wizard()['productId'].setValue(1);
+    http.expectOne('/api/products/1').flush(product());
+    TestBed.tick();
+    http.expectOne('/api/products/1/pipelines').flush([servicePipelines()]);
+    await next();
+    wizard()['pipeline'].set('SAST');
+    await next();
+
+    expect(text(page().querySelector('.template-problem'))).toBe(
+      'The service template could not be loaded. Database unavailable. New services, and services that change how they are built or where they run, get their build settings from it. Try again',
+    );
+
+    await next();
+
+    expect(wizard()['step']()).toBe(3);
+
+    buttonOf(page(), 'Back').click();
+    wizard()['services'].update((services) => [...services, added]);
+    await next();
+
+    expect(wizard()['step']()).toBe(2);
+    expect([...page().querySelectorAll('.choice-error')].map(text)).toEqual([
+      'The service template could not be loaded. Database unavailable. New services, and services that change how they are built or where they run, get their build settings from it.',
+      'These services get their build settings from the service template, which has to load first: archive-api',
+    ]);
+
+    buttonOf(page(), 'Try again').click();
+    TestBed.tick();
+    http.expectOne('/api/service-template').flush(serviceTemplate());
+    await fixture.whenStable();
+
+    expect(page().querySelector('.template-problem')).toBeNull();
+
+    await next();
+
+    expect(wizard()['step']()).toBe(3);
+  });
+
+  it('forgets the department you chose once it is no longer listed', async () => {
+    open('7');
+    http.expectOne('/api/service-template').flush(serviceTemplate());
+    await fixture.whenStable();
+
+    expect(wizard()['productForm'].controls.departmentId.value).toBeNull();
+
+    await next();
+
+    expect(wizard()['step']()).toBe(0);
+    expect(text(fieldOf(page(), 'Department')?.querySelector('dso-error'))).toBe('Required');
+
+    wizard()['restart']();
+    TestBed.tick();
+    http.expectOne('/api/products').flush([productSummary()]);
+    await fixture.whenStable();
+
+    expect(wizard()['productForm'].controls.departmentId.value).toBeNull();
   });
 });

@@ -39,9 +39,9 @@ import {
   SettingsApi,
 } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
-import { Product } from '../core/models';
+import { Department, Product } from '../core/models';
 import { Notifier } from '../core/notifier';
-import { ADMIN, SELF_SERVICE, adminProduct } from '../core/sections';
+import { ADMIN, SELF_SERVICE, adminProduct, pipelinePage } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { byDepartment } from '../products/departments';
 import { jenkinsfile } from '../products/jenkinsfile';
@@ -73,6 +73,7 @@ import {
   reviewEntries,
   serviceSummary,
   servicesToStart,
+  takesDefaults,
 } from './self-service-model';
 import { ServiceDialog, ServiceDialogData } from './service-dialog';
 
@@ -109,6 +110,7 @@ export class SelfService implements HasUnsavedChanges {
   protected readonly section = SELF_SERVICE;
   protected readonly admin = ADMIN.heading;
   protected readonly adminProduct = adminProduct;
+  protected readonly pipelinePage = pipelinePage;
   protected readonly steps = STEPS;
   protected readonly modes = PRODUCT_MODES;
   protected readonly errorText = errorText;
@@ -144,6 +146,18 @@ export class SelfService implements HasUnsavedChanges {
           .map((service) => service.name)
       : [],
   );
+  protected readonly duplicated = computed(() =>
+    this.kept()
+      .filter(
+        (service, index, kept) =>
+          service.id === null &&
+          kept.some(
+            (other, position) =>
+              position !== index && other.name.toLowerCase() === service.name.toLowerCase(),
+          ),
+      )
+      .map((service) => service.name),
+  );
   protected readonly unscanned = computed(() =>
     this.pipeline() === 'NEXUS_IQ'
       ? this.kept()
@@ -175,6 +189,7 @@ export class SelfService implements HasUnsavedChanges {
     inject(DepartmentsApi)
       .list()
       .pipe(
+        tap((departments) => this.forgetUnlistedDepartment(departments)),
         catchError((error) => {
           this.departmentsError.set(errorMessage(error));
           return of([]);
@@ -189,21 +204,28 @@ export class SelfService implements HasUnsavedChanges {
     { initialValue: null },
   );
   private readonly library = computed(() => this.settings()?.platform.jenkinsLibrary);
-  protected readonly templateError = signal<string | null>(null);
-  private readonly template = toSignal(
-    inject(ServiceTemplateApi)
-      .get()
-      .pipe(
-        catchError((error) => {
-          this.templateError.set(errorMessage(error));
-          return of(null);
-        }),
-      ),
-    { initialValue: null },
+  private readonly serviceDefaults = computed(() => this.settings()?.serviceDefaults ?? null);
+  private readonly templateApi = inject(ServiceTemplateApi);
+  protected readonly serviceTemplate = rxResource({ stream: () => this.templateApi.get() });
+  private readonly template = computed(() =>
+    this.serviceTemplate.hasValue() ? this.serviceTemplate.value() : null,
+  );
+  protected readonly untemplated = computed(() =>
+    this.template()
+      ? []
+      : this.kept()
+          .filter((service) =>
+            takesDefaults(
+              this.pipeline()!,
+              service,
+              this.existing()?.services.find((stored) => stored.id === service.id),
+            ),
+          )
+          .map((service) => service.name),
   );
   private readonly defaults = computed<WizardDefaults>(() => ({
-    tool: this.settings()?.serviceDefaults.buildTool ?? null,
-    target: this.settings()?.serviceDefaults.deployTarget ?? null,
+    tool: this.serviceDefaults()?.buildTool ?? null,
+    target: this.serviceDefaults()?.deployTarget ?? null,
     template: this.template(),
     productCode: this.existing()?.code ?? this.code(),
   }));
@@ -404,6 +426,7 @@ export class SelfService implements HasUnsavedChanges {
     this.pipeline.set(null);
     this.chooseMode('new');
     this.productForm.reset({ departmentId: this.myDepartment.departmentId() });
+    this.forgetUnlistedDepartment(this.departments());
     this.services.set([]);
     this.removed.set([]);
     this.changed.set(false);
@@ -427,7 +450,10 @@ export class SelfService implements HasUnsavedChanges {
         return this.pipeline() !== null;
       case 2:
         return (
-          this.kept().length > 0 && this.unplaced().length === 0 && this.unscanned().length === 0
+          this.kept().length > 0 &&
+          [this.unplaced(), this.unscanned(), this.duplicated(), this.untemplated()].every(
+            (names) => names.length === 0,
+          )
         );
       default:
         return !this.saving();
@@ -458,6 +484,16 @@ export class SelfService implements HasUnsavedChanges {
         );
         this.changed.set(true);
       });
+  }
+
+  private forgetUnlistedDepartment(departments: readonly Department[]): void {
+    const control = this.productForm.controls.departmentId;
+    if (
+      this.departmentsError() === null &&
+      !departments.some((department) => department.id === control.value)
+    ) {
+      control.setValue(null);
+    }
   }
 
   private useProduct(product: Product | null): void {
@@ -504,13 +540,21 @@ export class SelfService implements HasUnsavedChanges {
             pipeline,
             this.productForm.controls.departmentId.value,
             this.template(),
+            this.serviceDefaults(),
           ),
           pipeline,
         )
       : this.suggestCode(this.productForm.controls.name.value.trim()).pipe(
           switchMap((code) =>
             this.productsApi.create(
-              productRequest(this.newProduct(code), services, pipeline, null, this.template()),
+              productRequest(
+                this.newProduct(code),
+                services,
+                pipeline,
+                null,
+                this.template(),
+                this.serviceDefaults(),
+              ),
               pipeline,
             ),
           ),

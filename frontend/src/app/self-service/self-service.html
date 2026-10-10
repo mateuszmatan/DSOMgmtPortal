@@ -208,11 +208,23 @@
           A service is one part of the product that is built and deployed on its own, for example
           its API or its web front end; each one gets its own {{ pipelineLabel() }} pipeline.
         </p>
-        @if (templateError(); as error) {
-          <p class="choice-error">
-            {{ notLoaded('The service template', error) }} Until then, fill in every answer
-            yourself.
-          </p>
+        @if (serviceTemplate.error(); as error) {
+          <div class="template-problem">
+            <p class="choice-error">
+              {{ notLoaded('The service template', errorMessage(error), true) }} New services, and
+              services that change how they are built or where they run, get their build settings
+              from it.
+            </p>
+            <button
+              type="button"
+              class="btn btn-outline-primary"
+              (click)="serviceTemplate.reload()"
+            >
+              Try again
+            </button>
+          </div>
+        } @else if (serviceTemplate.isLoading()) {
+          <dso-loading />
         }
         @if (services().length) {
           <ol class="service-list">
@@ -281,6 +293,18 @@
         @if (checked() && unplaced().length) {
           <p class="choice-error">
             Use Change to say where these services run: {{ unplaced().join(', ') }}
+          </p>
+        }
+        @if (checked() && duplicated().length) {
+          <p class="choice-error">
+            Use Change to rename these services, as another service of {{ productName() }} has the
+            same name: {{ duplicated().join(', ') }}
+          </p>
+        }
+        @if (checked() && untemplated().length) {
+          <p class="choice-error">
+            These services get their build settings from the service template, which has to load
+            first: {{ untemplated().join(', ') }}
           </p>
         }
         @if (checked() && unscanned().length) {
@@ -384,7 +408,7 @@
                         <span class="muted"> · goes into {{ start.repository }}</span>
                       }
                     </div>
-                    @if (start.pipeline) {
+                    @if (start.pipeline?.activeKey) {
                       <button
                         type="button"
                         class="btn btn-link"
@@ -396,8 +420,17 @@
                       </button>
                     }
                   </div>
-                  @if (start.pipeline) {
-                    <pre class="code-block">{{ jenkinsfileOf(start) }}</pre>
+                  @if (start.pipeline; as started) {
+                    @if (started.activeKey) {
+                      <pre class="code-block">{{ jenkinsfileOf(start) }}</pre>
+                    } @else {
+                      <p class="jenkinsfile-missing">
+                        Its key is invalidated, so the pipeline is refused its settings and stops.
+                        Issue a new key on
+                        <a [routerLink]="pipelinePage(started.id)">its pipeline page</a> and copy
+                        the Jenkinsfile from there.
+                      </p>
+                    }
                   } @else {
                     <p class="jenkinsfile-missing">
                       Its pipeline is not listed yet. Find its Jenkinsfile on
