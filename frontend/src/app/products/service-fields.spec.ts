@@ -244,7 +244,7 @@ describe('ServiceFields', () => {
       await render();
       await open('SonarQube');
       expect(hints()).toContain('tools.sonar.serverUrl · left empty: https://tools.bbh.com/sonar');
-      await open('DORA metrics');
+      await open('Monitoring');
       expect(hints()).toContain('influx.credentialsId · left empty: influxdb-token');
       await open('AppScan SAST and DAST');
       expect(text(fieldOf(pane(), 'Secret text credentials ID'))).toContain(
@@ -260,7 +260,7 @@ describe('ServiceFields', () => {
 
       const select = selectOf(pane(), 'Run GoldenFix');
       expect(text(select.selectedOptions[0])).toBe('Global default');
-      expect(hints()).toContain('goldenFix.enabled · Global default: on');
+      expect(hints()).toContain('Global default: on · goldenFix.enabled');
       expect(optionsOf(select)).toEqual(['Global default', 'On', 'Off']);
 
       choose(select, 'Off');
@@ -277,7 +277,7 @@ describe('ServiceFields', () => {
       });
       await open('GoldenFix');
 
-      expect(hints()).toContain('goldenFix.enabled · Global default: off');
+      expect(hints()).toContain('Global default: off · goldenFix.enabled');
       choose(selectOf(pane(), 'Run GoldenFix'), 'On');
       await fixture.whenStable();
 

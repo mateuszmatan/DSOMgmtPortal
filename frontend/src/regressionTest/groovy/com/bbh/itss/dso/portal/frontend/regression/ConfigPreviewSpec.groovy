@@ -15,7 +15,7 @@ class ConfigPreviewSpec extends ProductPageSpecification {
         open('/admin/products/1')
 
         when:
-        pipelineButton('gui', 'Full', 'Config').click()
+        pipelineAction('gui', 'Full', 'Settings sent to Jenkins (config.yaml)')
 
         then:
         assertThat(dialog().locator('h2')).hasText('Configuration of the gui full pipeline')
@@ -51,10 +51,10 @@ class ConfigPreviewSpec extends ProductPageSpecification {
         open('/admin/products/1')
 
         when:
-        button('config.yaml', true).click()
+        productAction('Settings sent to Jenkins (config.yaml)')
 
         then:
-        assertThat(dialog().locator('h2')).hasText('config.yaml of CertScanner')
+        assertThat(dialog().locator('h2')).hasText('Settings sent to Jenkins (config.yaml) for CertScanner')
         dialog().locator('pre.code-block').textContent() == yaml
 
         when:
@@ -97,7 +97,7 @@ class ConfigPreviewSpec extends ProductPageSpecification {
 
         where:
         what                | path                      | status | title                   | detail                                                             | action
-        'pipeline config'   | '/api/pipelines/3/config' | 404    | 'Not Found'             | 'Pipeline 3 was not found'                                         | { ConfigPreviewSpec spec -> spec.pipelineButton('backend-api', 'Full', 'Config').click() }
-        'product config'    | '/api/products/1/config'  | 500    | 'Internal Server Error' | 'The configuration of CertScanner cannot be rendered: no services' | { ConfigPreviewSpec spec -> spec.button('config.yaml', true).click() }
+        'pipeline config'   | '/api/pipelines/3/config' | 404    | 'Not Found'             | 'Pipeline 3 was not found'                                         | { ConfigPreviewSpec spec -> spec.pipelineAction('backend-api', 'Full', 'Settings sent to Jenkins (config.yaml)') }
+        'product config'    | '/api/products/1/config'  | 500    | 'Internal Server Error' | 'The configuration of CertScanner cannot be rendered: no services' | { ConfigPreviewSpec spec -> spec.productAction('Settings sent to Jenkins (config.yaml)') }
     }
 }

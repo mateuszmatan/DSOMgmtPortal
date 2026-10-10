@@ -21,11 +21,20 @@ export class ToolCommandFields {
   readonly path = input.required<string>();
   readonly gradleExample = input('');
   readonly mavenExample = input('');
+  readonly part = input<'all' | 'tasks' | 'options'>('all');
 
   private readonly maven = computed(() => this.tool() === 'MAVEN');
   private readonly key = computed(() => `${this.path()}.${this.maven() ? 'maven' : 'gradle'}`);
 
   protected fields(): Field[] {
+    const part = this.part();
+    const fields = this.all();
+    return part === 'all'
+      ? fields
+      : fields.filter((field) => (field.key === 'tasks') === (part === 'tasks'));
+  }
+
+  private all(): Field[] {
     const maven = this.maven();
     const key = this.key();
     return [

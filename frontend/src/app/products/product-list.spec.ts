@@ -55,37 +55,37 @@ describe('ProductList', () => {
       'Fund Services',
     ]);
     expect(text(card('Corporate Technology').querySelector('.tally'))).toBe(
-      '3 DevSecOps pipelines for 1 product · 2 active',
+      '1 product, 3 pipelines, 1 key invalidated',
     );
-    expect(text(card('Fund Services').querySelector('.tally'))).toBe(
-      '0 DevSecOps pipelines for 0 products',
-    );
+    expect(card('Fund Services').querySelector('.tally')).toBeNull();
     expect(text(card('Fund Services').querySelector('.no-products'))).toBe(
-      'No products in Fund Services yet.',
+      'No products in Fund Services yet.Add a product to Fund Services',
     );
-    expect(text(page().querySelector('.count'))).toBe('1 product in 2 departments');
+    expect(text(page().querySelector('.summary'))).toBe('1 product in 2 departments');
     expect(gridHeaders(card('Corporate Technology'))).toEqual([
       'Product',
       'Owner team',
       'Services',
       'Pipelines',
-      'Last change',
     ]);
     expect(row.classList).toContain('clickable');
     expect(row.querySelector('.name')?.textContent).toBe('CertScanner');
     expect(row.querySelector('.code')?.textContent).toBe('CERT');
     expect(text(gridCell(row, 'services'))).toBe('2');
-    expect(row.querySelector('.revoked')?.textContent?.trim()).toBe('· 1 invalidated');
-    expect(text(gridCell(row, 'updatedAt'))).toBe('just now');
+    expect(row.querySelector('.revoked')?.textContent?.trim()).toBe('3, 1 key invalidated');
     expect(page().querySelector('.hint')).toBeNull();
   });
 
-  it('adds a product to a department from its card', async () => {
+  it('adds a product to an empty department from its card, and has one Add product button', async () => {
     await load();
     const addProduct = card('Fund Services').querySelector<HTMLAnchorElement>('a')!;
 
-    expect(text(addProduct)).toBe('Add product');
+    expect(text(addProduct)).toBe('Add a product to Fund Services');
     expect(addProduct.getAttribute('href')).toBe('/admin/products/new?department=5');
+    expect(card('Corporate Technology').querySelector('header a')).toBeNull();
+    expect(
+      [...page().querySelectorAll('a.btn')].map((link) => [text(link), link.getAttribute('href')]),
+    ).toEqual([['Add product', '/admin/products/new']]);
     expect(page().querySelector('section.chart')).toBeNull();
     expect(page().querySelector('h1')).toBeNull();
   });
@@ -107,14 +107,14 @@ describe('ProductList', () => {
 
     expect(text(unassigned.querySelector('h2'))).toBe('Not in a department');
     expect(text(unassigned.querySelector('.tally'))).toBe(
-      '4 DevSecOps pipelines for 2 products · 3 active',
+      '2 products, 4 pipelines, 1 key invalidated',
     );
     expect(text(unassigned.querySelector('.hint'))).toBe(
       'Edit these products to choose their department.',
     );
     expect(gridRows(unassigned).length).toBe(2);
-    expect(text(page().querySelector('.count'))).toBe(
-      '1 product in 2 departments · 2 not in a department',
+    expect(text(page().querySelector('.summary'))).toBe(
+      '1 product in 2 departments, 2 not in a department',
     );
   });
 
@@ -134,8 +134,8 @@ describe('ProductList', () => {
       'Not in a department',
     ]);
     expect(cards()[0].querySelector('.tally')).toBeNull();
-    expect(text(page().querySelector('.count'))).toBe(
-      '0 products in 0 departments · 1 not in a department',
+    expect(text(page().querySelector('.summary'))).toBe(
+      '0 products in 0 departments, 1 not in a department',
     );
   });
 
@@ -165,12 +165,23 @@ describe('ProductList', () => {
     http.expectOne('/api/departments').flush([department()]);
     await fixture.whenStable();
 
-    expect(page().querySelector('.banner')?.textContent).toContain('cannot be reached');
+    expect(text(page().querySelector('.banner'))).toBe(
+      'The product list could not be loaded. The portal cannot be reached. Check your network connection and try again. Try again',
+    );
+
+    page().querySelector<HTMLButtonElement>('.banner button')!.click();
+    fixture.detectChanges();
+    http.expectOne('/api/products').flush([summary]);
+    http.expectOne('/api/departments').flush([department()]);
+    await fixture.whenStable();
+
+    expect(page().querySelector('.banner')).toBeNull();
+    expect(gridRows(page()).length).toBe(1);
   });
 
   it('searches as the user types and shows only the departments with matches', async () => {
     await load();
-    expect(text(page().querySelector('.count'))).toBe('1 product in 2 departments');
+    expect(text(page().querySelector('.summary'))).toBe('1 product in 2 departments');
 
     const input = page().querySelector<HTMLInputElement>('input[aria-label="Search products"]')!;
     input.value = '  cert ';
@@ -183,7 +194,7 @@ describe('ProductList', () => {
     expect(cards().map((section) => text(section.querySelector('h2')))).toEqual([
       'Corporate Technology',
     ]);
-    expect(text(page().querySelector('.count'))).toBe('1 product in 1 department');
+    expect(text(page().querySelector('.summary'))).toBe('1 product in 1 department');
 
     input.value = 'payments';
     input.dispatchEvent(new Event('input'));
@@ -194,7 +205,16 @@ describe('ProductList', () => {
 
     expect(text(page().querySelector('.empty-state h3'))).toBe('No product matches "payments"');
     expect(page().querySelector('.empty-state a')).toBeNull();
-    expect(text(page().querySelector('.count'))).toBe('0 products in 0 departments');
+    expect(text(page().querySelector('.summary'))).toBe('0 products in 0 departments');
+
+    page().querySelector<HTMLButtonElement>('.empty-state button')!.click();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    fixture.detectChanges();
+    http.expectOne('/api/products').flush([summary]);
+    await fixture.whenStable();
+
+    expect(input.value).toBe('');
+    expect(page().querySelector('.empty-state')).toBeNull();
   });
 
   it('shows a product without team or pipelines and opens it from its row', async () => {
@@ -217,7 +237,7 @@ describe('ProductList', () => {
     expect(rows[0].querySelector('.description')).toBeNull();
     expect(text(gridCell(rows[0], 'pipelines'))).toBe('None yet');
     expect(rows[1].querySelector('.revoked')).toBeNull();
-    expect(rows[1].querySelector('.pipelines')?.textContent).toContain('3 active');
+    expect(text(rows[1].querySelector('.pipelines'))).toBe('3, all active');
 
     rows[0].querySelector<HTMLAnchorElement>('a.name')!.click();
     await settleGrid();

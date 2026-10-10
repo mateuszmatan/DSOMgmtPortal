@@ -34,6 +34,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         pipelineButton('gui', 'Full', 'Show the key of the full pipeline').click()
 
         then:
+        assertThat(pipelineButton('gui', 'Full', 'Hide the key of the full pipeline')).hasText('Hide key')
         assertThat(keyOf('gui', 'Full')).hasText(GUI_FULL_KEY)
         assertThat(keyOf('gui', 'SAST scanning')).hasText('2c0ca4f4…e713')
 
@@ -130,7 +131,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         assertThat(pipelineTypes('gui')).hasText(['Full pipeline', 'Security pipeline', 'SAST scanning pipeline'] as String[])
         assertThat(keyOf('gui', 'Security')).hasText(hint(keyValue(30)))
         assertThat(snackBar()).containsText('Security pipeline added to gui')
-        assertThat(stat('Pipelines')).hasText('4')
+        assertThat(fact('Pipelines')).hasText('4, all active')
         ownErrors().findAll { !it.contains('400') }.isEmpty()
     }
 
@@ -164,7 +165,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         assertThat(keyOf('gui', 'Full')).hasText(value)
         assertThat(snackBar()).containsText('New key issued')
         awaitRequest('POST', '/api/pipelines/1/keys').json() == [:]
-        assertThat(stat('Active keys')).hasText('3')
+        assertThat(fact('Pipelines')).hasText('3, all active')
         ownErrors().isEmpty()
     }
 
@@ -206,9 +207,9 @@ class PipelineKeysSpec extends ProductPageSpecification {
         assertThat(snackBar()).containsText('Key invalidated: the pipeline stops at its next start')
         assertThat(pipelineRow('gui', 'SAST scanning').locator('.key-state')).hasText('Key invalidated')
         assertThat(pipelineRow('gui', 'SAST scanning').locator('.revoked-note'))
-                .hasText('The pipeline is refused its configuration until its key is regenerated.')
+                .hasText("Jenkins is refused this pipeline's settings, so it stops until a new key is issued.")
         assertThat(pipelineButton('gui', 'SAST scanning', 'Regenerate key of the SAST scanning pipeline')).isVisible()
-        assertThat(stat('Invalidated keys')).hasText('1')
+        assertThat(fact('Pipelines')).hasText('3, 1 key invalidated')
 
         when:
         pipelineAction('gui', 'SAST scanning', 'Key history')
@@ -229,7 +230,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         assertThat(keyOf('gui', 'SAST scanning')).hasText(newValue)
         assertThat(pipelineRow('gui', 'SAST scanning').locator('.key-state')).hasText('Key active')
         assertThat(button('Regenerate key')).hasCount(0)
-        assertThat(stat('Invalidated keys')).hasText('0')
+        assertThat(fact('Pipelines')).hasText('3, all active')
         api.requests('POST', '/api/pipelines/2/keys').size() == 1
         ownErrors().isEmpty()
     }
@@ -264,7 +265,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         assertThat(keyOf('mobile-app', 'SAST scanning')).hasText(REGENERATED_KEY)
         assertThat(pipelineRow('mobile-app', 'SAST scanning').locator('.key-state')).hasText('Key active')
         assertThat(regenerate).hasCount(0)
-        assertThat(stat('Invalidated keys')).hasText('0')
+        assertThat(fact('Pipelines')).hasText('6, all active')
         awaitRequest('POST', '/api/pipelines/9/keys', 2).json() == [:]
         api.requests('POST', '/api/pipelines/9/keys/revoke').isEmpty()
 
@@ -287,7 +288,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         open('/admin/products/1')
 
         when:
-        pipelineAction('gui', 'Full', 'Settings')
+        pipelineAction('gui', 'Full', 'Edit pipeline settings')
 
         then:
         assertThat(dialog().locator('h2')).hasText('Pipeline settings')
@@ -305,7 +306,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
                                                                extendedPipelineJob: null, securityPipelineJob: null,
                                                                jenkinsJob: 'DevSecOps/CERTSCANNER/gui-full', description: 'Main branch delivery']
         assertThat(pipelineRow('gui', 'Full').locator('.pipeline-meta')).containsText('linux-agent, docker')
-        assertThat(pipelineRow('gui', 'Full').locator('.pipeline-meta')).containsText('Main branch delivery')
+        assertThat(pipelineRow('gui', 'Full').locator('.pipeline-description')).hasText('Main branch delivery')
         assertThat(snackBar()).containsText('Pipeline settings saved')
         ownErrors().isEmpty()
     }
@@ -327,16 +328,16 @@ class PipelineKeysSpec extends ProductPageSpecification {
         dialogButton('Delete pipeline').click()
 
         then:
-        assertThat(serviceCard('backend-api').locator('.no-pipelines')).hasText('No pipeline yet. Add one to give this service a DevSecOps key.')
+        assertThat(serviceCard('backend-api').locator('.no-pipelines')).hasText('No pipeline yet, so Jenkins runs no checks for this service. Add one with Add pipeline.')
         assertThat(snackBar()).containsText('Pipeline deleted')
         awaitRequest('DELETE', '/api/pipelines/3') != null
 
         when:
-        button('Delete', true).click()
+        productAction('Delete product')
 
         then:
-        assertThat(dialog().locator('h2')).hasText('Delete CertScanner?')
-        assertThat(dialog()).containsText('The product, its 2 services and 2 pipelines with their keys are deleted.')
+        assertThat(dialog().locator('h2')).hasText('Delete the product CertScanner?')
+        assertThat(dialog()).containsText('This deletes CertScanner with its 2 services, 2 pipelines and their keys.')
 
         when:
         dialogButton('Delete product').click()
@@ -344,7 +345,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
 
         then:
         awaitRequest('DELETE', '/api/products/1') != null
-        assertThat(snackBar()).containsText('CertScanner deleted')
+        assertThat(snackBar()).containsText('CertScanner was deleted with its services and pipelines.')
         ownErrors().isEmpty()
     }
 }

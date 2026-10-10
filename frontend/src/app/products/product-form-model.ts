@@ -1032,7 +1032,7 @@ export const SERVICE_SECTIONS: ServiceSection[] = [
   section('nexusIq', 'Nexus IQ', 'inventory', ['nexusIq', 'nexusIqApplications']),
   section('scm', 'Bitbucket', 'merge', ['scm']),
   section('goldenFix', 'GoldenFix', 'auto_fix_high', ['goldenFix']),
-  section('metrics', 'DORA metrics', 'insights', ['metrics']),
+  section('metrics', 'Monitoring', 'insights', ['metrics']),
   section('flutter', 'Flutter', 'phone_iphone', ['flutter'], onFlutter),
 ];
 

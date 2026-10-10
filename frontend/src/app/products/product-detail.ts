@@ -1,5 +1,6 @@
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
@@ -22,6 +23,7 @@ import { RelativeTimePipe, counted } from '../shared/formatting';
 import { DsoLoading } from '../ui/loading';
 import { MENU_AT_END } from '../ui/menu';
 import { GeneratedKeys } from './generated-keys';
+import { pipelineTally } from './pipeline-tally';
 
 @Component({
   selector: 'dso-product-detail',
@@ -31,6 +33,7 @@ import { GeneratedKeys } from './generated-keys';
     CdkMenu,
     CdkMenuItem,
     CdkMenuTrigger,
+    DatePipe,
     DsoLoading,
     RelativeTimePipe,
   ],
@@ -73,19 +76,17 @@ export class ProductDetail {
     },
   });
 
-  protected readonly stats = computed(() => {
+  protected readonly counts = computed(() => {
     if (!this.services.hasValue()) {
       return null;
     }
     const pipelines = this.services.value().flatMap((service) => service.pipelines);
     const active = pipelines.filter((pipeline) => pipeline.activeKey !== null).length;
-    const invalidated = pipelines.length - active;
-    return [
-      { label: 'Services', value: this.services.value().length, tone: '' },
-      { label: 'Pipelines', value: pipelines.length, tone: '' },
-      { label: 'Active keys', value: active, tone: 'success' },
-      { label: 'Invalidated keys', value: invalidated, tone: invalidated ? 'danger' : '' },
-    ];
+    return {
+      services: this.services.value().length,
+      pipelines: pipelineTally(pipelines.length, active),
+      invalidated: active < pipelines.length,
+    };
   });
 
   private readonly repositories = computed(
@@ -136,13 +137,18 @@ export class ProductDetail {
     this.actions.copied();
   }
 
+  protected reload(): void {
+    this.product.reload();
+    this.services.reload();
+  }
+
   protected showProductConfig(product: Product): void {
     this.products.config(product.id).subscribe({
       next: (code) =>
         this.actions.openCode({
-          title: `config.yaml of ${product.name}`,
+          title: `Settings sent to Jenkins (config.yaml) for ${product.name}`,
           subtitle:
-            'Every service of the product in the format of the DevSecOps library, with the BBH defaults filled in.',
+            'What the pipelines of every service receive from the portal, in the format of the DevSecOps library, with the BBH defaults filled in.',
           code,
           fileName: `${product.code.toLowerCase()}-config.yaml`,
         }),
@@ -220,17 +226,17 @@ export class ProductDetail {
       : 0;
     this.actions
       .confirm({
-        title: `Delete ${product.name}?`,
+        title: `Delete the product ${product.name}?`,
         message:
-          `The product, its ${counted(product.services.length, 'service')} and ${counted(pipelines, 'pipeline')} with their keys are deleted. ` +
-          'Jenkins jobs using those keys stop working. This cannot be undone.',
+          `This deletes ${product.name} with its ${counted(product.services.length, 'service')}, ${counted(pipelines, 'pipeline')} and their keys. ` +
+          'The Jenkins jobs that use those keys stop working. This cannot be undone.',
         confirmLabel: 'Delete product',
         danger: true,
       })
       .pipe(switchMap(() => this.products.delete(product.id)))
       .subscribe({
         next: () => {
-          this.notifier.success(`${product.name} deleted`);
+          this.notifier.success(`${product.name} was deleted with its services and pipelines.`);
           this.router.navigate(['/admin/products']);
         },
         error: (error) => this.notifier.error(error),

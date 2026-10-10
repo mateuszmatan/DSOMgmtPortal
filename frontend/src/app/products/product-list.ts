@@ -7,15 +7,16 @@ import { DepartmentsApi, ProductsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { ProductSummary } from '../core/models';
 import { ADMIN_PRODUCTS, adminProduct } from '../core/sections';
-import { RelativeTimePipe, counted } from '../shared/formatting';
+import { counted } from '../shared/formatting';
 import { DsoInput } from '../ui/form-field';
 import { GRID, GridColumn } from '../ui/grid';
 import { DsoLoading } from '../ui/loading';
 import { byDepartment, tally } from './departments';
+import { pipelineTally } from './pipeline-tally';
 
 @Component({
   selector: 'dso-product-list',
-  imports: [ReactiveFormsModule, RouterLink, DsoInput, GRID, DsoLoading, RelativeTimePipe],
+  imports: [ReactiveFormsModule, RouterLink, DsoInput, GRID, DsoLoading],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './product-list.html',
   styleUrl: './product-list.scss',
@@ -34,29 +35,28 @@ export class ProductList {
       key: 'product',
       header: 'Product',
       value: (product) => product.name,
-      minWidth: 260,
+      minWidth: 200,
       wrap: true,
     },
     {
       key: 'ownerTeam',
       header: 'Owner team',
       value: (product) => product.ownerTeam ?? '–',
-      width: 200,
+      width: 180,
     },
     {
       key: 'services',
       header: 'Services',
       value: (product) => product.serviceCount,
       numeric: true,
-      width: 110,
+      width: 100,
     },
     {
       key: 'pipelines',
       header: 'Pipelines',
       value: (product) => product.pipelineCount,
-      width: 220,
+      width: 170,
     },
-    { key: 'updatedAt', header: 'Last change', value: (product) => product.updatedAt, width: 130 },
   ];
   protected readonly search = new FormControl('', { nonNullable: true });
   protected readonly query = toSignal(
@@ -90,11 +90,21 @@ export class ProductList {
     const products = placed.reduce((sum, group) => sum + group.products.length, 0);
     const unassigned = groups.find((group) => !group.department)?.products.length ?? 0;
     const total = `${counted(products, 'product')} in ${counted(placed.length, 'department')}`;
-    return unassigned ? `${total} · ${unassigned} not in a department` : total;
+    return unassigned ? `${total}, ${unassigned} not in a department` : total;
   });
 
   protected readonly errorMessage = errorMessage;
   protected readonly tally = tally;
+  protected readonly pipelineTally = pipelineTally;
+
+  protected reload(): void {
+    this.products.reload();
+    this.departments.reload();
+  }
+
+  protected clearSearch(): void {
+    this.search.setValue('');
+  }
 
   protected open(product: ProductSummary): void {
     this.router.navigate(adminProduct(product.id));
