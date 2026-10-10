@@ -18,6 +18,8 @@ import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
 
+import static com.bbh.itss.dso.portal.domain.catalog.ProductDetails.CODE_PATTERN;
+import static com.bbh.itss.dso.portal.domain.catalog.ProductDetails.CODE_RULE;
 import static com.bbh.itss.dso.portal.domain.catalog.ProductDetails.DESCRIPTION_MAX;
 import static com.bbh.itss.dso.portal.domain.catalog.ProductDetails.NAME_MAX;
 import static com.bbh.itss.dso.portal.domain.catalog.ProductDetails.OWNER_TEAM_MAX;
@@ -25,9 +27,7 @@ import static com.bbh.itss.dso.portal.domain.catalog.ProductDetails.OWNER_TEAM_M
 @JsonIgnoreProperties(value = {"id", "createdAt", "updatedAt"}, allowGetters = true)
 public record ProductDto(
         Long id,
-        @NotBlank @Pattern(regexp = "^[A-Z][A-Z0-9_-]{1,49}$",
-                message = "use 2 to 50 upper case letters, digits, '-' or '_', starting with a letter")
-        String code,
+        @NotBlank @Pattern(regexp = CODE_PATTERN, message = CODE_RULE) String code,
         @NotBlank @Size(max = NAME_MAX) String name,
         @Size(max = DESCRIPTION_MAX) String description,
         @Size(max = OWNER_TEAM_MAX) String ownerTeam,

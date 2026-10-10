@@ -50,4 +50,16 @@ public interface PipelineJpaRepository extends JpaRepository<PipelineEntity, Lon
             where k.status = com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.ACTIVE
             group by p.service.product.id""")
     List<Object[]> countWithActiveKeyByProduct();
+
+    @Query("""
+            select p.service.product.departmentId, count(p) from PipelineEntity p
+            where p.service.product.departmentId is not null group by p.service.product.departmentId""")
+    List<Object[]> countByDepartment();
+
+    @Query("""
+            select p.service.product.departmentId, count(distinct p) from PipelineEntity p join p.keys k
+            where k.status = com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.ACTIVE
+            and p.service.product.departmentId is not null
+            group by p.service.product.departmentId""")
+    List<Object[]> countWithActiveKeyByDepartment();
 }

@@ -6,8 +6,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static com.bbh.itss.dso.portal.domain.catalog.ProductDetails.NAME_MAX;
-import static com.bbh.itss.dso.portal.domain.catalog.ProductDetails.OWNER_TEAM_MAX;
 import static java.util.Locale.ROOT;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -26,7 +24,7 @@ final class ProductRules {
 
     void check(ProductDetails details, AppScanAccount appScanAccount, List<ServiceDraft> services) {
         requireIdentity(details, appScanAccount, services);
-        requireUnique(details);
+        details.requireUnique(productId, directory);
 
         ValidationProblems problems = new ValidationProblems();
         Set<String> names = new HashSet<>();
@@ -45,27 +43,8 @@ final class ProductRules {
         problems.throwIfAny();
     }
 
-    void checkDetails(ProductDetails details) {
-        requireIdentity(details, null, List.of());
-        requireUnique(details);
-    }
-
     private void requireIdentity(ProductDetails details, AppScanAccount appScanAccount, List<ServiceDraft> services) {
-        ValidationProblems problems = new ValidationProblems();
-        if (isBlank(details.code())) {
-            problems.add("code", "must not be blank");
-        }
-        if (isBlank(details.name())) {
-            problems.add("name", "must not be blank");
-        }
-        problems.fits("name", details.name(), NAME_MAX)
-                .fits("description", details.description(), ProductDetails.DESCRIPTION_MAX)
-                .fits("ownerTeam", details.ownerTeam(), OWNER_TEAM_MAX);
-        if (details.departmentId() == null) {
-            problems.add("departmentId", "choose the product's department");
-        } else if (!directory.departmentExists(details.departmentId())) {
-            problems.add("departmentId", "department " + details.departmentId() + " does not exist");
-        }
+        ValidationProblems problems = details.validate(new ValidationProblems(), directory);
         if (!services.isEmpty() && (appScanAccount == null || appScanAccount.keyId() == null)) {
             problems.add("appScan.keyId", "must not be blank");
         }
@@ -75,22 +54,5 @@ final class ProductRules {
             }
         }
         problems.throwIfAny();
-    }
-
-    private void requireUnique(ProductDetails details) {
-        directory.findProductByCode(details.code())
-                .filter(other -> !isThisProduct(other.id()))
-                .ifPresent(other -> {
-                    throw new IllegalStateException("Product code " + details.code() + " is already used by " + other.name());
-                });
-        directory.findProductByName(details.name())
-                .filter(other -> !isThisProduct(other.id()))
-                .ifPresent(other -> {
-                    throw new IllegalStateException("A product named " + other.name() + " already exists");
-                });
-    }
-
-    private boolean isThisProduct(long otherId) {
-        return productId != null && productId == otherId;
     }
 }

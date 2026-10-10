@@ -8,10 +8,6 @@ import java.util.Optional;
 
 public interface ProductJpaRepository extends JpaRepository<ProductEntity, Long> {
 
-    List<ProductEntity> findAllByOrderByNameAsc();
-
-    List<ProductEntity> findByDepartmentIdOrderByNameAsc(Long departmentId);
-
     Optional<ProductEntity> findByCodeIgnoreCase(String code);
 
     Optional<ProductEntity> findByNameIgnoreCase(String name);

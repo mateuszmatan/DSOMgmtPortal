@@ -60,13 +60,6 @@ public final class Product {
         change(details, appScanAccount, services, directory);
     }
 
-    public void changeDetails(Long expectedVersion, ProductDetails details, ProductDirectory directory) {
-        requireCurrent(expectedVersion, version);
-        requireNonNull(details, "a product needs its details");
-        new ProductRules(id, serviceIds(), directory).checkDetails(details);
-        this.details = details;
-    }
-
     private void change(ProductDetails details, AppScanAccount appScanAccount, List<ServiceDraft> drafts,
                         ProductDirectory directory) {
         requireNonNull(details, "a product needs its details");

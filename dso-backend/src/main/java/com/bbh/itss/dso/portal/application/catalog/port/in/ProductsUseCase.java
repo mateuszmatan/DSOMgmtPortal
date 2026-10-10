@@ -16,11 +16,5 @@ public interface ProductsUseCase {
 
     void delete(long id);
 
-    ProductDetailsView details(long id);
-
-    ProductDetailsView updateDetails(long id, ProductDetailsCommand command);
-
-    void deleteWithoutServices(long id);
-
     String suggestCode(String name);
 }

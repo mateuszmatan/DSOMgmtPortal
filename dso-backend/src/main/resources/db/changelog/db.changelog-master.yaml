@@ -3,5 +3,5 @@ databaseChangeLog:
       file: history.yaml
       relativeToChangelogFile: true
   - include:
-      file: oracle/026-beadle-tables-only.sql
+      file: oracle/026-dso-tables-only.sql
       relativeToChangelogFile: true
