@@ -1,0 +1,7 @@
+description = 'DevSecOps Management portal service: products, pipelines, keys, monitoring and the configuration DSOEnhanced reads'
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-restclient'
+    implementation 'org.yaml:snakeyaml'
+    runtimeOnly 'com.oracle.database.jdbc:ojdbc11'
+}
