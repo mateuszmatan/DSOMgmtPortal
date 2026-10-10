@@ -14,7 +14,7 @@ import static com.bbh.itss.dso.portal.domain.settings.Scanner.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SCA
 import static com.bbh.itss.dso.portal.domain.settings.SeverityLimits.ZERO
-import static com.bbh.itss.dso.portal.support.Fixtures.copy
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
 
 class GlobalSettingsValuesSpec extends Specification {
 

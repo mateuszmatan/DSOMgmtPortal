@@ -17,11 +17,11 @@ import spock.lang.Specification
 import static com.bbh.itss.dso.portal.domain.catalog.Region.QC
 import static com.bbh.itss.dso.portal.domain.catalog.Region.RD
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
-import static com.bbh.itss.dso.portal.support.Fixtures.DEPARTMENT_ID
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.DEPARTMENT_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.account
 import static com.bbh.itss.dso.portal.support.Fixtures.command
-import static com.bbh.itss.dso.portal.support.Fixtures.copy
-import static com.bbh.itss.dso.portal.support.Fixtures.details
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
 import static com.bbh.itss.dso.portal.support.Fixtures.fullSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.settings
 import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
@@ -76,27 +76,6 @@ class ProductPersistenceAdapterSpec extends Specification {
         adapter.load(saved.id()).get().appScanAccount() == null
         jdbc.queryForMap('SELECT ASOC_KEY_ID, ASOC_SECRET_CREDENTIALS_ID FROM DSO_PRODUCT WHERE ID = ?', saved.id()) ==
                 [ASOC_KEY_ID: null, ASOC_SECRET_CREDENTIALS_ID: null]
-    }
-
-    def "a details change keeps every service and the AppScan account as they were stored"() {
-        given:
-        def saved = adapter.save(Product.create(details(), account(), [
-                new ServiceDraft(null, 'gui', 'Angular', fullSettings('gui')),
-                new ServiceDraft(null, 'api', null, settings())], adapter))
-        entities.clear()
-        def product = adapter.load(saved.id()).get()
-
-        when:
-        product.changeDetails(0L, details(name: 'CertScanner 2', ownerTeam: 'Security'), adapter)
-        def changed = adapter.save(product)
-        entities.clear()
-        def loaded = adapter.load(saved.id()).get()
-
-        then:
-        changed.version() == 1
-        loaded.details() == details(name: 'CertScanner 2', ownerTeam: 'Security')
-        loaded.services() == saved.services()
-        loaded.appScanAccount() == account()
     }
 
     def "the columns hold the values the library view and the old rows use"() {

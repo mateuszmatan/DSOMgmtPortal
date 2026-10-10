@@ -9,18 +9,18 @@ import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.transaction.annotation.Transactional
 
 import static com.bbh.itss.dso.portal.support.Fixtures.account
-import static com.bbh.itss.dso.portal.support.Fixtures.details
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
 import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED
 
 @DataJpaTest(properties = [
-        'spring.datasource.url=jdbc:h2:mem:beadle-products;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
+        'spring.datasource.url=jdbc:h2:mem:product-appscan-key;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa',
         'spring.liquibase.enabled=false'])
 @AutoConfigureTestDatabase(replace = NONE)
 @Transactional(propagation = NOT_SUPPORTED)
 @Import(ProductPersistenceAdapter)
-class BeadleProductsMigrationSpec extends MigrationSpecification {
+class ProductAppScanKeyMigrationSpec extends MigrationSpecification {
 
     @Autowired
     ProductPersistenceAdapter products

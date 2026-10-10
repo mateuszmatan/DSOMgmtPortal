@@ -38,7 +38,7 @@ import static com.bbh.itss.dso.portal.domain.catalog.UnitTestSettings.NONE
 import static com.bbh.itss.dso.portal.support.ApiJson.APP_ID
 import static com.bbh.itss.dso.portal.support.ApiJson.build as buildJson
 import static com.bbh.itss.dso.portal.support.ApiJson.service as serviceJson
-import static com.bbh.itss.dso.portal.support.ApiJson.toJson
+import static com.bbh.itss.dso.portal.support.Json.toJson
 import static com.bbh.itss.dso.portal.support.Fixtures.appScan
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.command

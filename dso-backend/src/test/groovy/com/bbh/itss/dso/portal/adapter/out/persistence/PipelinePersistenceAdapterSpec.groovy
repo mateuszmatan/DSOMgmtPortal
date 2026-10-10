@@ -27,7 +27,7 @@ import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
 import static com.bbh.itss.dso.portal.support.Fixtures.account
-import static com.bbh.itss.dso.portal.support.Fixtures.details
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
 import static com.bbh.itss.dso.portal.support.Fixtures.pipelineSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.settings
 import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE

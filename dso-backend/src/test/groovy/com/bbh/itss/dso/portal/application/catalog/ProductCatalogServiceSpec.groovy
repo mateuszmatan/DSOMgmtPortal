@@ -1,8 +1,6 @@
 package com.bbh.itss.dso.portal.application.catalog
 
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductCommand
-import com.bbh.itss.dso.portal.application.catalog.port.in.ProductDetailsCommand
-import com.bbh.itss.dso.portal.application.catalog.port.in.ProductDetailsView
 import com.bbh.itss.dso.portal.application.catalog.port.out.PipelineCountsPort
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductSummary
@@ -23,11 +21,11 @@ import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
-import static com.bbh.itss.dso.portal.support.Fixtures.DEPARTMENT_ID
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.DEPARTMENT_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.account
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.command
-import static com.bbh.itss.dso.portal.support.Fixtures.details
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.settings
 import static org.spockframework.mock.EmptyOrDummyResponse.INSTANCE
@@ -120,56 +118,7 @@ class ProductCatalogServiceSpec extends Specification {
         0 * products.delete(_)
 
         where:
-        action << [{ it.get(5L) }, { it.update(5L, command()) }, { it.delete(5L) }, { it.details(5L) },
-                   { it.updateDetails(5L, detailsChange()) }, { it.deleteWithoutServices(5L) }]
-    }
-
-    def "a product's own details are read without its services"() {
-        given:
-        products.load(5L) >> Optional.of(product(id: 5, version: 3, ownerTeam: 'TA', contactEmail: 'ta@bbh.com',
-                services: [[name: 'gui', id: 10]]))
-
-        expect:
-        catalog.details(5L) == new ProductDetailsView(5, 'CERT', 'CertScanner', 'TA', 'ta@bbh.com', DEPARTMENT_ID, 3)
-    }
-
-    def "a details change stores the product with its services and AppScan account as they were and adds no pipeline"() {
-        given:
-        def stored = product(id: 5, version: 3, description: 'TLS', services: [[name: 'gui', id: 10,
-                                                                               settings: settings(build: build(javaPath: null))]])
-        def services = stored.services()
-        products.load(5L) >> Optional.of(stored)
-
-        when:
-        def view = catalog.updateDetails(5L, detailsChange(version: 3L, name: ' Cert Scanner ', ownerTeam: 'Security'))
-
-        then:
-        1 * products.save({ Product p ->
-            p.details() == new ProductDetails('CERT', 'Cert Scanner', 'TLS', 'Security', null, DEPARTMENT_ID) &&
-                    p.services() == services && p.appScanAccount() == account()
-        }) >> { Product p -> p }
-        0 * pipelines._
-        view == new ProductDetailsView(5, 'CERT', 'Cert Scanner', 'Security', null, DEPARTMENT_ID, 3)
-    }
-
-    def "a product is deleted for Beadle only while it has no services in DevSecOps Management"() {
-        given:
-        products.load(5L) >> Optional.of(product(id: 5, services: [[name: 'gui', id: 10], [name: 'api', id: 11]]))
-        products.load(6L) >> Optional.of(product(id: 6, name: 'Trade Archive', appScan: null))
-
-        when:
-        catalog.deleteWithoutServices(5L)
-
-        then:
-        def e = thrown(IllegalStateException)
-        e.message == 'CertScanner still has 2 service(s) in DevSecOps Management. Remove them there first.'
-        0 * products.delete(_)
-
-        when:
-        catalog.deleteWithoutServices(6L)
-
-        then:
-        1 * products.delete(6L)
+        action << [{ it.get(5L) }, { it.update(5L, command()) }, { it.delete(5L) }]
     }
 
     def "a new product without services needs no AppScan account"() {
@@ -295,7 +244,6 @@ class ProductCatalogServiceSpec extends Specification {
         refusal                              | action                                               || message
         'a product code in use'              | { it.create(command()) }                             || 'Product code CERT is already used by Certificates'
         'an update of an old version'        | { it.update(1L, command(version: 3L)) }              || STALE_VERSION
-        'a details change of an old version' | { it.updateDetails(1L, detailsChange(version: 3L)) } || STALE_VERSION
     }
 
     private static ProductSummary summary(long id, String code, String name, String ownerTeam, String description,
@@ -306,11 +254,6 @@ class ProductCatalogServiceSpec extends Specification {
     private static ServiceDraft service(Map args) {
         new ServiceDraft(args.id as Long, args.name as String, args.description as String,
                 args.settings ?: settings())
-    }
-
-    private static ProductDetailsCommand detailsChange(Map args = [:]) {
-        new ProductDetailsCommand(args.version as Long, args.name as String ?: 'CertScanner', DEPARTMENT_ID,
-                args.ownerTeam as String, args.contactEmail as String)
     }
 
     private static ProductCommand command(Map args = [:]) {

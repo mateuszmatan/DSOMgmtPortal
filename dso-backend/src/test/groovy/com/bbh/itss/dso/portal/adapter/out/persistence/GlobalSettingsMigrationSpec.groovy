@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.transaction.annotation.Transactional
 
-import static com.bbh.itss.dso.portal.support.Fixtures.copy
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
 import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED
 

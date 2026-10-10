@@ -17,7 +17,7 @@ import static com.bbh.itss.dso.portal.domain.settings.Scanner.DAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SCA
-import static com.bbh.itss.dso.portal.support.Fixtures.copy
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
 import static org.springframework.test.util.ReflectionTestUtils.getField
 import static org.springframework.test.util.ReflectionTestUtils.setField
 

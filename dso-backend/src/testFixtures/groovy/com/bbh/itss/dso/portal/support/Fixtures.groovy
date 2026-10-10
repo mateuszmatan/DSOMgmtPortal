@@ -59,13 +59,14 @@ import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.ACTIVE
 import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.REVOKED
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
 import static com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues.bbhDefaults
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.DEPARTMENT_ID
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
 
 final class Fixtures {
 
     static final String APP_ID = '109f44ac-cc06-4ca0-884e-d944904f7019'
     static final String JDK = '/usr/lib/jvm/java-17-openjdk'
     static final String KEY = '0f8fad5b-d9cb-469f-a165-70867728950e'
-    static final long DEPARTMENT_ID = 3L
     static final Instant CREATED = Instant.parse('2026-10-01T08:00:00Z')
     static final Instant UPDATED = Instant.parse('2026-10-02T09:30:00Z')
 
@@ -200,12 +201,6 @@ final class Fixtures {
         new AppScanAccount('bbh_key-id', 'hcl-app-scan-account')
     }
 
-    static ProductDetails details(Map args = [:]) {
-        new ProductDetails(args.code as String ?: 'CERT', args.name as String ?: 'CertScanner',
-                args.description as String, args.ownerTeam as String, args.contactEmail as String,
-                args.containsKey('departmentId') ? args.departmentId as Long : DEPARTMENT_ID)
-    }
-
     static ServiceDraft draft(Map args = [:]) {
         new ServiceDraft(args.id as Long, args.name as String ?: 'gui', args.description as String,
                 args.settings as ServiceSettings ?: settings(args))
@@ -285,10 +280,4 @@ final class Fixtures {
         storedSettings { it.withPlatform(it.platform().withJenkinsUrl(jenkinsUrl)) }
     }
 
-    static <T extends Record> T copy(Map changes, T record) {
-        def components = record.class.recordComponents
-        def args = components.collect { changes.containsKey(it.name) ? changes[it.name] : it.accessor.invoke(record) }
-        record.class.declaredConstructors.find { it.parameterCount == components.length }
-                .newInstance(args as Object[]) as T
-    }
 }

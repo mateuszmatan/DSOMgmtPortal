@@ -6,7 +6,7 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues.bbhDefaults
-import static com.bbh.itss.dso.portal.support.Fixtures.copy
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
 
 class PlatformSettingsSpec extends Specification {
 

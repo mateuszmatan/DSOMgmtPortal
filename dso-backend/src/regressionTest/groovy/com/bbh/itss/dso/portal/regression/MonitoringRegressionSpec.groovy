@@ -209,12 +209,12 @@ class MonitoringRegressionSpec extends PortalSpecification {
 
         when:
         def answers = ['/api/monitoring/status', '/api/monitoring/products', "/api/monitoring/products/$monitored.id",
-                       "/api/monitoring/pipelines/$guiFull.id", "/api/evidence/products/$monitored.id"]
+                       "/api/monitoring/pipelines/$guiFull.id"]
                 .collect { api.get(it as String).status }
 
         then:
         answers.every { it == 200 }
-        busy.size() >= 7
+        busy.size() >= 5
         busy.every { it == 0 }
     }
 

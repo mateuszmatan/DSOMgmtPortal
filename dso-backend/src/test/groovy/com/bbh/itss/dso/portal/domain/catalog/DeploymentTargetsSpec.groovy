@@ -4,7 +4,7 @@ import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.domain.catalog.UrbanCodeSettings.DEFAULTS
 import static com.bbh.itss.dso.portal.domain.shared.Sections.written
-import static com.bbh.itss.dso.portal.support.Fixtures.copy
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
 
 class DeploymentTargetsSpec extends Specification {
 

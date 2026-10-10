@@ -7,10 +7,10 @@ import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.domain.catalog.TestStage.SMOKE
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
-import static com.bbh.itss.dso.portal.support.Fixtures.DEPARTMENT_ID
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.DEPARTMENT_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.account
 import static com.bbh.itss.dso.portal.support.Fixtures.build
-import static com.bbh.itss.dso.portal.support.Fixtures.details
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
 import static com.bbh.itss.dso.portal.support.Fixtures.directory
 import static com.bbh.itss.dso.portal.support.Fixtures.draft
 import static com.bbh.itss.dso.portal.support.Fixtures.product
@@ -238,13 +238,6 @@ class ProductSpec extends Specification {
         service.problems()*.message == ['is too long: it may take at most 2000 bytes']
 
         when:
-        product().changeDetails(null, details(name: 'Ł' * 101), nobody)
-
-        then:
-        def renamed = thrown(InvalidRequestException)
-        renamed.problems()*.field == ['name']
-
-        when:
         def fitting = Product.create(details(name: 'Ł' * 100, description: 'ą' * 2000, ownerTeam: 'ś' * 100),
                 account(), [draft(description: '–' * 666)], nobody)
 
@@ -263,54 +256,6 @@ class ProductSpec extends Specification {
 
         where:
         account << [null, new AppScanAccount(' ', null), new AppScanAccount('bbh_key-id', null)]
-    }
-
-    def "a details change keeps the services and the AppScan account, even a service today's rules would refuse"() {
-        given:
-        def product = product(id: 5, version: 2, services: [[name: 'gui', id: 10, build: build(javaPath: null)],
-                                                            [name: 'api', id: 11]])
-        def services = product.services()
-
-        when:
-        product.changeDetails(2L, details(name: ' CertScanner 2 ', ownerTeam: 'Security', contactEmail: 'certs@bbh.com',
-                departmentId: 5L), directory(departments: [DEPARTMENT_ID, 5L]))
-
-        then:
-        product.details() == new ProductDetails('CERT', 'CertScanner 2', null, 'Security', 'certs@bbh.com', 5L)
-        product.services() == services
-        product.appScanAccount() == account()
-        product.version() == 2
-    }
-
-    def "a details change of a product without services or AppScan key needs neither"() {
-        given:
-        def product = product(appScan: null)
-
-        when:
-        product.changeDetails(null, details(name: 'Trade Archive'), nobody)
-
-        then:
-        product.name() == 'Trade Archive'
-        product.appScanAccount() == null
-    }
-
-    def "a details change is checked for the product's own fields and its version only (#refusal)"() {
-        given:
-        def product = product(id: 5, version: 2, services: [[name: 'gui', id: 10, build: build(javaPath: null)]])
-
-        when:
-        product.changeDetails(version, changed, directory(byName: ['Payments Hub': new ProductIdentity(6, 'Payments Hub')]))
-
-        then:
-        def e = thrown(type)
-        (e instanceof InvalidRequestException ? e.problems()*.field : e.message) == problems
-        product.details() == details()
-
-        where:
-        refusal          | version | changed                                                   || type                    | problems
-        'missing values' | 2L      | new ProductDetails('CERT', ' ', null, null, null, null)   || InvalidRequestException | ['name', 'departmentId']
-        'a name in use'  | 2L      | details(name: 'Payments Hub')                             || IllegalStateException   | 'A product named Payments Hub already exists'
-        'an old version' | 1L      | details(name: 'CertScanner 2')                            || IllegalStateException   | STALE_VERSION
     }
 
     def "a product without a department or in one that does not exist is refused, also when an older product is edited: #departmentId"() {

@@ -1,9 +1,6 @@
 package com.bbh.itss.dso.portal.support
 
-import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
-
-import static com.bbh.itss.dso.portal.support.Fixtures.DEPARTMENT_ID
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.DEPARTMENT_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.JDK
 
 final class ApiJson {
@@ -164,13 +161,5 @@ final class ApiJson {
 
     static Map pipeline(Map overrides = [:]) {
         [type: 'FULL', agentLabels: ['linux-agent']] + overrides
-    }
-
-    static String toJson(Object body) {
-        JsonOutput.toJson(body)
-    }
-
-    static Object parse(String json) {
-        json ? new JsonSlurper().parseText(json) : null
     }
 }

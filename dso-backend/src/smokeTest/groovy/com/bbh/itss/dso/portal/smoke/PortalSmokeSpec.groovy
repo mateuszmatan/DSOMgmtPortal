@@ -8,11 +8,22 @@ import org.yaml.snakeyaml.Yaml
 import spock.lang.Requires
 import spock.lang.Shared
 import spock.lang.Specification
+import spock.lang.Stepwise
 
-import static java.net.URLEncoder.encode
-import static java.nio.charset.StandardCharsets.UTF_8
+import java.nio.file.Path
 
+import static com.bbh.itss.dso.portal.support.ApiJson.product
+import static com.bbh.itss.dso.portal.support.ApiJson.service
+import static java.nio.file.Files.createTempDirectory
+
+@Stepwise
 class PortalSmokeSpec extends Specification {
+
+    static final List<String> DEPARTMENTS = ['AI Lab', 'Capital Partners', 'Corporate Technology', 'Custody',
+                                             'Fund Services']
+
+    @Shared
+    Path dataDir = createTempDirectory('dso-portal-smoke')
 
     @Shared
     ConfigurableApplicationContext started
@@ -22,18 +33,12 @@ class PortalSmokeSpec extends Specification {
 
     def setupSpec() {
         String baseUrl = System.getProperty('smoke.baseUrl')
-        if (!baseUrl) {
-            started = new SpringApplicationBuilder(DsoPortalApplication)
-                    .profiles('local')
-                    .run('--server.port=0', '--dso.demo-data=true',
-                            '--spring.datasource.url=jdbc:h2:mem:dso-smoke;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1')
-            baseUrl = "http://localhost:${started.environment.getProperty('local.server.port')}"
-        }
-        api = new PortalClient(baseUrl)
+        api = new PortalClient(baseUrl ?: start())
     }
 
     def cleanupSpec() {
         started?.close()
+        dataDir.toFile().deleteDir()
     }
 
     def "the application reports itself healthy"() {
@@ -45,32 +50,39 @@ class PortalSmokeSpec extends Specification {
         health.json.status == 'UP'
     }
 
-    def "the product catalog answers"() {
+    def "the product catalog and the departments answer, and a new portal starts with no products"() {
         when:
         def products = api.get('/api/products')
+        def departments = api.get('/api/departments')
 
         then:
         products.status == 200
         products.json instanceof List
-        !started || !products.json.isEmpty()
+        departments.status == 200
+        departments.json*.name.containsAll(DEPARTMENTS)
+        !started || products.json.isEmpty() && departments.json.every {
+            [it.productCount, it.serviceCount, it.pipelineCount, it.activePipelineCount] == [0, 0, 0, 0]
+        }
     }
 
-    def "the departments answer with the DevSecOps pipelines of their products"() {
+    @Requires({ !System.getProperty('smoke.baseUrl') })
+    def "a product saved through the API is still there after a restart and its pipeline key reads its configuration"() {
+        given:
+        def created = api.post('/api/products', product(code: 'SMOKE', name: 'Smoke product',
+                services: [service(name: 'gui')]))
+        def key = api.get("/api/products/$created.json.id/pipelines").json[0].pipelines[0].activeKey.value
+
         when:
-        def departments = api.get('/api/departments')
-        def tallies = departments.json.collectEntries {
-            [it.name, [it.productCount, it.serviceCount, it.pipelineCount, it.activePipelineCount]]
-        }
+        started.close()
+        api = new PortalClient(start())
 
         then:
-        departments.status == 200
-        departments.json instanceof List
-        !started || tallies == ['AI Lab'              : [2, 4, 9, 9], 'Capital Partners': [2, 5, 9, 9],
-                                'Corporate Technology': [2, 4, 11, 11], 'Custody': [2, 4, 8, 7],
-                                'Fund Services'       : [2, 6, 12, 11]]
+        created.status == 201
+        api.get("/api/products/$created.json.id").json.name == 'Smoke product'
+        api.get("/api/dso/config/$key?format=json").status == 200
     }
 
-    def "every product's services, pipelines, configuration and change evidence can be read"() {
+    def "every product's services, pipelines and configuration can be read"() {
         given:
         def products = api.get('/api/products').json.take(5)
 
@@ -79,13 +91,10 @@ class PortalSmokeSpec extends Specification {
             def details = api.get("/api/products/$product.id")
             def pipelines = api.get("/api/products/$product.id/pipelines")
             def config = api.get("/api/products/$product.id/config")
-            def evidence = api.get("/api/evidence/products/$product.id")
             assert details.status == 200: details
             assert pipelines.status == 200: pipelines
             assert config.status == 200: config
-            assert evidence.status == 200: evidence
             assert (new Yaml().load(config.body) as Map).projects.size() == details.json.services.size()
-            assert evidence.json.services*.name == details.json.services*.name
             true
         }
     }
@@ -101,75 +110,6 @@ class PortalSmokeSpec extends Specification {
         settings.json.platform.asocUrl != null
         config.status == 200
         (new Yaml().load(config.body) as Map).keySet() == ['platform', 'defaults'] as Set
-    }
-
-    def "every product's ProTech change template and Jira FixVersions and epics can be read for a production change"() {
-        given:
-        def products = api.get('/api/products').json.take(5)
-
-        expect:
-        api.get('/api/changes').status == 200
-        api.get('/api/changes/integrations').json.keySet() == ['jiraConnected', 'serviceNowConnected'] as Set
-        api.get('/api/change-profiles').status == 200
-        !started || api.get('/api/change-profiles').json.size() >= products.size()
-        products.every { product ->
-            def profile = api.get("/api/products/$product.id/change-profile")
-            assert profile.status == 200: profile
-            assert !started || profile.json.version != null
-            assert !profile.json.tasks.isEmpty()
-            assert profile.json.tasks.every { it.assignmentGroup && it.shortDescription && it.description }
-            assert !started || profile.json.tasks.any { it.assignmentGroup.toLowerCase().contains('release management') }
-            if (profile.json.version != null) {
-                def versions = api.get("/api/products/$product.id/jira/versions")
-                assert versions.status == 200: versions
-                versions.json.take(1).each { version ->
-                    def epics = api.get("/api/products/$product.id/jira/epics?fixVersion=${encode(version.name, UTF_8)}")
-                    assert epics.status == 200: epics
-                }
-            }
-            true
-        }
-    }
-
-    def "the demo changes are stored, synced with ProTech, spread over its workflow and hold their change tasks"() {
-        when:
-        def changes = api.get('/api/changes')
-        def department = changes.json.find { it.departmentId != null }?.departmentId
-        def tasks = changes.json.collectMany { it.tasks }
-
-        then:
-        changes.status == 200
-        changes.json.every { it.syncProblem == null }
-        !started || changes.json.size() >= 12 && changes.json*.state.toSet().size() >= 6 &&
-                changes.json*.update.findAll()*.status.toSet() == ['APPLIED', 'NOT_APPLIED'] as Set
-        tasks.every { it.number ==~ /CTASK\d{7}/ && it.details.assignmentGroup && it.approval }
-        tasks*.approval.toSet().every { it in ['Not Yet Requested', 'Requested', 'Approved'] }
-        !started || changes.json.every { !it.tasks.isEmpty() } &&
-                tasks*.approval.toSet().containsAll(['Not Yet Requested', 'Approved'])
-        department == null || api.get("/api/changes?departmentId=$department").json.every {
-            it.departmentId == department
-        }
-    }
-
-    def "the wizard reads the signed-in user, its options and lookups that know the people of the demo templates"() {
-        given:
-        def products = api.get('/api/products').json
-
-        expect:
-        api.get('/api/me').json.name
-        api.get('/api/changes/options').json.categories.contains('Application')
-        api.get('/api/changes/options').json.releaseManagement == 'Release Management'
-        ['users', 'departments', 'assignment-groups', 'releases', 'configuration-items', 'incidents', 'problems',
-         'clients'].every { api.get("/api/lookups/$it").status == 200 }
-        !started || products.every { product ->
-            def template = api.get("/api/products/$product.id/change-profile").json.template
-            def people = (template.approvers.values() + template.privilegedAccess.users*.user).findAll()
-            def item = api.get("/api/lookups/configuration-items?q=${encode(template.configurationItem, UTF_8)}").json
-            assert people.every { api.get("/api/lookups/users?q=${encode(it, UTF_8)}").json*.value.contains(it) }
-            assert template.directBusinessService == item.find { it.value == template.configurationItem }?.detail
-            assert template.risk in ['Low', 'Moderate', 'High']
-            true
-        }
     }
 
     def "a pipeline key that was never issued is refused"() {
@@ -190,14 +130,18 @@ class PortalSmokeSpec extends Specification {
         overview.json.products instanceof List
         activity.status == 200
         activity.json.dora.daily.size() == 30
-        !started || overview.json.products.every { it.lastRunAt } && activity.json.dora.runs > 0
+    }
+
+    def "Beadle's change management is not part of this application"() {
+        expect:
+        ['/api/changes', '/api/change-profiles', '/api/evidence/products/1'].every { api.get(it).status == 404 }
     }
 
     @Requires({ PortalSmokeSpec.uiExpected() })
     def "the web UI is served, also for links into the app"() {
         expect:
-        ['/', '/self-service', '/admin/products', '/monitoring', '/evidence', '/admin/settings',
-         '/beadle/changes', '/beadle/changes/new', '/beadle/new-change', '/beadle/admin'].every { path ->
+        ['/', '/pipelines', '/self-service', '/monitoring', '/admin/departments', '/admin/products',
+         '/admin/template', '/admin/settings'].every { path ->
             def page = api.get(path)
             assert page.status == 200: "$path: $page.status"
             assert page.header('Content-Type').startsWith('text/html')
@@ -209,5 +153,10 @@ class PortalSmokeSpec extends Specification {
     static boolean uiExpected() {
         System.getProperty('smoke.ui') != 'false' &&
                 (System.getProperty('smoke.baseUrl') || PortalSmokeSpec.getResource('/static/index.html'))
+    }
+
+    private String start() {
+        started = new SpringApplicationBuilder(DsoPortalApplication).run('--server.port=0', "--DSO_DATA_DIR=$dataDir")
+        "http://localhost:${started.environment.getProperty('local.server.port')}"
     }
 }

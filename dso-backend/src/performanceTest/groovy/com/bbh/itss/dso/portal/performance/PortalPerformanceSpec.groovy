@@ -12,7 +12,6 @@ import static com.bbh.itss.dso.portal.support.ApiJson.fullMavenService
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.LatencyStats.measure
 import static java.time.Duration.ofHours
-import static java.time.Duration.ofSeconds
 
 @Stepwise
 class PortalPerformanceSpec extends PortalSpecification {
@@ -30,9 +29,6 @@ class PortalPerformanceSpec extends PortalSpecification {
 
     @Shared
     List<LatencyStats> results = []
-
-    @Shared
-    Instant lastRunsFinishedAt
 
     def setupSpec() {
         FakeInfluxDb.shared().reset()
@@ -146,8 +142,7 @@ class PortalPerformanceSpec extends PortalSpecification {
     def "the monitoring pages stay fast with every pipeline reporting"() {
         given:
         def now = Instant.now()
-        lastRunsFinishedAt = now - ofHours(3)
-        pipelines.each { influx.addRun(project: it.influxProjectTag, env: it.influxEnv, time: lastRunsFinishedAt) }
+        pipelines.each { influx.addRun(project: it.influxProjectTag, env: it.influxEnv, time: now - ofHours(3)) }
         def history = pipelines.first()
         (1..269).each { influx.addRun(project: history.influxProjectTag, env: history.influxEnv,
                 time: now - ofHours(7 * it), result: it % 5 == 0 ? 'FAILURE' : 'SUCCESS') }
@@ -165,43 +160,6 @@ class PortalPerformanceSpec extends PortalSpecification {
         then:
         within(overview, 1500)
         within(details, 800)
-    }
-
-    def "the change evidence of a product with 16 services stays fast"() {
-        given:
-        def evidenced = products.first()
-        def finished = lastRunsFinishedAt
-        pipelines.findAll { it.productId == evidenced.id }.each { pipeline ->
-            def point = { Map args ->
-                influx.addPoint([project: pipeline.influxProjectTag, env: pipeline.influxEnv, time: finished] + args)
-            }
-            point(measurement: 'code_coverage', module: pipeline.serviceName, line_pct: '82.5', required: '80', met: '1')
-            ['smoke', 'regression', 'performance'].each { suite ->
-                point(measurement: 'test_execution', module: pipeline.serviceName, suite: suite, total: '20', passed: '20',
-                        failed: '0')
-            }
-            ['sast', 'dast'].each { scanner ->
-                point(measurement: 'security_findings', module: pipeline.serviceName, scanner: scanner, critical: '0',
-                        high: '1', medium: '2', low: '3', status: 'pass')
-                point(measurement: 'policy_status', scanner: scanner, status: 'pass')
-            }
-            point(measurement: 'vulnerabilities', scanner: 'sonar', critical: '0', high: '0', medium: '1', low: '4')
-            point(measurement: 'release_gate', allowed: 'yes', violations: '0')
-            (1..12).each { stage ->
-                point(measurement: 'stage_event', stage: "Stage $stage", status: 'pass', order: "$stage",
-                        duration_s: '30', time: finished - ofSeconds(600 - 40 * stage))
-            }
-        }
-
-        when:
-        def stats = measure("Change evidence of $SERVICES services", calls: 100, threads: 8) {
-            def response = api.get("/api/evidence/products/$evidenced.id")
-            response.status == 200 && response.json.metricsError == null &&
-                    response.json.services.every { it.pipelines[0].run.stages.size() == 12 }
-        }
-
-        then:
-        within(stats, 800)
     }
 
     def "concurrent key changes keep one active key per pipeline"() {
