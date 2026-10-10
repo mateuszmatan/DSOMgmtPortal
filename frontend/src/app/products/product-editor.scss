@@ -11,6 +11,11 @@
   gap: 8px 16px;
   margin-bottom: 8px;
 
+  > div {
+    flex: 1 1 420px;
+    min-width: 0;
+  }
+
   h2 {
     display: flex;
     align-items: center;
@@ -21,9 +26,8 @@
   }
 
   p {
+    max-width: 900px;
     margin: 2px 0 0;
-    color: var(--dso-muted);
-    font-size: 12px;
   }
 }
 
@@ -55,4 +59,9 @@
   margin: 8px -14px -10px;
   padding: 4px 8px;
   border-top: 1px solid var(--dso-border);
+}
+
+.required-note {
+  margin: 0 0 8px;
+  font-size: 12px;
 }

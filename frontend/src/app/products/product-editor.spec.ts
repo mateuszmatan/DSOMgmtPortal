@@ -133,7 +133,7 @@ describe('ProductEditor', () => {
     expect(page().querySelector('h1')?.textContent).toBe('Add product');
     expect(panels().length).toBe(1);
     expect(editor()['expanded']()).toBe(0);
-    expect(text(expandedPanels()[0].querySelector('.panel-toggle'))).toBe('Hide');
+    expect(text(expandedPanels()[0].querySelector('.panel-toggle'))).toBe('Close');
     expect(editor().hasUnsavedChanges()).toBe(false);
   });
 
@@ -187,7 +187,9 @@ describe('ProductEditor', () => {
     await fixture.whenStable();
 
     expect(open).not.toHaveBeenCalled();
-    expect(page().querySelector('.banner')?.textContent).toBe('The database is not available');
+    expect(page().querySelector('.banner')?.textContent).toBe(
+      'The departments could not be loaded. The database is not available',
+    );
   });
 
   it('keeps the code in step with the name until the code is changed by hand', async () => {

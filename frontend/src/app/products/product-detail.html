@@ -16,20 +16,27 @@
   }
 
   @if (product.error(); as error) {
-    <div class="banner">{{ errorMessage(error) }}</div>
-    <a class="btn btn-outline-primary" routerLink="/admin/products">Back to products</a>
+    <div class="banner danger" role="alert">
+      The product could not be loaded. {{ errorMessage(error) }}
+    </div>
+    <div class="row-wrap">
+      <button type="button" class="btn btn-outline-primary" (click)="reload()">Try again</button>
+      <a class="btn btn-link" routerLink="/admin/products">Back to products</a>
+    </div>
   } @else if (product.hasValue()) {
     @let p = product.value();
     <header class="page-header">
       <div class="identity">
         <div class="title row-wrap">
           <h1>{{ p.name }}</h1>
-          <span class="code mono">{{ p.code }}</span>
+          <span class="code mono" title="Product code">{{ p.code }}</span>
         </div>
-        @if (p.description) {
-          <p>{{ p.description }}</p>
-        }
-        <dl class="pairs meta">
+        <p class="page-description">
+          {{
+            p.description || 'The services of this product and the pipelines Jenkins runs for them.'
+          }}
+        </p>
+        <dl class="pairs facts">
           @if (departmentName(); as department) {
             <div>
               <dt>Department</dt>
@@ -50,40 +57,65 @@
               </dd>
             </div>
           }
-          @if (p.appScan; as appScan) {
+          @if (counts(); as count) {
             <div>
-              <dt>AppScan key ID</dt>
-              <dd class="mono">{{ appScan.keyId }}</dd>
+              <dt>Services</dt>
+              <dd>{{ count.services }}</dd>
+            </div>
+            <div>
+              <dt>Pipelines</dt>
+              <dd [class.revoked]="count.invalidated">{{ count.pipelines }}</dd>
             </div>
           }
           <div>
-            <dt>Changed</dt>
-            <dd>{{ p.updatedAt | relative }}</dd>
+            <dt>Last changed</dt>
+            <dd>{{ p.updatedAt | date: 'd MMM y, HH:mm z' }}</dd>
           </div>
         </dl>
+        @if (p.appScan; as appScan) {
+          <p class="technical">
+            Security scans sign in to HCL AppScan with the API key
+            <span class="mono">{{ appScan.keyId }}</span>
+          </p>
+        }
       </div>
       <div class="actions">
         <a class="btn btn-outline-primary" [routerLink]="['/monitoring/products', p.id]"
-          >Monitoring</a
+          >View monitoring</a
         >
-        <button type="button" class="btn btn-outline-primary" (click)="showProductConfig(p)">
-          config.yaml
+        <button
+          type="button"
+          class="btn btn-outline-primary"
+          [cdkMenuTriggerFor]="productMenu"
+          [cdkMenuPosition]="menuAtEnd"
+          [attr.aria-label]="'More actions of ' + p.name"
+        >
+          More
         </button>
+        <ng-template #productMenu>
+          <div cdkMenu class="dropdown-menu dso-menu">
+            <button
+              type="button"
+              cdkMenuItem
+              class="dropdown-item"
+              (cdkMenuItemTriggered)="showProductConfig(p)"
+            >
+              Settings sent to Jenkins (config.yaml)
+            </button>
+            <hr class="dropdown-divider" />
+            <button
+              type="button"
+              cdkMenuItem
+              class="dropdown-item danger"
+              (cdkMenuItemTriggered)="deleteProduct(p)"
+            >
+              Delete product
+            </button>
+          </div>
+        </ng-template>
         <a class="btn btn-primary" [routerLink]="['/admin/products', p.id, 'edit']">Edit product</a>
-        <button type="button" class="btn btn-link danger" (click)="deleteProduct(p)">Delete</button>
       </div>
     </header>
-
-    @if (stats(); as counts) {
-      <div class="stats">
-        @for (stat of counts; track stat.label) {
-          <div class="stat" [class]="stat.tone">
-            <strong>{{ stat.value }}</strong
-            ><span>{{ stat.label }}</span>
-          </div>
-        }
-      </div>
-    }
 
     @if (generated().length) {
       <div class="banner info generated" role="status">
@@ -95,15 +127,37 @@
     }
 
     @if (services.error(); as error) {
-      <div class="banner">{{ errorMessage(error) }}</div>
+      <div class="banner danger" role="alert">
+        <span>The services and pipelines could not be loaded. {{ errorMessage(error) }}</span>
+        <button type="button" class="btn btn-outline-primary retry" (click)="services.reload()">
+          Try again
+        </button>
+      </div>
     } @else if (services.hasValue()) {
       @if (services.value().length === 0) {
         <div class="card empty-state">
-          <h3>No services yet</h3>
-          <p>Define the services of the product to give them DevSecOps pipelines.</p>
+          <h3>This product has no services yet</h3>
+          <p>
+            Add its services, for example its API or its web front end. Each new service gets a Full
+            pipeline with its own key.
+          </p>
           <a class="btn btn-primary" [routerLink]="['/admin/products', p.id, 'edit']"
             >Add services</a
           >
+        </div>
+      } @else {
+        <div class="services-intro">
+          <h2>Services and pipelines</h2>
+          <p class="section-help">
+            A service is one deployable part of the product, for example its API or its web front
+            end. A pipeline is the automated build, test and security checks Jenkins runs for a
+            service. Its key is the secret code the service's Jenkins job uses to fetch its settings
+            from this portal; keep it private.
+          </p>
+          <p class="section-help">
+            In grey under each pipeline: its Jenkins job, the Jenkins agents (the machines it runs
+            on) and its monitoring tags (the names its results are stored under).
+          </p>
         </div>
       }
       @for (service of services.value(); track service.serviceId) {
@@ -111,46 +165,66 @@
           <header class="service-header">
             <div class="service-heading">
               <div class="service-title row-wrap">
-                <h2 class="mono">{{ service.serviceName }}</h2>
-                <span class="tag">{{ toolLabels[service.buildTool] }}</span>
-                <span class="tag">{{ targetLabels[service.deployTarget] }}</span>
+                <h2>{{ service.serviceName }}</h2>
                 @if (generated().includes(service.serviceName)) {
                   <span class="tag new">New</span>
                 }
-                @if (service.description) {
-                  <span class="muted service-description">{{ service.description }}</span>
-                }
               </div>
-              <div class="repository">
-                <span class="label">Bitbucket repository</span>
-                @if (repositoryOf(service); as url) {
-                  <a [href]="url" target="_blank" rel="noopener" class="mono plain-link">{{
-                    url
-                  }}</a>
-                } @else {
-                  <span class="not-recorded">Not set</span>
-                }
-              </div>
+              @if (service.description) {
+                <p class="service-description">{{ service.description }}</p>
+              }
+              <dl class="pairs service-facts">
+                <div>
+                  <dt>Build tool</dt>
+                  <dd>{{ toolLabels[service.buildTool] }}</dd>
+                </div>
+                <div>
+                  <dt>Deployed to</dt>
+                  <dd>{{ targetLabels[service.deployTarget] }}</dd>
+                </div>
+                <div class="repository">
+                  <dt>Bitbucket repository</dt>
+                  <dd>
+                    @if (repositoryOf(service); as url) {
+                      <a [href]="url" target="_blank" rel="noopener" class="mono plain-link">{{
+                        url
+                      }}</a>
+                    } @else {
+                      <span class="not-recorded">Not set</span>
+                    }
+                  </dd>
+                </div>
+              </dl>
             </div>
-            <span
-              [attr.title]="
-                canAddPipeline(service) ? null : 'The service has a pipeline of every type'
-              "
-            >
-              <button
-                type="button"
-                class="btn btn-outline-primary"
-                (click)="addPipeline(p, service)"
-                [disabled]="!canAddPipeline(service)"
-              >
-                Add pipeline
-              </button>
-            </span>
+            <div class="service-actions">
+              @if (canAddPipeline(service)) {
+                <button
+                  type="button"
+                  class="btn btn-outline-primary"
+                  (click)="addPipeline(p, service)"
+                >
+                  Add pipeline
+                </button>
+              } @else {
+                <button
+                  type="button"
+                  class="btn btn-outline-primary"
+                  disabled
+                  [attr.aria-describedby]="'complete-' + service.serviceId"
+                >
+                  Add pipeline
+                </button>
+                <span class="muted complete" [id]="'complete-' + service.serviceId"
+                  >It has a pipeline of every type.</span
+                >
+              }
+            </div>
           </header>
 
           @if (service.pipelines.length === 0) {
             <p class="no-pipelines">
-              No pipeline yet. Add one to give this service a DevSecOps key.
+              No pipeline yet, so Jenkins runs no checks for this service. Add one with Add
+              pipeline.
             </p>
           }
 
@@ -161,7 +235,6 @@
                   <a class="plain-link" [routerLink]="pipelinePage(pipeline.id)"
                     ><strong>{{ typeLabel(pipeline.type) }} pipeline</strong></a
                   >
-                  <span class="mono muted entry">{{ pipeline.entryPoint }}</span>
                   @if (pipeline.activeKey) {
                     <span class="chip success key-state">Key active</span>
                   } @else {
@@ -179,61 +252,12 @@
                     </button>
                   }
                 </div>
-                <dl class="pairs pipeline-meta">
-                  <div>
-                    <dt>Agents</dt>
-                    <dd>{{ pipeline.agentLabels.join(', ') }}</dd>
-                  </div>
-                  <div>
-                    <dt>Job</dt>
-                    <dd>
-                      @if (pipeline.jenkinsJobUrl) {
-                        <a
-                          class="mono plain-link"
-                          [href]="pipeline.jenkinsJobUrl"
-                          target="_blank"
-                          rel="noopener"
-                          title="Open the Jenkins job"
-                          >{{ pipeline.jenkinsJob }}</a
-                        >
-                      } @else if (pipeline.jenkinsJob) {
-                        <span
-                          class="mono"
-                          title="Set the Jenkins URL in the library defaults to link the job"
-                          >{{ pipeline.jenkinsJob }}</span
-                        >
-                      } @else {
-                        <span class="not-recorded" title="Set the job in the pipeline settings"
-                          >Not set</span
-                        >
-                      }
-                    </dd>
-                  </div>
-                  @if (pipeline.extendedPipelineJob) {
-                    <div>
-                      <dt>Extended pipeline</dt>
-                      <dd class="mono">{{ pipeline.extendedPipelineJob }}</dd>
-                    </div>
-                  }
-                  @if (pipeline.securityPipelineJob) {
-                    <div>
-                      <dt>Security pipeline</dt>
-                      <dd class="mono">{{ pipeline.securityPipelineJob }}</dd>
-                    </div>
-                  }
-                  <div title="InfluxDB project and env tags of its metrics">
-                    <dt>Metrics tags</dt>
-                    <dd class="mono">{{ pipeline.influxProjectTag }} · {{ pipeline.influxEnv }}</dd>
-                  </div>
-                  @if (pipeline.description) {
-                    <div>
-                      <dt>Description</dt>
-                      <dd>{{ pipeline.description }}</dd>
-                    </div>
-                  }
-                </dl>
+                @if (pipeline.description) {
+                  <p class="pipeline-description">{{ pipeline.description }}</p>
+                }
                 @if (pipeline.activeKey; as key) {
                   <div class="key row-wrap">
+                    <span class="key-label">Key</span>
                     <span class="mono key-value">{{
                       revealed().has(pipeline.id) && key.value ? key.value : key.hint
                     }}</span>
@@ -250,7 +274,7 @@
                           ' pipeline'
                         "
                       >
-                        {{ revealed().has(pipeline.id) ? 'Hide' : 'Show' }}
+                        {{ revealed().has(pipeline.id) ? 'Hide key' : 'Show key' }}
                       </button>
                       <button
                         type="button"
@@ -261,21 +285,54 @@
                           'Copy the key of the ' + typeName(pipeline.type) + ' pipeline'
                         "
                       >
-                        Copy
+                        Copy key
                       </button>
                     }
                     <span class="muted key-dates">
                       Issued {{ key.issuedAt | relative }}
                       @if (key.lastUsedAt) {
-                        · last fetched over REST {{ key.lastUsedAt | relative }}
+                        · last used {{ key.lastUsedAt | relative }}
                       }
                     </span>
                   </div>
                 } @else {
                   <p class="revoked-note">
-                    The pipeline is refused its configuration until its key is regenerated.
+                    Jenkins is refused this pipeline's settings, so it stops until a new key is
+                    issued.
                   </p>
                 }
+                <dl class="pairs pipeline-meta">
+                  <div>
+                    <dt>Jenkins job</dt>
+                    <dd>
+                      @if (pipeline.jenkinsJob) {
+                        <span class="mono">{{ pipeline.jenkinsJob }}</span>
+                      } @else {
+                        <span class="not-recorded">Not set</span>
+                      }
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Jenkins agents</dt>
+                    <dd>{{ pipeline.agentLabels.join(', ') }}</dd>
+                  </div>
+                  @if (pipeline.extendedPipelineJob) {
+                    <div>
+                      <dt>Starts</dt>
+                      <dd class="mono">{{ pipeline.extendedPipelineJob }}</dd>
+                    </div>
+                  }
+                  @if (pipeline.securityPipelineJob) {
+                    <div>
+                      <dt>Started by</dt>
+                      <dd class="mono">{{ pipeline.securityPipelineJob }}</dd>
+                    </div>
+                  }
+                  <div>
+                    <dt>Monitoring tags</dt>
+                    <dd class="mono">{{ pipeline.influxProjectTag }} · {{ pipeline.influxEnv }}</dd>
+                  </div>
+                </dl>
               </div>
               <div class="pipeline-actions">
                 @if (pipeline.jenkinsJobUrl) {
@@ -284,15 +341,18 @@
                     [href]="pipeline.jenkinsJobUrl"
                     target="_blank"
                     rel="noopener"
-                    >Jenkins</a
+                    [attr.aria-label]="
+                      'Open the ' + typeName(pipeline.type) + ' pipeline in Jenkins'
+                    "
+                    >Open in Jenkins</a
+                  >
+                } @else {
+                  <span
+                    class="muted no-link"
+                    title="Set the Jenkins URL in the library defaults and the job in the pipeline settings"
+                    >No Jenkins link</span
                   >
                 }
-                <a class="btn btn-link" [routerLink]="['/monitoring/pipelines', pipeline.id]"
-                  >Metrics</a
-                >
-                <button type="button" class="btn btn-link" (click)="showPipelineConfig(pipeline)">
-                  Config
-                </button>
                 <button
                   type="button"
                   class="btn btn-link"
@@ -304,6 +364,20 @@
                 </button>
                 <ng-template #pipelineMenu>
                   <div cdkMenu class="dropdown-menu dso-menu">
+                    <a
+                      cdkMenuItem
+                      class="dropdown-item"
+                      [routerLink]="['/monitoring/pipelines', pipeline.id]"
+                      >View monitoring</a
+                    >
+                    <button
+                      type="button"
+                      cdkMenuItem
+                      class="dropdown-item"
+                      (cdkMenuItemTriggered)="showPipelineConfig(pipeline)"
+                    >
+                      Settings sent to Jenkins (config.yaml)
+                    </button>
                     <button
                       type="button"
                       cdkMenuItem
@@ -336,7 +410,7 @@
                       class="dropdown-item"
                       (cdkMenuItemTriggered)="editPipeline(pipeline)"
                     >
-                      Settings
+                      Edit pipeline settings
                     </button>
                     <hr class="dropdown-divider" />
                     @if (pipeline.activeKey) {

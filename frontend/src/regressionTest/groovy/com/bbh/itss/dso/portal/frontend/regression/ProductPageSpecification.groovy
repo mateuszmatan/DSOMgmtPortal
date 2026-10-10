@@ -31,6 +31,15 @@ abstract class ProductPageSpecification extends GuiSpecification {
         serviceCard(service).locator('.pipeline-title strong')
     }
 
+    Locator fact(String label) {
+        holding(page.locator('.page-header .facts > div'), "dt:text-is('${label}')").locator('dd')
+    }
+
+    void productAction(String action) {
+        buttonIn(page.locator('.page-header'), 'More actions of', false).click()
+        menuItem(action).click()
+    }
+
     Locator pipelineButton(String service, String type, String name) {
         buttonIn(pipelineRow(service, type), name)
     }

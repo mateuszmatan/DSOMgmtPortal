@@ -72,7 +72,7 @@ const productFields = (departments: readonly Department[]): Field[] => [
   mono('code', 'Code', '', 3, {
     placeholder: 'CERT',
     maxLength: 50,
-    hint: 'Unique; a new product gets it from its name',
+    hint: 'The short unique name used in job names and reports, for example PAYHUB',
     error: "Start with a letter; use A-Z, 0-9, '-' or '_'",
   }),
   line('name', 'Name', '', 5, { placeholder: 'CertScanner' }),
@@ -91,10 +91,13 @@ const productFields = (departments: readonly Department[]): Field[] => [
 ];
 
 const APP_SCAN_ACCOUNT: Field[] = [
-  mono('keyId', 'API key ID', 'asoc.keyId', 6, { placeholder: 'bbh_...' }),
+  mono('keyId', 'API key ID', 'asoc.keyId', 6, {
+    placeholder: 'bbh_...',
+    hint: 'The ID of the API key AppScan on Cloud gave the product; it starts with bbh_',
+  }),
   mono('secretCredentialsId', 'Secret text credentials ID', 'asoc.token', 6, {
     placeholder: 'hcl-app-scan-account',
-    hint: 'a Secret text credential holding the key secret',
+    hint: "The Jenkins credential that holds the key's secret",
   }),
 ];
 
@@ -203,7 +206,8 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
             this.form.markAsPristine();
             this.followNameWithCode();
           },
-          error: (error) => this.loadError.set(errorMessage(error)),
+          error: (error) =>
+            this.loadError.set(`The departments could not be loaded. ${errorMessage(error)}`),
         });
       return;
     }
@@ -231,7 +235,8 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
           );
           this.expanded.set(product.services.length === 1 ? 0 : null);
         },
-        error: (error) => this.loadError.set(errorMessage(error)),
+        error: (error) =>
+          this.loadError.set(`The product could not be loaded. ${errorMessage(error)}`),
       });
   }
 
@@ -284,12 +289,12 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     }
     const pipelines = this.pipelinesOf(service);
     const data: ConfirmDialogData = {
-      title: `Remove ${service.controls.name.value}?`,
+      title: `Remove the service ${service.controls.name.value}?`,
       message: pipelines
         ? `Saving the product deletes the service's ${pipelines === 1 ? 'pipeline' : `${pipelines} pipelines`} and keys. ` +
-          'Jenkins jobs using those keys stop working.'
+          'The Jenkins jobs that use those keys stop working.'
         : 'The service is removed when you save the product.',
-      confirmLabel: 'Remove',
+      confirmLabel: 'Remove service',
       danger: true,
     };
     this.dialog
@@ -331,7 +336,9 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
           this.saved = true;
           this.generatedKeys.record(product.id, newServices);
           this.notifier.success(
-            stored ? `${product.name} saved` : `${product.name} added to DevSecOps`,
+            stored
+              ? `${product.name} saved. Its pipelines get the new settings the next time they run.`
+              : `${product.name} added. Each of its services got a Full pipeline with its own key.`,
           );
           this.router.navigate(['/admin/products', product.id]);
         },
@@ -347,7 +354,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   private showSaveError(error: unknown): void {
     const problems = fieldProblems(error);
     if (problems.length === 0) {
-      this.saveError.set(errorMessage(error));
+      this.saveError.set(`The product could not be saved. ${errorMessage(error)}`);
       return;
     }
     this.unmatchedProblems.set(applyProductProblems(this.form, problems));

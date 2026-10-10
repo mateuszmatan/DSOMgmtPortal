@@ -67,8 +67,9 @@ class GuiSmokeSpec extends GuiSpecification {
         then:
         assertThat(page.locator('section.department h2').first()).isVisible()
         assertThat(page.locator('section.department .tally').first())
-                .hasText(~/^\d+ DevSecOps pipelines? for \d+ products?( · \d+ active)?$/)
-        assertThat(page.locator('.toolbar .count')).hasText(~/^\d+ products? in \d+ departments?$/)
+                .hasText(~/^\d+ products?, \d+ pipelines?(, \d+ keys? invalidated)?$/)
+        assertThat(page.locator('.toolbar .summary'))
+                .hasText(~/^\d+ products? in \d+ departments?(, \d+ not in a department)?$/)
         ownErrors().isEmpty()
     }
 

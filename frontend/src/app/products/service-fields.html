@@ -41,32 +41,61 @@
               Flutter section.
             </p>
           } @else {
-            <h4 class="sub-heading span-12">Build command</h4>
             <dso-tool-command-fields
               [group]="f.controls.build.controls.command"
               [tool]="tool()"
               path="build"
+              part="tasks"
               gradleExample="clean build"
               mavenExample="clean verify"
             />
           }
+          <dso-advanced-settings
+            [summary]="flutter() ? 'Source folder' : 'Source folder and build command options'"
+            [controls]="advanced().build"
+            [submitted]="submitted()"
+          >
+            <dso-fields [group]="f.controls.build" [fields]="buildOptions()" />
+            @if (!flutter()) {
+              <dso-tool-command-fields
+                [group]="f.controls.build.controls.command"
+                [tool]="tool()"
+                path="build"
+                part="options"
+              />
+            }
+          </dso-advanced-settings>
         </div>
       }
 
       @case ('unitTests') {
         <div class="form-fields">
           @if (!flutter()) {
-            <h4 class="sub-heading span-12">Test command</h4>
             <dso-tool-command-fields
               [group]="f.controls.unitTests.controls.command"
               [tool]="tool()"
               path="tests.unitTests"
+              part="tasks"
               gradleExample="test jacocoTestReport"
               mavenExample="test jacoco:report"
             />
           }
-          <h4 class="sub-heading span-12">Results</h4>
           <dso-fields [group]="f.controls.unitTests" [fields]="unitTestFields()" />
+          <dso-advanced-settings
+            summary="Folders, empty results and test command options"
+            [controls]="advanced().unitTests"
+            [submitted]="submitted()"
+          >
+            <dso-fields [group]="f.controls.unitTests" [fields]="unitTestOptions" />
+            @if (!flutter()) {
+              <dso-tool-command-fields
+                [group]="f.controls.unitTests.controls.command"
+                [tool]="tool()"
+                path="tests.unitTests"
+                part="options"
+              />
+            }
+          </dso-advanced-settings>
         </div>
       }
 
@@ -129,26 +158,32 @@
         @let scan = f.controls.appScan;
         <div class="form-fields">
           <dso-fields [group]="scan" [fields]="appScan" />
-          <dso-fields [group]="scan" [fields]="appScanSecret" />
-          <h4 class="sub-heading span-12">Static scan (SAST)</h4>
-          <dso-fields [group]="scan" [fields]="appScanStatic" />
-          <span class="span-6"></span>
-          <dso-fields [group]="scan" [fields]="appScanFlags" />
-          @if (!flutter() && scan.controls.compile.value) {
-            <h4 class="sub-heading span-12">Compile command</h4>
-            <dso-tool-command-fields
-              [group]="scan.controls.compileCommand"
-              [tool]="tool()"
-              path="asoc"
-              gradleExample="compileJava"
-              mavenExample="compile"
-            />
-          }
           <h4 class="sub-heading span-12">Dynamic scan (DAST)</h4>
           <dso-fields [group]="scan" [fields]="dastEnabled" />
           @if (scan.controls.dastEnabled.value) {
             <dso-fields [group]="scan" [fields]="dast" />
           }
+          <dso-advanced-settings
+            summary="The service's own secret and the options of the static scan"
+            [controls]="advanced().appScan"
+            [submitted]="submitted()"
+          >
+            <dso-fields [group]="scan" [fields]="appScanSecret" />
+            <h4 class="sub-heading span-12">Static scan (SAST)</h4>
+            <dso-fields [group]="scan" [fields]="appScanStatic" />
+            <span class="span-6"></span>
+            <dso-fields [group]="scan" [fields]="appScanFlags" />
+            @if (!flutter() && scan.controls.compile.value) {
+              <h4 class="sub-heading span-12">Compile command</h4>
+              <dso-tool-command-fields
+                [group]="scan.controls.compileCommand"
+                [tool]="tool()"
+                path="asoc"
+                gradleExample="compileJava"
+                mavenExample="compile"
+              />
+            }
+          </dso-advanced-settings>
         </div>
       }
 
@@ -156,22 +191,34 @@
         <div class="form-fields">
           <dso-fields [group]="f.controls.sonar" [fields]="sonarFields()" />
           @if (!flutter()) {
-            <h4 class="sub-heading span-12">Analysis command</h4>
             <dso-tool-command-fields
               [group]="f.controls.sonar.controls.command"
               [tool]="tool()"
               path="tools.sonar"
+              part="tasks"
               gradleExample="sonarqube"
               mavenExample="sonar:sonar"
             />
           }
+          <dso-advanced-settings
+            summary="Server, credentials, badges and analysis command options"
+            [controls]="advanced().sonar"
+            [submitted]="submitted()"
+          >
+            <dso-fields [group]="f.controls.sonar" [fields]="sonarOptions()" />
+            @if (!flutter()) {
+              <dso-tool-command-fields
+                [group]="f.controls.sonar.controls.command"
+                [tool]="tool()"
+                path="tools.sonar"
+                part="options"
+              />
+            }
+          </dso-advanced-settings>
         </div>
       }
 
       @case ('nexusIq') {
-        <div class="form-fields">
-          <dso-fields [group]="f.controls.nexusIq" [fields]="nexusIqFields()" />
-        </div>
         <section class="list-section">
           <header class="list-header">
             <h4>
@@ -213,14 +260,28 @@
             <p class="list-empty">No application: the pipeline skips the Nexus IQ scan.</p>
           }
         </section>
+        <dso-advanced-settings
+          summary="Server, credentials and scan name"
+          [controls]="advanced().nexusIq"
+          [submitted]="submitted()"
+        >
+          <dso-fields [group]="f.controls.nexusIq" [fields]="nexusIqFields()" />
+        </dso-advanced-settings>
       }
 
       @case ('scm') {
         <div class="form-fields">
           <dso-fields [group]="f.controls.scm" [fields]="scm" />
-          <h4 class="sub-heading span-12">Repository for GoldenFix pull requests</h4>
-          <p class="note span-12">Optional; left empty, they are read from the repository URL.</p>
-          <dso-fields [group]="f.controls.scm" [fields]="bitbucketRepository" />
+          <dso-advanced-settings
+            summary="Sign-in, clone URL and where GoldenFix finds the repository"
+            [controls]="advanced().scm"
+            [submitted]="submitted()"
+          >
+            <dso-fields [group]="f.controls.scm" [fields]="scmOptions" />
+            <h4 class="sub-heading span-12">Repository for GoldenFix pull requests</h4>
+            <p class="note span-12">Optional; left empty, they are read from the repository URL.</p>
+            <dso-fields [group]="f.controls.scm" [fields]="bitbucketRepository" />
+          </dso-advanced-settings>
         </div>
       }
 
@@ -249,6 +310,13 @@
       @case ('metrics') {
         <div class="form-fields">
           <dso-fields [group]="f.controls.metrics" [fields]="metricsFields()" />
+          <dso-advanced-settings
+            summary="Where the results are written"
+            [controls]="advanced().metrics"
+            [submitted]="submitted()"
+          >
+            <dso-fields [group]="f.controls.metrics" [fields]="metricsOptions()" />
+          </dso-advanced-settings>
         </div>
       }
 

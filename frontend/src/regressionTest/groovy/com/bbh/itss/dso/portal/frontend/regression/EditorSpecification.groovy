@@ -33,15 +33,15 @@ abstract class EditorSpecification extends GuiSpecification {
     }
 
     Locator openService() {
-        page.locator('dso-panel.expanded')
+        page.locator('dso-panel.service-panel.expanded')
     }
 
     Locator servicePanel(String name) {
-        holding(page.locator('dso-panel'), ".service-name:text-is('${name}')")
+        holding(page.locator('dso-panel.service-panel'), ".service-name:text-is('${name}')")
     }
 
     Locator serviceNames() {
-        page.locator('dso-panel .service-name')
+        page.locator('dso-panel.service-panel .service-name')
     }
 
     void expandService(String name) {
@@ -49,11 +49,11 @@ abstract class EditorSpecification extends GuiSpecification {
     }
 
     void expandServiceAt(int index) {
-        expand(page.locator('dso-panel').nth(index))
+        expand(page.locator('dso-panel.service-panel').nth(index))
     }
 
     private void expand(Locator panel) {
-        panel.locator('.accordion-header button').click()
+        panel.locator('.accordion-header button').first().click()
         assertThat(panel).hasClass(~/\bexpanded\b/)
         assertThat(openService()).hasCount(1)
     }
@@ -61,6 +61,11 @@ abstract class EditorSpecification extends GuiSpecification {
     void showSection(String label) {
         openService().locator(".rail-item:has(> span:text-is('${label}'))").click()
         assertThat(openService().locator('.pane-header h3')).hasText(label)
+    }
+
+    void showAdvancedSettings() {
+        openService().locator('dso-advanced-settings .accordion-header button').click()
+        assertThat(openService().locator('dso-advanced-settings dso-panel')).hasClass(~/\bexpanded\b/)
     }
 
     void hasValues(Locator scope, Map<String, String> expected) {

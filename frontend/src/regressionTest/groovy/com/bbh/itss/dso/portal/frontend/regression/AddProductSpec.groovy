@@ -59,11 +59,11 @@ class AddProductSpec extends EditorSpecification {
         ownErrors().isEmpty()
     }
 
-    def "Add product of a department starts the new product in that department"() {
+    def "Add a product to an empty department starts the new product in that department"() {
         when:
         open('/admin/products')
         holding(page.locator('section.department'), "h2:text-is('Custody')")
-                .getByRole(LINK, new Locator.GetByRoleOptions().setName('Add product').setExact(true)).click()
+                .getByRole(LINK, new Locator.GetByRoleOptions().setName('Add a product to Custody').setExact(true)).click()
 
         then:
         assertThat(page).hasURL(~'/admin/products/new\\?department=4$')
@@ -187,7 +187,7 @@ class AddProductSpec extends EditorSpecification {
         api.requests('POST', '/api/products').size() == 2
         api.lastRequest('POST', '/api/products').json() == expected('new-product-request.json')
         assertThat(page.locator('h1')).hasText('CertScanner Next')
-        assertThat(snackBar()).containsText('CertScanner Next added to DevSecOps')
+        assertThat(snackBar()).containsText('CertScanner Next added. Each of its services got a Full pipeline with its own key.')
         assertThat(page.locator('.generated')).containsText('Pipeline keys generated for 2 new services: gui, backend-api.')
         store.generatedKeys.keySet() == ['gui', 'backend-api'] as Set
         store.generatedKeys.values().every { key ->

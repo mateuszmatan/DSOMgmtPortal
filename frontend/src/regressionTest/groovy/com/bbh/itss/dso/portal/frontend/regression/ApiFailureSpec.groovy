@@ -59,7 +59,8 @@ class ApiFailureSpec extends EditorSpecification {
         open('/admin/products/1')
 
         then:
-        assertThat(page.locator('.banner')).hasText('Product 1 was not found')
+        assertThat(page.locator('.banner')).hasText('The product could not be loaded. Product 1 was not found')
+        assertThat(button('Try again', true)).isVisible()
 
         when:
         link('Back to products', true).click()
@@ -89,7 +90,7 @@ class ApiFailureSpec extends EditorSpecification {
         button('Save changes', true).click()
 
         then:
-        assertThat(saveError()).hasText(DETAIL)
+        assertThat(saveError()).hasText("The product could not be saved. $DETAIL")
         page.url().endsWith('/admin/products/1/edit')
         assertThat(input(productFields(), 'Name')).hasValue('CertScanner 2')
         assertThat(button('Save changes', true)).isEnabled()
@@ -106,7 +107,7 @@ class ApiFailureSpec extends EditorSpecification {
         button('Save changes', true).click()
 
         then:
-        assertThat(saveError()).hasText('The product was changed by someone else; reload it and try again')
+        assertThat(saveError()).hasText('The product could not be saved. The product was changed by someone else; reload it and try again')
         awaitRequest('PUT', '/api/products/1').json().version == 0
         page.url().endsWith('/admin/products/1/edit')
     }
@@ -119,6 +120,7 @@ class ApiFailureSpec extends EditorSpecification {
         open('/admin/products')
 
         then:
-        assertThat(page.locator('.banner')).hasText('The portal cannot be reached. Check your network connection and try again.')
+        assertThat(page.locator('.banner')).containsText('The product list could not be loaded. The portal cannot be reached. Check your network connection and try again.')
+        assertThat(buttonIn(page.locator('.banner'), 'Try again')).isVisible()
     }
 }

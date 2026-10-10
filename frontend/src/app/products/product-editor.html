@@ -17,12 +17,15 @@
     <div>
       @if (product(); as stored) {
         <h1>Edit {{ stored.name }}</h1>
-        <p>Changes reach every pipeline of the product the next time it reads its configuration.</p>
+        <p class="page-description">
+          Change the product's details and its services. Its pipelines get the new settings the next
+          time they run.
+        </p>
       } @else if (!id()) {
         <h1>Add product</h1>
-        <p>
-          Describe the product and define its services. Saving gives each new service a full
-          DevSecOps pipeline with its key.
+        <p class="page-description">
+          Describe the product and its services. When you save, each service gets a Full pipeline
+          with its own key.
         </p>
       } @else {
         <h1>Edit product</h1>
@@ -39,6 +42,7 @@
     <a class="btn btn-outline-primary" routerLink="/admin/products">Back to products</a>
   } @else if (!loading()) {
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <p class="required-note muted">Fields marked * are required.</p>
       @if (unmatchedProblems().length) {
         <div class="banner" role="alert">
           <ul class="problems">
@@ -56,10 +60,7 @@
         <div class="form-block">
           <header>
             <h3>Product</h3>
-            <p>
-              How the product appears in the portal. The code starts the default metrics tags of its
-              services.
-            </p>
+            <p>How the product appears in the portal, and who looks after it.</p>
           </header>
           <div class="form-fields">
             <dso-fields [group]="form" [fields]="productFields()" />
@@ -70,8 +71,9 @@
           <header>
             <h3>HCL AppScan account</h3>
             <p>
-              The API key every service of the product scans with. Its secret stays in a Jenkins
-              Secret text credential; a service may name its own.
+              The pipelines scan the code of every service for security flaws with HCL AppScan and
+              sign in with this API key, so a product with services needs it. The key's secret stays
+              in Jenkins.
             </p>
           </header>
           <div class="form-fields">
@@ -86,9 +88,10 @@
             <h2>
               Services <span class="count">{{ services().length }}</span>
             </h2>
-            <p>
-              Each service is one entry under <code>projects:</code> in config.yaml. Saving gives a
-              new service its full pipeline and key.
+            <p class="section-help">
+              A service is one deployable part of the product, for example its API or its web front
+              end. Open a service to change how it is built, tested, deployed and scanned. When you
+              save, each new service gets a Full pipeline with its own key.
             </p>
           </div>
           <button type="button" class="btn btn-outline-primary" (click)="addService()">
@@ -99,7 +102,10 @@
         @if (services().length === 0) {
           <div class="card empty-state">
             <h3>No services yet</h3>
-            <p>Add the services of the product, for example its GUI and its backend API.</p>
+            <p>
+              Add the services of the product, for example its web front end and its API. Each one
+              gets its own pipeline when you save.
+            </p>
             <button type="button" class="btn btn-primary" (click)="addService()">
               Add service
             </button>
@@ -113,6 +119,7 @@
             ) {
               <dso-panel
                 #panel="dsoPanel"
+                class="service-panel"
                 [expanded]="expanded() === i"
                 (expandedChange)="panelToggled(i, $event)"
                 [class.has-errors]="showsErrors(service)"
@@ -140,7 +147,7 @@
                     }
                   </span>
                   <span class="panel-toggle" aria-hidden="true">{{
-                    panel.expanded() ? 'Hide' : 'Show'
+                    panel.expanded() ? 'Close' : 'Edit settings'
                   }}</span>
                 </dso-panel-header>
 
@@ -161,7 +168,7 @@
                       'Move ' + (service.controls.name.value || 'the service') + ' up'
                     "
                   >
-                    Up
+                    Move up
                   </button>
                   <button
                     type="button"
@@ -172,14 +179,14 @@
                       'Move ' + (service.controls.name.value || 'the service') + ' down'
                     "
                   >
-                    Down
+                    Move down
                   </button>
                   <span class="spacer"></span>
                   <button type="button" class="btn btn-link" (click)="duplicate(i)">
-                    Duplicate
+                    Duplicate service
                   </button>
                   <button type="button" class="btn btn-link danger" (click)="remove(i)">
-                    Remove
+                    Remove service
                   </button>
                 </div>
               </dso-panel>

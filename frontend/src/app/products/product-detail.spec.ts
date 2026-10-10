@@ -63,7 +63,12 @@ describe('ProductDetail', () => {
         hint: 'cccccccc…cccc',
       },
     });
-  const stats = () => [...page().querySelectorAll('.stat')].map((stat) => stat.textContent?.trim());
+  const fact = (label: string) =>
+    text(
+      [...page().querySelectorAll('.facts > div')]
+        .find((entry) => text(entry.querySelector('dt')) === label)
+        ?.querySelector('dd'),
+    );
   const snackText = () => text(toast());
 
   function withScm(scm: Partial<Product['services'][number]['scm']>): Product {
@@ -78,13 +83,10 @@ describe('ProductDetail', () => {
     expect(
       [...page().querySelectorAll('.breadcrumb > :not(.sep)')].map((part) => part.textContent),
     ).toEqual(['DevSecOps Admin', 'Products', 'Corporate Technology', 'CertScanner']);
-    expect(page().querySelector('.meta div')?.textContent).toBe('DepartmentCorporate Technology');
-    expect([...page().querySelectorAll('.stat')].map((stat) => stat.textContent?.trim())).toEqual([
-      '1Services',
-      '1Pipelines',
-      '1Active keys',
-      '0Invalidated keys',
-    ]);
+    expect(fact('Department')).toBe('Corporate Technology');
+    expect(fact('Services')).toBe('1');
+    expect(fact('Pipelines')).toBe('1, active');
+    expect(page().querySelector('.stats')).toBeNull();
     expect(page().querySelector('.pipeline-title strong')?.textContent).toBe('Full pipeline');
     expect(page().querySelector('svg-icon')).toBeNull();
   });
@@ -93,16 +95,18 @@ describe('ProductDetail', () => {
     await load(product({ departmentId: null }));
 
     expect(page().querySelector('.breadcrumb')?.textContent).not.toContain('Corporate');
-    expect(page().querySelector('.meta')?.textContent).not.toContain('Department');
+    expect(page().querySelector('.facts')?.textContent).not.toContain('Department');
   });
 
   it('shows the AppScan key ID only of a product that has one', async () => {
     await load();
-    expect(page().querySelector('.meta')?.textContent).toContain('AppScan key IDbbh_key');
+    expect(text(page().querySelector('.technical'))).toBe(
+      'Security scans sign in to HCL AppScan with the API key bbh_key',
+    );
 
     fixture.componentInstance['product'].set(product({ appScan: null, services: [] }));
     fixture.detectChanges();
-    expect(page().querySelector('.meta')?.textContent).not.toContain('AppScan');
+    expect(page().querySelector('.page-header')?.textContent).not.toContain('AppScan');
   });
 
   it('links the repository URL of the service', async () => {
@@ -137,9 +141,9 @@ describe('ProductDetail', () => {
     await load(product(), [servicePipelines({ pipelines: [pipeline(), fetched] })]);
 
     const dates = [...page().querySelectorAll('.key-dates')].map((dates) => dates.textContent);
-    expect(dates[0]).not.toContain('REST');
+    expect(dates[0]).not.toContain('last used');
     expect(dates[0]).not.toContain('not used');
-    expect(dates[1]).toContain('last fetched over REST');
+    expect(dates[1]).toContain('last used');
   });
 
   it('reveals and hides the active key with a text button', async () => {
@@ -147,7 +151,7 @@ describe('ProductDetail', () => {
     const toggle = () => page().querySelector<HTMLButtonElement>('.key .text-link')!;
 
     expect(page().querySelector('.key-value')?.textContent?.trim()).toBe('6f1c2d3e…9abc');
-    expect(toggle().textContent?.trim()).toBe('Show');
+    expect(toggle().textContent?.trim()).toBe('Show key');
     expect(toggle().getAttribute('aria-label')).toBe('Show the key of the full pipeline');
 
     toggle().click();
@@ -156,7 +160,7 @@ describe('ProductDetail', () => {
     expect(page().querySelector('.key-value')?.textContent?.trim()).toBe(
       pipeline().activeKey!.value,
     );
-    expect(toggle().textContent?.trim()).toBe('Hide');
+    expect(toggle().textContent?.trim()).toBe('Hide key');
   });
 
   it('says why the product could not be read and leads back to the list', async () => {
@@ -171,8 +175,11 @@ describe('ProductDetail', () => {
     http.expectOne('/api/departments').flush(null, { status: 500, statusText: 'Error' });
     await fixture.whenStable();
 
-    expect(page().querySelector('.banner')?.textContent).toBe('Product 1 does not exist');
+    expect(text(page().querySelector('.banner'))).toBe(
+      'The product could not be loaded. Product 1 does not exist',
+    );
     expect(page().querySelector<HTMLAnchorElement>('a[href="/admin/products"].btn')).not.toBeNull();
+    expect(buttonOf(page(), 'Try again')).toBeDefined();
     expect(page().querySelector('.breadcrumb')?.textContent).toContain('Product');
     expect(page().querySelector('h1')).toBeNull();
   });
@@ -208,19 +215,19 @@ describe('ProductDetail', () => {
       );
 
     expect(meta(0)).toMatchObject({
-      Job: 'DevSecOps/CERT/gui-full',
-      'Extended pipeline': 'DevSecOps/CERT/gui-extended',
-      Description: 'Nightly security build',
-      'Metrics tags': 'CERT-gui · test',
+      'Jenkins job': 'DevSecOps/CERT/gui-full',
+      Starts: 'DevSecOps/CERT/gui-extended',
+      'Monitoring tags': 'CERT-gui · test',
     });
+    expect(text(page().querySelector('.pipeline-description'))).toBe('Nightly security build');
     expect(page().querySelectorAll('.pipeline')[0].querySelector('.pipeline-meta a')).toBeNull();
     expect(meta(1)).toMatchObject({
-      Job: 'Not set',
-      'Security pipeline': 'DevSecOps/CERT/gui-security',
+      'Jenkins job': 'Not set',
+      'Started by': 'DevSecOps/CERT/gui-security',
     });
     expect(
-      [...page().querySelectorAll('.pipeline-actions a')].map((link) => link.textContent?.trim()),
-    ).toEqual(['Metrics', 'Metrics']);
+      [...page().querySelectorAll('.pipeline-actions')].map((actions) => text(actions)),
+    ).toEqual(['No Jenkins link More', 'No Jenkins link More']);
   });
 
   describe('new services', () => {
@@ -264,7 +271,7 @@ describe('ProductDetail', () => {
       expect(page().querySelector('.key-value')?.textContent?.trim()).toBe('c'.repeat(36));
       expect(page().querySelector('.key-state')?.textContent).toBe('Key active');
       expect(buttonOf(page(), 'Regenerate key')).toBeUndefined();
-      expect(stats()).toEqual(['1Services', '1Pipelines', '1Active keys', '0Invalidated keys']);
+      expect(fact('Pipelines')).toBe('1, active');
       expect(snackText()).toContain(
         'Full pipeline of gui has a new key: pass it in the Jenkinsfile',
       );
@@ -289,8 +296,8 @@ describe('ProductDetail', () => {
     });
     const snack = snackText;
 
-    async function menu(label: string) {
-      buttonOf(page(), 'More').click();
+    async function menu(label: string, trigger = 'More actions of the full pipeline') {
+      buttonOf(page(), trigger).click();
       await fixture.whenStable();
       buttonOf(document, label).click();
       await fixture.whenStable();
@@ -299,14 +306,18 @@ describe('ProductDetail', () => {
     it('opens the configuration of the product and of a pipeline', async () => {
       await load();
 
-      buttonOf(page(), 'config.yaml').click();
+      await menu('Settings sent to Jenkins (config.yaml)', 'More actions of CertScanner');
       http.expectOne('/api/products/1/config').flush('projects: {}');
-      buttonOf(page(), 'Config').click();
+      await menu('Settings sent to Jenkins (config.yaml)');
       http.expectOne('/api/pipelines/100/config').flush('projects:\n  gui: {}');
 
       expect(opened(0)).toMatchObject({
         component: CodeDialog,
-        data: { code: 'projects: {}', fileName: 'cert-config.yaml' },
+        data: {
+          title: 'Settings sent to Jenkins (config.yaml) for CertScanner',
+          code: 'projects: {}',
+          fileName: 'cert-config.yaml',
+        },
       });
       expect(opened(1).data['fileName']).toBe('cert-gui-full.yaml');
     });
@@ -332,13 +343,11 @@ describe('ProductDetail', () => {
         'Copy the key of the Nexus IQ GoldenFix pipeline',
       ]);
 
-      buttonOf(page(), 'More actions of the Nexus IQ GoldenFix pipeline').click();
-      await fixture.whenStable();
-      buttonOf(document, 'Delete pipeline').click();
-      await fixture.whenStable();
-      [...page().querySelectorAll<HTMLButtonElement>('button')]
-        .filter((button) => button.textContent?.trim() === 'Config')[1]
-        .click();
+      await menu('Delete pipeline', 'More actions of the Nexus IQ GoldenFix pipeline');
+      await menu(
+        'Settings sent to Jenkins (config.yaml)',
+        'More actions of the Nexus IQ GoldenFix pipeline',
+      );
       http.expectOne('/api/pipelines/100/config').flush('projects: {}');
 
       expect(opened(0).data['message']).toContain(
@@ -396,7 +405,7 @@ describe('ProductDetail', () => {
         }),
       ]);
 
-      await menu('Jenkinsfile for several services');
+      await menu('Jenkinsfile for several services', 'More actions of the extended pipeline');
       http.expectOne('/api/settings').flush(globalSettings());
 
       expect(opened().data['subtitle']).toContain('One run builds gui, api;');
@@ -436,9 +445,7 @@ describe('ProductDetail', () => {
 
       expect(opened().component).toBe(RevokeKeyDialog);
       expect(page().querySelector('.revoked-note')).not.toBeNull();
-      expect(
-        [...page().querySelectorAll('.stat')].map((stat) => stat.textContent?.trim()),
-      ).toContain('1Invalidated keys');
+      expect(fact('Pipelines')).toBe('1, 1 key invalidated');
       expect(snack()).toContain('Key invalidated');
     });
 
@@ -455,7 +462,7 @@ describe('ProductDetail', () => {
       ).toEqual(['Full pipeline', 'SAST scanning pipeline']);
       expect(snack()).toContain('SAST scanning pipeline added to gui');
 
-      await menu('Settings');
+      await menu('Edit pipeline settings');
       expect((opened(1).data['pipeline'] as Pipeline).id).toBe(100);
       expect(snack()).toContain('Pipeline settings saved');
     });
@@ -464,11 +471,16 @@ describe('ProductDetail', () => {
       await load();
       closingWith(true, true);
 
-      buttonOf(page(), 'Delete').click();
-      expect(opened().data['title']).toBe('Delete CertScanner?');
+      await menu('Delete product', 'More actions of CertScanner');
+      expect(opened().data).toMatchObject({
+        title: 'Delete the product CertScanner?',
+        confirmLabel: 'Delete product',
+        danger: true,
+      });
       http.expectOne({ method: 'DELETE', url: '/api/products/1' }).flush(null);
       await fixture.whenStable();
       expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(['/admin/products']);
+      expect(snack()).toContain('CertScanner was deleted with its services and pipelines.');
 
       await menu('Delete pipeline');
       http
@@ -481,7 +493,7 @@ describe('ProductDetail', () => {
     it('copies the key and says so', async () => {
       await load();
 
-      buttonOf(page(), 'Copy').click();
+      buttonOf(page(), 'Copy the key of the full pipeline').click();
       await fixture.whenStable();
 
       expect(snack()).toContain('Key copied to the clipboard');

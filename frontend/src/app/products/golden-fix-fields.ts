@@ -7,13 +7,29 @@ import {
   ServiceGoldenFixForm,
 } from './product-form-model';
 
+export function keyLast(field: Field): Field {
+  if (!field.code || field.kind === 'check') {
+    return field;
+  }
+  const { code, ...plain } = field;
+  return { ...plain, hint: [field.hint, `\`${code}\``].filter(Boolean).join(' · ') };
+}
+
+const command = (key: string, tool: string, span = 6): Field =>
+  keyLast(
+    mono(`verify${key}Command`, `${tool} command`, `verify.commands.${key.toLowerCase()}`, span, {
+      placeholder: 'Library default',
+      hint: `What builds the fix in ${tool} projects`,
+    }),
+  );
+
 const COMMANDS: Field[] = [
-  mono('verifyMavenCommand', 'Maven command', 'verify.commands.maven'),
-  mono('verifyGradleCommand', 'Gradle command', 'verify.commands.gradle'),
-  mono('verifyNpmCommand', 'npm command', 'verify.commands.npm', 4),
-  mono('verifyPipCommand', 'pip command', 'verify.commands.pip', 4),
-  mono('verifyPubCommand', 'pub command', 'verify.commands.pub', 4),
-].map((field) => ({ ...field, placeholder: 'Library default' }));
+  command('Maven', 'Maven'),
+  command('Gradle', 'Gradle'),
+  command('Npm', 'npm', 4),
+  command('Pip', 'pip', 4),
+  command('Pub', 'pub', 4),
+];
 
 @Component({
   selector: 'dso-golden-fix-fields',
@@ -50,12 +66,18 @@ export class GoldenFixFields {
         GOLDEN_FIX_ECOSYSTEMS.map((value) => ({ value, label: value })),
         'goldenFix.ecosystems',
         5,
-        { multiple: true, hint: this.global(g?.ecosystems) },
+        {
+          multiple: true,
+          hint: this.explain('The kinds of dependencies GoldenFix upgrades', g?.ecosystems),
+        },
       ),
       count('minThreatLevel', 'Minimum threat level', 'minThreatLevel', 3, {
         min: 0,
         max: 10,
-        hint: this.global(g?.minThreatLevel),
+        hint: this.explain(
+          'Only vulnerabilities Nexus IQ rates at least this high, from 0 to 10',
+          g?.minThreatLevel,
+        ),
       }),
       this.complete()
         ? check('onlyDirectDependencies', 'Direct dependencies only', 'onlyDirectDependencies', 4)
@@ -65,20 +87,26 @@ export class GoldenFixFields {
             tristate('Global value', 'Direct dependencies only', 'Direct and transitive'),
             'onlyDirectDependencies',
             4,
-            { hint: this.global(g?.onlyDirectDependencies) },
+            {
+              hint: this.explain(
+                'Direct ones are named by the service itself; transitive ones come with them',
+                g?.onlyDirectDependencies,
+              ),
+            },
           ),
       area('goldenVersionTypes', 'Golden version types', 'goldenVersionTypes', 6, {
         mono: true,
         placeholder: 'recommended-non-breaking',
-        hint:
-          'Nexus IQ remediation types, one per line, in order of preference' +
-          this.global(g?.goldenVersionTypes, ' · '),
+        hint: this.explain(
+          'The kinds of safe version Nexus IQ suggests, one per line, preferred first',
+          g?.goldenVersionTypes,
+        ),
       }),
       area('excludeDirs', 'Excluded folders', 'excludeDirs', 6, {
         mono: true,
-        hint: 'one per line' + this.global(g?.excludeDirs, ' · '),
+        hint: this.explain('Folders GoldenFix leaves alone, one per line', g?.excludeDirs),
       }),
-    ];
+    ].map(keyLast);
   }
 
   protected verifyFields(): Field[] {
@@ -97,42 +125,50 @@ export class GoldenFixFields {
             tristate('Global value', 'Build the fix first', 'Do not build it'),
             'verify.enabled',
             4,
-            { hint: this.global(g?.verifyEnabled) },
+            {
+              hint: this.explain(
+                'A build of the fixed service catches upgrades that break it',
+                g?.verifyEnabled,
+              ),
+            },
           ),
       count('verifyMaxAttempts', 'Attempts', 'verify.maxAttempts', 4, {
         min: 1,
-        hint: this.global(g?.verifyMaxAttempts),
+        hint: this.explain(
+          'How many times GoldenFix may run the verification build',
+          g?.verifyMaxAttempts,
+        ),
       }),
       count('verifyTimeoutMinutes', 'Timeout (minutes)', 'verify.timeoutMinutes', 4, {
         min: 1,
-        hint: this.global(g?.verifyTimeoutMinutes),
+        hint: this.explain('How long one verification build may take', g?.verifyTimeoutMinutes),
       }),
-    ];
+    ].map(keyLast);
   }
 
   protected commitFields(): Field[] {
     const g = this.inherited();
     return [
       line('commitAuthorName', 'Author name', 'commitAuthorName', 4, {
-        hint: this.global(g?.commitAuthorName),
+        hint: this.explain('The name the pull request commits are made under', g?.commitAuthorName),
       }),
       line('commitAuthorEmail', 'Author e-mail', 'commitAuthorEmail', 5, {
-        hint: this.global(g?.commitAuthorEmail),
+        hint: this.explain('The e-mail address of that author', g?.commitAuthorEmail),
       }),
       mono('timeZone', 'Time zone', 'timeZone', 3, {
         placeholder: 'Europe/Warsaw',
-        hint: this.global(g?.timeZone),
+        hint: this.explain('The time zone of the commit times', g?.timeZone),
         error: 'Must be a time zone ID such as Europe/Warsaw or UTC',
       }),
-    ];
+    ].map(keyLast);
   }
 
-  private global(
+  private explain(
+    hint: string,
     value: string | number | boolean | readonly string[] | null | undefined,
-    lead = '',
   ): string {
     if (this.complete()) {
-      return '';
+      return hint;
     }
     const text = Array.isArray(value)
       ? value.join(', ')
@@ -141,6 +177,6 @@ export class GoldenFixFields {
           ? 'yes'
           : 'no'
         : (value ?? '');
-    return `${lead}left empty: ${text === '' ? 'global value' : text}`;
+    return `${hint} · left empty: ${text === '' ? 'global value' : text}`;
   }
 }
