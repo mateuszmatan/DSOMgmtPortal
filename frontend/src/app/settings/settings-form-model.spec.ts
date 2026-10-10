@@ -46,16 +46,15 @@ describe('createSettingsForm', () => {
     expect(c.goldenFix.controls.minThreatLevel.hasError('required')).toBe(true);
   });
 
-  it('checks addresses, host names, numbers and the state file name', () => {
+  it('checks addresses, host names and numbers', () => {
     const form = createSettingsForm(globalSettings());
-    const { platform, deployment, limits, scans, releaseGate } = form.controls;
+    const { platform, deployment, limits, scans } = form.controls;
 
     platform.controls.jenkinsUrl.setValue('jenkins.bbh.com');
     deployment.controls.qcHost.setValue('qc host');
     limits.controls.SAST.controls.maxCritical.setValue(-1);
     scans.controls.coverageMinLine.setValue(100.5);
     scans.controls.sastPollIntervalSeconds.setValue(3601);
-    releaseGate.controls.stateFile.setValue('state/gate.json');
     platform.controls.nexusSnapshotRepositoryUrl.setValue('https://nexus/snapshots&id');
     platform.controls.nexusSnapshotRepositoryId.setValue('snapshots;id');
 
@@ -66,7 +65,6 @@ describe('createSettingsForm', () => {
     expect(limits.controls.SAST.controls.maxCritical.hasError('min')).toBe(true);
     expect(scans.controls.coverageMinLine.hasError('integer')).toBe(true);
     expect(scans.controls.sastPollIntervalSeconds.hasError('max')).toBe(true);
-    expect(releaseGate.controls.stateFile.hasError('pattern')).toBe(true);
   });
 
   it('needs a coverage minimum of at least 1 and at least one scanner in the release gate', () => {
@@ -109,6 +107,17 @@ describe('toSettingsRequest', () => {
     });
   });
 
+  it('always sends release-gate.json as the release gate file, the only name the library reads', () => {
+    const settings = globalSettings();
+    const form = createSettingsForm({
+      ...settings,
+      releaseGate: { ...settings.releaseGate, stateFile: 'custom-gate.json' },
+    });
+
+    expect(form.controls.releaseGate.controls.stateFile.value).toBe('release-gate.json');
+    expect(toSettingsRequest(form, 4).releaseGate.stateFile).toBe('release-gate.json');
+  });
+
   it('trims values, sends blank optional ones as null and keeps the scanners in policy order', () => {
     const form = createSettingsForm(globalSettings());
     form.patchValue({
@@ -140,7 +149,7 @@ describe('toSettingsRequest', () => {
     expect(request.releaseGate).toEqual({
       scanners: ['SAST', 'DAST'],
       requireCoverage: true,
-      stateFile: 'gate.json',
+      stateFile: 'release-gate.json',
     });
     expect(request.serviceDefaults.sourceDir).toBe('.');
   });

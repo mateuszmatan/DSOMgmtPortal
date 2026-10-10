@@ -451,9 +451,6 @@ export function globalSettings(overrides: Partial<GlobalSettings> = {}): GlobalS
       sastPrepareTimeoutMinutes: 120,
       sastPollTimeoutMinutes: 50,
       sastPollIntervalSeconds: 30,
-      scaEnabled: true,
-      scaPollTimeoutMinutes: 40,
-      scaPollIntervalSeconds: 30,
       dastPollTimeoutMinutes: 60,
       dastPollIntervalSeconds: 60,
       dastReportTimeoutMinutes: 30,
@@ -730,7 +727,10 @@ export function pipelineMonitoring(
     dora: doraSummary(),
     recentRuns: [pipelineRun(), pipelineRun({ build: 41, buildUrl: null, result: 'FAILURE' })],
     grafana: [
-      { name: 'Grafana', dashboardUrl: 'https://grafana.bbh.com/d/adzfc54123/pipeline?var-project=CERT-gui' },
+      {
+        name: 'Grafana',
+        dashboardUrl: 'https://grafana.bbh.com/d/adzfc54123/pipeline?var-project=CERT-gui',
+      },
     ],
     metricsError: null,
     ...overrides,

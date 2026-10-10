@@ -230,29 +230,6 @@ const SECTIONS: SettingsSection[] = [
         ],
       },
       {
-        heading: 'Open source scan (SCA)',
-        note: 'The AppScan scan of the open source libraries a service uses.',
-        fields: [
-          {
-            key: 'scaEnabled',
-            label: 'Run the open source scan',
-            code: 'sca.enabled',
-            span: 4,
-            kind: 'check',
-          },
-          minutes(
-            'scaPollTimeoutMinutes',
-            'Longest wait for the result (minutes)',
-            'sca.pollTimeoutMin',
-          ),
-          minutes(
-            'scaPollIntervalSeconds',
-            'Check for the result every (seconds)',
-            'sca.pollIntervalSec',
-          ),
-        ],
-      },
-      {
         heading: 'Dynamic scan (DAST)',
         note: 'The AppScan scan of the running service in the test region, and its report.',
         fields: [
@@ -358,8 +335,8 @@ export const RELEASE_GATE_FIELDS: Field[] = [
   ),
   keyLast(
     mono('stateFile', 'Result file', 'releaseGate.stateFile', 6, {
-      hint: 'Kept with each build as proof of the check',
-      error: 'Use a file name such as release-gate.json',
+      hint: 'Kept with each build as proof of the check; the library reads only this name',
+      readonly: true,
     }),
   ),
 ];

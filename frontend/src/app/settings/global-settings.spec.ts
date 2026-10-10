@@ -46,7 +46,7 @@ describe('GlobalSettingsPage', () => {
       'Only change these settings if the DevSecOps team asks you to. They apply to every pipeline from its next run.',
     );
     expect(text(page().querySelector('.tab-header .meta'))).toBe(
-      'The BBH tools every pipeline uses, the security limits it must meet and the defaults a new service starts with. A service can set its own deployment, service and GoldenFix values in the product editor. Fields marked * are required.',
+      'The BBH tools every pipeline uses, the security limits it must meet and the defaults a new service starts with. A service can set its own SonarQube, Nexus IQ, InfluxDB, deployment, service and GoldenFix values in the product editor. Fields marked * are required.',
     );
     expect(
       [...page().querySelectorAll('.toc-item')].map((item) => item.textContent?.trim()),
@@ -71,7 +71,7 @@ describe('GlobalSettingsPage', () => {
     );
     expect(hint('OIS host')).toBe('platform.oisHost');
     expect(hint('Result file')).toBe(
-      'Kept with each build as proof of the check · releaseGate.stateFile',
+      'Kept with each build as proof of the check; the library reads only this name · releaseGate.stateFile',
     );
     expect(page().querySelector('svg-icon')).toBeNull();
     expect(text(page().querySelector('.save-bar .saved'))).toMatch(/^Last saved .+ \(version 4\)$/);
