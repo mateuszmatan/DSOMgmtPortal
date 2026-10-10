@@ -21,6 +21,7 @@ import { BeadleProduct } from './beadle/beadle-product';
 import { BeadleProducts } from './beadle/beadle-products';
 import { ChangeDetail } from './changes/change-detail';
 import { ChangeEdit } from './changes/change-edit';
+import { ChangeSecureCoding } from './changes/change-secure-coding';
 import { ChangeWizard } from './changes/change-wizard';
 import { ChangesList } from './changes/changes-list';
 import { BEADLE_ADMINISTRATION, DEVSECOPS_ADMIN } from './core/sections';
@@ -77,6 +78,7 @@ describe('routes', () => {
       'beadle/new-change': ChangeWizard,
       'beadle/changes/:id': ChangeDetail,
       'beadle/changes/:id/edit': ChangeEdit,
+      'beadle/changes/:id/secure-coding': ChangeSecureCoding,
       'beadle/admin/products/:id': BeadleProduct,
       'beadle/admin': AdminPage,
       'beadle/admin/departments': DepartmentsAdmin,
@@ -109,6 +111,7 @@ describe('routes', () => {
       'admin/settings',
       'beadle/new-change',
       'beadle/changes/:id/edit',
+      'beadle/changes/:id/secure-coding',
       'beadle/admin/products/:id',
     ]);
   });

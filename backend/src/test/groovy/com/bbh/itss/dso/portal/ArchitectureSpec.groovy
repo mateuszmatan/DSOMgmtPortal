@@ -47,6 +47,7 @@ class ArchitectureSpec extends Specification {
     static final String WEB = 'com.bbh.itss.dso.portal.adapter.in.web..'
     static final String PERSISTENCE = 'com.bbh.itss.dso.portal.adapter.out.persistence..'
     static final String INFLUX = 'com.bbh.itss.dso.portal.adapter.out.influx..'
+    static final String JIRA = 'com.bbh.itss.dso.portal.adapter.out.jira..'
     static final String ADAPTER = 'com.bbh.itss.dso.portal.adapter..'
     static final String CONFIG = 'com.bbh.itss.dso.portal.config..'
     static final String[] CHANGES = ['com.bbh.itss.dso.portal.application.change..',
@@ -105,7 +106,7 @@ class ArchitectureSpec extends Specification {
                     [Entity, Embeddable, MappedSuperclass, Converter].any { type.isAnnotatedWith(it) } ||
                             type.isAssignableTo(Repository)
                 }).should().resideInAPackage(PERSISTENCE),
-                noClasses().that().resideOutsideOfPackage(INFLUX)
+                noClasses().that().resideOutsideOfPackages(INFLUX, JIRA)
                         .should().dependOnClassesThat()
                         .resideInAnyPackage('org.springframework.web.client..', 'java.net.http..'),
                 slices().matching('com.bbh.itss.dso.portal.domain.(*)..').should().beFreeOfCycles(),

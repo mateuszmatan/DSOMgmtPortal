@@ -109,7 +109,8 @@ class PortalSmokeSpec extends Specification {
 
         expect:
         api.get('/api/changes').status == 200
-        api.get('/api/changes/integrations').json.keySet() == ['jiraConnected', 'serviceNowConnected'] as Set
+        api.get('/api/changes/integrations').json.keySet() ==
+                ['jiraConnected', 'serviceNowConnected', 'cyberTrackConnected'] as Set
         api.get('/api/change-profiles').status == 200
         !started || api.get('/api/change-profiles').json.size() >= products.size()
         products.every { product ->
