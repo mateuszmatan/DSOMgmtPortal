@@ -1,20 +1,11 @@
 package com.bbh.itss.dso.portal.frontend.regression
 
-import com.bbh.itss.dso.portal.frontend.support.GuiSpecification
+import com.bbh.itss.dso.portal.frontend.support.DsoSpecification
 import com.microsoft.playwright.Locator
 
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 
-abstract class EditorSpecification extends GuiSpecification {
-
-    static final List<String> RELEASE_TASK_FIELDS = ['Number', 'Change number', 'Assignment group', 'Assigned to', 'Affected CI',
-                                                     'Approval', 'Installation start', 'Installation end', 'Platform', 'Task start',
-                                                     'Application', 'Packages', 'Backout packages', 'Short description',
-                                                     'Description', 'Additional comments']
-
-    static final List<String> OTHER_TASK_FIELDS = ['Number', 'Change number', 'Assignment group', 'Assigned to', 'Importance',
-                                                   'Affected CI', 'Approval', 'Installation start', 'Installation end',
-                                                   'Short description', 'Description', 'Additional comments']
+abstract class EditorSpecification extends DsoSpecification {
 
     void startProduct(String name, String department = 'Corporate Technology') {
         open('/admin/products/new')
@@ -63,54 +54,5 @@ abstract class EditorSpecification extends GuiSpecification {
     void showAdvancedSettings() {
         openService().locator('dso-advanced-settings .accordion-header button').click()
         assertThat(openService().locator('dso-advanced-settings dso-panel')).hasClass(~/\bexpanded\b/)
-    }
-
-    void hasValues(Locator scope, Map<String, String> expected) {
-        expected.each { label, value -> assertThat(input(scope, label)).hasValue(value) }
-    }
-
-    void fillIn(Locator scope, Map<String, String> values) {
-        values.each { label, value -> input(scope, label).fill(value) }
-    }
-
-    void hasErrors(Locator scope, Map<String, String> expected) {
-        expected.each { label, message -> assertThat(errorOf(scope, label)).hasText(message) }
-    }
-
-    Locator hintOf(Locator scope, String label) {
-        formField(scope, label).locator('dso-hint')
-    }
-
-    void toggle(Locator scope, String label) {
-        holdingText(scope.locator('dso-toggle-group button'), label).click()
-    }
-
-    Locator selected(Locator scope, String label) {
-        select(scope, label).locator('option:checked')
-    }
-
-    Locator saveError() {
-        page.locator('.save-bar .save-error')
-    }
-
-    Locator templateCard(String title) {
-        page.locator("section.template-card[aria-label='${title}']")
-    }
-
-    Locator taskRows() {
-        page.locator('dso-change-tasks-form .task-row')
-    }
-
-    Locator found() {
-        dialog().locator('.results .value')
-    }
-
-    void lookUp(Locator scope, String label, String search, String value) {
-        buttonIn(scope, "Find $label").click()
-        assertThat(dialog().locator('h2')).hasText("Find $label")
-        input(dialog(), 'Search').fill(search)
-        assertThat(found().first()).isVisible()
-        holding(dialog().locator('.results button'), ".value:text-is('${value}')").click()
-        assertThat(dialog()).hasCount(0)
     }
 }

@@ -35,7 +35,6 @@ class ApiFailureSpec extends EditorSpecification {
         '/monitoring'             | '/api/monitoring/products'
         '/monitoring/products/1'  | '/api/monitoring/products/1'
         '/monitoring/pipelines/1' | '/api/monitoring/pipelines/1'
-        '/evidence'               | '/api/products'
         '/admin/settings'         | '/api/settings'
     }
 

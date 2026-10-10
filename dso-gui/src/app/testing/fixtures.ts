@@ -1,13 +1,10 @@
-import { ProductDetails } from '../../../../beadle-gui/src/app/beadle/product-details-api';
 import {
   Department,
   DoraSummary,
   GlobalSettings,
-  GoldenFixEvidence,
   MonitoringOverview,
   MonitoringStatus,
   Pipeline,
-  PipelineEvidence,
   PipelineHealth,
   PipelineKey,
   PipelineMonitoring,
@@ -16,11 +13,8 @@ import {
   ProductHealth,
   ProductMonitoring,
   Product,
-  ProductEvidence,
   ProductSummary,
-  RunEvidence,
   Service,
-  ServiceEvidence,
   ServicePipelines,
   ServiceTemplate,
   ToolCommand,
@@ -277,19 +271,6 @@ export function product(overrides: Partial<Product> = {}): Product {
   };
 }
 
-export function productDetails(overrides: Partial<ProductDetails> = {}): ProductDetails {
-  return {
-    id: 1,
-    code: 'CERT',
-    name: 'CertScanner',
-    ownerTeam: 'Technology Architecture',
-    contactEmail: 'arch@bbh.com',
-    departmentId: 3,
-    version: 3,
-    ...overrides,
-  };
-}
-
 export function productSummary(overrides: Partial<ProductSummary> = {}): ProductSummary {
   return {
     id: 1,
@@ -316,7 +297,6 @@ export function department(overrides: Partial<Department> = {}): Department {
     serviceCount: 2,
     pipelineCount: 3,
     activePipelineCount: 2,
-    changeCount: 0,
     ...overrides,
   };
 }
@@ -492,175 +472,6 @@ export function globalSettings(overrides: Partial<GlobalSettings> = {}): GlobalS
       commitAuthorEmail: 'devsecops-goldenfix@noreply.local',
       timeZone: null,
     },
-    ...overrides,
-  };
-}
-
-export function runEvidence(overrides: Partial<RunEvidence> = {}): RunEvidence {
-  const build = 'https://jenkins.bbh.com/job/DevSecOps/job/CERT/job/gui-full/42/';
-  return {
-    build: {
-      number: 42,
-      finishedAt: '2026-10-04T08:30:00Z',
-      result: 'SUCCESS',
-      branch: 'release/2.4',
-      commit: '9f2c1e7b4d3a5f6e7d8c9b0a1f2e3d4c5b6a7980',
-      artifactVersion: '2.4.0-42',
-      durationSeconds: 1325,
-      job: 'DevSecOps/CERT/gui-full',
-      url: build,
-      reportUrl: `${build}Pipeline_20Report/`,
-      testReportUrl: `${build}testReport/`,
-      artifactsUrl: `${build}artifact/`,
-      configRenderedAt: '2026-10-04T07:55:00Z',
-      configSha256: '3b7e1f0a9c2d4e5f',
-    },
-    coverage: {
-      status: 'PASS',
-      linePercent: 84.25,
-      requiredPercent: 60,
-      coveredLines: 1685,
-      totalLines: 2000,
-    },
-    testSuites: [
-      {
-        suite: 'UNIT',
-        status: 'PASS',
-        total: 412,
-        passed: 410,
-        failed: 0,
-        skipped: 2,
-        notConfigured: 0,
-        durationMs: 240_000,
-      },
-      {
-        suite: 'SMOKE',
-        status: 'PASS',
-        total: 2,
-        passed: 2,
-        failed: 0,
-        skipped: null,
-        notConfigured: 0,
-        durationMs: 95_000,
-      },
-      {
-        suite: 'REGRESSION',
-        status: 'WARN',
-        total: 3,
-        passed: 2,
-        failed: 1,
-        skipped: null,
-        notConfigured: 0,
-        durationMs: 1_800_000,
-      },
-    ],
-    scans: [
-      {
-        scanner: 'SAST',
-        status: 'PASS',
-        critical: 0,
-        high: 0,
-        medium: 3,
-        low: 12,
-        maxCritical: 0,
-        maxHigh: 0,
-        maxMedium: 5,
-        qualityGate: null,
-        link: `${build}artifact/appscan/sast-report.html`,
-      },
-      {
-        scanner: 'SONARQUBE',
-        status: 'PASS',
-        critical: null,
-        high: null,
-        medium: null,
-        low: null,
-        maxCritical: null,
-        maxHigh: null,
-        maxMedium: null,
-        qualityGate: 'OK',
-        link: 'https://tools.bbh.com/sonar/dashboard?id=cert-gui',
-      },
-      {
-        scanner: 'NEXUS_IQ',
-        status: 'FAIL',
-        critical: 1,
-        high: 2,
-        medium: 0,
-        low: 0,
-        maxCritical: 0,
-        maxHigh: 2,
-        maxMedium: 10,
-        qualityGate: null,
-        link: build,
-      },
-    ],
-    releaseGate: {
-      allowed: false,
-      violations: 1,
-      reason: 'Nexus IQ: 1 critical above the limit of 0',
-    },
-    stages: [
-      { name: 'Build', status: 'PASS', durationSeconds: 125, reason: null },
-      { name: 'Unit tests', status: 'PASS', durationSeconds: 240, reason: null },
-      { name: 'Nexus IQ', status: 'FAIL', durationSeconds: 60, reason: '1 critical finding' },
-      { name: 'Deploy QC', status: 'BLOCKED', durationSeconds: null, reason: 'Release gate' },
-    ],
-    goldenFix: null,
-    ...overrides,
-  };
-}
-
-export function goldenFixEvidence(overrides: Partial<GoldenFixEvidence> = {}): GoldenFixEvidence {
-  return {
-    status: 'PR_CREATED',
-    offered: 3,
-    applied: 2,
-    unresolved: 1,
-    pullRequestRaised: true,
-    pullRequestUrl: 'https://bitbucket.bbh.com/projects/CERT/repos/gui/pull-requests/17',
-    pullRequestTitle: 'GoldenFix-202610040815',
-    ...overrides,
-  };
-}
-
-export function pipelineEvidence(overrides: Partial<PipelineEvidence> = {}): PipelineEvidence {
-  return {
-    pipelineId: 100,
-    type: 'FULL',
-    enabled: true,
-    jenkinsJobUrl: 'https://jenkins.bbh.com/job/DevSecOps/job/CERT/job/gui-full/',
-    status: 'SUCCESS',
-    run: runEvidence(),
-    ...overrides,
-  };
-}
-
-export function serviceEvidence(overrides: Partial<ServiceEvidence> = {}): ServiceEvidence {
-  return {
-    serviceId: 10,
-    name: 'gui',
-    description: 'Angular front end',
-    repositoryUrl: 'https://bitbucket.bbh.com/projects/CERT/repos/gui',
-    artifactName: 'cert-gui.jar',
-    appScanApplicationId: '109f44ac-cc06-4ca0-884e-d944904f7019',
-    sonarProjectKey: 'cert-gui',
-    nexusIqApplication: null,
-    pipelines: [pipelineEvidence()],
-    ...overrides,
-  };
-}
-
-export function productEvidence(overrides: Partial<ProductEvidence> = {}): ProductEvidence {
-  return {
-    productId: 1,
-    code: 'CERT',
-    name: 'CertScanner',
-    description: 'TLS certificate scanner',
-    ownerTeam: 'Technology Architecture',
-    contactEmail: 'arch@bbh.com',
-    services: [serviceEvidence()],
-    metricsError: null,
     ...overrides,
   };
 }

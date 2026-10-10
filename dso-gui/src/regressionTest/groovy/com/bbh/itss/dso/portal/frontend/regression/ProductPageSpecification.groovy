@@ -1,13 +1,13 @@
 package com.bbh.itss.dso.portal.frontend.regression
 
-import com.bbh.itss.dso.portal.frontend.support.GuiSpecification
+import com.bbh.itss.dso.portal.frontend.support.DsoSpecification
 import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.MENUITEM
 
-abstract class ProductPageSpecification extends GuiSpecification {
+abstract class ProductPageSpecification extends DsoSpecification {
 
     static final List<String> DEPARTMENTS = ['AI Lab', 'Capital Partners', 'Corporate Technology', 'Custody', 'Fund Services']
 

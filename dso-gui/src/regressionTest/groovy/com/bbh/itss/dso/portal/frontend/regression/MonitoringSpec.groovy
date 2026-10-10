@@ -1,6 +1,6 @@
 package com.bbh.itss.dso.portal.frontend.regression
 
-import com.bbh.itss.dso.portal.frontend.support.GuiSpecification
+import com.bbh.itss.dso.portal.frontend.support.DsoSpecification
 import com.bbh.itss.dso.portal.frontend.support.RecordedRequest
 import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
@@ -12,7 +12,7 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 import static com.microsoft.playwright.options.AriaRole.LINK
 import static com.microsoft.playwright.options.AriaRole.RADIOGROUP
 
-class MonitoringSpec extends GuiSpecification {
+class MonitoringSpec extends DsoSpecification {
 
     def "the overview totals every pipeline and filters products in the browser"() {
         given:

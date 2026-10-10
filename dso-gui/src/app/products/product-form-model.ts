@@ -11,14 +11,12 @@ import {
   BitbucketType,
   BuildTool,
   DeployTarget,
-  FieldProblem,
   FlutterPlatform,
   FlutterSettings,
   GlobalGoldenFixPolicy,
   GoldenFixPolicy,
   NexusIqApplication,
   OpenShiftTarget,
-  PRODUCT_CODE,
   Product,
   ProductRequest,
   REGIONS,
@@ -33,6 +31,7 @@ import {
   UrbanCodeApplicationSettings,
   UrbanCodeComponent,
 } from '../core/models';
+import { FieldProblem, PRODUCT_CODE } from '@common/core/models';
 import {
   IMAGE_TAG,
   INT_MAX,

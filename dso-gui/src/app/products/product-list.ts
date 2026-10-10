@@ -3,16 +3,17 @@ import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, map } from 'rxjs';
-import { DepartmentsApi, ProductsApi } from '../core/api';
+import { ProductsApi } from '../core/api';
 import { errorMessage } from '@common/core/errors';
-import { ProductSummary } from '../core/models';
+import { Department, ProductSummary } from '../core/models';
 import { ADMIN_PRODUCTS, adminProduct } from '../core/sections';
 import { counted } from '@common/shared/formatting';
 import { DsoInput } from '@common/ui/form-field';
 import { GRID, GridColumn } from '@common/ui/grid';
 import { DsoLoading } from '@common/ui/loading';
-import { byDepartment, tally } from '@common/departments/departments';
-import { pipelineTally } from './pipeline-tally';
+import { byDepartment } from '@common/departments/departments';
+import { pipelineTally, tally } from './pipeline-tally';
+import { DepartmentsApi } from '@common/core/api';
 
 @Component({
   selector: 'dso-product-list',
@@ -72,7 +73,9 @@ export class ProductList {
     params: () => this.query(),
     stream: ({ params }) => this.api.list(params),
   });
-  protected readonly departments = rxResource({ stream: () => this.departmentsApi.list() });
+  protected readonly departments = rxResource({
+    stream: () => this.departmentsApi.list<Department>(),
+  });
 
   protected readonly groups = computed(() =>
     this.products.hasValue() && this.departments.hasValue()

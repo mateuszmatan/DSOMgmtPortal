@@ -1,13 +1,6 @@
-import {
-  Field,
-  GRADLE_MAVEN_FLUTTER,
-  VM_OPENSHIFT,
-  check,
-  choice,
-  count,
-  mono,
-} from '@common/shared/fields';
+import { Field, check, choice, count, mono } from '@common/shared/fields';
 import { SHELL_SAFE_ERROR, SHELL_SAFE_URL_ERROR } from '@common/shared/form-controls';
+import { GRADLE_MAVEN_FLUTTER, VM_OPENSHIFT } from '../shared/build-options';
 import { SettingsSectionId } from './settings-form-model';
 
 interface SettingsBlock {

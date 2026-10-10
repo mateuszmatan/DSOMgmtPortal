@@ -2,13 +2,9 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import {
-  Department,
   DepartmentPipelines,
-  DepartmentRequest,
   GlobalSettings,
   GlobalSettingsRequest,
-  LookupItem,
-  LookupKind,
   MonitoringOverview,
   MonitoringStatus,
   Pipeline,
@@ -18,13 +14,11 @@ import {
   PortfolioActivity,
   Product,
   ProductMonitoring,
-  ProductEvidence,
   ProductRequest,
   ProductSummary,
   ServicePipelines,
   ServiceTemplate,
   ServiceTemplateRequest,
-  SignedInUser,
 } from './models';
 
 function typeParam(pipelineType?: PipelineType): HttpParams | undefined {
@@ -68,27 +62,6 @@ export class ProductsApi {
 
   config(id: number): Observable<string> {
     return this.http.get(`/api/products/${id}/config`, { responseType: 'text' });
-  }
-}
-
-@Injectable({ providedIn: 'root' })
-export class DepartmentsApi {
-  private readonly http = inject(HttpClient);
-
-  list(): Observable<Department[]> {
-    return this.http.get<Department[]>('/api/departments');
-  }
-
-  create(name: string): Observable<Department> {
-    return this.http.post<Department>('/api/departments', { name });
-  }
-
-  rename(id: number, request: DepartmentRequest): Observable<Department> {
-    return this.http.put<Department>(`/api/departments/${id}`, request);
-  }
-
-  delete(id: number): Observable<void> {
-    return this.http.delete<void>(`/api/departments/${id}`);
   }
 }
 
@@ -190,35 +163,5 @@ export class ServiceTemplateApi {
 
   update(request: ServiceTemplateRequest): Observable<ServiceTemplate> {
     return this.http.put<ServiceTemplate>('/api/service-template', request);
-  }
-}
-
-@Injectable({ providedIn: 'root' })
-export class EvidenceApi {
-  private readonly http = inject(HttpClient);
-
-  product(productId: number): Observable<ProductEvidence> {
-    return this.http.get<ProductEvidence>(`/api/evidence/products/${productId}`);
-  }
-}
-
-@Injectable({ providedIn: 'root' })
-export class LookupsApi {
-  private readonly http = inject(HttpClient);
-
-  find(kind: LookupKind, query: string): Observable<LookupItem[]> {
-    const text = query.trim();
-    return this.http.get<LookupItem[]>(`/api/lookups/${kind}`, {
-      params: text ? { q: text } : {},
-    });
-  }
-}
-
-@Injectable({ providedIn: 'root' })
-export class UserApi {
-  private readonly http = inject(HttpClient);
-
-  me(): Observable<SignedInUser> {
-    return this.http.get<SignedInUser>('/api/me');
   }
 }

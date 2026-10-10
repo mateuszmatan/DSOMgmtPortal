@@ -1,13 +1,13 @@
 package com.bbh.itss.dso.portal.frontend.regression
 
-import com.bbh.itss.dso.portal.frontend.support.GuiSpecification
+import com.bbh.itss.dso.portal.frontend.support.DsoSpecification
 import com.microsoft.playwright.Locator
 
 import static com.bbh.itss.dso.portal.frontend.regression.ProductPageSpecification.DEPARTMENTS
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 
-class DepartmentSpec extends GuiSpecification {
+class DepartmentSpec extends DsoSpecification {
 
     static final String HAS_A_PRODUCT =
             'Only an empty department can be deleted. Fund Services still has 1 product: move it to another department first.'

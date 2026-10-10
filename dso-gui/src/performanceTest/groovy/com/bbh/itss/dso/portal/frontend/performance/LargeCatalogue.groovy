@@ -21,7 +21,6 @@ class LargeCatalogue {
     private final Map product = fixture('product-2.json') as Map
     private final List<Map> departments = fixture('departments.json') as List<Map>
     private final Map lastRun = (fixture('monitoring-product-2.json') as Map).pipelines[0].lastRun as Map
-    private final Map evidenceRun = (fixture('evidence-product-1.json') as Map).services[0].pipelines[0].run as Map
     private final Map<String, StubResponse> responses = [:]
 
     LargeCatalogue() {
@@ -45,8 +44,6 @@ class LargeCatalogue {
             store("/api/monitoring/products/$id", facts + [productId: id, overall: overall, metricsError: null, pipelines: all.collect {
                 [pipeline: it, status: status(it), lastRun: lastRun + [result: it.enabled ? status(it) : 'SUCCESS']]
             }])
-            store("/api/evidence/products/$id", facts + [productId: id, contactEmail: product.contactEmail, metricsError: null,
-                                                         services: [services, pipelines].transpose().collect { Map service, List<Map> own -> serviceEvidence(service, own) }])
         }
         store('/api/products', summaries)
         store('/api/departments', departments.collect { Map department ->
@@ -88,14 +85,5 @@ class LargeCatalogue {
     private static String status(Map pipeline) {
         def id = pipeline.id as int
         !pipeline.enabled ? 'DISABLED' : id % 5 == 0 ? 'FAILURE' : id % 3 == 0 ? 'UNSTABLE' : 'SUCCESS'
-    }
-
-    private Map serviceEvidence(Map service, List<Map> pipelines) {
-        [serviceId           : service.id, name: service.name, description: service.description,
-         repositoryUrl       : service.scm.repositoryUrl, artifactName: service.deployment.artifactName,
-         appScanApplicationId: service.appScan.applicationId, sonarProjectKey: service.sonar.projectKey,
-         nexusIqApplication  : (service.nexusIqApplications as List<Map>)*.application.join(', ') ?: null,
-         pipelines           : pipelines.collect { [pipelineId: it.id, type: it.type, enabled: it.enabled, jenkinsJobUrl: it.jenkinsJobUrl,
-                                                    status    : status(it), run: evidenceRun] }]
     }
 }

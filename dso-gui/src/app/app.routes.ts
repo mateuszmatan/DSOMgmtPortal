@@ -1,26 +1,16 @@
 import { Routes } from '@angular/router';
+import { unsavedChangesGuard } from '@common/core/unsaved-changes';
 import {
   ADMIN,
   ADMIN_DEPARTMENTS,
   ADMIN_PRODUCTS,
   ADMIN_SETTINGS,
   ADMIN_TEMPLATE,
-  BEADLE_ADMIN,
-  BEADLE_ADMINISTRATION,
-  BEADLE_DEPARTMENTS,
-  BEADLE_PRODUCTS,
-  CHANGES,
   DEVSECOPS_ADMIN,
-  EVIDENCE,
   MONITORING,
-  NEW_CHANGE,
   PIPELINES,
   SELF_SERVICE,
 } from './core/sections';
-import { unsavedChangesGuard } from '@common/core/unsaved-changes';
-
-const adminPage = () => import('@common/admin/admin-page').then((m) => m.AdminPage);
-const departmentsAdmin = () => import('@common/admin/departments-admin').then((m) => m.DepartmentsAdmin);
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'monitoring' },
@@ -59,11 +49,6 @@ export const routes: Routes = [
       import('./monitoring/pipeline-monitoring').then((m) => m.PipelineMonitoringPage),
   },
   {
-    path: 'evidence',
-    title: EVIDENCE.heading,
-    loadComponent: () => import('./evidence/change-evidence').then((m) => m.ChangeEvidencePage),
-  },
-  {
     path: 'admin/products/new',
     title: 'Add product',
     canDeactivate: [unsavedChangesGuard],
@@ -82,15 +67,15 @@ export const routes: Routes = [
   },
   {
     path: 'admin',
-    loadComponent: adminPage,
+    loadComponent: () => import('@common/admin/admin-page').then((m) => m.AdminPage),
     data: { area: DEVSECOPS_ADMIN },
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'products' },
       {
         path: 'departments',
         title: `${ADMIN_DEPARTMENTS.label} · ${ADMIN.heading}`,
-        data: { pipelines: true },
-        loadComponent: departmentsAdmin,
+        loadComponent: () =>
+          import('./departments/pipeline-departments').then((m) => m.PipelineDepartments),
       },
       {
         path: 'products',
@@ -112,64 +97,7 @@ export const routes: Routes = [
       },
     ],
   },
-  { path: 'beadle', pathMatch: 'full', redirectTo: 'beadle/changes' },
-  {
-    path: 'beadle/changes',
-    title: CHANGES.heading,
-    loadComponent: () => import('../../../beadle-gui/src/app/changes/changes-list').then((m) => m.ChangesList),
-  },
-  { path: 'beadle/changes/new', redirectTo: 'beadle/new-change' },
-  {
-    path: 'beadle/new-change',
-    title: NEW_CHANGE.heading,
-    canDeactivate: [unsavedChangesGuard],
-    loadComponent: () => import('../../../beadle-gui/src/app/changes/change-wizard').then((m) => m.ChangeWizard),
-  },
-  {
-    path: 'beadle/changes/:id',
-    title: 'ProTech change',
-    loadComponent: () => import('../../../beadle-gui/src/app/changes/change-detail').then((m) => m.ChangeDetail),
-  },
-  {
-    path: 'beadle/changes/:id/edit',
-    title: 'Edit ProTech change',
-    canDeactivate: [unsavedChangesGuard],
-    loadComponent: () => import('../../../beadle-gui/src/app/changes/change-edit').then((m) => m.ChangeEdit),
-  },
-  {
-    path: 'beadle/changes/:id/secure-coding',
-    title: 'Secure coding ticket',
-    canDeactivate: [unsavedChangesGuard],
-    loadComponent: () =>
-      import('./changes/change-secure-coding').then((m) => m.ChangeSecureCoding),
-  },
-  {
-    path: 'beadle/admin/products/:id',
-    title: `Product · ${BEADLE_ADMIN.heading}`,
-    canDeactivate: [unsavedChangesGuard],
-    loadComponent: () => import('../../../beadle-gui/src/app/beadle/beadle-product').then((m) => m.BeadleProduct),
-  },
-  {
-    path: 'beadle/admin',
-    loadComponent: adminPage,
-    data: { area: BEADLE_ADMINISTRATION },
-    children: [
-      { path: '', pathMatch: 'full', redirectTo: 'products' },
-      {
-        path: 'departments',
-        title: `${BEADLE_DEPARTMENTS.label} · ${BEADLE_ADMIN.heading}`,
-        loadComponent: departmentsAdmin,
-      },
-      {
-        path: 'products',
-        title: `${BEADLE_PRODUCTS.label} · ${BEADLE_ADMIN.heading}`,
-        loadComponent: () => import('../../../beadle-gui/src/app/beadle/beadle-products').then((m) => m.BeadleProducts),
-      },
-    ],
-  },
-  { path: 'products/:id/change', redirectTo: 'beadle/admin/products/:id' },
   { path: 'products', redirectTo: 'admin/products' },
   { path: 'settings', redirectTo: 'admin/settings' },
-  { path: 'beadle/onboarding', redirectTo: 'self-service' },
   { path: '**', redirectTo: 'monitoring' },
 ];

@@ -1,6 +1,6 @@
 package com.bbh.itss.dso.portal.frontend.regression
 
-import com.bbh.itss.dso.portal.frontend.support.GuiSpecification
+import com.bbh.itss.dso.portal.frontend.support.DsoSpecification
 import com.bbh.itss.dso.portal.frontend.support.RecordedRequest
 import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
@@ -10,7 +10,7 @@ import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.MENUITEM
 
-class PipelinesSpec extends GuiSpecification {
+class PipelinesSpec extends DsoSpecification {
 
     static final String GUI_FULL_KEY = '7b62170e-5c42-4bec-8cbc-035977e3299e'
     static final String REGENERATED_KEY = '3f9d2c4e-8a1b-4c7d-9e2f-5b6a7c8d1e04'
@@ -27,7 +27,6 @@ class PipelinesSpec extends GuiSpecification {
                 .hasText('Every automated build, test and security pipeline of your department\'s products. Open one to see its key, its Jenkinsfile and its latest runs.')
         assertThat(page.locator('.empty-state h3')).hasText('Choose your department to see its pipelines')
         assertThat(page.locator('.toolbar dso-hint')).hasText('Only the pipelines of this department are listed. This browser remembers your choice.')
-        assertThat(page.locator('.dso-menu')).hasCount(0)
         api.requests('GET', '/api/pipelines').isEmpty()
 
         when:

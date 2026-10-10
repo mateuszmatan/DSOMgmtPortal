@@ -114,8 +114,8 @@ class EditProductSpec extends EditorSpecification {
         input(productFields(), 'Owner team').fill('Platform Security')
         button('Save changes', true).click()
         page.waitForURL('**/admin/products/1')
-        menuLink('Change Evidence').click()
-        page.waitForURL('**/evidence')
+        menuLink('Pipelines').click()
+        page.waitForURL('**/pipelines')
 
         then:
         assertThat(dialog()).hasCount(0)

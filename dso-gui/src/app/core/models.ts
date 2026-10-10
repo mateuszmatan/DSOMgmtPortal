@@ -1,3 +1,5 @@
+import { Department as PortalDepartment } from '@common/core/models';
+
 export type BuildTool = 'GRADLE' | 'MAVEN' | 'FLUTTER';
 export type DeployTarget = 'VM' | 'OPENSHIFT';
 export type PipelineType = 'FULL' | 'SECURITY' | 'EXTENDED' | 'SAST' | 'NEXUS_IQ';
@@ -21,28 +23,6 @@ export const FLUTTER_PLATFORMS = [
 ] as const;
 export type FlutterPlatform = (typeof FLUTTER_PLATFORMS)[number];
 export type Scanner = 'SAST' | 'SCA' | 'NEXUS_IQ' | 'DAST';
-export type CheckStatus =
-  'PASS' | 'WARN' | 'FAIL' | 'BLOCKED' | 'NOT_REQUIRED' | 'SKIP' | 'NO_DATA';
-export type EvidenceScanner = 'SAST' | 'DAST' | 'SONARQUBE' | 'NEXUS_IQ';
-
-export type LookupKind =
-  | 'users'
-  | 'departments'
-  | 'assignment-groups'
-  | 'releases'
-  | 'configuration-items'
-  | 'incidents'
-  | 'problems'
-  | 'clients';
-
-export interface LookupItem {
-  value: string;
-  detail: string | null;
-}
-
-export interface SignedInUser {
-  name: string;
-}
 
 export const REGIONS: Region[] = ['RD', 'QC'];
 export const TEST_STAGES: TestStage[] = ['SMOKE', 'REGRESSION', 'PERFORMANCE'];
@@ -50,20 +30,10 @@ export type TestSuite = 'UNIT' | TestStage;
 export const TEST_SUITES: TestSuite[] = ['UNIT', ...TEST_STAGES];
 export const SCANNERS: Scanner[] = ['SAST', 'SCA', 'NEXUS_IQ', 'DAST'];
 
-export interface Department {
-  id: number;
-  name: string;
-  version: number;
-  productCount: number;
+export interface Department extends PortalDepartment {
   serviceCount: number;
   pipelineCount: number;
   activePipelineCount: number;
-  changeCount: number;
-}
-
-export interface DepartmentRequest {
-  name: string;
-  version: number | null;
 }
 
 export interface ProductSummary {
@@ -372,8 +342,6 @@ export interface AppScanAccount {
   secretCredentialsId: string | null;
 }
 
-export const PRODUCT_CODE = /^[A-Z][A-Z0-9_-]{1,49}$/;
-
 export interface ProductFields {
   code: string;
   name: string;
@@ -667,126 +635,6 @@ export interface PipelineMonitoring {
 export interface GrafanaDashboard {
   name: string;
   dashboardUrl: string;
-}
-
-export interface ProductEvidence {
-  productId: number;
-  code: string;
-  name: string;
-  description: string | null;
-  ownerTeam: string | null;
-  contactEmail: string | null;
-  services: ServiceEvidence[];
-  metricsError: string | null;
-}
-
-export interface ServiceEvidence {
-  serviceId: number;
-  name: string;
-  description: string | null;
-  repositoryUrl: string | null;
-  artifactName: string | null;
-  appScanApplicationId: string | null;
-  sonarProjectKey: string | null;
-  nexusIqApplication: string | null;
-  pipelines: PipelineEvidence[];
-}
-
-export interface PipelineEvidence {
-  pipelineId: number;
-  type: PipelineType;
-  enabled: boolean;
-  jenkinsJobUrl: string | null;
-  status: RunResult;
-  run: RunEvidence | null;
-}
-
-export interface RunEvidence {
-  build: BuildEvidence;
-  coverage: CoverageEvidence | null;
-  testSuites: TestSuiteEvidence[];
-  scans: ScanEvidence[];
-  releaseGate: ReleaseGateEvidence | null;
-  stages: StageEvidence[];
-  goldenFix: GoldenFixEvidence | null;
-}
-
-export interface BuildEvidence {
-  number: number | null;
-  finishedAt: string | null;
-  result: RunResult;
-  branch: string | null;
-  commit: string | null;
-  artifactVersion: string | null;
-  durationSeconds: number | null;
-  job: string | null;
-  url: string | null;
-  reportUrl: string | null;
-  testReportUrl: string | null;
-  artifactsUrl: string | null;
-  configRenderedAt: string | null;
-  configSha256: string | null;
-}
-
-export interface CoverageEvidence {
-  status: CheckStatus;
-  linePercent: number | null;
-  requiredPercent: number | null;
-  coveredLines: number | null;
-  totalLines: number | null;
-}
-
-export interface TestSuiteEvidence {
-  suite: TestSuite;
-  status: CheckStatus;
-  total: number | null;
-  passed: number | null;
-  failed: number | null;
-  skipped: number | null;
-  notConfigured: number | null;
-  durationMs: number | null;
-}
-
-export interface ScanEvidence {
-  scanner: EvidenceScanner;
-  status: CheckStatus;
-  critical: number | null;
-  high: number | null;
-  medium: number | null;
-  low: number | null;
-  maxCritical: number | null;
-  maxHigh: number | null;
-  maxMedium: number | null;
-  qualityGate: string | null;
-  link: string | null;
-}
-
-export interface ReleaseGateEvidence {
-  allowed: boolean;
-  violations: number | null;
-  reason: string | null;
-}
-
-export interface GoldenFixEvidence {
-  status: string;
-  offered: number;
-  applied: number;
-  unresolved: number;
-  pullRequestRaised: boolean;
-  pullRequestUrl: string | null;
-  pullRequestTitle: string | null;
-}
-
-export interface StageEvidence {
-  name: string;
-  status: CheckStatus;
-  durationSeconds: number | null;
-  reason: string | null;
-}
-
-export interface FieldProblem {
-  field: string;
-  message: string;
 }
 
 export const PIPELINE_TYPES: { value: PipelineType; label: string; description: string }[] = [

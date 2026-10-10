@@ -1,37 +1,26 @@
 package com.bbh.itss.dso.portal.frontend.smoke
 
-import com.bbh.itss.dso.portal.frontend.support.GuiSpecification
+import com.bbh.itss.dso.portal.frontend.support.DsoSpecification
 import com.microsoft.playwright.Page
 import spock.lang.IgnoreIf
 
 import static com.bbh.itss.dso.portal.frontend.support.StubApi.fixture
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
-import static com.microsoft.playwright.options.AriaRole.MENUITEM
 
-class GuiSmokeSpec extends GuiSpecification {
+class GuiSmokeSpec extends DsoSpecification {
 
     static final List<Map<String, String>> SECTIONS = [
-            [menu       : 'DevSecOps Management', label: 'Pipelines', heading: 'DevSecOps Pipelines', path: '/pipelines',
+            [label      : 'Pipelines', heading: 'DevSecOps Pipelines', path: '/pipelines',
              description: 'Every automated build, test and security pipeline of your department\'s products. Open one to see its key, its Jenkinsfile and its latest runs.'],
-            [menu       : 'DevSecOps Management', label: 'Self-service', heading: 'DevSecOps Self-service', path: '/self-service',
+            [label      : 'Self-service', heading: 'DevSecOps Self-service', path: '/self-service',
              description: 'Set up the DevSecOps pipelines of your product, or change them, in five guided steps. No DevSecOps knowledge needed.'],
-            [menu       : 'DevSecOps Management', label: 'Pipeline Monitoring', heading: 'DevSecOps Pipeline Monitoring',
-             path       : '/monitoring', description: 'How the pipelines of every product are doing: whether their latest runs passed, and how often and how safely changes reach production.'],
-            [menu       : 'DevSecOps Management', label: 'Change Evidence', heading: 'DevSecOps Change Evidence', path: '/evidence',
-             description: 'Proof for a ProTech change: the builds, tests and security scans behind each pipeline of a product.'],
-            [menu       : 'DevSecOps Management', label: 'Admin', heading: 'DevSecOps Admin', path: '/admin/products',
-             description: 'Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.'],
-            [menu       : 'Beadle', label: 'Changes', heading: 'ProTech Changes', path: '/beadle/changes',
-             description: 'The ProTech changes of your department and where each one is in its approval workflow. A change is read again from ProTech when you open it.'],
-            [menu       : 'Beadle', label: 'New Change', heading: 'New ProTech Change', path: '/beadle/new-change',
-             description: 'Raise a ProTech change for a production release in guided steps. The product\'s change template fills in the answers and Jira provides the scope.'],
-            [menu       : 'Beadle', label: 'Admin', heading: 'Beadle Admin', path: '/beadle/admin/products',
-             description: 'Departments, products and each product\'s change template: the answers every new change of the product starts with.']]
+            [label      : 'Pipeline Monitoring', heading: 'DevSecOps Pipeline Monitoring', path: '/monitoring',
+             description: 'How the pipelines of every product are doing: whether their latest runs passed, and how often and how safely changes reach production.'],
+            [label      : 'Admin', heading: 'DevSecOps Admin', path: '/admin/products',
+             description: 'Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.']]
 
-    static final Map<String, Map<String, String>> ADMIN_TABS = [
-            'DevSecOps Admin': [Departments       : '/admin/departments', Products: '/admin/products',
-                                'Service template': '/admin/template', 'Library defaults': '/admin/settings'],
-            'Beadle Admin'   : [Departments: '/beadle/admin/departments', Products: '/beadle/admin/products']]
+    static final Map<String, String> ADMIN_TABS = [Departments       : '/admin/departments', Products: '/admin/products',
+                                                   'Service template': '/admin/template', 'Library defaults': '/admin/settings']
 
     static final String REGENERATED_KEY = '3f9d2c4e-8a1b-4c7d-9e2f-5b6a7c8d1e04'
 
@@ -39,23 +28,16 @@ class GuiSmokeSpec extends GuiSpecification {
 
     static final String CORPORATE_TECHNOLOGY = "localStorage.setItem('dso.beadle.department', '3')"
 
-    def "the portal shows its title, the Beadle and DevSecOps Management menus and the footer"() {
+    def "the portal shows its title, only the DevSecOps sections in its menu and the footer"() {
         when:
         open('/admin/products')
 
         then:
         assertThat(page.locator('header .brand-name')).hasText('BBH DevSecOps Management Portal')
-        assertThat(page.locator('nav.menu button')).hasText(MENUS.keySet() as String[])
-        assertThat(page.locator('nav.menu .menu-group.active')).hasText('DevSecOps Management')
-        MENUS.every { name, labels ->
-            menuButton(name).click()
-            def panel = page.locator('.dso-menu')
-            assertThat(panel.getByRole(MENUITEM)).hasText(labels as String[])
-            assert SECTIONS.every { section -> !panel.textContent().contains(section.description) }
-            page.keyboard().press('Escape')
-            assertThat(panel).hasCount(0)
-            true
-        }
+        assertThat(menuLinks()).hasText(MENU as String[])
+        assertThat(activeMenuLink()).hasText('Admin')
+        !page.locator('header.topbar').textContent().contains('Beadle')
+        SECTIONS.every { section -> !page.locator('header.topbar').textContent().contains(section.description) }
         assertThat(page.locator('footer')).containsText('BBH 2026')
         ownErrors().isEmpty()
     }
@@ -78,8 +60,8 @@ class GuiSmokeSpec extends GuiSpecification {
         open('/monitoring')
 
         expect:
-        (SECTIONS.drop(3) + SECTIONS.take(3)).every { section ->
-            menuLink(section.menu, section.label).click()
+        (SECTIONS.drop(2) + SECTIONS.take(2)).every { section ->
+            menuLink(section.label).click()
             page.waitForURL("**${section.path}")
             assertThat(page.locator('h1')).hasText(section.heading)
             assertThat(page.locator('.page-header .page-description')).hasText(section.description)
@@ -98,34 +80,29 @@ class GuiSmokeSpec extends GuiSpecification {
 
         where:
         [path, heading] << SECTIONS.collect { [it.path, it.heading] } +
-                ADMIN_TABS.collectMany { heading, tabs -> tabs.values().collect { [it, heading] } }.unique() +
-                [['/admin', 'DevSecOps Admin'], ['/admin/products/new', 'Add product'], ['/beadle', 'ProTech Changes'],
-                 ['/beadle/changes/new', 'New ProTech Change']]
+                ADMIN_TABS.values().collect { [it, 'DevSecOps Admin'] } +
+                [['/admin', 'DevSecOps Admin'], ['/admin/products/new', 'Add product']]
     }
 
-    def "every tab of #heading opens its page with the tab marked"() {
+    def "every tab of DevSecOps Admin opens its page with the tab marked"() {
         given:
-        open(tabs.values().first())
+        open(ADMIN_TABS.values().first())
 
         expect:
-        assertThat(page.locator('nav.tab-bar a')).hasText(tabs.keySet() as String[])
-        tabs.every { label, path ->
+        assertThat(page.locator('nav.tab-bar a')).hasText(ADMIN_TABS.keySet() as String[])
+        ADMIN_TABS.every { label, path ->
             tab(label).click()
             page.waitForURL("**$path")
-            assertThat(page.locator('h1')).hasText(heading)
+            assertThat(page.locator('h1')).hasText('DevSecOps Admin')
             assertThat(page.locator('nav.tab-bar a.active')).hasText(label)
             assertThat(tab(label)).hasAttribute('aria-current', 'page')
             assertThat(page.locator('.page.admin > router-outlet + *')).hasCount(1)
             true
         }
         ownErrors().isEmpty()
-
-        where:
-        heading << ADMIN_TABS.keySet()
-        tabs = ADMIN_TABS[heading]
     }
 
-    @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
+    @IgnoreIf({ DsoSpecification.remoteBaseUrl() })
     def "#path shows #heading from the API"() {
         given:
         page.addInitScript(CORPORATE_TECHNOLOGY)
@@ -145,13 +122,10 @@ class GuiSmokeSpec extends GuiSpecification {
         '/admin/products/2/edit'   | 'Edit Payments Hub'
         '/monitoring/products/1'   | 'CertScanner'
         '/monitoring/pipelines/1'  | 'Full pipeline'
-        '/beadle/admin/products/1' | 'CertScanner'
-        '/beadle/changes/4'        | 'CHG0031001'
-        '/beadle/changes/4/edit'   | 'Edit CHG0031001'
     }
 
-    @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
-    def "#path shows no icons but the magnifiers of the lookups"() {
+    @IgnoreIf({ DsoSpecification.remoteBaseUrl() })
+    def "#path shows no icons"() {
         given:
         page.addInitScript(CORPORATE_TECHNOLOGY)
 
@@ -159,36 +133,16 @@ class GuiSmokeSpec extends GuiSpecification {
         open(path)
 
         then:
-        assertThat(page.locator('button.lookup svg-icon')).hasCount(lookups)
-        page.locator('svg-icon').count() == lookups
-        page.locator("button.lookup svg-icon[name='search']").count() == lookups
+        assertThat(page.locator('h1').first()).isVisible()
+        page.locator('svg-icon').count() == 0
         ownErrors().isEmpty()
 
         where:
-        path                        | lookups
-        '/pipelines'                | 0
-        '/pipelines/1'              | 0
-        '/self-service'             | 0
-        '/monitoring'               | 0
-        '/monitoring/products/1'    | 0
-        '/monitoring/pipelines/1'   | 0
-        '/evidence'                 | 0
-        '/admin/departments'        | 0
-        '/admin/products'           | 0
-        '/admin/products/1'         | 0
-        '/admin/template'           | 0
-        '/admin/settings'           | 0
-        '/beadle/changes'           | 0
-        '/beadle/new-change'        | 0
-        '/beadle/changes/4'         | 0
-        '/beadle/changes/4/edit'    | 19
-        '/beadle/changes/2'         | 0
-        '/beadle/admin/departments' | 0
-        '/beadle/admin/products'    | 0
-        '/beadle/admin/products/1'  | 19
+        path << ['/pipelines', '/pipelines/1', '/self-service', '/monitoring', '/monitoring/products/1', '/monitoring/pipelines/1',
+                 '/admin/departments', '/admin/products', '/admin/products/1', '/admin/template', '/admin/settings']
     }
 
-    @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
+    @IgnoreIf({ DsoSpecification.remoteBaseUrl() })
     def "the service editor keeps icons only in its vertical section menu"() {
         when:
         open('/admin/products/1/edit')
@@ -200,7 +154,7 @@ class GuiSmokeSpec extends GuiSpecification {
         ownErrors().isEmpty()
     }
 
-    @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
+    @IgnoreIf({ DsoSpecification.remoteBaseUrl() })
     def "#path fits a #width px window without horizontal scrolling"() {
         given:
         page.setViewportSize(width, 900)
@@ -215,14 +169,11 @@ class GuiSmokeSpec extends GuiSpecification {
 
         where:
         [path, width] << [['/pipelines', '/pipelines/1', '/self-service', '/monitoring', '/monitoring/products/1',
-                           '/evidence', '/admin/departments', '/admin/products', '/admin/products/1',
-                           '/admin/products/1/edit', '/admin/template', '/admin/settings',
-                           '/beadle/changes', '/beadle/new-change', '/beadle/changes/4', '/beadle/changes/4/edit',
-                           '/beadle/changes/2', '/beadle/admin/departments', '/beadle/admin/products',
-                           '/beadle/admin/products/1'], [800, 600]].combinations()
+                           '/admin/departments', '/admin/products', '/admin/products/1', '/admin/products/1/edit',
+                           '/admin/template', '/admin/settings'], [800, 600]].combinations()
     }
 
-    @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
+    @IgnoreIf({ DsoSpecification.remoteBaseUrl() })
     def "an invalidated pipeline key is regenerated with a visible text button"() {
         given:
         api.respond('POST', '/api/pipelines/9/keys', fixture('pipeline-9-regenerated.json'))
@@ -248,7 +199,7 @@ class GuiSmokeSpec extends GuiSpecification {
         ownErrors().isEmpty()
     }
 
-    @IgnoreIf({ GuiSpecification.remoteBaseUrl() })
+    @IgnoreIf({ DsoSpecification.remoteBaseUrl() })
     def "saving a new service shows the pipeline key generated for it on the product page"() {
         given:
         def saved = fixture('product-1.json') as Map

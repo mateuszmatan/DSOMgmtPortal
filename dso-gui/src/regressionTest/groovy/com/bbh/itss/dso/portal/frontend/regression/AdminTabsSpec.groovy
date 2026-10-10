@@ -1,11 +1,11 @@
 package com.bbh.itss.dso.portal.frontend.regression
 
-import com.bbh.itss.dso.portal.frontend.support.GuiSpecification
+import com.bbh.itss.dso.portal.frontend.support.DsoSpecification
 import com.microsoft.playwright.Locator
 
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 
-class AdminTabsSpec extends GuiSpecification {
+class AdminTabsSpec extends DsoSpecification {
 
     static final Map<String, String> TABS = [Departments       : '/admin/departments', Products: '/admin/products',
                                              'Service template': '/admin/template', 'Library defaults': '/admin/settings']
@@ -26,7 +26,7 @@ class AdminTabsSpec extends GuiSpecification {
         assertThat(page.locator('nav.tab-bar')).hasAttribute('aria-label', 'DevSecOps Admin')
         isOpen('Departments')
         assertThat(page).hasTitle('Departments · DevSecOps Admin · BBH DevSecOps Management Portal')
-        assertThat(page.locator('nav.menu .menu-group.active')).hasText('DevSecOps Management')
+        assertThat(activeMenuLink()).hasText('Admin')
         ownErrors().isEmpty()
     }
 
@@ -80,7 +80,7 @@ class AdminTabsSpec extends GuiSpecification {
 
         when:
         open('/monitoring')
-        menuLink('DevSecOps Management', 'Admin').click()
+        menuLink('Admin').click()
 
         then:
         page.waitForURL('**/admin/products')

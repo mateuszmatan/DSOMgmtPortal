@@ -13,12 +13,7 @@ import { FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize, map } from 'rxjs';
 import { ServiceTemplateApi } from '../core/api';
 import { errorMessage, fieldProblems } from '@common/core/errors';
-import {
-  FieldProblem,
-  ServiceTemplate,
-  ServiceTemplateRequest,
-  ServiceTemplateValues,
-} from '../core/models';
+import { ServiceTemplate, ServiceTemplateRequest, ServiceTemplateValues } from '../core/models';
 import { Notifier } from '@common/core/notifier';
 import { HasUnsavedChanges } from '@common/core/unsaved-changes';
 import { AGENT_LABEL } from '../products/pipeline-dialog';
@@ -46,6 +41,7 @@ import {
   fillTemplate,
   knownPlaceholders,
 } from '../shared/service-template';
+import { FieldProblem } from '@common/core/models';
 import { DsoLoading, DsoSpinner } from '@common/ui/loading';
 
 const MAX_LABELS = 20;

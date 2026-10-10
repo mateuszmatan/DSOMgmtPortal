@@ -4,7 +4,6 @@ import static com.bbh.itss.dso.portal.frontend.support.ApiData.activeKey
 import static com.bbh.itss.dso.portal.frontend.support.ApiData.keyValue
 import static com.bbh.itss.dso.portal.frontend.support.ApiData.newPipeline
 import static com.bbh.itss.dso.portal.frontend.support.ApiData.noFlutterSettings
-import static com.bbh.itss.dso.portal.frontend.support.ApiData.productDetails
 import static com.bbh.itss.dso.portal.frontend.support.ApiData.servicePipelines
 import static com.bbh.itss.dso.portal.frontend.support.StubApi.fixture
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.json
@@ -58,27 +57,15 @@ class ProductStore {
             product ? json(product) : problem(404, 'Not Found', "Product $id was not found")
         }
         api.get("$path/pipelines") { json(services) }
-        api.get("$path/details") {
-            product ? json(productDetails(product)) : problem(404, 'Not Found', "Product $id was not found")
-        }
         api.on('PUT', path) { RecordedRequest request ->
             def body = request.json() as Map
             body.version == product.version ? json(save(body, request.params().pipelineType)) : conflict()
-        }
-        api.on('PUT', "$path/details") { RecordedRequest request ->
-            def body = request.json() as Map
-            body.version == product.version ? json(productDetails(changeDetails(body))) : conflict()
         }
         this
     }
 
     private static StubResponse conflict() {
         problem(409, 'Conflict', 'The product was changed by someone else; reload it and try again')
-    }
-
-    private synchronized Map changeDetails(Map details) {
-        product = product + details + [version: (product.version as int) + 1, updatedAt: SAVED_AT]
-        product
     }
 
     private synchronized Map save(Map request, String type) {

@@ -31,13 +31,7 @@ import {
   tap,
 } from 'rxjs';
 import { MyDepartment } from '@common/departments/my-department';
-import {
-  DepartmentsApi,
-  PipelinesApi,
-  ProductsApi,
-  ServiceTemplateApi,
-  SettingsApi,
-} from '../core/api';
+import { PipelinesApi, ProductsApi, ServiceTemplateApi, SettingsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '@common/core/errors';
 import { Department, Product } from '../core/models';
 import { Notifier } from '@common/core/notifier';
@@ -76,6 +70,7 @@ import {
   takesDefaults,
 } from './self-service-model';
 import { ServiceDialog, ServiceDialogData } from './service-dialog';
+import { DepartmentsApi } from '@common/core/api';
 
 interface Onboarded {
   product: Product;
@@ -187,7 +182,7 @@ export class SelfService implements HasUnsavedChanges {
   protected readonly departmentsError = signal<string | null>(null);
   protected readonly departments = toSignal(
     inject(DepartmentsApi)
-      .list()
+      .list<Department>()
       .pipe(
         tap((departments) => this.forgetUnlistedDepartment(departments)),
         catchError((error) => {

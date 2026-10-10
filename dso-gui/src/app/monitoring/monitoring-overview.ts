@@ -3,7 +3,7 @@ import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { map } from 'rxjs';
-import { DepartmentsApi, MonitoringApi } from '../core/api';
+import { MonitoringApi } from '../core/api';
 import { RETRY, errorMessage } from '@common/core/errors';
 import { ProductHealth, RunResult } from '../core/models';
 import { MONITORING } from '../core/sections';
@@ -17,6 +17,7 @@ import { ActivityChart } from './activity-chart';
 import { DoraTiles } from './dora-tiles';
 import { MetricsBanner } from './metrics-banner';
 import { STATUS_ORDER, StatusBar } from './status-bar';
+import { DepartmentsApi } from '@common/core/api';
 
 const ACTIVITY_RANGE = '30d';
 

@@ -4,7 +4,7 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { MyDepartment } from '@common/departments/my-department';
-import { DepartmentsApi, PipelinesApi } from '../core/api';
+import { PipelinesApi } from '../core/api';
 import { errorMessage } from '@common/core/errors';
 import {
   PIPELINE_TYPES,
@@ -24,6 +24,7 @@ import { GRID, GridColumn } from '@common/ui/grid';
 import { DsoLoading } from '@common/ui/loading';
 import { PipelineActions } from './pipeline-actions';
 import { KEY_MEANING } from './pipeline-texts';
+import { DepartmentsApi } from '@common/core/api';
 
 export type KeyFilter = 'ALL' | 'ACTIVE' | 'INVALIDATED';
 

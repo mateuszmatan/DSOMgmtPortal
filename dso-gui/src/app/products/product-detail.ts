@@ -5,7 +5,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, finalize, of, switchMap, tap } from 'rxjs';
-import { DepartmentsApi, PipelinesApi, ProductsApi } from '../core/api';
+import { PipelinesApi, ProductsApi } from '../core/api';
 import { errorMessage } from '@common/core/errors';
 import {
   PIPELINE_TYPES,
@@ -18,12 +18,13 @@ import { Notifier } from '@common/core/notifier';
 import { pipelinePage } from '../core/sections';
 import { PipelineActions, typeName } from '../pipelines/pipeline-actions';
 import { bitbucketRepositoryUrl } from '../shared/bitbucket';
-import { TARGET_LABELS, TOOL_LABELS } from '@common/shared/fields';
 import { RelativeTimePipe, counted } from '@common/shared/formatting';
 import { DsoLoading } from '@common/ui/loading';
 import { MENU_AT_END } from '@common/ui/menu';
+import { TARGET_LABELS, TOOL_LABELS } from '../shared/build-options';
 import { GeneratedKeys } from './generated-keys';
 import { pipelineTally } from './pipeline-tally';
+import { DepartmentsApi } from '@common/core/api';
 
 @Component({
   selector: 'dso-product-detail',

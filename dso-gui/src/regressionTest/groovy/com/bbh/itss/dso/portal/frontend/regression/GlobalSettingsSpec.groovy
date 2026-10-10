@@ -1,6 +1,6 @@
 package com.bbh.itss.dso.portal.frontend.regression
 
-import com.bbh.itss.dso.portal.frontend.support.GuiSpecification
+import com.bbh.itss.dso.portal.frontend.support.DsoSpecification
 import com.bbh.itss.dso.portal.frontend.support.RecordedRequest
 import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
@@ -12,7 +12,7 @@ import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.CHECKBOX
 
-class GlobalSettingsSpec extends GuiSpecification {
+class GlobalSettingsSpec extends DsoSpecification {
 
     static final String SAVED_AT = '2026-10-05T11:00:00Z'
 
@@ -155,7 +155,7 @@ class GlobalSettingsSpec extends GuiSpecification {
 
         when:
         field('Proxy host').fill('proxy2.bbh.com')
-        menuLink('DevSecOps Management', 'Admin').click()
+        menuLink('Admin').click()
 
         then:
         assertThat(dialog().locator('h2')).hasText('Discard your changes?')

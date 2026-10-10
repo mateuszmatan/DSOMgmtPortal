@@ -29,33 +29,19 @@ import {
   startWith,
   switchMap,
 } from 'rxjs';
-import {
-  DepartmentsApi,
-  PipelinesApi,
-  ProductsApi,
-  ServiceTemplateApi,
-  SettingsApi,
-} from '../core/api';
+import { PipelinesApi, ProductsApi, ServiceTemplateApi, SettingsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '@common/core/errors';
-import { Department, FieldProblem, GlobalSettings, Product, ServiceTemplate } from '../core/models';
+import { Department, GlobalSettings, Product, ServiceTemplate } from '../core/models';
 import { Notifier } from '@common/core/notifier';
 import { HasUnsavedChanges } from '@common/core/unsaved-changes';
 import { ConfirmDialog, ConfirmDialogData } from '@common/shared/confirm-dialog';
-import {
-  Field,
-  Fields,
-  TARGET_LABELS,
-  TOOL_LABELS,
-  area,
-  choice,
-  line,
-  mono,
-} from '@common/shared/fields';
+import { Field, Fields, area, choice, line, mono } from '@common/shared/fields';
 import { addItem, moveItem, removeItem, revalidateAll } from '@common/shared/form-controls';
 import { CountedPipe } from '@common/shared/formatting';
 import { buildDefaults } from '../shared/service-template';
 import { DsoLoading, DsoSpinner } from '@common/ui/loading';
 import { PANEL } from '@common/ui/panel';
+import { TARGET_LABELS, TOOL_LABELS } from '../shared/build-options';
 import {
   ServiceForm,
   applyProductProblems,
@@ -69,6 +55,8 @@ import {
 import { GeneratedKeys } from './generated-keys';
 import { NamedProduct, ProductNameDialog, ProductNameDialogData } from './product-name-dialog';
 import { ServiceFields } from './service-fields';
+import { DepartmentsApi } from '@common/core/api';
+import { FieldProblem } from '@common/core/models';
 
 const productFields = (departments: readonly Department[]): Field[] => [
   mono('code', 'Code', '', 3, {
@@ -169,7 +157,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     this.loading.set(true);
     if (id === undefined) {
       this.departmentsApi
-        .list()
+        .list<Department>()
         .pipe(
           switchMap((departments) => {
             this.departments.set(departments);
@@ -218,7 +206,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       pipelines: this.pipelines.listForProduct(Number(id)),
       settings: this.loadSettings(),
       template: this.loadTemplate(),
-      departments: this.departmentsApi.list(),
+      departments: this.departmentsApi.list<Department>(),
     })
       .pipe(
         finalize(() => this.loading.set(false)),

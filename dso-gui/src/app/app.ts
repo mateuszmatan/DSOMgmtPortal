@@ -1,34 +1,13 @@
-import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import {
-  IsActiveMatchOptions,
-  Router,
-  RouterLink,
-  RouterLinkActive,
-  RouterOutlet,
-  isActive,
-} from '@angular/router';
-import { MENUS } from './core/sections';
-
-const WITHIN: IsActiveMatchOptions = {
-  paths: 'subset',
-  queryParams: 'ignored',
-  fragment: 'ignored',
-  matrixParams: 'ignored',
-};
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { AppShell } from '@common/shell/app-shell';
+import { SECTIONS } from './core/sections';
 
 @Component({
   selector: 'dso-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CdkMenu, CdkMenuItem, CdkMenuTrigger],
+  imports: [AppShell],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './app.html',
-  styleUrl: './app.scss',
+  template: '<dso-app-shell [sections]="sections" />',
 })
 export class App {
-  private readonly router = inject(Router);
-
-  protected readonly menus = MENUS.map((menu) => {
-    const sections = menu.sections.map((section) => isActive(section.path, this.router, WITHIN));
-    return { ...menu, active: computed(() => sections.some((active) => active())) };
-  });
+  protected readonly sections = SECTIONS;
 }

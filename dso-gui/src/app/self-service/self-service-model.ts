@@ -2,7 +2,6 @@ import {
   AppScanAccount,
   BuildTool,
   DeployTarget,
-  FieldProblem,
   OpenShiftTarget,
   PIPELINE_TYPES,
   Pipeline,
@@ -26,6 +25,7 @@ import {
 } from '../products/product-form-model';
 import { Choice } from '../shared/choice-tiles';
 import { buildDefaults, fillTemplate } from '../shared/service-template';
+import { FieldProblem } from '@common/core/models';
 
 export type WizardPipeline = Extract<PipelineType, 'SAST' | 'NEXUS_IQ' | 'SECURITY' | 'FULL'>;
 

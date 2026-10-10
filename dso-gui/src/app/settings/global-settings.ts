@@ -15,7 +15,7 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { SettingsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '@common/core/errors';
-import { FieldProblem, GlobalSettings, Scanner, SCANNERS } from '../core/models';
+import { GlobalSettings, SCANNERS, Scanner } from '../core/models';
 import { Notifier } from '@common/core/notifier';
 import { HasUnsavedChanges } from '@common/core/unsaved-changes';
 import { GoldenFixFields } from '../products/golden-fix-fields';
@@ -39,6 +39,7 @@ import {
   patchSettings,
   toSettingsRequest,
 } from './settings-form-model';
+import { FieldProblem } from '@common/core/models';
 
 const SCANNER_INFO: Record<
   Scanner,

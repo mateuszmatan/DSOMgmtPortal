@@ -5,7 +5,6 @@ import { FLUTTER_PLATFORMS, GlobalSettings, REGIONS, Region } from '../core/mode
 import {
   Field,
   Fields,
-  GRADLE_MAVEN_FLUTTER,
   area,
   check,
   chips,
@@ -25,6 +24,7 @@ import {
   removeItem,
 } from '@common/shared/form-controls';
 import { TOGGLES } from '@common/ui/toggle-group';
+import { GRADLE_MAVEN_FLUTTER } from '../shared/build-options';
 import { AdvancedSettings } from './advanced-settings';
 import { GoldenFixFields } from './golden-fix-fields';
 import { OpenShiftTargetFields } from './openshift-target-fields';
