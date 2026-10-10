@@ -251,7 +251,7 @@ class EditProductSpec extends EditorSpecification {
                                   'Workspace'     : '', 'Project key': 'TA', 'Repository slug': 'cert-scanner'])
         assertThat(selected(openService(), 'Sign-in')).hasText('User name and password or token')
         assertThat(selected(openService(), 'Bitbucket')).hasText('Detected from the URL')
-        assertThat(hintOf(openService(), 'Workspace')).hasText('scm.bitbucket.workspace · Bitbucket Cloud')
+        assertThat(hintOf(openService(), 'Workspace')).hasText('Bitbucket Cloud · scm.bitbucket.workspace')
 
         when:
         fillIn(openService(), ['Workspace': 'bbh technology', 'Bitbucket API URL': 'api.bitbucket.org',
@@ -350,7 +350,7 @@ class EditProductSpec extends EditorSpecification {
         expect:
         assertThat(input(regression, 'Parameters')).hasValue('ENV=rd')
         input(regression, 'Parameters').evaluate('element => element.tagName') == 'TEXTAREA'
-        assertThat(hintOf(regression, 'Parameters')).hasText('parameters · One NAME=value per line')
+        assertThat(hintOf(regression, 'Parameters')).hasText('One NAME=value per line · parameters')
 
         when:
         input(regression, 'Parameters').fill('ENV=rd\nSUITE critical')

@@ -10,12 +10,17 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { TIME_ZONE_NOTE } from '../changes/change-model';
 import { MonitoringApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { PipelineMonitoring, PipelineRun, pipelineTypeLabel } from '../core/models';
 import { BuildLink } from '../shared/build-link';
-import { CountedPipe, DurationPipe, RelativeTimePipe, formatDuration } from '../shared/formatting';
+import {
+  CountedPipe,
+  DurationPipe,
+  RelativeTimePipe,
+  TIME_ZONE_NOTE,
+  formatDuration,
+} from '../shared/formatting';
 import { RUN_LOOK, StatusChip } from '../shared/status-chip';
 import { GRID, GridColumn } from '../ui/grid';
 import { DsoLoading } from '../ui/loading';

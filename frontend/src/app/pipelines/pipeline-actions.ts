@@ -155,7 +155,7 @@ export class PipelineActions {
 
   confirm(data: ConfirmDialogData): Observable<boolean> {
     return this.dialog
-      .open<boolean, ConfirmDialogData, ConfirmDialog>(ConfirmDialog, { data, width: '520px' })
+      .open<boolean, ConfirmDialogData, ConfirmDialog>(ConfirmDialog, { data })
       .closed.pipe(filter((confirmed) => confirmed === true));
   }
 

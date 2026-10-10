@@ -26,7 +26,7 @@ import {
 } from '../shared/form-controls';
 import { TOGGLES } from '../ui/toggle-group';
 import { AdvancedSettings } from './advanced-settings';
-import { GoldenFixFields, keyLast } from './golden-fix-fields';
+import { GoldenFixFields } from './golden-fix-fields';
 import { OpenShiftTargetFields } from './openshift-target-fields';
 import {
   ServiceForm,
@@ -575,15 +575,13 @@ export class ServiceFields {
   protected goldenFixField(): Field[] {
     const enabled = this.defaults()?.goldenFix.enabled;
     return [
-      keyLast(
-        choice(
-          'enabled',
-          'Run GoldenFix',
-          tristate('Global default', 'On', 'Off'),
-          'goldenFix.enabled',
-          4,
-          { hint: enabled === undefined ? '' : `Global default: ${enabled ? 'on' : 'off'}` },
-        ),
+      choice(
+        'enabled',
+        'Run GoldenFix',
+        tristate('Global default', 'On', 'Off'),
+        'goldenFix.enabled',
+        4,
+        { hint: enabled === undefined ? '' : `Global default: ${enabled ? 'on' : 'off'}` },
       ),
     ];
   }

@@ -53,7 +53,7 @@ describe('TestJobsFields', () => {
     const textarea = inputOf(page(), 'Parameters') as unknown as HTMLTextAreaElement;
     expect(textarea.value).toBe('ENV=rd\nSUITE=critical');
     expect(text(textarea.closest('dso-form-field'))).toContain(
-      'parameters · One NAME=value per line',
+      'One NAME=value per line · parameters',
     );
 
     textarea.value = 'ENV=rd\nSUITE critical';
@@ -81,7 +81,7 @@ describe('TestJobsFields', () => {
     expect(sections()[2].querySelector('.list-empty')?.textContent).toBe(
       'No performance test jobs.',
     );
-    expect(text(page())).toContain('tests.maxParallel · left empty: global default 20');
+    expect(text(page())).toContain('Left empty: global default 20 · tests.maxParallel');
   });
 
   it('adds, moves and removes jobs within a stage', async () => {

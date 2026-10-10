@@ -26,18 +26,10 @@ interface SettingsSection {
 
 const HOST_ERROR = 'Use letters, digits, dots and hyphens';
 
-const keyLast = (field: Field): Field => {
-  if (!field.code || field.kind === 'check') {
-    return field;
-  }
-  const { code, hint, ...rest } = field;
-  return { ...rest, hint: hint ? `${hint} · \`${code}\`` : `\`${code}\`` };
-};
-
 const minutes = (key: string, label: string, code: string, span = 4): Field =>
   count(key, label, code, span, { min: 1 });
 
-const SECTIONS: SettingsSection[] = [
+export const SETTINGS_PAGE: SettingsSection[] = [
   {
     id: 'platform',
     label: 'Tools and servers',
@@ -314,12 +306,6 @@ const SECTIONS: SettingsSection[] = [
   },
 ];
 
-export const SETTINGS_PAGE: SettingsSection[] = SECTIONS.map((section) => ({
-  ...section,
-  fields: section.fields?.map(keyLast),
-  blocks: section.blocks?.map((block) => ({ ...block, fields: block.fields.map(keyLast) })),
-}));
-
 export const LIMIT_FIELDS: Field[] = [
   count('maxCritical', 'Critical', '', 0, { min: 0 }),
   count('maxHigh', 'High', '', 0, { min: 0 }),
@@ -333,12 +319,10 @@ export const RELEASE_GATE_FIELDS: Field[] = [
     'releaseGate.requireCoverage',
     6,
   ),
-  keyLast(
-    mono('stateFile', 'Result file', 'releaseGate.stateFile', 6, {
-      hint: 'Kept with each build as proof of the check; the library reads only this name',
-      readonly: true,
-    }),
-  ),
+  mono('stateFile', 'Result file', 'releaseGate.stateFile', 6, {
+    hint: 'Kept with each build as proof of the check; the library reads only this name',
+    readonly: true,
+  }),
 ];
 
 export const GOLDEN_FIX_ENABLED: Field[] = [

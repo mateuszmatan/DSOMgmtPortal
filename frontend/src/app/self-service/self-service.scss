@@ -4,10 +4,23 @@
   font-size: 12px;
 }
 
+.prepare {
+  padding: 8px 12px;
+  border-left: 3px solid var(--dso-navy);
+  background: var(--dso-info-bg);
+}
+
 .today {
-  padding: 0;
-  border-left: 0;
-  background: none;
+  font-size: 12.5px;
+}
+
+.prepare,
+.today {
+  ul {
+    margin: 0;
+    padding-left: 16px;
+    list-style: square;
+  }
 }
 
 .no-services {

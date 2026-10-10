@@ -793,7 +793,7 @@ export const PIPELINE_TYPES: { value: PipelineType; label: string; description: 
   {
     value: 'FULL',
     label: 'Full',
-    description: 'Build, scans, tests, deployment and release (devSecOpsPipeline)',
+    description: 'Build, scans, tests, deployment and release',
   },
   {
     value: 'SECURITY',

@@ -7,21 +7,11 @@ import {
   ServiceGoldenFixForm,
 } from './product-form-model';
 
-export function keyLast(field: Field): Field {
-  if (!field.code || field.kind === 'check') {
-    return field;
-  }
-  const { code, ...plain } = field;
-  return { ...plain, hint: [field.hint, `\`${code}\``].filter(Boolean).join(' · ') };
-}
-
 const command = (key: string, tool: string, span = 6): Field =>
-  keyLast(
-    mono(`verify${key}Command`, `${tool} command`, `verify.commands.${key.toLowerCase()}`, span, {
-      placeholder: 'Library default',
-      hint: `What builds the fix in ${tool} projects`,
-    }),
-  );
+  mono(`verify${key}Command`, `${tool} command`, `verify.commands.${key.toLowerCase()}`, span, {
+    placeholder: 'Library default',
+    hint: `What builds the fix in ${tool} projects`,
+  });
 
 const COMMANDS: Field[] = [
   command('Maven', 'Maven'),
@@ -106,7 +96,7 @@ export class GoldenFixFields {
         mono: true,
         hint: this.explain('Folders GoldenFix leaves alone, one per line', g?.excludeDirs),
       }),
-    ].map(keyLast);
+    ];
   }
 
   protected verifyFields(): Field[] {
@@ -143,7 +133,7 @@ export class GoldenFixFields {
         min: 1,
         hint: this.explain('How long one verification build may take', g?.verifyTimeoutMinutes),
       }),
-    ].map(keyLast);
+    ];
   }
 
   protected commitFields(): Field[] {
@@ -160,7 +150,7 @@ export class GoldenFixFields {
         hint: this.explain('The time zone of the commit times', g?.timeZone),
         error: 'Must be a time zone ID such as Europe/Warsaw or UTC',
       }),
-    ].map(keyLast);
+    ];
   }
 
   private explain(

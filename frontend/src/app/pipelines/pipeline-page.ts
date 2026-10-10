@@ -5,7 +5,6 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, finalize, map, of } from 'rxjs';
-import { TIME_ZONE_NOTE } from '../changes/change-model';
 import { MonitoringApi, PipelinesApi, SettingsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import {
@@ -19,7 +18,7 @@ import { PIPELINES, adminProduct } from '../core/sections';
 import { MetricsBanner } from '../monitoring/metrics-banner';
 import { jenkinsfile } from '../products/jenkinsfile';
 import { BuildLink } from '../shared/build-link';
-import { CountedPipe, capitalized, formatDuration } from '../shared/formatting';
+import { CountedPipe, TIME_ZONE_NOTE, capitalized, formatDuration } from '../shared/formatting';
 import { RUN_LOOK, StatusChip } from '../shared/status-chip';
 import { GRID, GridColumn } from '../ui/grid';
 import { DsoLoading } from '../ui/loading';
