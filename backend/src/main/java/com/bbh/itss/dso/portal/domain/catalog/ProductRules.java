@@ -6,6 +6,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static com.bbh.itss.dso.portal.domain.catalog.ProductDetails.NAME_MAX;
+import static com.bbh.itss.dso.portal.domain.catalog.ProductDetails.OWNER_TEAM_MAX;
 import static java.util.Locale.ROOT;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -32,6 +34,7 @@ final class ProductRules {
             ServiceDraft service = services.get(i);
             ValidationProblems at = problems.at("services[" + i + "]");
             service.settings().validate(at);
+            at.fits("description", service.description(), ServiceDraft.DESCRIPTION_MAX);
             if (service.id() != null && !ownServiceIds.contains(service.id())) {
                 at.add("id", "service " + service.id() + " does not belong to this product");
             }
@@ -55,6 +58,9 @@ final class ProductRules {
         if (isBlank(details.name())) {
             problems.add("name", "must not be blank");
         }
+        problems.fits("name", details.name(), NAME_MAX)
+                .fits("description", details.description(), ProductDetails.DESCRIPTION_MAX)
+                .fits("ownerTeam", details.ownerTeam(), OWNER_TEAM_MAX);
         if (details.departmentId() == null) {
             problems.add("departmentId", "choose the product's department");
         } else if (!directory.departmentExists(details.departmentId())) {
