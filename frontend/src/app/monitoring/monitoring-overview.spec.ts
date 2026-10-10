@@ -8,6 +8,7 @@ import {
   MonitoringStatus,
   PortfolioActivity,
 } from '../core/models';
+import { UNREACHABLE } from '../core/errors';
 import { buttonOf, text } from '../testing/dom';
 import { chartOptions } from '../testing/highcharts';
 import {
@@ -171,10 +172,76 @@ describe('MonitoringOverview', () => {
     fixture.detectChanges();
     http.expectOne('/api/monitoring/status').flush(monitoringStatus());
     http.expectOne('/api/monitoring/products').flush(monitoringOverview());
+    http.expectOne('/api/departments').flush([department()]);
     http.expectOne('/api/monitoring/activity?range=30d').flush(portfolioActivity());
     await fixture.whenStable();
 
     expect(cards().length).toBe(1);
+  });
+
+  it('loads the departments again on refresh, so their error clears and new ones are known', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/monitoring/status').flush(monitoringStatus());
+    http
+      .expectOne('/api/monitoring/products')
+      .flush(monitoringOverview({ products: [productHealth({ departmentId: 5 })] }));
+    http.expectOne('/api/departments').error(new ProgressEvent('error'), { status: 0 });
+    http.expectOne('/api/monitoring/activity?range=30d').flush(portfolioActivity());
+    await fixture.whenStable();
+
+    expect(text(page().querySelector('.products .banner span'))).toBe(
+      `The products could not be loaded. ${UNREACHABLE}`,
+    );
+
+    buttonOf(page().querySelector('.actions')!, 'Refresh').click();
+    fixture.detectChanges();
+    http.expectOne('/api/monitoring/status').flush(monitoringStatus());
+    http
+      .expectOne('/api/monitoring/products')
+      .flush(monitoringOverview({ products: [productHealth({ departmentId: 5 })] }));
+    http.expectOne('/api/departments').flush([department(), fundServices]);
+    http.expectOne('/api/monitoring/activity?range=30d').flush(portfolioActivity());
+    await fixture.whenStable();
+
+    expect(page().querySelector('.products .banner')).toBeNull();
+    expect(headings()).toEqual(['Fund Services']);
+  });
+
+  it('says why the delivery performance is missing when it could not be read', async () => {
+    await load(
+      monitoringOverview(),
+      monitoringStatus(),
+      portfolioActivity({
+        dora: doraSummary({ runs: 0 }),
+        metricsError: 'InfluxDB could not be read: timeout',
+      }),
+    );
+
+    const notice = () => page().querySelector('.dora-unavailable');
+    expect(page().querySelector('dso-dora-tiles')).toBeNull();
+    expect(text(notice()!.querySelector('h2'))).toBe('Delivery performance (DORA)');
+    expect(text(notice()!.querySelector('.banner span'))).toBe(
+      'Delivery performance and runs per day could not be loaded. The run results could not be read (InfluxDB could not be read: timeout). Try again in a moment; if it keeps failing, tell the portal administrator.',
+    );
+
+    buttonOf(notice()!, 'Try again').click();
+    fixture.detectChanges();
+    http
+      .expectOne('/api/monitoring/activity?range=30d')
+      .flush({ detail: 'The range must be 7d, 30d, 90d or 180d' }, { status: 400, statusText: '' });
+    await fixture.whenStable();
+
+    expect(text(notice()!.querySelector('.banner span'))).toBe(
+      'Delivery performance and runs per day could not be loaded. The range must be 7d, 30d, 90d or 180d',
+    );
+
+    buttonOf(notice()!, 'Try again').click();
+    fixture.detectChanges();
+    http.expectOne('/api/monitoring/activity?range=30d').flush(portfolioActivity());
+    await fixture.whenStable();
+
+    expect(notice()).toBeNull();
+    expect(page().querySelector('dso-dora-tiles')).not.toBeNull();
   });
 
   it('explains missing or unreachable metrics', async () => {
@@ -191,7 +258,14 @@ describe('MonitoringOverview', () => {
   });
 
   it('says what is not shown while InfluxDB is not configured and tells the administrator what to set', async () => {
-    await load(monitoringOverview(), monitoringStatus({ influxConfigured: false }));
+    await load(
+      monitoringOverview(),
+      monitoringStatus({ influxConfigured: false }),
+      portfolioActivity({
+        dora: doraSummary({ runs: 0 }),
+        metricsError: 'InfluxDB is not configured for the portal',
+      }),
+    );
 
     const banner = page().querySelector('dso-metrics-banner .banner.info')!;
     expect(text(banner)).toContain(
@@ -200,6 +274,7 @@ describe('MonitoringOverview', () => {
     expect(text(banner.querySelector('.admin'))).toBe(
       'For the administrator: set INFLUX_URL and INFLUX_TOKEN.',
     );
+    expect(page().querySelector('.dora-unavailable')).toBeNull();
   });
 
   it('shows why the overview could not be read', async () => {

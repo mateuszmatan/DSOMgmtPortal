@@ -279,7 +279,7 @@ describe('ChangeEvidencePage', () => {
     );
     await fixture.whenStable();
 
-    expect(text(page().querySelector('.banner'))).toBe(
+    expect(text(page().querySelector('.banner span'))).toBe(
       'The run results could not be loaded, so the runs below show as not recorded (InfluxDB is not reachable). Try again in a moment; if it keeps failing, tell the portal administrator.',
     );
     expect(page().querySelector<HTMLAnchorElement>('.product-facts a')?.href).toBe(
@@ -287,5 +287,31 @@ describe('ChangeEvidencePage', () => {
     );
     expect(page().querySelector('.identifiers dd')?.textContent?.trim()).toBe('Not recorded');
     expect(page().querySelector('.service-head .muted')).toBeNull();
+  });
+
+  it('loads evidence whose runs could not be read again when reopened or on request', async () => {
+    await list([summary()]);
+    await expand(0);
+    http
+      .expectOne('/api/evidence/products/1')
+      .flush(productEvidence({ metricsError: 'InfluxDB is not reachable' }));
+    await fixture.whenStable();
+
+    await expand(0);
+    await expand(0);
+    http
+      .expectOne('/api/evidence/products/1')
+      .flush(productEvidence({ metricsError: 'InfluxDB is not reachable' }));
+    await fixture.whenStable();
+
+    buttonOf(page().querySelector('.banner')!, 'Try again').click();
+    await fixture.whenStable();
+    http.expectOne('/api/evidence/products/1').flush(productEvidence());
+    await fixture.whenStable();
+
+    expect(page().querySelector('.banner')).toBeNull();
+    await expand(0);
+    await expand(0);
+    http.expectNone('/api/evidence/products/1');
   });
 });

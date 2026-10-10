@@ -124,7 +124,11 @@ export class ChangeEvidencePage {
 
   protected opened(productId: number): void {
     const state = this.evidence().get(productId);
-    if (!state || state.status === 'error') {
+    if (
+      !state ||
+      state.status === 'error' ||
+      (state.status === 'loaded' && state.evidence.metricsError)
+    ) {
       this.load(productId);
     }
   }

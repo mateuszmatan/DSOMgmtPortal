@@ -7,6 +7,7 @@ import com.microsoft.playwright.Page
 
 import static com.bbh.itss.dso.portal.frontend.support.StubApi.fixture
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.json
+import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.LINK
 import static com.microsoft.playwright.options.AriaRole.RADIOGROUP
@@ -217,7 +218,9 @@ class MonitoringSpec extends GuiSpecification {
         overview.products.each { product -> product.overall = 'NO_DATA'; product.statusCounts = [NO_DATA: product.pipelineCount]; product.lastRunAt = null }
         api.respond('GET', '/api/monitoring/products', overview)
         def activity = fixture('monitoring-activity.json') as Map
-        api.respond('GET', '/api/monitoring/activity', activity + [dora: (activity.dora as Map) + [runs: 0, deployments: 0, daily: []]])
+        activity.dora = (activity.dora as Map) + [runs: 0, deployments: 0, daily: []]
+        activity.metricsError = 'InfluxDB is not configured for the portal'
+        api.respond('GET', '/api/monitoring/activity', activity)
         def pipeline = fixture('monitoring-pipeline-1.json') as Map
         pipeline += [status: 'NO_DATA', lastRun: null, recentRuns: [], grafana: [],
                      dora  : (pipeline.dora as Map) + [runs: 0, deployments: 0, daily: []]]
@@ -234,6 +237,7 @@ class MonitoringSpec extends GuiSpecification {
         assertThat(page.locator('a.product .last-run')).hasText(['No runs yet', 'No runs yet'] as String[])
         assertThat(page.locator('dso-dora-tiles')).hasCount(0)
         assertThat(page.locator('.portfolio')).hasCount(0)
+        assertThat(page.locator('.dora-unavailable')).hasCount(0)
 
         when:
         open('/monitoring/pipelines/1')
@@ -252,6 +256,10 @@ class MonitoringSpec extends GuiSpecification {
         def overview = fixture('monitoring-products.json') as Map
         overview.metricsError = 'query timed out after 10 seconds'
         api.respond('GET', '/api/monitoring/products', overview)
+        def activity = fixture('monitoring-activity.json') as Map
+        activity.dora = (activity.dora as Map) + [runs: 0, deployments: 0, daily: []]
+        activity.metricsError = 'query timed out after 20 seconds'
+        api.respond('GET', '/api/monitoring/activity', activity)
 
         when:
         open('/monitoring')
@@ -262,7 +270,53 @@ class MonitoringSpec extends GuiSpecification {
                         'Try again in a moment; if it keeps failing, tell the portal administrator.',
                 'Run results could not be loaded, so the statuses below may be incomplete (query timed out after 10 seconds). ' +
                         'Try again in a moment; if it keeps failing, tell the portal administrator.'] as String[])
+        assertThat(page.locator('.dora-unavailable h2')).hasText('Delivery performance (DORA)')
+        assertThat(page.locator('.dora-unavailable .banner span').first()).hasText(
+                'Delivery performance and runs per day could not be loaded. The run results could not be read (query timed out after 20 seconds). ' +
+                        'Try again in a moment; if it keeps failing, tell the portal administrator.')
+        assertThat(page.locator('dso-dora-tiles')).hasCount(0)
         ownErrors().isEmpty()
+    }
+
+    def "a failed read of the delivery performance is named and loaded again on request"() {
+        given:
+        api.respond('GET', '/api/monitoring/activity', problem(500, 'Internal Server Error', 'The runs of the last 30 days could not be summed up'))
+        open('/monitoring')
+
+        expect:
+        assertThat(page.locator('.dora-unavailable .banner span').first())
+                .hasText('Delivery performance and runs per day could not be loaded. The runs of the last 30 days could not be summed up')
+        assertThat(page.locator('dso-dora-tiles')).hasCount(0)
+
+        when:
+        api.respond('GET', '/api/monitoring/activity', fixture('monitoring-activity.json'))
+        buttonIn(page.locator('.dora-unavailable'), 'Try again').click()
+
+        then:
+        assertThat(page.locator('dso-dora-tiles .tile-value')).hasText(['1.4 / day', '41h 33m', '29.0%', '13h 24m'] as String[])
+        assertThat(page.locator('.dora-unavailable')).hasCount(0)
+        api.requests('GET', '/api/monitoring/activity').size() == 2
+        ownErrors().findAll { !it.contains('500') }.isEmpty()
+    }
+
+    def "Refresh loads the departments again, so a failed read of them clears"() {
+        given:
+        api.respond('GET', '/api/departments', problem(503, 'Service Unavailable', 'The database is not available'))
+        open('/monitoring')
+
+        expect:
+        assertThat(page.locator('.products .banner span').first()).hasText('The products could not be loaded. The database is not available')
+        assertThat(productCards()).hasCount(0)
+
+        when:
+        api.respond('GET', '/api/departments', fixture('departments.json'))
+        button('Refresh', true).click()
+
+        then:
+        assertThat(page.locator('.department-title h3')).hasText(['Corporate Technology', 'Fund Services'] as String[])
+        assertThat(page.locator('.products .banner')).hasCount(0)
+        api.requests('GET', '/api/departments').size() == 2
+        ownErrors().findAll { !it.contains('503') }.isEmpty()
     }
 
     Locator productCards() {

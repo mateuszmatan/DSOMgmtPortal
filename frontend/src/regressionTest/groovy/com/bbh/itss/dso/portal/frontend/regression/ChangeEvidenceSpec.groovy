@@ -142,7 +142,7 @@ class ChangeEvidenceSpec extends GuiSpecification {
         ownErrors().findAll { !it.contains('502') }.isEmpty()
     }
 
-    def "runs that cannot be read are shown as not recorded with the reason"() {
+    def "runs that cannot be read are shown as not recorded with the reason, copied with a warning and read again"() {
         given:
         def evidence = fixture('evidence-product-1.json') as Map
         evidence.metricsError = 'InfluxDB is not reachable'
@@ -158,7 +158,27 @@ class ChangeEvidenceSpec extends GuiSpecification {
         then:
         assertThat(panel('CertScanner').locator('.banner')).containsText('The run results could not be loaded, so the runs below show as not recorded (InfluxDB is not reachable).')
         copiedTexts().size() == 1
+        copiedTexts()[0].startsWith('DevSecOps change evidence: CertScanner (CERTSCANNER), backend-api, Full pipeline\n\n' +
+                'Warning: the run results could not be read (InfluxDB is not reachable), so the run, tests, scans and release gate below ' +
+                'may show as Not recorded although they were recorded. Copy the evidence again once they can be read.\n\nProduct\n')
         copiedTexts()[0].endsWith('- Status: No runs yet\n- Jenkins job: https://jenkins.bbh.com/job/DevSecOps/job/CERTSCANNER/job/backend-api-full/\n\n- Latest run: Not recorded\n')
+
+        when:
+        header('CertScanner').click()
+        header('CertScanner').click()
+
+        then:
+        awaitRequest('GET', '/api/evidence/products/1', 2)
+
+        when:
+        api.respond('GET', '/api/evidence/products/1', fixture('evidence-product-1.json'))
+        buttonIn(panel('CertScanner').locator('.banner'), 'Try again').click()
+
+        then:
+        assertThat(card('CertScanner', 'gui', 'Full').locator('a.build-link'))
+                .hasAttribute('href', 'https://jenkins.bbh.com/job/CERTSCANNER-gui/job/full/62/')
+        assertThat(panel('CertScanner').locator('.banner')).hasCount(0)
+        api.requests('GET', '/api/evidence/products/1').size() == 3
         ownErrors().isEmpty()
     }
 

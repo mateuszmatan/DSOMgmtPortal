@@ -9,7 +9,7 @@
         type="button"
         class="btn btn-outline-primary"
         (click)="refresh()"
-        [disabled]="overview.isLoading()"
+        [disabled]="overview.isLoading() || departments.isLoading()"
       >
         Refresh
       </button>
@@ -79,7 +79,7 @@
       <div class="banner">
         <span>The products could not be loaded. {{ errorMessage(error) }}</span>
         <span class="spacer"></span>
-        <button type="button" class="btn btn-link" (click)="retry()">Try again</button>
+        <button type="button" class="btn btn-link" (click)="refresh()">Try again</button>
       </div>
     } @else if (overview.hasValue() && departments.hasValue()) {
       @if (products().length === 0) {
@@ -129,7 +129,18 @@
     }
   </section>
 
-  @if (activity.hasValue() && activity.value().dora.runs > 0) {
+  @if (activityProblem(); as problem) {
+    <section class="card dora-unavailable">
+      <header class="card-header">
+        <h2>Delivery performance (DORA)</h2>
+      </header>
+      <div class="banner">
+        <span>Delivery performance and runs per day could not be loaded. {{ problem }}</span>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-link" (click)="activity.reload()">Try again</button>
+      </div>
+    </section>
+  } @else if (activity.hasValue() && activity.value().dora.runs > 0) {
     @let dora = activity.value().dora;
     <dso-dora-tiles [dora]="dora">
       <section class="portfolio">

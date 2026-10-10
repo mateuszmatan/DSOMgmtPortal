@@ -99,6 +99,12 @@ export function evidenceText(
   const lines = [
     `DevSecOps change evidence: ${product.name} (${product.code}), ${service.name}, ${pipelineTypeLabel(pipeline.type)} pipeline`,
     '',
+    ...(product.metricsError
+      ? [
+          `Warning: the run results could not be read (${product.metricsError}), so the run, tests, scans and release gate below may show as Not recorded although they were recorded. Copy the evidence again once they can be read.`,
+          '',
+        ]
+      : []),
     'Product',
     field('Name', `${product.name} (${product.code})`),
     field('Owner team', product.ownerTeam),

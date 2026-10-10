@@ -83,8 +83,14 @@
                       @let e = state.evidence;
                       @if (e.metricsError) {
                         <div class="banner">
-                          The run results could not be loaded, so the runs below show as not
-                          recorded ({{ e.metricsError }}). {{ retry }}
+                          <span
+                            >The run results could not be loaded, so the runs below show as not
+                            recorded ({{ e.metricsError }}). {{ retry }}</span
+                          >
+                          <span class="spacer"></span>
+                          <button type="button" class="btn btn-link" (click)="load(product.id)">
+                            Try again
+                          </button>
                         </div>
                       }
                       <dl class="pairs product-facts">

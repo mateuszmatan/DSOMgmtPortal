@@ -19,7 +19,7 @@ const JOB = 'https://jenkins.bbh.com/job/DevSecOps/job/CERT/job/gui-full/';
 const BUILD = `${JOB}42/`;
 
 describe('evidenceText', () => {
-  it('writes the evidence of a run in the order a ServiceNow change asks for', () => {
+  it('writes the evidence of a run in the order a ProTech change asks for', () => {
     const product = productEvidence();
     const service = product.services[0];
 
@@ -109,6 +109,22 @@ describe('evidenceText', () => {
     );
     expect(text.endsWith('\n- Latest run: Not recorded\n')).toBe(true);
     expect(text).not.toContain('Jenkins build');
+  });
+
+  it('warns first that the run results could not be read, so missing values may exist', () => {
+    const pipeline = pipelineEvidence({ status: 'NO_DATA', run: null });
+    const product = productEvidence({ metricsError: 'InfluxDB is not reachable' });
+
+    const text = evidenceText(product, serviceEvidence({ pipelines: [pipeline] }), pipeline);
+
+    expect(text.split('\n').slice(0, 5)).toEqual([
+      'DevSecOps change evidence: CertScanner (CERT), gui, Full pipeline',
+      '',
+      'Warning: the run results could not be read (InfluxDB is not reachable), so the run, tests, scans and release gate below may show as Not recorded although they were recorded. Copy the evidence again once they can be read.',
+      '',
+      'Product',
+    ]);
+    expect(text.endsWith('\n- Latest run: Not recorded\n')).toBe(true);
   });
 
   it('writes Not recorded for every value the run left out', () => {
