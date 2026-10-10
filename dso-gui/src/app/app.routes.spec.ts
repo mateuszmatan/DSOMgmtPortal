@@ -77,6 +77,7 @@ describe('routes', () => {
       'beadle/new-change': ChangeWizard,
       'beadle/changes/:id': ChangeDetail,
       'beadle/changes/:id/edit': ChangeEdit,
+      'beadle/changes/:id/secure-coding': ChangeSecureCoding,
       'beadle/admin/products/:id': BeadleProduct,
       'beadle/admin': AdminPage,
       'beadle/admin/departments': DepartmentsAdmin,
@@ -109,6 +110,7 @@ describe('routes', () => {
       'admin/settings',
       'beadle/new-change',
       'beadle/changes/:id/edit',
+      'beadle/changes/:id/secure-coding',
       'beadle/admin/products/:id',
     ]);
   });
