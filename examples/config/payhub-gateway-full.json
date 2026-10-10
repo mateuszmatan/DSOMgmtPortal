@@ -54,9 +54,6 @@
       "maxMedium": 0
     },
     "sca": {
-      "enabled": true,
-      "pollTimeoutMin": 40,
-      "pollIntervalSec": 30,
       "maxCritical": 0,
       "maxHigh": 0,
       "maxMedium": 0

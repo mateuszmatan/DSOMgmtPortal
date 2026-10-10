@@ -180,6 +180,31 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
         api.get('/api/settings').json.version == original.version
     }
 
+    def "the release gate state file stays release-gate.json, the one file the security pipeline hands on: #stateFile"() {
+        when:
+        def response = api.put('/api/settings', original + [releaseGate: original.releaseGate + [stateFile: stateFile]])
+
+        then:
+        response.status == 400
+        response.json.errors.collect { [it.field, it.message] } == [['releaseGate.stateFile', 'must be release-gate.json:'
+                + ' the security pipeline archives and the extended pipeline copies only that file']]
+        api.get('/api/settings').json.version == original.version
+
+        where:
+        stateFile << ['dso-release-gate.json', ' ', null]
+    }
+
+    def "the settings and the configuration carry no SCA switch or polling, which the library never reads"() {
+        when:
+        def defaults = api.get('/api/settings/config?format=json').json.defaults
+
+        then:
+        original.releaseGate.stateFile == 'release-gate.json'
+        original.scans.keySet().every { !it.startsWith('sca') }
+        defaults.sca == [maxCritical: 0, maxHigh: 0, maxMedium: 0]
+        defaults.releaseGate.stateFile == 'release-gate.json'
+    }
+
     def "malformed settings are refused before they reach the business rules"() {
         expect:
         api.put('/api/settings', change(original)).status == 400

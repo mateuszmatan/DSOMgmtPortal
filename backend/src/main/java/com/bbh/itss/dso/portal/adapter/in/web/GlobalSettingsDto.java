@@ -99,9 +99,6 @@ public record GlobalSettingsDto(
             @NotNull @Min(1) @Max(1440) Integer sastPrepareTimeoutMinutes,
             @NotNull @Min(1) @Max(1440) Integer sastPollTimeoutMinutes,
             @NotNull @Min(1) @Max(3600) Integer sastPollIntervalSeconds,
-            @NotNull Boolean scaEnabled,
-            @NotNull @Min(1) @Max(1440) Integer scaPollTimeoutMinutes,
-            @NotNull @Min(1) @Max(3600) Integer scaPollIntervalSeconds,
             @NotNull @Min(1) @Max(1440) Integer dastPollTimeoutMinutes,
             @NotNull @Min(1) @Max(3600) Integer dastPollIntervalSeconds,
             @NotNull @Min(1) @Max(1440) Integer dastReportTimeoutMinutes,
@@ -113,8 +110,6 @@ public record GlobalSettingsDto(
     public record ReleaseGateSettingsDto(
             @NotNull @Size(max = 4) List<@NotNull Scanner> scanners,
             @NotNull Boolean requireCoverage,
-            @NotBlank @Size(max = 200)
-            @Pattern(regexp = "^[A-Za-z0-9._-]*$", message = "must be a file name such as release-gate.json")
             String stateFile) implements Mirrors<ReleaseGateSettings> {
     }
 

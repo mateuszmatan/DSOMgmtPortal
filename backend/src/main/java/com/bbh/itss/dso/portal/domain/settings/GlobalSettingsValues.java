@@ -12,6 +12,7 @@ import java.util.Map;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildSettings.DEFAULT_SOURCE_DIR;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE;
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM;
+import static com.bbh.itss.dso.portal.domain.settings.ReleaseGateSettings.STATE_FILE;
 import static com.bbh.itss.dso.portal.domain.settings.SeverityLimits.ZERO;
 import static java.util.Collections.unmodifiableMap;
 import static org.apache.commons.collections4.MapUtils.emptyIfNull;
@@ -58,12 +59,10 @@ public record GlobalSettingsValues(@With PlatformSettings platform, DeploymentDe
             limits.put(scanner, ZERO);
         }
         ScanSettings scans = ScanSettings.builder().coverageMinLine(60).sastPrepareTimeoutMinutes(120)
-                .sastPollTimeoutMinutes(50).sastPollIntervalSeconds(30).scaEnabled(true).scaPollTimeoutMinutes(40)
-                .scaPollIntervalSeconds(30).dastPollTimeoutMinutes(60).dastPollIntervalSeconds(60)
-                .dastReportTimeoutMinutes(30).dastReportIntervalSeconds(30).sonarWaitForQualityGate(true)
-                .sonarQualityGateTimeoutMinutes(5).build();
-        ReleaseGateSettings releaseGate = new ReleaseGateSettings(List.of(Scanner.values()), true,
-                "release-gate.json");
+                .sastPollTimeoutMinutes(50).sastPollIntervalSeconds(30).dastPollTimeoutMinutes(60)
+                .dastPollIntervalSeconds(60).dastReportTimeoutMinutes(30).dastReportIntervalSeconds(30)
+                .sonarWaitForQualityGate(true).sonarQualityGateTimeoutMinutes(5).build();
+        ReleaseGateSettings releaseGate = new ReleaseGateSettings(List.of(Scanner.values()), true, STATE_FILE);
         ServiceDefaults serviceDefaults = new ServiceDefaults(GRADLE, VM, DEFAULT_SOURCE_DIR, 20);
         GoldenFixPolicy goldenFix = GoldenFixPolicy.builder().enabled(true).onlyDirectDependencies(true)
                 .minThreatLevel(2).ecosystems(List.of("maven", "npm", "pypi"))
