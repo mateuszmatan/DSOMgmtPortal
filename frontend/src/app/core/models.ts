@@ -490,9 +490,6 @@ export interface ScanSettings {
   sastPrepareTimeoutMinutes: number;
   sastPollTimeoutMinutes: number;
   sastPollIntervalSeconds: number;
-  scaEnabled: boolean;
-  scaPollTimeoutMinutes: number;
-  scaPollIntervalSeconds: number;
   dastPollTimeoutMinutes: number;
   dastPollIntervalSeconds: number;
   dastReportTimeoutMinutes: number;
@@ -828,3 +825,4 @@ export function pipelineTypeName(type: PipelineType): string {
 }
 
 export const DEFAULT_JENKINS_LIBRARY = 'DevSecOpsJenkinsLibrary';
+export const RELEASE_GATE_FILE = 'release-gate.json';

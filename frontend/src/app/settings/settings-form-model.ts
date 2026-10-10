@@ -5,6 +5,7 @@ import {
   DeployTarget,
   GlobalSettingsRequest,
   GlobalSettingsValues,
+  RELEASE_GATE_FILE,
   SCANNERS,
   Scanner,
   SeverityLimits,
@@ -27,7 +28,6 @@ import {
   url,
 } from '../shared/form-controls';
 
-const STATE_FILE = /^[A-Za-z0-9._-]*$/;
 const host = (value: string | null | undefined, ...validators: ValidatorFn[]) =>
   text(value, ...validators, Validators.pattern(HOST_NAME), max(255));
 
@@ -91,9 +91,6 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
       sastPrepareTimeoutMinutes: minutes(s?.sastPrepareTimeoutMinutes),
       sastPollTimeoutMinutes: minutes(s?.sastPollTimeoutMinutes),
       sastPollIntervalSeconds: seconds(s?.sastPollIntervalSeconds),
-      scaEnabled: flag(s?.scaEnabled, true),
-      scaPollTimeoutMinutes: minutes(s?.scaPollTimeoutMinutes),
-      scaPollIntervalSeconds: seconds(s?.scaPollIntervalSeconds),
       dastPollTimeoutMinutes: minutes(s?.dastPollTimeoutMinutes),
       dastPollIntervalSeconds: seconds(s?.dastPollIntervalSeconds),
       dastReportTimeoutMinutes: minutes(s?.dastReportTimeoutMinutes),
@@ -107,12 +104,7 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
         validators: requiredRule('Select at least one scanner'),
       }),
       requireCoverage: flag(settings?.releaseGate.requireCoverage, true),
-      stateFile: text(
-        settings?.releaseGate.stateFile ?? 'release-gate.json',
-        filled,
-        Validators.pattern(STATE_FILE),
-        max(200),
-      ),
+      stateFile: new FormControl(RELEASE_GATE_FILE, { nonNullable: true }),
     }),
     serviceDefaults: new FormGroup({
       buildTool: new FormControl<BuildTool>(settings?.serviceDefaults.buildTool ?? 'GRADLE', {
@@ -155,6 +147,7 @@ export function toSettingsRequest(
     scans: sent(v.scans),
     releaseGate: {
       ...sent(v.releaseGate),
+      stateFile: RELEASE_GATE_FILE,
       scanners: SCANNERS.filter((scanner) => v.releaseGate.scanners.includes(scanner)),
     },
     serviceDefaults: {

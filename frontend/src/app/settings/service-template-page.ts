@@ -123,76 +123,106 @@ export function toTemplateRequest(
 const SECTIONS: TemplateSection[] = [
   {
     heading: 'Pipelines',
-    note: 'Every new pipeline runs on these agents, in the job its type gives it.',
+    note: 'Where a new pipeline runs and the Jenkins job it gets. The job name depends on the pipeline type.',
     fields: [
-      mono('agentLabels', 'Jenkins agent labels', '', 6, {
+      mono('agentLabels', 'Jenkins agents', '', 6, {
         placeholder: 'linux-agent',
-        hint: 'separated by commas',
+        hint: 'The machines the pipeline runs on, as Jenkins agent labels separated by commas',
       }),
       mono('jenkinsJob', 'Jenkins job', '', 6, {
         placeholder: 'DevSecOps/{CODE}/{service}-{type}',
-        hint: '{type} is full, security, extended, sast or nexusiq',
+        hint: 'Where the pipeline lives in Jenkins',
         error: "A job path with letters, digits, spaces, . _ / - and placeholders, without '..'",
       }),
     ],
   },
   {
     heading: 'Build',
-    note: 'What a new service builds with, by its build tool, and what the security pipeline publishes.',
+    note: 'How a new service is built, by its build tool, and what the security pipeline publishes.',
     fields: [
-      mono('gradleTasks', 'Gradle tasks', '', 6, { placeholder: 'clean build' }),
+      mono('gradleTasks', 'Gradle tasks', '', 6, {
+        placeholder: 'clean build',
+        hint: 'What a Gradle build runs',
+      }),
       mono('gradleArtifact', 'Gradle artifact', '', 6, {
         placeholder: 'build/libs/*.jar',
+        hint: 'The file a Gradle build produces',
         error: SHELL_SAFE_ERROR,
       }),
-      mono('mavenTasks', 'Maven goals', '', 6, { placeholder: 'clean verify' }),
+      mono('mavenTasks', 'Maven goals', '', 6, {
+        placeholder: 'clean verify',
+        hint: 'What a Maven build runs',
+      }),
       mono('mavenArtifact', 'Maven artifact', '', 6, {
         placeholder: 'target/*.jar',
+        hint: 'The file a Maven build produces',
         error: SHELL_SAFE_ERROR,
       }),
-      mono('deliveryTasks', 'Nexus delivery goals', '', 6, { placeholder: 'deploy:deploy-file' }),
+      mono('deliveryTasks', 'Nexus delivery goals', '', 6, {
+        placeholder: 'deploy:deploy-file',
+        hint: 'How a Maven build is delivered to Nexus',
+      }),
     ],
   },
   {
     heading: 'Nexus IQ and Bitbucket',
-    note: 'Where the Nexus IQ GoldenFix pipeline scans and opens its pull requests.',
+    note: 'Where the Nexus IQ GoldenFix pipeline checks the open source libraries of a service and opens its upgrade pull requests.',
     fields: [
       mono('nexusIqApplication', 'Nexus IQ application', '', 6, {
         placeholder: '{code}-{service}',
+        hint: 'The application in Nexus IQ the libraries are checked against',
         error: 'Letters, digits, . _ - and placeholders only',
       }),
       mono('repositoryUrl', 'Bitbucket repository', '', 6, {
         placeholder: 'https://bitbucket.bbh.com/projects/{CODE}/repos/{code}-{service}',
+        hint: 'Where GoldenFix opens its pull requests',
       }),
       mono('bitbucketCredentialsId', 'Bitbucket credentials ID', '', 6, {
         placeholder: 'bitbucket-http-credentials',
+        hint: 'The Jenkins credentials that open the pull requests',
       }),
       mono('gradleScanPattern', 'Gradle scan pattern', '', 6, {
         placeholder: '**/build/libs/*.jar',
+        hint: 'The files Nexus IQ checks in a Gradle build',
       }),
-      mono('mavenScanPattern', 'Maven scan pattern', '', 6, { placeholder: '**/target/*.jar' }),
+      mono('mavenScanPattern', 'Maven scan pattern', '', 6, {
+        placeholder: '**/target/*.jar',
+        hint: 'The files Nexus IQ checks in a Maven build',
+      }),
       mono('flutterScanPattern', 'Flutter scan pattern', '', 6, {
         placeholder: '**/pubspec.lock',
+        hint: 'The files Nexus IQ checks in a Flutter build',
       }),
     ],
   },
   {
     heading: 'OpenShift',
-    note: 'Where a new OpenShift service builds and runs: its projects end in -build, -rd and -qc.',
+    note: 'Where a new service that runs on OpenShift is built and runs.',
     fields: [
       mono('openShiftProject', 'OpenShift project', '', 6, {
         placeholder: '{code}-{service}',
-        hint: 'written in lower case',
+        hint: 'Written in lower case; the projects end in -build, -rd and -qc',
         error: 'Letters, digits, - and placeholders only',
       }),
       mono('imageRegistry', 'Image registry', '', 6, {
         placeholder: 'docker-qc.tools.bbh.com',
+        hint: 'Where the images of the service are stored',
         error: IMAGE_TAG_ERROR,
       }),
-      mono('healthCheckUrl', 'Health check path', '', 6, { placeholder: '/actuator/health' }),
+      mono('healthCheckUrl', 'Health check path', '', 6, {
+        placeholder: '/actuator/health',
+        hint: 'The address OpenShift calls to check that the service is up',
+      }),
     ],
   },
 ];
+
+const PLACEHOLDER_MEANINGS: Record<(typeof JOB_PLACEHOLDERS)[number], string> = {
+  CODE: `the product code, as in ${EXAMPLE.code}`,
+  code: `the product code in lower case, as in ${EXAMPLE.code.toLowerCase()}`,
+  service: `the service name, as in ${EXAMPLE.service}`,
+  type: 'the pipeline type, in the Jenkins job only: full, security, extended, sast or nexusiq',
+};
 
 const EXAMPLES: { key: TemplateKey; label: string }[] = [
   { key: 'jenkinsJob', label: 'Full pipeline job' },
@@ -208,16 +238,9 @@ const EXAMPLES: { key: TemplateKey; label: string }[] = [
   template: `
     <header class="tab-header">
       <p class="meta">
-        What Self-service and the Add service and Add pipeline forms fill in for a new service.
-        Placeholders: <code>{{ '{CODE}' }}</code> the product code, <code>{{ '{code}' }}</code> the
-        code in lower case, <code>{{ '{service}' }}</code> the service name.
-        @if (template(); as t) {
-          @if (t.version === null) {
-            The BBH defaults, not saved yet.
-          } @else {
-            Version {{ t.version }} · saved {{ t.updatedAt | relative }}
-          }
-        }
+        What a new service and its pipelines get. Self-service and the Add service and Add pipeline
+        forms fill in these values, and each one can still be changed there. Fields marked * are
+        required.
       </p>
     </header>
 
@@ -226,9 +249,11 @@ const EXAMPLES: { key: TemplateKey; label: string }[] = [
     }
 
     @if (loadError(); as error) {
-      <div class="banner" role="alert">{{ error }}</div>
-      <button type="button" class="btn btn-outline-primary" (click)="load()">Try again</button>
-    } @else if (template()) {
+      <div class="banner" role="alert">
+        <span class="banner-text">The service template could not be loaded: {{ error }}</span>
+        <button type="button" class="btn btn-outline-primary" (click)="load()">Try again</button>
+      </div>
+    } @else if (template(); as t) {
       @if (conflict()) {
         <div class="banner danger conflict" role="alert">
           <div class="banner-text">
@@ -252,36 +277,59 @@ const EXAMPLES: { key: TemplateKey; label: string }[] = [
             </ul>
           </div>
         }
-        @for (section of sections; track section.heading) {
-          <section class="card section">
-            <header class="section-head">
-              <h2>{{ section.heading }}</h2>
-              <p>{{ section.note }}</p>
-            </header>
-            <div class="form-fields">
-              <dso-fields [group]="form" [fields]="section.fields" />
-            </div>
-          </section>
-        }
-        <section class="card section example" aria-label="Example">
-          <header class="section-head">
-            <h2>Example</h2>
-            <p>What a service {{ example.service }} of the product {{ example.code }} gets.</p>
-          </header>
-          <dl class="pairs">
-            @for (line of examples(); track line.label) {
-              <div>
-                <dt>{{ line.label }}</dt>
-                <dd class="mono">{{ line.value }}</dd>
-              </div>
+        <div class="layout">
+          <div>
+            @for (section of sections; track section.heading) {
+              <section class="card section">
+                <header class="section-head">
+                  <h2>{{ section.heading }}</h2>
+                  <p class="section-help">{{ section.note }}</p>
+                </header>
+                <div class="form-fields">
+                  <dso-fields [group]="form" [fields]="section.fields" />
+                </div>
+              </section>
             }
-          </dl>
-        </section>
+          </div>
+          <aside class="card section example" aria-label="What a new service gets">
+            <header class="section-head">
+              <h2>What a new service gets</h2>
+              <p class="section-help">
+                The service <strong>{{ example.service }}</strong> of the product
+                <strong>{{ example.code }}</strong> would get these values. They change as you type.
+              </p>
+            </header>
+            <dl class="pairs">
+              @for (line of examples(); track line.label) {
+                <div>
+                  <dt>{{ line.label }}</dt>
+                  <dd class="mono">{{ line.value }}</dd>
+                </div>
+              }
+            </dl>
+            <h3>Placeholders</h3>
+            <p class="section-help">A placeholder in a value is replaced for each new service:</p>
+            <dl class="rows placeholders">
+              @for (placeholder of placeholders; track placeholder.name) {
+                <dt>
+                  <code>{{ '{' + placeholder.name + '}' }}</code>
+                </dt>
+                <dd>{{ placeholder.meaning }}</dd>
+              }
+            </dl>
+          </aside>
+        </div>
         <div class="save-bar">
           @if (saveError(); as error) {
             <span class="save-error" role="alert">{{ error }}</span>
           } @else if (form.dirty) {
             <span class="muted">Unsaved changes</span>
+          } @else if (t.version === null) {
+            <span class="muted saved">Not saved yet: these are the BBH defaults</span>
+          } @else {
+            <span class="muted saved"
+              >Last saved {{ t.updatedAt | relative }} (version {{ t.version }})</span
+            >
           }
           <span class="spacer"></span>
           <button
@@ -314,6 +362,13 @@ const EXAMPLES: { key: TemplateKey; label: string }[] = [
       font-size: 12px;
     }
 
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 12px;
+      align-items: start;
+    }
+
     .section {
       margin-bottom: 12px;
       padding: 12px 16px 4px;
@@ -328,10 +383,8 @@ const EXAMPLES: { key: TemplateKey; label: string }[] = [
         font-size: 17px;
       }
 
-      p {
+      .section-help {
         margin: 0;
-        color: var(--dso-muted);
-        font-size: 12px;
       }
 
       + .form-fields {
@@ -340,19 +393,58 @@ const EXAMPLES: { key: TemplateKey; label: string }[] = [
     }
 
     .example {
+      position: sticky;
+      top: 64px;
       padding-bottom: 12px;
+      border-left: 3px solid var(--dso-navy);
 
-      dl {
-        margin-top: 10px;
+      .pairs {
+        flex-direction: column;
+        gap: 8px;
+        margin: 10px 0 14px;
+
+        div {
+          flex-direction: column;
+          gap: 0;
+        }
+
+        dd {
+          font-size: 12.5px;
+          color: var(--dso-navy);
+        }
       }
 
-      dd {
-        overflow-wrap: anywhere;
+      h3 {
+        margin: 0 0 2px;
+        padding-top: 10px;
+        border-top: 1px solid var(--dso-border);
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .section-help {
+        margin: 0 0 6px;
+      }
+
+      .placeholders {
+        font-size: 12px;
       }
     }
 
     .banner-text {
       flex: 1;
+    }
+
+    @media (max-width: 1100px) {
+      .layout {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+      }
+
+      .example {
+        position: static;
+        order: -1;
+      }
     }
   `,
 })
@@ -364,6 +456,10 @@ export class ServiceTemplatePage implements OnInit, HasUnsavedChanges {
   protected readonly form = createTemplateForm();
   protected readonly sections = SECTIONS;
   protected readonly example = EXAMPLE;
+  protected readonly placeholders = JOB_PLACEHOLDERS.map((name) => ({
+    name,
+    meaning: PLACEHOLDER_MEANINGS[name],
+  }));
   protected readonly template = signal<ServiceTemplate | null>(null);
   protected readonly loading = signal(false);
   protected readonly loadError = signal<string | null>(null);
@@ -443,7 +539,9 @@ export class ServiceTemplatePage implements OnInit, HasUnsavedChanges {
       .subscribe({
         next: (template) => {
           this.apply(template);
-          this.notifier.success('The service template is saved');
+          this.notifier.success(
+            'Service template saved. New services and pipelines get these values from now on.',
+          );
         },
         error: (error) => this.showSaveError(error),
       });

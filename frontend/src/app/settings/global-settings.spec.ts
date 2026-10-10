@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { buttonOf, text } from '../testing/dom';
+import { buttonOf, fieldOf, text, toast } from '../testing/dom';
 import { globalSettings } from '../testing/fixtures';
 import { GlobalSettingsPage } from './global-settings';
 
@@ -38,29 +38,43 @@ describe('GlobalSettingsPage', () => {
     await fixture.whenStable();
   }
 
-  it('says what the library applies and a service may replace and lists its sections', async () => {
+  it('says who should change the defaults, what a service may replace and lists its sections', async () => {
     await load();
 
     expect(page().querySelector('h1')).toBeNull();
-    expect(page().querySelector('.meta')?.textContent).toContain(
-      'The tools, policy and defaults the DSOEnhanced library applies to every pipeline.',
+    expect(text(page().querySelector('.tab-header .lead'))).toBe(
+      'Only change these settings if the DevSecOps team asks you to. They apply to every pipeline from its next run.',
     );
-    expect(page().querySelector('.meta')?.textContent).toContain(
-      'A service can replace only the deployment, service and GoldenFix defaults.',
+    expect(text(page().querySelector('.tab-header .meta'))).toBe(
+      'The BBH tools every pipeline uses, the security limits it must meet and the defaults a new service starts with. A service can set its own SonarQube, Nexus IQ, InfluxDB, deployment, service and GoldenFix values in the product editor. Fields marked * are required.',
     );
     expect(
       [...page().querySelectorAll('.toc-item')].map((item) => item.textContent?.trim()),
     ).toEqual([
-      'Platform and tools',
+      'Tools and servers',
       'Deployment defaults',
-      'Severity limits',
+      'Security limits',
       'Scans and coverage',
       'Release gate',
       'Service defaults',
       'GoldenFix defaults',
     ]);
+    expect(
+      [...page().querySelectorAll('section.section')].map((section) => [
+        text(section.querySelector('h2')),
+        !!text(section.querySelector('.section-head .section-help')),
+      ]),
+    ).toEqual([...page().querySelectorAll('.toc-item')].map((item) => [text(item), true]));
+    const hint = (label: string) => text(fieldOf(page(), label)?.querySelector('dso-hint'));
+    expect(hint('Jenkins URL')).toBe(
+      'The portal links the Jenkins job of each pipeline from it · platform.jenkinsUrl',
+    );
+    expect(hint('OIS host')).toBe('platform.oisHost');
+    expect(hint('Result file')).toBe(
+      'Kept with each build as proof of the check; the library reads only this name · releaseGate.stateFile',
+    );
     expect(page().querySelector('svg-icon')).toBeNull();
-    expect(page().querySelector('.meta')?.textContent).toContain('Version 4');
+    expect(text(page().querySelector('.save-bar .saved'))).toMatch(/^Last saved .+ \(version 4\)$/);
     expect(form().controls.platform.controls.jenkinsUrl.value).toBe('https://jenkins.bbh.com');
     expect(settingsPage().hasUnsavedChanges()).toBe(false);
   });
@@ -75,7 +89,10 @@ describe('GlobalSettingsPage', () => {
     expect(page().querySelector('.banner')?.textContent).toContain('Database unavailable');
     expect(page().querySelector('form')).toBeNull();
 
-    page().querySelector<HTMLButtonElement>('.banner + button')!.click();
+    expect(text(page().querySelector('.banner'))).toContain(
+      'The library defaults could not be loaded: Database unavailable',
+    );
+    buttonOf(page().querySelector('.banner')!, 'Try again').click();
     await load();
     expect(page().querySelector('form')).not.toBeNull();
   });
@@ -100,7 +117,10 @@ describe('GlobalSettingsPage', () => {
     await fixture.whenStable();
 
     expect(settingsPage().hasUnsavedChanges()).toBe(false);
-    expect(page().querySelector('.meta')?.textContent).toContain('Version 5');
+    expect(text(page().querySelector('.save-bar .saved'))).toContain('(version 5)');
+    expect(text(toast())).toContain(
+      'Library defaults saved. Every pipeline gets them the next time it runs.',
+    );
   });
 
   it('sends nothing while values are invalid and marks their section', async () => {
@@ -143,7 +163,7 @@ describe('GlobalSettingsPage', () => {
 
     expect(page().querySelector('.banner.conflict')).toBeNull();
     expect(form().controls.scans.controls.coverageMinLine.value).toBe(60);
-    expect(page().querySelector('.meta')?.textContent).toContain('Version 6');
+    expect(text(page().querySelector('.save-bar .saved'))).toContain('(version 6)');
   });
 
   it('marks the values the API refused and lists the problems without a field', async () => {
@@ -169,7 +189,7 @@ describe('GlobalSettingsPage', () => {
     expect(page().querySelector('.problems')?.textContent).toContain(
       'unknownField: is not supported',
     );
-    expect(page().querySelector('.toc-item.problem')?.textContent).toContain('Severity limits');
+    expect(page().querySelector('.toc-item.problem')?.textContent).toContain('Security limits');
     expect(page().querySelector('.save-error')?.textContent).toContain(
       'The portal did not accept some values.',
     );
@@ -178,7 +198,7 @@ describe('GlobalSettingsPage', () => {
   it('toggles the scanners the release gate checks and needs at least one', async () => {
     await load();
     const group = page().querySelector<HTMLElement>(
-      'dso-toggle-group[aria-label="Scanners the release gate checks"]',
+      'dso-toggle-group[aria-label="Scans the release gate checks"]',
     )!;
     const toggles = () => [...group.querySelectorAll('button')];
     const pressed = () => toggles().map((toggle) => toggle.getAttribute('aria-pressed'));
@@ -221,7 +241,7 @@ describe('GlobalSettingsPage', () => {
       .spyOn(TestBed.inject(Dialog), 'open')
       .mockReturnValue({ closed: of(undefined) } as unknown as DialogRef<unknown>);
 
-    page().querySelector<HTMLButtonElement>('.tab-header button')!.click();
+    buttonOf(page().querySelector('.tab-header')!, 'Show settings sent to Jenkins').click();
     await fixture.whenStable();
     const request = http.expectOne((r) => r.url === '/api/settings/config');
     expect(request.request.params.get('format')).toBe('yaml');
@@ -230,7 +250,9 @@ describe('GlobalSettingsPage', () => {
 
     expect(open).toHaveBeenCalledTimes(1);
     expect(open.mock.calls[0][1]?.data).toMatchObject({
-      title: 'Generated global configuration',
+      title: 'Shared settings sent to Jenkins (config.yaml)',
+      subtitle:
+        'The part of config.yaml every pipeline receives along with the settings of its own service, built from the saved library defaults.',
       code: 'platform:\n  jenkinsLibrary: DevSecOpsJenkinsLibrary\n',
     });
   });

@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.frontend.regression
 
 import com.bbh.itss.dso.portal.frontend.support.GuiSpecification
 import com.bbh.itss.dso.portal.frontend.support.RecordedRequest
+import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 
 import static com.bbh.itss.dso.portal.frontend.support.StubApi.fixture
@@ -14,6 +15,8 @@ import static com.microsoft.playwright.options.AriaRole.CHECKBOX
 class GlobalSettingsSpec extends GuiSpecification {
 
     static final String SAVED_AT = '2026-10-05T11:00:00Z'
+
+    static final String SHOW_CONFIG = 'Show settings sent to Jenkins'
 
     Map stored
 
@@ -36,15 +39,17 @@ class GlobalSettingsSpec extends GuiSpecification {
         open('/admin/settings')
 
         expect:
-        assertThat(page.locator('.tab-header .meta')).containsText('Version 1')
+        assertThat(page.locator('.tab-header .lead')).hasText(
+                'Only change these settings if the DevSecOps team asks you to. They apply to every pipeline from its next run.')
+        assertThat(saved()).containsText('(version 1)')
 
         when:
         button('Save settings', true).click()
 
         then:
-        assertThat(snackBar()).containsText('The DSOEnhanced library defaults are saved')
+        assertThat(snackBar()).containsText('Library defaults saved. Every pipeline gets them the next time it runs.')
         awaitRequest('PUT', '/api/settings').json() == loaded.findAll { it.key != 'updatedAt' }
-        assertThat(page.locator('.tab-header .meta')).containsText('Version 2')
+        assertThat(saved()).containsText('(version 2)')
         ownErrors().isEmpty()
     }
 
@@ -69,7 +74,7 @@ class GlobalSettingsSpec extends GuiSpecification {
         body.goldenFix.enabled == false
         body.findAll { !(it.key in ['platform', 'goldenFix']) } ==
                 (fixture('settings.json') as Map).findAll { !(it.key in ['platform', 'goldenFix', 'updatedAt']) }
-        assertThat(page.locator('.tab-header .meta')).containsText('Version 2')
+        assertThat(saved()).containsText('(version 2)')
         assertThat(page.locator('.save-bar')).not().containsText('Unsaved changes')
         assertThat(field('Jenkins URL')).hasValue('https://jenkins2.bbh.com/')
         ownErrors().isEmpty()
@@ -98,7 +103,7 @@ class GlobalSettingsSpec extends GuiSpecification {
         assertThat(page.locator('.banner.conflict')).hasCount(0)
         assertThat(field('OIS host')).hasValue('ois2.bbh.com')
         assertThat(field('Jenkins URL')).hasValue('https://jenkins.bbh.com')
-        assertThat(page.locator('.tab-header .meta')).containsText('Version 2')
+        assertThat(saved()).containsText('(version 2)')
         assertThat(button('Save settings', true)).isEnabled()
 
         when:
@@ -106,7 +111,7 @@ class GlobalSettingsSpec extends GuiSpecification {
         button('Save settings', true).click()
 
         then:
-        assertThat(snackBar()).containsText('The DSOEnhanced library defaults are saved')
+        assertThat(snackBar()).containsText('Library defaults saved. Every pipeline gets them the next time it runs.')
         awaitRequest('PUT', '/api/settings', 2).json().version == 2
         stored.version == 3
         ownErrors().findAll { !it.contains('409') }.isEmpty()
@@ -126,7 +131,7 @@ class GlobalSettingsSpec extends GuiSpecification {
         assertThat(page.locator('.save-bar .save-error')).hasText('The portal did not accept some values. They are marked below.')
         assertThat(errorOf(page.locator('form'), 'SonarQube server URL')).hasText('SonarQube does not answer at this address')
         assertThat(page.locator('.problems li')).hasText(['audit.retentionDays: must be at least 30'] as String[])
-        assertThat(page.locator('.toc-item.problem')).hasText(['Platform and tools'] as String[])
+        assertThat(page.locator('.toc-item.problem')).hasText(['Tools and servers'] as String[])
 
         when:
         field('SonarQube server URL').fill('https://sonar.bbh.com')
@@ -164,22 +169,22 @@ class GlobalSettingsSpec extends GuiSpecification {
         ownErrors().isEmpty()
     }
 
-    def "the generated configuration is the saved global section, and a failure names its problem"() {
+    def "the settings sent to Jenkins are the saved global section, and a failure names its problem"() {
         given:
         open('/admin/settings')
 
         when:
-        button('Generated configuration', true).click()
+        button(SHOW_CONFIG, true).click()
 
         then:
-        assertThat(dialog().locator('h2')).hasText('Generated global configuration')
+        assertThat(dialog().locator('h2')).hasText('Shared settings sent to Jenkins (config.yaml)')
         dialog().locator('pre.code-block').textContent() == fixtureText('settings-config.yaml')
         awaitRequest('GET', '/api/settings/config').params() == [format: 'yaml']
 
         when:
         dialogButton('Close').click()
         field('Jenkins URL').fill('https://jenkins2.bbh.com/')
-        button('Generated configuration', true).click()
+        button(SHOW_CONFIG, true).click()
 
         then:
         assertThat(dialog().locator('.subtitle')).containsText('Your unsaved changes are not included.')
@@ -187,10 +192,14 @@ class GlobalSettingsSpec extends GuiSpecification {
         when:
         dialogButton('Close').click()
         api.respond('GET', '/api/settings/config', problem(503, 'Service Unavailable', 'The configuration renderer is restarting'))
-        button('Generated configuration', true).click()
+        button(SHOW_CONFIG, true).click()
 
         then:
         assertThat(snackBar()).containsText('The configuration renderer is restarting')
         ownErrors().findAll { !it.contains('503') }.isEmpty()
+    }
+
+    Locator saved() {
+        page.locator('.save-bar .saved')
     }
 }
