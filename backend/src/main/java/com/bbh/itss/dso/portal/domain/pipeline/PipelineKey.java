@@ -17,6 +17,8 @@ import static org.apache.commons.lang3.StringUtils.trim;
 public record PipelineKey(Long id, String value, KeyStatus status, Instant issuedAt, Instant revokedAt,
                           String revokeReason, Instant lastUsedAt) {
 
+    public static final int REVOKE_REASON_MAX = 500;
+
     private static final int HINT_START = 8;
     private static final int HINT_END = 4;
 

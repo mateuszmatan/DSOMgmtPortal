@@ -4,7 +4,10 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-public record ProductDetailsRequest(@NotBlank @Size(max = 200) String name, Long departmentId,
-                                    @Size(max = 200) String ownerTeam, @Email @Size(max = 320) String contactEmail,
-                                    Long version) {
+import static com.bbh.itss.dso.portal.domain.catalog.ProductDetails.NAME_MAX;
+import static com.bbh.itss.dso.portal.domain.catalog.ProductDetails.OWNER_TEAM_MAX;
+
+public record ProductDetailsRequest(@NotBlank @Size(max = NAME_MAX) String name, Long departmentId,
+                                    @Size(max = OWNER_TEAM_MAX) String ownerTeam,
+                                    @Email @Size(max = 320) String contactEmail, Long version) {
 }

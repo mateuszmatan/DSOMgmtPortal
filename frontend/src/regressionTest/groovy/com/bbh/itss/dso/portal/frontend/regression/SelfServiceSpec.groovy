@@ -25,6 +25,7 @@ class SelfServiceSpec extends EditorSpecification {
     def "a product manager adds a new product with a Security pipeline step by step"() {
         given:
         recordClipboard()
+        useSourceFolder('app')
         api.respond('POST', '/api/products', problem(400, 'Bad Request', 'The portal did not accept some values.',
                 [errors: [[field: 'services[1].appScan.applicationId', message: 'the AppScan application belongs to CertScanner']]]))
 
@@ -33,7 +34,7 @@ class SelfServiceSpec extends EditorSpecification {
         menuLink('Self-service').click()
         page.waitForURL('**/self-service')
         input(step(), 'Product name').fill('CertScanner')
-        button('Continue', true).click()
+        button('Next: Pipeline', true).click()
 
         then:
         assertThat(page.locator('h1')).hasText('DevSecOps Self-service')
@@ -52,11 +53,11 @@ class SelfServiceSpec extends EditorSpecification {
                         'AppScan API key ID': APP_SCAN_KEY])
 
         then:
-        assertThat(hintOf(step(), 'Product name')).hasText('Its code will be TRADEARCHIVE')
+        assertThat(hintOf(step(), 'Product name')).hasText('Its product code will be TRADEARCHIVE, the short name used in job names')
 
         when:
-        button('Continue', true).click()
-        button('Continue', true).click()
+        button('Next: Pipeline', true).click()
+        button('Next: Services', true).click()
 
         then:
         assertThat(currentStep()).hasText('Pipeline')
@@ -73,11 +74,11 @@ class SelfServiceSpec extends EditorSpecification {
 
         then:
         assertThat(radio(step(), 'Security')).hasAttribute('aria-checked', 'true')
-        assertThat(step().locator('.prepare li')).hasCount(4)
+        assertThat(step().locator('.prepare li')).hasCount(3)
 
         when:
-        button('Continue', true).click()
-        button('Continue', true).click()
+        button('Next: Services', true).click()
+        button('Next: Review', true).click()
 
         then:
         assertThat(step().locator('h2')).hasText('Which services does Trade Archive have?')
@@ -87,7 +88,7 @@ class SelfServiceSpec extends EditorSpecification {
         button('Add a service', true).click()
         fillIn(dialog(), ['Service name': 'archive-api', 'What it does': 'REST API of the archive',
                           'AppScan application ID': API_APPLICATION])
-        dialogButton('Next').click()
+        dialogButton('Next: Build and run').click()
 
         then:
         assertThat(dialog().locator('.page-count')).hasText('Part 2 of 2 · Build and run')
@@ -110,19 +111,20 @@ class SelfServiceSpec extends EditorSpecification {
         then:
         assertThat(dialog()).hasCount(0)
         assertThat(step().locator('.service-list strong')).hasText(['archive-api', 'archive-gui'] as String[])
-        assertThat(step().locator('.service-list .muted')).hasText(['Maven · runs on OpenShift · project cus-archive',
-                                                                    'REST API of the archive',
-                                                                    'Gradle · runs on Virtual machines'] as String[])
+        assertThat(step().locator('.service-list .muted')).hasText(['Built with Maven, runs on OpenShift in project cus-archive.',
+                                                                    'Built with Gradle, runs on virtual machines.'] as String[])
+        assertThat(serviceRow('archive-api')).containsText('REST API of the archive')
 
         when:
-        button('Continue', true).click()
+        button('Next: Review', true).click()
         button('Create the pipelines', true).click()
 
         then:
         assertThat(currentStep()).hasText('Review')
         assertThat(review('Department')).hasText('Custody')
-        assertThat(review('Added').locator('li')).hasText(['archive-api · Maven · runs on OpenShift · project cus-archive',
-                                                           'archive-gui · Gradle · runs on Virtual machines'] as String[])
+        assertThat(review('Pipeline')).hasText('Security')
+        hasEntries(['archive-api': 'New · Added with a Security pipeline and its own key. Built with Maven, runs on OpenShift in project cus-archive.',
+                    'archive-gui': 'New · Added with a Security pipeline and its own key. Built with Gradle, runs on virtual machines.'])
         assertThat(page.locator('.save-problem strong')).hasText('The portal did not accept some values.')
         assertThat(page.locator('.save-problem .problems li'))
                 .hasText(['archive-gui, AppScan application ID: the AppScan application belongs to CertScanner'] as String[])
@@ -132,13 +134,13 @@ class SelfServiceSpec extends EditorSpecification {
         page.locator('.step-bar').getByRole(BUTTON).filter(new Locator.FilterOptions().setHasText('Services')).click()
         button('Change archive-gui', true).click()
         input(dialog(), 'AppScan application ID').fill(GUI_APPLICATION)
-        dialogButton('Next').click()
+        dialogButton('Next: Build and run').click()
         dialogButton('Save service').click()
-        button('Continue', true).click()
+        button('Next: Review', true).click()
         button('Create the pipelines', true).click()
 
         then:
-        assertThat(step().locator('h2')).hasText('Trade Archive is ready. Do these steps in order')
+        assertThat(step().locator('h2')).hasText('Trade Archive is saved. Now do these steps in order')
         def request = awaitRequest('POST', '/api/products', 2)
         request.params() == [pipelineType: 'SECURITY']
         with(request.json() as Map) {
@@ -151,6 +153,7 @@ class SelfServiceSpec extends EditorSpecification {
             services*.name == ['archive-api', 'archive-gui']
             services*.appScan*.applicationId == [SelfServiceSpec.API_APPLICATION, SelfServiceSpec.GUI_APPLICATION]
             services*.build*.tool == ['MAVEN', 'GRADLE']
+            services*.build*.sourceDir == ['app', 'app']
             services*.deployment*.target == ['OPENSHIFT', 'VM']
             services[0].openShiftTargets.RD.projectDeployment == 'cus-archive-rd'
             services[0].openShiftTargets.QC.projectDeployment == 'cus-archive-qc'
@@ -160,11 +163,12 @@ class SelfServiceSpec extends EditorSpecification {
         assertThat(page.locator('.jenkinsfile .code-block')).hasText(store.services.collect { service ->
             "@Library('DevSecOpsJenkinsLibrary') _ devSecOpsSecurityPipeline(pipelineKey: '${store.generatedKeys[service.serviceName]}')".toString()
         } as String[])
-        assertThat(page.locator('.next-steps > li h3')).hasText(['Put the Jenkinsfile in each repository',
-                                                                'Create a Jenkins job for each service',
+        assertThat(page.locator('.next-steps > li h3')).hasText(["Put the Jenkinsfile in each service's repository",
+                                                                'Ask your Jenkins administrator for a job for each service',
                                                                 'Run each job once', 'Follow the results'] as String[])
-        assertThat(page.locator('.next-steps code').last()).hasText('DevSecOps/TRADEARCHIVE/archive-api-security')
-        assertThat(link('Open in DevSecOps Admin', true)).hasAttribute('href', '/admin/products/3')
+        assertThat(page.locator('.job-names li')).hasText(['archive-api: DevSecOps/TRADEARCHIVE/archive-api-security',
+                                                           'archive-gui: DevSecOps/TRADEARCHIVE/archive-gui-security'] as String[])
+        assertThat(link('Open Trade Archive in DevSecOps Admin', true)).hasAttribute('href', '/admin/products/3')
 
         when:
         button('Copy the Jenkinsfile of archive-api', true).click()
@@ -183,7 +187,7 @@ class SelfServiceSpec extends EditorSpecification {
         when:
         open('/self-service')
         radio(step(), 'A product in the portal').click()
-        button('Continue', true).click()
+        button('Next: Pipeline', true).click()
 
         then:
         assertThat(errorOf(step(), 'Department')).hasText('Required')
@@ -204,22 +208,22 @@ class SelfServiceSpec extends EditorSpecification {
         assertThat(step().locator('dl.rows dd')).hasText(['Technology Architecture', '2'] as String[])
 
         when:
-        button('Continue', true).click()
+        button('Next: Pipeline', true).click()
 
         then:
         assertThat(currentStep()).hasText('Pipeline')
         assertThat(step().locator('.lead'))
-                .containsText('Choosing one adds it to every service that lacks it and keeps the other pipelines.')
+                .containsText('the one you choose is added to every service that does not have it yet, and their other pipelines stay as they are.')
         assertThat(step().locator('.today li')).hasText(['gui · Full, SAST', 'backend-api · Full'] as String[])
         assertThat(step().locator('.tile-note'))
                 .hasText(['1 of 2 services has it', 'No service has it yet', 'No service has it yet', 'Every service has it'] as String[])
 
         when:
         radio(step(), SAST).click()
-        button('Continue', true).click()
+        button('Next: Services', true).click()
 
         then:
-        assertThat(step().locator('.service-list .muted').first()).hasText('Gradle · runs on Virtual machines')
+        assertThat(step().locator('.service-list .muted').first()).hasText('Built with Gradle, runs on virtual machines.')
         assertThat(button('Remove')).hasCount(2)
 
         when:
@@ -231,7 +235,7 @@ class SelfServiceSpec extends EditorSpecification {
 
         when:
         input(dialog(), 'What it does').fill('Web front end')
-        dialogButton('Next').click()
+        dialogButton('Next: Build and run').click()
 
         then:
         assertThat(dialog().getByRole(RADIOGROUP)).hasCount(1)
@@ -247,21 +251,21 @@ class SelfServiceSpec extends EditorSpecification {
         assertThat(button('Remove')).hasCount(3)
 
         when:
-        button('Continue', true).click()
+        button('Next: Review', true).click()
 
         then:
         assertThat(step().locator('.lead'))
-                .hasText('Saving updates CertScanner and gives every service a SAST pipeline with its own key, unless it has one already.')
-        assertThat(review('Added').locator('li')).hasText(['scanner · Maven'] as String[])
-        assertThat(review('Changed').locator('li')).hasText(['gui · new description'] as String[])
-        assertThat(review('Unchanged').locator('li')).hasText(['backend-api · Maven · runs on OpenShift'] as String[])
+                .hasText('Nothing is saved until you press Save the changes; use Back or the numbered steps above to change an answer.')
+        hasEntries(['gui'        : 'Changed · Keeps its SAST pipeline. New description.',
+                    'backend-api': 'Gets a SAST pipeline with its own key; nothing else changes.',
+                    'scanner'    : 'New · Added with a SAST pipeline and its own key. Built with Maven.'])
         assertThat(step().locator('.removal-warning')).hasCount(0)
 
         when:
         button('Save the changes', true).click()
 
         then:
-        assertThat(step().locator('h2')).hasText('CertScanner is ready. Do these steps in order')
+        assertThat(step().locator('h2')).hasText('CertScanner is saved. Now do these steps in order')
         def request = awaitRequest('PUT', '/api/products/1')
         request.params() == [pipelineType: 'SAST']
         with(request.json() as Map) {
@@ -280,10 +284,11 @@ class SelfServiceSpec extends EditorSpecification {
         assertThat(page.locator('.jenkinsfile .code-block')).containsText([SAST_KEY_OF_GUI, store.generatedKeys['backend-api'],
                                                                     store.generatedKeys['scanner']] as String[])
         assertThat(page.locator('.next-steps > li')).hasCount(4)
-        assertThat(page.locator('.next-steps code').last()).hasText('DevSecOps/CERTSCANNER/gui-sast')
+        assertThat(page.locator('.job-names code')).hasText(['DevSecOps/CERTSCANNER/gui-sast', 'DevSecOps/CERTSCANNER/backend-api-sast',
+                                                             'DevSecOps/CERTSCANNER/scanner-sast'] as String[])
 
         when:
-        button('Start again', true).click()
+        button('Set up another product', true).click()
 
         then:
         assertThat(currentStep()).hasText('Product')
@@ -307,16 +312,16 @@ class SelfServiceSpec extends EditorSpecification {
                 .hasText('The Nexus IQ application and the Bitbucket repository of each service')
 
         when:
-        button('Continue', true).click()
+        button('Next: Services', true).click()
 
         then:
-        assertThat(step().locator('.lead')).containsText('Each one gets its own OSA pipeline.')
+        assertThat(step().locator('.lead')).containsText('each one gets its own OSA pipeline.')
         assertThat(serviceRow('gui').locator('.muted').first())
-                .hasText('Gradle · runs on Virtual machines · Nexus IQ cert-scanner-gui')
+                .hasText('Built with Gradle, runs on virtual machines, Nexus IQ application cert-scanner-gui.')
 
         when:
         buttonIn(serviceRow('gui'), 'Change gui').click()
-        dialogButton('Next').click()
+        dialogButton('Next: Build and run').click()
 
         then:
         assertThat(dialog().getByRole(RADIOGROUP)).hasCount(1)
@@ -342,21 +347,19 @@ class SelfServiceSpec extends EditorSpecification {
         assertThat(step().locator('.service-list .tag')).hasText(['Changed', 'New'] as String[])
 
         when:
-        button('Continue', true).click()
+        button('Next: Review', true).click()
 
         then:
-        assertThat(review('Pipeline')).hasText('OSA · added to every service')
-        assertThat(review('Added').locator('li')).hasText(['scanner · Maven · Nexus IQ cert-scanner-batch'] as String[])
-        assertThat(review('Changed').locator('li'))
-                .hasText(['gui · new Nexus IQ application; new Bitbucket repository'] as String[])
-        assertThat(review('Unchanged').locator('li'))
-                .hasText(['backend-api · Maven · runs on OpenShift · Nexus IQ cert-scanner-backend'] as String[])
+        assertThat(review('Pipeline')).hasText('OSA')
+        hasEntries(['gui'        : 'Changed · Gets an OSA pipeline with its own key. New Nexus IQ application; new Bitbucket repository.',
+                    'backend-api': 'Gets an OSA pipeline with its own key; nothing else changes.',
+                    'scanner'    : 'New · Added with an OSA pipeline and its own key. Built with Maven, Nexus IQ application cert-scanner-batch.'])
 
         when:
         button('Save the changes', true).click()
 
         then:
-        assertThat(step().locator('h2')).hasText('CertScanner is ready. Do these steps in order')
+        assertThat(step().locator('h2')).hasText('CertScanner is saved. Now do these steps in order')
         def request = awaitRequest('PUT', '/api/products/1')
         request.params() == [pipelineType: 'NEXUS_IQ']
         with(request.json() as Map) {
@@ -382,11 +385,14 @@ class SelfServiceSpec extends EditorSpecification {
         assertThat(page.locator('.jenkinsfile .code-block')).hasText(store.services.collect { service ->
             "@Library('DevSecOpsJenkinsLibrary') _ devSecOpsNexusIqGoldenFixPipeline(pipelineKey: '${store.generatedKeys[service.serviceName]}')".toString()
         } as String[])
-        assertThat(page.locator('.next-steps > li h3')).hasText(['Put the Jenkinsfile in each repository',
-                                                                'Create a Jenkins job for each service',
+        assertThat(page.locator('.next-steps > li h3')).hasText(["Put the Jenkinsfile in each service's repository",
+                                                                'Ask your Jenkins administrator for a job for each service',
                                                                 'Run each job once', 'Review the golden pull requests',
                                                                 'Follow the results'] as String[])
-        assertThat(page.locator('.next-steps code').last()).hasText('DevSecOps/CERTSCANNER/gui-nexusiq')
+        assertThat(page.locator('.jenkinsfile-head .muted')).hasText(store.product.services.collect { service ->
+            "· goes into ${service.scm.repositoryUrl}".toString()
+        } as String[])
+        assertThat(page.locator('.job-names code').first()).hasText('DevSecOps/CERTSCANNER/gui-nexusiq')
         ownErrors().isEmpty()
     }
 
@@ -408,7 +414,7 @@ class SelfServiceSpec extends EditorSpecification {
         when:
         choose(step(), 'Product', 'Payments Hub (PAYHUB)')
         assertThat(step().locator('dl.rows dt')).hasText(['Owner team', 'Services'] as String[])
-        button('Continue', true).click()
+        button('Next: Pipeline', true).click()
 
         then:
         assertThat(currentStep()).hasText('Product')
@@ -422,10 +428,10 @@ class SelfServiceSpec extends EditorSpecification {
         assertThat(select(step(), 'Product').locator('option:checked')).hasText('Payments Hub (PAYHUB)')
 
         when:
-        button('Continue', true).click()
+        button('Next: Pipeline', true).click()
         radio(step(), SAST).click()
-        button('Continue', true).click()
-        button('Continue', true).click()
+        button('Next: Services', true).click()
+        button('Next: Review', true).click()
 
         then:
         assertThat(review('Department')).hasText('Fund Services')
@@ -434,7 +440,7 @@ class SelfServiceSpec extends EditorSpecification {
         button('Save the changes', true).click()
 
         then:
-        assertThat(step().locator('h2')).hasText('Payments Hub is ready. Do these steps in order')
+        assertThat(step().locator('h2')).hasText('Payments Hub is saved. Now do these steps in order')
         awaitRequest('PUT', '/api/products/2').json().departmentId == 5
         store.product.departmentId == 5
         ownErrors().isEmpty()
@@ -448,9 +454,9 @@ class SelfServiceSpec extends EditorSpecification {
         when:
         openProduct('Corporate Technology', 'CertScanner (CERTSCANNER)')
         radio(step(), 'Full').click()
-        button('Continue', true).click()
+        button('Next: Services', true).click()
         buttonIn(serviceRow('gui'), 'Change gui').click()
-        dialogButton('Next').click()
+        dialogButton('Next: Build and run').click()
 
         then:
         assertThat(radio(dialog(), 'Gradle')).hasAttribute('aria-checked', 'true')
@@ -464,21 +470,20 @@ class SelfServiceSpec extends EditorSpecification {
 
         then:
         assertThat(serviceRow('gui').locator('.tag')).hasText('Changed')
-        assertThat(serviceRow('gui').locator('.muted').first()).hasText('Maven · runs on Virtual machines')
+        assertThat(serviceRow('gui').locator('.muted').first()).hasText('Built with Maven, runs on virtual machines.')
 
         when:
-        button('Continue', true).click()
+        button('Next: Review', true).click()
 
         then:
-        assertThat(review('Changed').locator('li'))
-                .hasText(['gui · built with Maven instead of Gradle, with the default build settings'] as String[])
-        assertThat(review('Unchanged').locator('li')).hasText(['backend-api · Maven · runs on OpenShift'] as String[])
+        hasEntries(['gui'        : 'Changed · Keeps its Full pipeline. Built with Maven instead of Gradle, with the default build settings.',
+                    'backend-api': 'Already has a Full pipeline; nothing changes.'])
 
         when:
         button('Save the changes', true).click()
 
         then:
-        assertThat(step().locator('h2')).hasText('CertScanner is ready. Do these steps in order')
+        assertThat(step().locator('h2')).hasText('CertScanner is saved. Now do these steps in order')
         def request = awaitRequest('PUT', '/api/products/1')
         request.params() == [pipelineType: 'FULL']
         with(request.json() as Map) {
@@ -506,7 +511,7 @@ class SelfServiceSpec extends EditorSpecification {
         when:
         openProduct('Corporate Technology', 'CertScanner (CERTSCANNER)')
         radio(step(), 'Security').click()
-        button('Continue', true).click()
+        button('Next: Services', true).click()
         buttonIn(serviceRow('backend-api'), 'Remove backend-api').click()
 
         then:
@@ -517,7 +522,7 @@ class SelfServiceSpec extends EditorSpecification {
 
         when:
         buttonIn(serviceRow('gui'), 'Remove gui').click()
-        button('Continue', true).click()
+        button('Next: Review', true).click()
 
         then:
         assertThat(currentStep()).hasText('Services')
@@ -525,12 +530,12 @@ class SelfServiceSpec extends EditorSpecification {
 
         when:
         buttonIn(serviceRow('gui'), 'Undo removing gui').click()
-        button('Continue', true).click()
+        button('Next: Review', true).click()
 
         then:
         assertThat(currentStep()).hasText('Review')
-        assertThat(review('Removed').locator('li')).hasText(['backend-api · Maven · runs on OpenShift'] as String[])
-        assertThat(review('Unchanged').locator('li')).hasText(['gui · Gradle · runs on Virtual machines'] as String[])
+        hasEntries(['gui'        : 'Gets a Security pipeline with its own key; nothing else changes.',
+                    'backend-api': 'Removed · Deleted, with its pipelines and their keys.'])
         assertThat(step().locator('.removal-warning strong'))
                 .hasText('Saving deletes these pipelines and their keys. Jenkins jobs that use these keys stop working.')
         assertThat(step().locator('.removal-warning li')).hasText(['backend-api · Full'] as String[])
@@ -539,7 +544,7 @@ class SelfServiceSpec extends EditorSpecification {
         button('Save the changes', true).click()
 
         then:
-        assertThat(step().locator('h2')).hasText('CertScanner is ready. Do these steps in order')
+        assertThat(step().locator('h2')).hasText('CertScanner is saved. Now do these steps in order')
         def request = awaitRequest('PUT', '/api/products/1')
         request.params() == [pipelineType: 'SECURITY']
         (request.json() as Map).services*.name == ['gui']
@@ -566,26 +571,29 @@ class SelfServiceSpec extends EditorSpecification {
 
         when:
         radio(step(), 'Security').click()
-        button('Continue', true).click()
+        button('Next: Services', true).click()
 
         then:
         assertThat(step().locator('.service-list strong'))
                 .hasText(['gateway', 'ledger', 'notifications', 'mobile-app'] as String[])
-        assertThat(serviceRow('mobile-app').locator('.muted').first()).hasText('Flutter · runs on Virtual machines')
+        assertThat(serviceRow('mobile-app').locator('.muted').first()).hasText('Built with Flutter, runs on virtual machines.')
 
         when:
-        button('Continue', true).click()
+        button('Next: Review', true).click()
 
         then:
-        assertThat(step().locator('dl.rows dt')).hasText(['Product', 'Department', 'Pipeline', 'Unchanged'] as String[])
-        assertThat(review('Pipeline')).hasText('Security · added to ledger, notifications and mobile-app')
-        assertThat(review('Unchanged').locator('li')).hasCount(4)
+        assertThat(step().locator('dl.rows dt')).hasText(['Product', 'Department', 'Pipeline'] as String[])
+        assertThat(review('Pipeline')).hasText('Security')
+        hasEntries(['gateway'      : 'Already has a Security pipeline; nothing changes.',
+                    'ledger'       : 'Gets a Security pipeline with its own key; nothing else changes.',
+                    'notifications': 'Gets a Security pipeline with its own key; nothing else changes.',
+                    'mobile-app'   : 'Gets a Security pipeline with its own key; nothing else changes.'])
 
         when:
         button('Save the changes', true).click()
 
         then:
-        assertThat(step().locator('h2')).hasText('Payments Hub is ready. Do these steps in order')
+        assertThat(step().locator('h2')).hasText('Payments Hub is saved. Now do these steps in order')
         def request = awaitRequest('PUT', '/api/products/2')
         request.params() == [pipelineType: 'SECURITY']
         (request.json() as Map).services*.id == [3, 4, 5, 6]
@@ -595,7 +603,158 @@ class SelfServiceSpec extends EditorSpecification {
         assertThat(page.locator('.jenkinsfile .code-block')).containsText([SECURITY_KEY_OF_GATEWAY, store.generatedKeys['ledger'],
                                                                     store.generatedKeys['notifications'],
                                                                     store.generatedKeys['mobile-app']] as String[])
-        assertThat(page.locator('.next-steps code').last()).hasText('DevSecOps/PAYHUB/gateway-security')
+        assertThat(page.locator('.job-names code')).hasText(['DevSecOps/PAYHUB/gateway-security', 'DevSecOps/PAYHUB/ledger-security',
+                                                             'DevSecOps/PAYHUB/notifications-security',
+                                                             'DevSecOps/PAYHUB/mobile-app-security'] as String[])
+        ownErrors().isEmpty()
+    }
+
+    def "a service on OpenShift that gets another build tool builds its image from the folder of that tool"() {
+        given:
+        def store = ProductStore.recorded(api, 1)
+        def stored = fixture('product-1.json') as Map
+        def targets = stored.services[1].openShiftTargets as Map
+        useSourceFolder('app')
+
+        when:
+        openProduct('Corporate Technology', 'CertScanner (CERTSCANNER)')
+        radio(step(), 'Full').click()
+        button('Next: Services', true).click()
+        buttonIn(serviceRow('backend-api'), 'Change backend-api').click()
+        dialogButton('Next: Build and run').click()
+        radio(dialog(), 'Gradle').click()
+        dialogButton('Save service').click()
+        button('Next: Review', true).click()
+
+        then:
+        hasEntries(['gui'        : 'Already has a Full pipeline; nothing changes.',
+                    'backend-api': 'Changed · Keeps its Full pipeline. Built with Gradle instead of Maven, with the default build settings.'])
+
+        when:
+        button('Save the changes', true).click()
+
+        then:
+        assertThat(step().locator('h2')).hasText('CertScanner is saved. Now do these steps in order')
+        with(awaitRequest('PUT', '/api/products/1').json() as Map) {
+            services[0].build == stored.services[0].build
+            services[1].build.tool == 'GRADLE'
+            services[1].build.sourceDir == 'app'
+            services[1].build.buildPath == 'build/libs/*.jar'
+            services[1].deployment == stored.services[1].deployment
+            services[1].openShiftTargets == targets + [RD: targets.RD + [buildContext: 'build/docker']]
+        }
+        store.generatedKeys.isEmpty()
+        ownErrors().isEmpty()
+    }
+
+    def "a remembered department that is no longer listed has to be chosen again"() {
+        given:
+        page.addInitScript("localStorage.setItem('dso.beadle.department', '99')")
+
+        when:
+        open('/self-service')
+        button('Next: Pipeline', true).click()
+
+        then:
+        assertThat(currentStep()).hasText('Product')
+        assertThat(select(step(), 'Department')).hasValue('')
+        assertThat(errorOf(step(), 'Department')).hasText('Required')
+        ownErrors().isEmpty()
+    }
+
+    def "new services wait for the service template, which can be loaded again"() {
+        given:
+        ProductStore.recorded(api, 1)
+        api.respond('GET', '/api/service-template', problem(503, 'Service Unavailable', 'The database is not reachable'))
+
+        when:
+        openProduct('Corporate Technology', 'CertScanner (CERTSCANNER)')
+        radio(step(), SAST).click()
+        button('Next: Services', true).click()
+        button('Next: Review', true).click()
+
+        then:
+        assertThat(currentStep()).hasText('Review')
+
+        when:
+        button('Back', true).click()
+        addService('scanner', API_APPLICATION, 'Maven')
+        button('Next: Review', true).click()
+
+        then:
+        assertThat(currentStep()).hasText('Services')
+        assertThat(choiceError()).hasText(['The service template could not be loaded. The database is not reachable. New services, and services that change how they are built or where they run, get their build settings from it.',
+                                           'These services get their build settings from the service template, which has to load first: scanner'] as String[])
+
+        when:
+        api.respond('GET', '/api/service-template', fixture('service-template.json'))
+        button('Try again', true).click()
+
+        then:
+        assertThat(button('Try again', true)).hasCount(0)
+
+        when:
+        button('Next: Review', true).click()
+
+        then:
+        assertThat(currentStep()).hasText('Review')
+        ownErrors().findAll { !it.contains('503') }.isEmpty()
+    }
+
+    def "a service whose key is invalidated is sent to its pipeline page for a new key"() {
+        given:
+        def store = ProductStore.recorded(api, 1)
+        def sast = store.services[0].pipelines.find { it.type == 'SAST' } as Map
+        sast.activeKey = null
+        sast.enabled = false
+
+        when:
+        openProduct('Corporate Technology', 'CertScanner (CERTSCANNER)')
+        radio(step(), SAST).click()
+        button('Next: Services', true).click()
+        button('Next: Review', true).click()
+        button('Save the changes', true).click()
+
+        then:
+        assertThat(step().locator('h2')).hasText('CertScanner is saved. Now do these steps in order')
+        assertThat(page.locator('.jenkinsfile strong')).hasText(['gui', 'backend-api'] as String[])
+        assertThat(button('Copy the Jenkinsfile of gui', true)).hasCount(0)
+        assertThat(page.locator('.jenkinsfile .code-block')).hasText(
+                ["@Library('DevSecOpsJenkinsLibrary') _ devSecOpsSASTScanningPipeline(pipelineKey: '${store.generatedKeys['backend-api']}')".toString()] as String[])
+        assertThat(page.locator('.jenkinsfile-missing')).hasText(
+                'Its key is invalidated, so the pipeline is refused its settings and stops. Issue a new key on its pipeline page and copy the Jenkinsfile from there.')
+
+        when:
+        link('its pipeline page', true).click()
+
+        then:
+        page.waitForURL("**/pipelines/${sast.id}")
+        ownErrors().isEmpty()
+    }
+
+    def "a new service that has the name of a service of the product chosen after it has to be renamed"() {
+        given:
+        ProductStore.recorded(api, 1)
+        ProductStore.recorded(api, 2)
+
+        when:
+        openProduct('Corporate Technology', 'CertScanner (CERTSCANNER)')
+        radio(step(), SAST).click()
+        button('Next: Services', true).click()
+        addService('ledger', API_APPLICATION, 'Gradle')
+        page.locator('.step-bar').getByRole(BUTTON).filter(new Locator.FilterOptions().setHasText('Product')).click()
+        choose(step(), 'Department', 'Fund Services')
+        choose(step(), 'Product', 'Payments Hub (PAYHUB)')
+        button('Next: Pipeline', true).click()
+        button('Next: Services', true).click()
+        button('Next: Review', true).click()
+
+        then:
+        assertThat(currentStep()).hasText('Services')
+        assertThat(step().locator('.service-list strong'))
+                .hasText(['gateway', 'ledger', 'notifications', 'mobile-app', 'ledger'] as String[])
+        assertThat(choiceError())
+                .hasText('Use Change to rename these services, as another service of Payments Hub has the same name: ledger')
         ownErrors().isEmpty()
     }
 
@@ -632,13 +791,19 @@ class SelfServiceSpec extends EditorSpecification {
         radio(step(), 'A product in the portal').click()
         choose(step(), 'Product', product)
         assertThat(step().locator('dl.rows')).isVisible()
-        button('Continue', true).click()
+        button('Next: Pipeline', true).click()
+    }
+
+    void useSourceFolder(String folder) {
+        def settings = fixture('settings.json') as Map
+        settings.serviceDefaults.sourceDir = folder
+        api.respond('GET', '/api/settings', settings)
     }
 
     void addService(String name, String applicationId, String tool, String target = null, Map<String, String> details = [:]) {
         button('Add a service', true).click()
         fillIn(dialog(), ['Service name': name, 'AppScan application ID': applicationId])
-        dialogButton('Next').click()
+        dialogButton('Next: Build and run').click()
         radio(dialog(), tool).click()
         if (target) {
             radio(dialog(), target).click()
@@ -670,6 +835,16 @@ class SelfServiceSpec extends EditorSpecification {
 
     Locator review(String term) {
         step().locator("dl.rows dt:text-is('${term}') + dd")
+    }
+
+    void hasEntries(Map<String, String> entries) {
+        assertThat(step().locator('.review-list strong')).hasText(entries.keySet() as String[])
+        entries.each { name, entry ->
+            def (tag, text) = entry.contains(' · ') ? entry.split(' · ') as List : ['', entry]
+            def row = holding(step().locator('.review-list li'), "strong:text-is('${name}')")
+            assertThat(row.locator('.review-name')).hasText(name + tag)
+            assertThat(row.locator('.review-text')).hasText(text)
+        }
     }
 
     Locator serviceRow(String name) {

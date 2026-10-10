@@ -39,6 +39,7 @@ import static com.bbh.itss.dso.portal.domain.monitoring.DoraCalculator.summarize
 import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.worst;
 import static java.time.Instant.now;
 import static java.util.stream.Collectors.groupingBy;
+import static org.apache.commons.lang3.ObjectUtils.getIfNull;
 import static org.apache.commons.lang3.ObjectUtils.max;
 
 @UseCase
@@ -112,12 +113,15 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
                 : MetricsReading.of(() -> runs.doraPoints(List.of(tag), days).getOrDefault(tag, List.of()), List.of());
         List<PipelineRun> recentRuns = recent.value();
         PipelineRun last = recentRuns.isEmpty() ? null : recentRuns.get(0);
+        String error = points.error();
         if (last == null && attributable && !recent.failed()) {
-            last = latestRuns(monitored).value().of(tag, pipeline);
+            MetricsReading<LatestRuns> latest = latestRuns(monitored);
+            last = latest.value().of(tag, pipeline);
+            error = getIfNull(error, latest.error());
         }
         DoraSummary dora = summarize(points.value(), days, now(clock));
         return new PipelineMonitoring(view, RunResult.of(pipeline, last), last, dora, recentRuns,
-                dashboards.dashboards(tag, pipeline.type(), days), points.error());
+                dashboards.dashboards(tag, pipeline.type(), days), error);
     }
 
     @Override

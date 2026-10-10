@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
-import { inputOf } from '../testing/dom';
+import { inputOf, text } from '../testing/dom';
 import { pipeline, servicePipelines, serviceTemplate } from '../testing/fixtures';
 import { ServiceTemplate } from '../core/models';
 import { PipelineDialog, PipelineDialogData } from './pipeline-dialog';
@@ -84,9 +84,11 @@ describe('PipelineDialog', () => {
   it('starts a new pipeline with the default agent and explains its key', async () => {
     await render({ service: servicePipelines({ pipelines: [] }) });
 
-    expect(page().querySelector('h2')?.textContent).toBe('Add pipeline');
-    expect(page().querySelector('.intro')?.textContent).toContain('gets its own unique key');
-    expect(inputOf(page(), 'Jenkins agent labels').value).toBe('linux-agent');
+    expect(page().querySelector('h2')?.textContent).toBe('Add a pipeline to gui');
+    expect(text(page().querySelector('.intro'))).toBe(
+      "The new pipeline of gui gets its own pipeline key: the secret code the service's Jenkins job uses to fetch its settings from this portal.",
+    );
+    expect(inputOf(page(), 'Jenkins agents').value).toBe('linux-agent');
     expect(page().querySelector('dso-hint')?.textContent).toContain(
       'Build, scans, tests, deployment and release',
     );
@@ -112,18 +114,21 @@ describe('PipelineDialog', () => {
     });
     await render({ service: servicePipelines({ pipelines: [stored] }), pipeline: stored });
 
-    expect(page().querySelector('h2')?.textContent).toBe('Pipeline settings');
+    expect(page().querySelector('h2')?.textContent).toBe('Settings of the pipeline gui · Extended');
+    expect(text(page().querySelector('.intro'))).toBe(
+      'Where and how Jenkins runs this pipeline of gui. Its type cannot be changed.',
+    );
     expect(labels()).toContain('Security pipeline job');
     expect(labels()).not.toContain('Extended pipeline job');
     expect(inputOf(page(), 'Security pipeline job').value).toBe('CERT/gui-security');
-    expect(page().querySelector('button[type=submit]')?.textContent?.trim()).toBe('Save');
+    expect(page().querySelector('button[type=submit]')?.textContent?.trim()).toBe('Save settings');
   });
 
   it('saves the settings of a stored pipeline with trimmed values', async () => {
     const stored = pipeline();
     await render({ service: servicePipelines({ pipelines: [stored] }), pipeline: stored });
 
-    await type('Jenkins agent labels', ' linux-agent,  docker ');
+    await type('Jenkins agents', ' linux-agent,  docker ');
     await type('Jenkins job', '');
     await type('Description', '  Release build  ');
     await submit();
@@ -136,6 +141,7 @@ describe('PipelineDialog', () => {
       securityPipelineJob: null,
       jenkinsJob: null,
       description: 'Release build',
+      version: 3,
     });
     expect(page().querySelector('dso-spinner')).not.toBeNull();
     await submit();
@@ -143,6 +149,61 @@ describe('PipelineDialog', () => {
 
     request.flush(pipeline({ agentLabels: ['linux-agent', 'docker'] }));
     expect(close).toHaveBeenCalledWith(pipeline({ agentLabels: ['linux-agent', 'docker'] }));
+  });
+
+  it('reloads the settings someone else saved meanwhile and saves the next change on top', async () => {
+    const stored = pipeline();
+    await render({ service: servicePipelines({ pipelines: [stored] }), pipeline: stored });
+
+    await type('Description', 'Release build');
+    await submit();
+    http
+      .expectOne({ method: 'PUT', url: '/api/pipelines/100' })
+      .flush(
+        { detail: 'The record was changed by someone else in the meantime.' },
+        { status: 409, statusText: 'Conflict' },
+      );
+    const current = pipeline({ version: 4, jenkinsJob: 'DevSecOps/CERT/gui-full-v2' });
+    http.expectOne({ method: 'GET', url: '/api/pipelines/100' }).flush(current);
+    await fixture.whenStable();
+
+    expect(page().querySelector('[role=alert]')?.textContent).toBe(
+      'Not saved: someone else changed the settings of this pipeline after you opened them. The form now shows their settings: make your change again, then save.',
+    );
+    expect(inputOf(page(), 'Jenkins job').value).toBe('DevSecOps/CERT/gui-full-v2');
+    expect(inputOf(page(), 'Description').value).toBe('');
+    expect(page().querySelector('dso-spinner')).toBeNull();
+    expect(close).not.toHaveBeenCalled();
+
+    await type('Description', 'Release build');
+    await submit();
+    const request = http.expectOne({ method: 'PUT', url: '/api/pipelines/100' });
+    expect(request.request.body).toMatchObject({
+      jenkinsJob: 'DevSecOps/CERT/gui-full-v2',
+      description: 'Release build',
+      version: 4,
+    });
+    request.flush(current);
+    expect(close).toHaveBeenCalledWith(current);
+  });
+
+  it('says when the settings someone else saved meanwhile could not be loaded', async () => {
+    const stored = pipeline();
+    await render({ service: servicePipelines({ pipelines: [stored] }), pipeline: stored });
+
+    await submit();
+    http
+      .expectOne({ method: 'PUT', url: '/api/pipelines/100' })
+      .flush(null, { status: 409, statusText: 'Conflict' });
+    http
+      .expectOne({ method: 'GET', url: '/api/pipelines/100' })
+      .flush(null, { status: 0, statusText: 'Unknown Error' });
+    await fixture.whenStable();
+
+    expect(page().querySelector('[role=alert]')?.textContent).toBe(
+      'Not saved: someone else changed the settings of this pipeline after you opened them, and the current settings could not be loaded. The portal cannot be reached. Check your network connection and try again.',
+    );
+    expect(close).not.toHaveBeenCalled();
   });
 
   it('adds a Nexus IQ GoldenFix pipeline without a job of another pipeline', async () => {
@@ -158,12 +219,7 @@ describe('PipelineDialog', () => {
     expect(page().querySelector('dso-hint')?.textContent).toContain(
       "GoldenFix opens a pull request with safe versions in the service's Bitbucket repository",
     );
-    expect(labels()).toEqual([
-      'Pipeline type',
-      'Jenkins agent labels',
-      'Jenkins job',
-      'Description',
-    ]);
+    expect(labels()).toEqual(['Pipeline type', 'Jenkins agents', 'Jenkins job', 'Description']);
 
     await type('Jenkins job', 'DevSecOps/CERT/gui-nexusiq');
     await submit();
@@ -176,6 +232,7 @@ describe('PipelineDialog', () => {
       securityPipelineJob: null,
       jenkinsJob: 'DevSecOps/CERT/gui-nexusiq',
       description: null,
+      version: null,
     });
     const created = pipeline({ id: 104, type: 'NEXUS_IQ' });
     request.flush(created);
@@ -185,7 +242,7 @@ describe('PipelineDialog', () => {
   it('refuses unusable agent labels and job paths before sending', async () => {
     await render({ service: servicePipelines({ pipelines: [] }) });
 
-    await type('Jenkins agent labels', `linux && docker, ${'x'.repeat(101)}`);
+    await type('Jenkins agents', `linux && docker, ${'x'.repeat(101)}`);
     await type('Jenkins job', 'DevSecOps/CERT?branch=main');
     await submit();
 
@@ -235,7 +292,7 @@ describe('PipelineDialog', () => {
       }),
     );
 
-    expect(inputOf(page(), 'Jenkins agent labels').value).toBe('linux, docker');
+    expect(inputOf(page(), 'Jenkins agents').value).toBe('linux, docker');
     expect(inputOf(page(), 'Jenkins job').value).toBe('Teams/CERT/backend-api/security');
 
     form().controls.type.setValue('SAST');
@@ -251,7 +308,7 @@ describe('PipelineDialog', () => {
   it('keeps the BBH agent and an empty job when the template cannot be read', async () => {
     await render({ service: servicePipelines({ pipelines: [] }), productCode: 'CERT' }, null);
 
-    expect(inputOf(page(), 'Jenkins agent labels').value).toBe('linux-agent');
+    expect(inputOf(page(), 'Jenkins agents').value).toBe('linux-agent');
     expect(inputOf(page(), 'Jenkins job').value).toBe('');
   });
 });

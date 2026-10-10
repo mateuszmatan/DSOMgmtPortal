@@ -149,7 +149,13 @@ describe('PipelineList', () => {
 
     expect(text(page().querySelector('h1'))).toBe('DevSecOps Pipelines');
     expect(text(page().querySelector('.empty-state h3'))).toBe(
-      'Choose your department to see its pipelines.',
+      'Choose your department to see its pipelines',
+    );
+    expect(selectOf(page(), 'Your department').selectedOptions[0].textContent?.trim()).toBe(
+      'Choose your department',
+    );
+    expect(text(page().querySelector('.department dso-hint'))).toBe(
+      'Only the pipelines of this department are listed. This browser remembers your choice.',
     );
     expect(page().querySelector('dso-grid')).toBeNull();
 
@@ -158,9 +164,8 @@ describe('PipelineList', () => {
     http.expectOne('/api/pipelines?departmentId=5').flush({ pipelines: [], metricsError: null });
     await settle();
 
-    expect(text(page().querySelector('.empty-state h3'))).toBe(
-      'No DevSecOps pipeline in Fund Services yet',
-    );
+    expect(text(page().querySelector('.empty-state h3'))).toBe('No pipelines in Fund Services yet');
+    expect(text(page().querySelector('.empty-state a'))).toBe('Set up pipelines in Self-service');
     expect(page().querySelector('.empty-state a')?.getAttribute('href')).toBe('/self-service');
   });
 
@@ -175,11 +180,15 @@ describe('PipelineList', () => {
       'Product',
       'Type',
       'Jenkins job',
-      'Key',
+      'Pipeline key',
       'Last run',
-      'Ran',
+      'Finished',
       '',
     ]);
+    expect(text(page().querySelector('.list h2'))).toBe('Pipelines of Corporate Technology');
+    expect(text(page().querySelector('.list .section-help'))).toContain(
+      "Pipeline key: the secret code the service's Jenkins job uses to fetch its settings from this portal.",
+    );
     const [first, second, third] = gridRows(page());
     expect(cells(first, 'service', 'product', 'type', 'job', 'key', 'status')).toEqual([
       'gui',
@@ -187,17 +196,18 @@ describe('PipelineList', () => {
       'Full',
       'DevSecOps/CERT/gui-full',
       '6f1c2d3e…9abc',
-      'Success',
+      'Passed',
     ]);
     expect(text(gridCell(first, 'actions'))).toBe('Edit');
     expect(text(gridCell(second, 'key'))).toBe('Invalidated');
     expect(second.classList).toContain('muted');
     expect(first.classList).not.toContain('muted');
     expect(cells(third, 'type', 'job', 'lastRun')).toEqual(['Nexus IQ GoldenFix', 'Not set', '']);
-    expect(text(page().querySelector('.shown'))).toBe('3 of 3 pipelines');
+    expect(text(page().querySelector('.shown'))).toBe('3 pipelines');
     expect(gridCell(first, 'service').querySelector('a')?.getAttribute('href')).toBe(
       '/pipelines/100',
     );
+    expect(text(page().querySelector('.page-header a'))).toBe('Set up pipelines in Self-service');
     expect(page().querySelector('.page-header a')?.getAttribute('href')).toBe('/self-service');
 
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
@@ -211,12 +221,12 @@ describe('PipelineList', () => {
 
     await filter('product', 'pay');
     expect(shownServices()).toEqual(['gateway']);
-    expect(text(page().querySelector('.shown'))).toBe('1 of 3 pipelines');
+    expect(text(page().querySelector('.shown'))).toBe('1 of 3 pipelines shown');
     await filter('product', '');
 
-    await pick(gridFilter(page(), 'key'), 'Invalidated');
+    await pick(gridFilter(page(), 'pipeline key'), 'Invalidated');
     expect(shownServices()).toEqual(['api']);
-    await pick(gridFilter(page(), 'key'), 'All');
+    await pick(gridFilter(page(), 'pipeline key'), 'All');
     await pick(gridFilter(page(), 'type'), 'Nexus IQ GoldenFix');
     expect(shownServices()).toEqual(['gateway']);
     await pick(gridFilter(page(), 'type'), 'All');
@@ -252,7 +262,7 @@ describe('PipelineList', () => {
       .mockReturnValue({ closed: of(saved) } as unknown as DialogRef<unknown>);
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
 
-    buttonOf(page(), 'Edit the Full pipeline of gui').click();
+    buttonOf(page(), 'Edit the settings of the Full pipeline of gui').click();
     await settle();
 
     expect(opened.mock.calls[0][0]).toBe(PipelineDialog);
@@ -275,6 +285,45 @@ describe('PipelineList', () => {
       .flush({ detail: 'Department 5 does not exist' }, { status: 404, statusText: 'Not Found' });
     await settle();
 
-    expect(text(page().querySelector('.banner'))).toBe('Department 5 does not exist');
+    expect(text(page().querySelector('.banner .banner-text'))).toBe(
+      'The pipelines could not be loaded. Department 5 does not exist',
+    );
+
+    buttonOf(page(), 'Try again').click();
+    await settle();
+    http.expectOne('/api/pipelines?departmentId=5').flush({ pipelines: [gui], metricsError: null });
+    await settle();
+
+    expect(page().querySelector('.banner')).toBeNull();
+    expect(shownServices()).toEqual(['gui']);
+  });
+
+  it('says when the departments could not be loaded and loads them again', async () => {
+    localStorage.setItem(MY_DEPARTMENT_KEY, '3');
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    });
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(PipelineList);
+    await settle();
+    http
+      .expectOne('/api/departments')
+      .flush({ detail: 'The database is not available' }, { status: 503, statusText: 'Down' });
+    http.expectOne('/api/pipelines?departmentId=3').flush({ pipelines: [], metricsError: null });
+    await settle();
+
+    expect(text(page().querySelector('.banner .banner-text'))).toBe(
+      'The departments could not be loaded. The database is not available',
+    );
+
+    buttonOf(page(), 'Try again').click();
+    await settle();
+    http.expectOne('/api/departments').flush([department()]);
+    await settle();
+
+    expect(page().querySelector('.banner')).toBeNull();
+    expect(text(page().querySelector('.empty-state h3'))).toBe(
+      'No pipelines in Corporate Technology yet',
+    );
   });
 });

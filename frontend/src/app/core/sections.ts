@@ -19,28 +19,32 @@ export const PIPELINES: PortalSection = {
   path: '/pipelines',
   label: 'Pipelines',
   heading: 'DevSecOps Pipelines',
-  description: 'The pipelines of your department with their keys, settings and last runs',
+  description:
+    "Every automated build, test and security pipeline of your department's products. Open one to see its key, its Jenkinsfile and its latest runs.",
 };
 
 export const SELF_SERVICE: PortalSection = {
   path: '/self-service',
   label: 'Self-service',
   heading: 'DevSecOps Self-service',
-  description: 'Set up or change the DevSecOps pipelines of your product, step by step',
+  description:
+    'Set up the DevSecOps pipelines of your product, or change them, in five guided steps. No DevSecOps knowledge needed.',
 };
 
 export const MONITORING: PortalSection = {
   path: '/monitoring',
   label: 'Pipeline Monitoring',
   heading: 'DevSecOps Pipeline Monitoring',
-  description: 'Pipeline status and DORA metrics',
+  description:
+    'How the pipelines of every product are doing: whether their latest runs passed, and how often and how safely changes reach production.',
 };
 
 export const EVIDENCE: PortalSection = {
   path: '/evidence',
   label: 'Change Evidence',
   heading: 'DevSecOps Change Evidence',
-  description: 'Builds, tests and scans for ServiceNow changes',
+  description:
+    'Proof for a ProTech change: the builds, tests and security scans behind each pipeline of a product.',
 };
 
 export const ADMIN: PortalSection = {
@@ -48,7 +52,7 @@ export const ADMIN: PortalSection = {
   label: 'Admin',
   heading: 'DevSecOps Admin',
   description:
-    'Departments, products, services, the template of a new service and the DSOEnhanced library defaults',
+    'Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.',
 };
 
 export const SECTIONS: readonly PortalSection[] = [
@@ -73,21 +77,24 @@ export const CHANGES: PortalSection = {
   path: '/beadle/changes',
   label: 'Changes',
   heading: 'ProTech Changes',
-  description: 'The ProTech changes of your department, read from ProTech each time you open them',
+  description:
+    'The ProTech changes of your department and where each one is in its approval workflow. A change is read again from ProTech when you open it.',
 };
 
 export const NEW_CHANGE: PortalSection = {
   path: '/beadle/new-change',
   label: 'New Change',
   heading: 'New ProTech Change',
-  description: 'Raise a ProTech change (CHG) with its change tasks (CTASK), written from Jira',
+  description:
+    "Raise a ProTech change for a production release in guided steps. The product's change template fills in the answers and Jira provides the scope.",
 };
 
 export const BEADLE_ADMIN: PortalSection = {
   path: '/beadle/admin',
   label: 'Admin',
   heading: 'Beadle Admin',
-  description: 'Departments, products and the change template of each product',
+  description:
+    "Departments, products and each product's change template: the answers every new change of the product starts with.",
 };
 
 export const BEADLE_DEPARTMENTS: PortalTab = {

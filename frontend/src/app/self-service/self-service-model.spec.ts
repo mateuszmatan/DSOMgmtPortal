@@ -1,4 +1,12 @@
-import { pipeline, product, service, servicePipelines, serviceTemplate } from '../testing/fixtures';
+import { RETRY, UNREACHABLE } from '../core/errors';
+import {
+  globalSettings,
+  pipeline,
+  product,
+  service,
+  servicePipelines,
+  serviceTemplate,
+} from '../testing/fixtures';
 import {
   WizardService,
   changesOf,
@@ -6,13 +14,13 @@ import {
   fromService,
   jobName,
   namedDefaults,
+  notLoaded,
   pipelineChoices,
   pipelineNames,
-  pipelineReach,
   preparation,
   problemText,
   productRequest,
-  reviewGroups,
+  reviewEntries,
   serviceRequest,
   serviceSummary,
   servicesToStart,
@@ -39,14 +47,13 @@ function added(overrides: Partial<WizardService> = {}): WizardService {
 
 describe('self-service model', () => {
   it('asks only what the chosen pipeline needs', () => {
-    expect(preparation('SAST')).toHaveLength(3);
+    expect(preparation('SAST')).toHaveLength(2);
     expect(preparation('FULL')).toContain(
-      'Whether each service runs on virtual machines or OpenShift',
+      'Whether each service runs on virtual machines or on OpenShift',
     );
     expect(preparation('NEXUS_IQ')).toEqual([
-      "Your product's AppScan API key ID, from the Application Security team",
-      'The name and the AppScan application ID of each service',
-      'Whether each service is built with Gradle or Maven',
+      'The name of each service and its AppScan application ID, from the Application Security team',
+      'Whether each service is built with Gradle or Maven; a developer of the service knows',
       'The Nexus IQ application and the Bitbucket repository of each service',
     ]);
   });
@@ -411,6 +418,71 @@ describe('self-service model', () => {
     expect(request.build).toEqual(stored.build);
   });
 
+  it('builds a new service, and one that gets another build tool, from the source folder of the library defaults', () => {
+    const defaults = globalSettings().serviceDefaults;
+    const stored = service();
+    const created = serviceRequest(added(), 'SECURITY', TEMPLATE, undefined, defaults);
+    const retooled = serviceRequest(
+      { ...fromService(stored), tool: 'MAVEN' },
+      'FULL',
+      TEMPLATE,
+      stored,
+      defaults,
+    );
+
+    expect(defaults.sourceDir).toBe('app');
+    expect(created.build).toEqual(expect.objectContaining({ tool: 'GRADLE', sourceDir: 'app' }));
+    expect(created.deployment.target).toBe('VM');
+    expect(retooled.build).toEqual(expect.objectContaining({ tool: 'MAVEN', sourceDir: 'app' }));
+    expect(serviceRequest(fromService(stored), 'FULL', TEMPLATE, stored, defaults).build).toEqual(
+      stored.build,
+    );
+  });
+
+  it('gives a service of the portal on OpenShift the image build context of its new build tool', () => {
+    const stored = service({
+      ...serviceRequest(
+        added({ name: 'gui', target: 'OPENSHIFT', openShiftProject: 'cert-gui' }),
+        'FULL',
+        TEMPLATE,
+      ),
+      id: 10,
+    });
+    const request = serviceRequest(
+      { ...fromService(stored), tool: 'MAVEN' },
+      'FULL',
+      TEMPLATE,
+      stored,
+    );
+
+    expect(stored.openShiftTargets.RD?.buildContext).toBe('build/docker');
+    expect(request.deployment).toEqual(stored.deployment);
+    expect(request.openShiftTargets).toEqual({
+      ...stored.openShiftTargets,
+      RD: { ...stored.openShiftTargets.RD, buildContext: 'target/docker' },
+    });
+  });
+
+  it('gives a Maven service of the portal without a build path one when it moves to virtual machines', () => {
+    const stored = service({
+      build: { ...service().build, tool: 'MAVEN', buildPath: null },
+      deployment: {
+        target: 'OPENSHIFT',
+        appName: 'gui',
+        artifactName: 'gui.jar',
+        baseArtifactName: null,
+      },
+    });
+    const request = serviceRequest(
+      { ...fromService(stored), target: 'VM' },
+      'FULL',
+      TEMPLATE,
+      stored,
+    );
+
+    expect(request.build).toEqual({ ...stored.build, buildPath: 'target/*.jar' });
+  });
+
   it('reads a service of the portal back for the wizard', () => {
     expect(fromService(service({ description: null }))).toEqual({
       id: 10,
@@ -525,25 +597,25 @@ describe('self-service model', () => {
     const openShift = added({ target: 'OPENSHIFT', openShiftProject: 'pay-payhub' });
 
     expect(serviceSummary('FULL', openShift)).toBe(
-      'Gradle · runs on OpenShift · project pay-payhub',
+      'Built with Gradle, runs on OpenShift in project pay-payhub.',
     );
-    expect(serviceSummary('SAST', openShift)).toBe('Gradle');
+    expect(serviceSummary('SAST', openShift)).toBe('Built with Gradle.');
     expect(serviceSummary('SAST', fromService(service()))).toBe(
-      'Gradle · runs on Virtual machines',
+      'Built with Gradle, runs on virtual machines.',
     );
     expect(
       serviceSummary(
         'SECURITY',
         fromService(service({ build: { ...service().build, tool: 'FLUTTER' } })),
       ),
-    ).toBe('Flutter · runs on Virtual machines');
+    ).toBe('Built with Flutter, runs on virtual machines.');
     expect(serviceSummary('NEXUS_IQ', { ...openShift, nexusIqApplication: 'payhub-gateway' })).toBe(
-      'Gradle · Nexus IQ payhub-gateway',
+      'Built with Gradle, Nexus IQ application payhub-gateway.',
     );
     expect(serviceSummary('NEXUS_IQ', fromService(service()))).toBe(
-      'Gradle · runs on Virtual machines · Nexus IQ cert-gui',
+      'Built with Gradle, runs on virtual machines, Nexus IQ application cert-gui.',
     );
-    expect(serviceSummary('NEXUS_IQ', added())).toBe('Gradle');
+    expect(serviceSummary('NEXUS_IQ', added())).toBe('Built with Gradle.');
   });
 
   it('says what changes for a service of the portal', () => {
@@ -572,7 +644,7 @@ describe('self-service model', () => {
       'no description',
       'new AppScan application ID',
       'built with Maven instead of Gradle, with the default build settings',
-      'runs on OpenShift in project cert-web instead of Virtual machines, with the default deployment settings',
+      'runs on OpenShift in project cert-web instead of virtual machines, with the default deployment settings',
     ]);
     expect(changesOf('SAST', { ...same, description: 'Web front end' }, stored)).toEqual([
       'new description',
@@ -585,37 +657,52 @@ describe('self-service model', () => {
     expect(changesOf('FULL', nexusIq, stored)).toEqual([]);
   });
 
-  it('groups the services for the review', () => {
+  it('says in plain words what saving does to each service', () => {
     const stored = [
       service(),
       service({ id: 11, name: 'api' }),
       service({ id: 12, name: 'batch' }),
+      service({ id: 13, name: 'web' }),
     ];
-    const [gui, api, batch] = stored.map(fromService);
+    const current = [
+      servicePipelines({ serviceId: 10, pipelines: [pipeline({ type: 'SECURITY' })] }),
+      servicePipelines({ serviceId: 11, pipelines: [pipeline()] }),
+      servicePipelines({ serviceId: 13, pipelines: [pipeline({ type: 'SECURITY' })] }),
+    ];
+    const [gui, api, batch, web] = stored.map(fromService);
 
     expect(
-      reviewGroups('SECURITY', [gui, { ...api, tool: 'MAVEN' }, batch, added()], stored, [12]),
+      reviewEntries(
+        'SECURITY',
+        [gui, { ...api, tool: 'MAVEN' }, batch, { ...web, description: '' }, added()],
+        stored,
+        [12],
+        current,
+      ),
     ).toEqual([
+      { name: 'gui', tag: null, text: 'Already has a Security pipeline; nothing changes.' },
       {
-        label: 'Added',
-        services: [{ name: 'gateway', text: 'Gradle · runs on Virtual machines' }],
+        name: 'api',
+        tag: 'Changed',
+        text: 'Gets a Security pipeline with its own key. Built with Maven instead of Gradle, with the default build settings.',
+      },
+      { name: 'batch', tag: 'Removed', text: 'Deleted, with its pipelines and their keys.' },
+      {
+        name: 'web',
+        tag: 'Changed',
+        text: 'Keeps its Security pipeline. No description.',
       },
       {
-        label: 'Changed',
-        services: [
-          {
-            name: 'api',
-            text: 'built with Maven instead of Gradle, with the default build settings',
-          },
-        ],
+        name: 'gateway',
+        tag: 'New',
+        text: 'Added with a Security pipeline and its own key. Built with Gradle, runs on virtual machines.',
       },
+    ]);
+    expect(reviewEntries('NEXUS_IQ', [gui], stored, [], null)).toEqual([
       {
-        label: 'Removed',
-        services: [{ name: 'batch', text: 'Gradle · runs on Virtual machines' }],
-      },
-      {
-        label: 'Unchanged',
-        services: [{ name: 'gui', text: 'Gradle · runs on Virtual machines' }],
+        name: 'gui',
+        tag: null,
+        text: 'Gets an OSA pipeline with its own key; nothing else changes.',
       },
     ]);
   });
@@ -651,19 +738,19 @@ describe('self-service model', () => {
     expect(pipelineChoices(null).every((choice) => choice.note === undefined)).toBe(true);
   });
 
-  it('names the services the chosen pipeline is added to', () => {
-    const stored = [
-      servicePipelines({ serviceId: 1, pipelines: [pipeline({ type: 'SAST' })] }),
-      servicePipelines({ serviceId: 2, pipelines: [pipeline()] }),
-    ];
-    const gui = added({ id: 1, name: 'gui' });
-    const api = added({ id: 2, name: 'api' });
-    const batch = added({ name: 'batch' });
-
-    expect(pipelineReach('SAST', [gui, api, batch], stored)).toBe('SAST · added to api and batch');
-    expect(pipelineReach('FULL', [api], stored)).toBe('Full · every service has it already');
-    expect(pipelineReach('SECURITY', [gui, api], stored)).toBe('Security · added to every service');
-    expect(pipelineReach('FULL', [batch], null)).toBe('Full · added to every service');
+  it('says what could not be loaded and what to do', () => {
+    expect(notLoaded('The products', 'Database unavailable')).toBe(
+      `The products could not be loaded. Database unavailable. ${RETRY}`,
+    );
+    expect(notLoaded('The products', `The portal could not complete the request. ${RETRY}`)).toBe(
+      `The products could not be loaded. The portal could not complete the request. ${RETRY}`,
+    );
+    expect(notLoaded('The products', UNREACHABLE)).toBe(
+      `The products could not be loaded. ${UNREACHABLE}`,
+    );
+    expect(notLoaded('The service template', 'Database unavailable', true)).toBe(
+      'The service template could not be loaded. Database unavailable.',
+    );
   });
 
   it('finds the pipeline of the chosen type for every service', () => {
@@ -671,14 +758,15 @@ describe('self-service model', () => {
     const starts = servicesToStart(
       [
         servicePipelines({ serviceName: 'gui', pipelines: [pipeline(), security] }),
-        servicePipelines({ serviceName: 'api', pipelines: [pipeline()] }),
+        servicePipelines({ serviceId: 11, serviceName: 'api', pipelines: [pipeline()] }),
       ],
       'SECURITY',
+      product(),
     );
 
     expect(starts).toEqual([
-      { serviceName: 'gui', pipeline: security },
-      { serviceName: 'api', pipeline: null },
+      { serviceName: 'gui', repository: service().scm.repositoryUrl, pipeline: security },
+      { serviceName: 'api', repository: '', pipeline: null },
     ]);
     expect(jobName(security)).toBe('DevSecOps/CERT/gui-full');
     expect(jobName({ ...security, jenkinsJob: null })).toBe('DevSecOps/CERT/gui-security');

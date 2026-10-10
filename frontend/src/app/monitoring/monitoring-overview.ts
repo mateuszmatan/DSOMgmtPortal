@@ -4,7 +4,7 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { DepartmentsApi, MonitoringApi } from '../core/api';
-import { errorMessage } from '../core/errors';
+import { RETRY, errorMessage } from '../core/errors';
 import { ProductHealth, RunResult } from '../core/models';
 import { MONITORING } from '../core/sections';
 import { byDepartment } from '../products/departments';
@@ -103,14 +103,26 @@ export class MonitoringOverview {
     const totals = statusTotals(this.overview.hasValue() ? this.overview.value().products : []);
     return [
       { label: 'Pipelines', value: pipelineCount(totals), tone: 'info' },
-      { label: 'Succeeded', value: totals.SUCCESS ?? 0, tone: 'success' },
+      { label: 'Passed', value: totals.SUCCESS ?? 0, tone: 'success' },
       {
-        label: 'Failing or unstable',
+        label: 'Failed or passed with warnings',
         value: (totals.FAILURE ?? 0) + (totals.UNSTABLE ?? 0),
         tone: 'danger',
       },
       { label: 'Keys invalidated', value: totals.DISABLED ?? 0, tone: 'neutral' },
     ];
+  });
+
+  protected readonly activityProblem = computed(() => {
+    const error = this.activity.error();
+    if (error) {
+      return errorMessage(error);
+    }
+    const metricsError = this.activity.hasValue() ? this.activity.value().metricsError : null;
+    const configured = !this.status.hasValue() || this.status.value().influxConfigured;
+    return metricsError && configured
+      ? `The run results could not be read (${metricsError}). ${RETRY}`
+      : null;
   });
 
   protected readonly statusOrder = STATUS_ORDER;
@@ -119,6 +131,7 @@ export class MonitoringOverview {
   protected refresh(): void {
     this.status.reload();
     this.overview.reload();
+    this.departments.reload();
     this.activity.reload();
   }
 }

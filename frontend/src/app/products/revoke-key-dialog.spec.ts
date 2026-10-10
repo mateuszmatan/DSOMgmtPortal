@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
+import { text } from '../testing/dom';
 import { pipeline } from '../testing/fixtures';
 import { RevokeKeyDialog } from './revoke-key-dialog';
 
@@ -33,15 +34,18 @@ describe('RevokeKeyDialog', () => {
   const page = () => fixture.nativeElement as HTMLElement;
   const reason = () => page().querySelector<HTMLTextAreaElement>('textarea')!;
 
-  async function submit(text: string) {
-    reason().value = text;
+  async function submit(typed: string) {
+    reason().value = typed;
     reason().dispatchEvent(new Event('input'));
     page().querySelector<HTMLButtonElement>('button[type=submit]')!.click();
     await fixture.whenStable();
   }
 
   it('names the pipeline and asks for a reason first', async () => {
-    expect(page().querySelector('.banner')?.textContent).toContain('full pipeline of');
+    expect(text(page().querySelector('h2'))).toBe('Invalidate the key of the pipeline gui · Full?');
+    expect(text(page().querySelector('.banner'))).toBe(
+      'The full pipeline of gui is refused its settings from now on and stops at its next start. This key cannot be used again; to let the pipeline run later, regenerate its key.',
+    );
     expect(page().querySelector('.banner strong')?.textContent).toBe('gui');
 
     await submit('');

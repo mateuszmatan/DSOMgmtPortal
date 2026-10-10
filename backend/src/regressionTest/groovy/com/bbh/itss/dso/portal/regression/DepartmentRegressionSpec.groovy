@@ -157,10 +157,11 @@ class DepartmentRegressionSpec extends ChangeRegressionSpecification {
         response.json.errors*.field == ['name']
 
         where:
-        problem    | name
-        'missing'  | null
-        'blank'    | '   '
-        'too long' | 'D' * 101
+        problem                       | name
+        'missing'                     | null
+        'blank'                       | '   '
+        'too long'                    | 'D' * 101
+        'longer than 100 UTF-8 bytes' | 'Księgowość ' * 9
     }
 
     def "an unknown department is not found"() {

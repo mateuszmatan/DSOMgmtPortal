@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { catchError, finalize, of } from 'rxjs';
+import { EMPTY, Observable, catchError, finalize, ignoreElements, of, tap, throwError } from 'rxjs';
 import { PipelinesApi, ServiceTemplateApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
 import {
@@ -13,6 +14,7 @@ import {
   ServicePipelines,
   ServiceTemplate,
 } from '../core/models';
+import { KEY_MEANING, pipelineName } from '../pipelines/pipeline-texts';
 import { Field, Fields, area, choice, mono } from '../shared/fields';
 import {
   applyFieldProblems,
@@ -40,6 +42,19 @@ export const JENKINS_JOB = /^(https?:\/\/\S+|[^\s:?#][^:?#]*)$/;
 export const JOB_PATH = /^(?!.*\.\.)[A-Za-z0-9._ /-]+$/;
 const JOB_PATH_ERROR = "A job path such as DevSecOps/CERT/backend-api-extended, without '..'";
 const MAX_LABELS = 20;
+const STALE =
+  'Not saved: someone else changed the settings of this pipeline after you opened them. ' +
+  'The form now shows their settings: make your change again, then save.';
+
+function settingsOf(pipeline: Pipeline | undefined) {
+  return {
+    agentLabels: joinWords(pipeline?.agentLabels ?? ['linux-agent'], ', '),
+    jenkinsJob: pipeline?.jenkinsJob ?? '',
+    extendedPipelineJob: pipeline?.extendedPipelineJob ?? '',
+    securityPipelineJob: pipeline?.securityPipelineJob ?? '',
+    description: pipeline?.description ?? '',
+  };
+}
 
 @Component({
   selector: 'dso-pipeline-dialog',
@@ -54,11 +69,18 @@ export class PipelineDialog {
   private readonly api = inject(PipelinesApi);
 
   protected readonly editing = this.data.pipeline !== undefined;
+  protected readonly title = this.data.pipeline
+    ? `Settings of the pipeline ${pipelineName(this.data.pipeline)}`
+    : `Add a pipeline to ${this.data.service.serviceName}`;
+  protected readonly keyMeaning = KEY_MEANING;
   protected readonly types = PIPELINE_TYPES.filter(
     (type) =>
       type.value === this.data.pipeline?.type ||
       !this.data.service.pipelines.some((p) => p.type === type.value),
   );
+
+  private readonly stored = settingsOf(this.data.pipeline);
+  private version = this.data.pipeline?.version ?? null;
 
   protected readonly form = new FormGroup({
     type: new FormControl<PipelineType>(
@@ -66,25 +88,25 @@ export class PipelineDialog {
       { nonNullable: true },
     ),
     agentLabels: text(
-      joinWords(this.data.pipeline?.agentLabels ?? ['linux-agent'], ', '),
+      this.stored.agentLabels,
       filled,
       (control) =>
         commaItems(control.value).length > MAX_LABELS ? { maxItems: { max: MAX_LABELS } } : null,
       eachItem(commaItems, AGENT_LABEL, 'At most 100 characters per label'),
       fitsColumn(commaItems, ',', 1000),
     ),
-    jenkinsJob: text(this.data.pipeline?.jenkinsJob, Validators.pattern(JENKINS_JOB), max(1000)),
+    jenkinsJob: text(this.stored.jenkinsJob, Validators.pattern(JENKINS_JOB), max(1000)),
     extendedPipelineJob: text(
-      this.data.pipeline?.extendedPipelineJob,
+      this.stored.extendedPipelineJob,
       Validators.pattern(JOB_PATH),
       max(500),
     ),
     securityPipelineJob: text(
-      this.data.pipeline?.securityPipelineJob,
+      this.stored.securityPipelineJob,
       Validators.pattern(JOB_PATH),
       max(500),
     ),
-    description: text(this.data.pipeline?.description, max(1000)),
+    description: text(this.stored.description, max(1000)),
   });
 
   private readonly type = toSignal(this.form.controls.type.valueChanges, {
@@ -103,9 +125,11 @@ export class PipelineDialog {
       mono(key, label, code, 12, { placeholder: example, hint, error: JOB_PATH_ERROR });
     return [
       choice('type', 'Pipeline type', this.types, '', 12, { hint: type?.description ?? '' }),
-      mono('agentLabels', 'Jenkins agent labels', 'agentNames', 12, {
+      mono('agentLabels', 'Jenkins agents', '', 12, {
         placeholder: 'linux-agent, linux && docker',
-        hint: 'labels or label expressions, separated by commas; the pipeline runs on an agent matching one of them',
+        hint:
+          'The machines the pipeline runs on: Jenkins agent labels or label expressions, separated by ' +
+          'commas. The pipeline runs on an agent that matches one of them. `agentNames`',
       }),
       {
         ...job(
@@ -113,7 +137,8 @@ export class PipelineDialog {
           'Jenkins job',
           '',
           'DevSecOps/CERT/backend-api-full',
-          'The job the pipeline runs in: its path, linked under the Jenkins URL of the library defaults, or its full URL',
+          'Where the pipeline runs in Jenkins: the path of its job, which the portal links under the ' +
+            'Jenkins URL of the library defaults, or the full address of the job',
         ),
         error: 'A job path such as DevSecOps/CERT/backend-api-full, or an http or https URL',
       },
@@ -122,9 +147,10 @@ export class PipelineDialog {
             job(
               'extendedPipelineJob',
               'Extended pipeline job',
-              'jenkins.pipeline.extendedPipeline',
+              '',
               'CERT/backend-api-extended',
-              'the job the security pipeline starts after its scans, if any',
+              'Optional. The extended pipeline this pipeline starts after its scans. ' +
+                '`jenkins.pipeline.extendedPipeline`',
             ),
           ]
         : []),
@@ -133,14 +159,15 @@ export class PipelineDialog {
             job(
               'securityPipelineJob',
               'Security pipeline job',
-              'securityPipeline',
+              '',
               'CERT/backend-api-security',
-              'the security pipeline whose artifacts this pipeline deploys and tests',
+              'The security pipeline whose build this pipeline deploys and tests. `securityPipeline`',
             ),
           ]
         : []),
       area('description', 'Description', '', 12, {
         placeholder: 'Nightly security scan of the develop branch',
+        hint: "Optional. Shown on the pipeline's page.",
       }),
     ];
   });
@@ -205,6 +232,7 @@ export class PipelineDialog {
         value.type === 'EXTENDED' ? value.securityPipelineJob.trim() || null : null,
       jenkinsJob: value.jenkinsJob.trim() || null,
       description: value.description.trim() || null,
+      version: this.version,
     };
     const pipeline = this.data.pipeline;
     this.saving.set(true);
@@ -213,7 +241,14 @@ export class PipelineDialog {
       ? this.api.update(pipeline.id, request)
       : this.api.create(this.data.service.serviceId, request)
     )
-      .pipe(finalize(() => this.saving.set(false)))
+      .pipe(
+        catchError((error) =>
+          pipeline && error instanceof HttpErrorResponse && error.status === 409
+            ? this.reload(pipeline.id)
+            : throwError(() => error),
+        ),
+        finalize(() => this.saving.set(false)),
+      )
       .subscribe({
         next: (saved) => this.dialogRef.close(saved),
         error: (error) => {
@@ -226,5 +261,23 @@ export class PipelineDialog {
           );
         },
       });
+  }
+
+  private reload(id: number): Observable<never> {
+    return this.api.get(id).pipe(
+      tap((current) => {
+        this.version = current.version;
+        this.form.reset(settingsOf(current));
+        this.error.set(STALE);
+      }),
+      catchError((error) => {
+        this.error.set(
+          'Not saved: someone else changed the settings of this pipeline after you opened them, ' +
+            `and the current settings could not be loaded. ${errorMessage(error)}`,
+        );
+        return EMPTY;
+      }),
+      ignoreElements(),
+    );
   }
 }

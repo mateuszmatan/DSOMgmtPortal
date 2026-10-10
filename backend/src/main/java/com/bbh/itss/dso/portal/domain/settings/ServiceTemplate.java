@@ -5,16 +5,18 @@ import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 import lombok.Builder;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.DEFAULT_AGENT_LABEL;
-import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.JENKINS_JOB_MAX;
 import static com.bbh.itss.dso.portal.domain.shared.StoredList.COMMAS_1000;
 import static com.bbh.itss.dso.portal.domain.shared.Text.bytes;
 import static com.bbh.itss.dso.portal.domain.shared.Text.clean;
+import static java.util.Comparator.comparingInt;
 import static java.util.Locale.ROOT;
 import static java.util.regex.Matcher.quoteReplacement;
 import static java.util.stream.Collectors.joining;
@@ -34,6 +36,8 @@ public record ServiceTemplate(List<String> agentLabels, String jenkinsJob, Strin
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{([^{}]*)}");
     private static final String LONGEST_CODE = repeat('X', 50);
     private static final String LONGEST_SERVICE = repeat('x', 100);
+    private static final String LONGEST_TYPE = Arrays.stream(PipelineType.values()).map(PipelineType::variant)
+            .max(comparingInt(String::length)).orElseThrow();
 
     public ServiceTemplate {
         agentLabels = clean(agentLabels);
@@ -68,7 +72,7 @@ public record ServiceTemplate(List<String> agentLabels, String jenkinsJob, Strin
     public void validate(ValidationProblems problems) {
         problems.require("agentLabels", agentLabels, "add at least one Jenkins agent label");
         COMMAS_1000.check(problems, "agentLabels", agentLabels);
-        checkPattern(problems, "jenkinsJob", jenkinsJob, JOB_PLACEHOLDERS, 1000);
+        checkPattern(problems, "jenkinsJob", jenkinsJob, JOB_PLACEHOLDERS, JENKINS_JOB_MAX);
         checkPattern(problems, "nexusIqApplication", nexusIqApplication, SERVICE_PLACEHOLDERS, 200);
         checkPattern(problems, "repositoryUrl", repositoryUrl, SERVICE_PLACEHOLDERS, 1000);
         checkPattern(problems, "openShiftProject", openShiftProject, SERVICE_PLACEHOLDERS, 194);
@@ -103,7 +107,7 @@ public record ServiceTemplate(List<String> agentLabels, String jenkinsJob, Strin
                 .filter(name -> !known.contains(name)).distinct().toList();
         if (!unknown.isEmpty()) {
             problems.add(field, "knows no placeholder " + braced(unknown) + ": use " + braced(known));
-        } else if (bytes(fill(pattern, LONGEST_CODE, LONGEST_SERVICE, NEXUS_IQ.variant())) > maxBytes) {
+        } else if (bytes(fill(pattern, LONGEST_CODE, LONGEST_SERVICE, LONGEST_TYPE)) > maxBytes) {
             problems.add(field, "is too long once the longest product code and service name are filled in: it may"
                     + " take at most " + maxBytes + " bytes");
         }

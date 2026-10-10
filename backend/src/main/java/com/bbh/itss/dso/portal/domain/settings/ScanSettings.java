@@ -6,8 +6,7 @@ import lombok.Builder;
 
 @Builder
 public record ScanSettings(Integer coverageMinLine, Integer sastPrepareTimeoutMinutes, Integer sastPollTimeoutMinutes,
-                           Integer sastPollIntervalSeconds, Boolean scaEnabled, Integer scaPollTimeoutMinutes,
-                           Integer scaPollIntervalSeconds, Integer dastPollTimeoutMinutes,
+                           Integer sastPollIntervalSeconds, Integer dastPollTimeoutMinutes,
                            Integer dastPollIntervalSeconds, Integer dastReportTimeoutMinutes,
                            Integer dastReportIntervalSeconds, Boolean sonarWaitForQualityGate,
                            Integer sonarQualityGateTimeoutMinutes) {
@@ -25,9 +24,6 @@ public record ScanSettings(Integer coverageMinLine, Integer sastPrepareTimeoutMi
                 .set("sast.prepareTimeoutMin", sastPrepareTimeoutMinutes)
                 .set("sast.pollTimeoutMin", sastPollTimeoutMinutes)
                 .set("sast.pollIntervalSec", sastPollIntervalSeconds)
-                .set("sca.enabled", scaEnabled)
-                .set("sca.pollTimeoutMin", scaPollTimeoutMinutes)
-                .set("sca.pollIntervalSec", scaPollIntervalSeconds)
                 .set("dast.pollTimeoutMin", dastPollTimeoutMinutes)
                 .set("dast.pollIntervalSec", dastPollIntervalSeconds)
                 .set("dast.reportTimeoutMin", dastReportTimeoutMinutes)

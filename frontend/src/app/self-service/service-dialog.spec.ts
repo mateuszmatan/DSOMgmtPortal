@@ -67,6 +67,7 @@ describe('ServiceDialog', () => {
     await open();
 
     expect(text(page().querySelector('.page-count'))).toBe('Part 1 of 2 · About the service');
+    expect(text(page().querySelector('button[type=submit]'))).toBe('Next: Build and run');
 
     await type('Service name', 'GUI');
     await type('AppScan application ID', 'not-an-id');
@@ -247,6 +248,31 @@ describe('ServiceDialog', () => {
     expect(page().querySelectorAll('[role=radiogroup]')).toHaveLength(1);
     expect(text(page().querySelector('.note'))).toBe(
       'If you change how it is built, its build settings go back to the BBH defaults.',
+    );
+
+    await submit();
+
+    expect(close).toHaveBeenCalledWith(service);
+  });
+
+  it('says how a service of the portal is built when no tile matches and keeps it that way', async () => {
+    const service: WizardService = {
+      id: 12,
+      name: 'mobile-app',
+      description: '',
+      appScanId: APP_ID,
+      tool: 'FLUTTER',
+      target: 'VM',
+      openShiftProject: '',
+      nexusIqApplication: '',
+      repositoryUrl: '',
+    };
+    await open({ service, pipeline: 'SAST', takenNames: [] });
+    await submit();
+
+    expect(page().querySelector('[role=radio][aria-checked=true]')).toBeNull();
+    expect([...page().querySelectorAll('.help')].map(text)).toContain(
+      'It is built with Flutter today. Choose Gradle or Maven only if that changes.',
     );
 
     await submit();

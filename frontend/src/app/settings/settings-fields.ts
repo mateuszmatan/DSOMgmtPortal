@@ -5,7 +5,6 @@ import {
   check,
   choice,
   count,
-  line,
   mono,
 } from '../shared/fields';
 import { SHELL_SAFE_ERROR, SHELL_SAFE_URL_ERROR } from '../shared/form-controls';
@@ -33,36 +32,37 @@ const minutes = (key: string, label: string, code: string, span = 4): Field =>
 export const SETTINGS_PAGE: SettingsSection[] = [
   {
     id: 'platform',
-    label: 'Platform and tools',
+    label: 'Tools and servers',
     note:
-      'The BBH tool servers every pipeline talks to, sent as `platform` and as the tool settings ' +
-      'of every service. Credentials are Jenkins credential IDs, never secrets.',
+      'The addresses of the BBH tools every pipeline talks to. They change only when a tool ' +
+      'moves, and the DevSecOps team then gives you the new value. Credentials are the names of ' +
+      'Jenkins credentials, never passwords.',
     blocks: [
       {
         heading: 'Jenkins',
-        note: 'Where the pipelines run and the shared library their Jenkinsfiles load.',
+        note: 'Where the pipelines run, and the shared library their Jenkinsfiles load.',
         fields: [
           mono('jenkinsUrl', 'Jenkins URL', 'platform.jenkinsUrl', 7, {
             placeholder: 'https://jenkins.bbh.com/',
-            hint: 'links the Jenkins job of each pipeline',
+            hint: 'The portal links the Jenkins job of each pipeline from it',
           }),
           mono('jenkinsLibrary', 'Shared library', 'platform.jenkinsLibrary', 5, {
-            hint: 'the `@Library` name',
+            hint: 'The name every Jenkinsfile loads with `@Library`',
           }),
         ],
       },
       {
         heading: 'HCL AppScan',
-        note: 'The AppScan on Cloud service, the static analysis clients and the proxy its calls go through.',
+        note: 'The service that runs the security scans, the scan clients the pipelines download and the proxy they reach AppScan through.',
         fields: [
           mono('asocUrl', 'AppScan on Cloud URL', 'asoc.url', 12, {
             placeholder: 'https://cloud.appscan.com',
-            hint: '`APPSCAN_SERVER_URL`',
+            hint: 'The address of the AppScan service, also sent as `APPSCAN_SERVER_URL`',
           }),
-          mono('appScanClientLinuxUrl', 'Static analysis client for Linux', 'SA_LINUX_URL', 6),
-          mono('appScanClientWindowsUrl', 'Static analysis client for Windows', 'SA_WIN_URL', 6),
+          mono('appScanClientLinuxUrl', 'Scan client download for Linux', 'SA_LINUX_URL', 6),
+          mono('appScanClientWindowsUrl', 'Scan client download for Windows', 'SA_WIN_URL', 6),
           mono('proxyHost', 'Proxy host', 'PROXY_HOST', 5, {
-            hint: 'set together with the port',
+            hint: 'Set together with the port, or leave both empty',
             error: HOST_ERROR,
           }),
           {
@@ -80,7 +80,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
       },
       {
         heading: 'SonarQube and Nexus IQ',
-        note: 'The quality and dependency policy servers every service reports to.',
+        note: 'The servers that check the code quality (SonarQube) and the open source libraries (Nexus IQ) of every service.',
         fields: [
           mono('sonarServerUrl', 'SonarQube server URL', 'tools.sonar.serverUrl', 7),
           mono(
@@ -88,14 +88,21 @@ export const SETTINGS_PAGE: SettingsSection[] = [
             'SonarQube installation',
             'tools.sonar.installationName',
             5,
+            { hint: 'Its name in the Jenkins settings' },
           ),
           mono('nexusIqServerUrl', 'Nexus IQ server URL', 'tools.nexusIq.serverUrl', 7),
-          mono('nexusIqCredentialsId', 'Nexus IQ credentials ID', 'tools.nexusIq.credentialsId', 5),
+          mono(
+            'nexusIqCredentialsId',
+            'Nexus IQ credentials ID',
+            'tools.nexusIq.credentialsId',
+            5,
+            { hint: 'The Jenkins credentials the pipelines sign in with' },
+          ),
         ],
       },
       {
         heading: 'Repository, metrics and agents',
-        note: 'The Nexus snapshot repository, the InfluxDB the pipelines write their metrics to and the agent iOS builds run on.',
+        note: 'The Nexus repository of snapshot builds, the InfluxDB where the pipelines store their results for Pipeline Monitoring, and the machine iOS apps are built on.',
         fields: [
           mono(
             'nexusSnapshotRepositoryUrl',
@@ -111,10 +118,14 @@ export const SETTINGS_PAGE: SettingsSection[] = [
             5,
             { error: SHELL_SAFE_ERROR },
           ),
-          mono('influxWriteUrl', 'InfluxDB write URL', 'influx.url', 7),
-          mono('influxCredentialsId', 'InfluxDB credentials ID', 'influx.credentialsId', 5),
+          mono('influxWriteUrl', 'InfluxDB write URL', 'influx.url', 7, {
+            hint: 'Where each run stores its results',
+          }),
+          mono('influxCredentialsId', 'InfluxDB credentials ID', 'influx.credentialsId', 5, {
+            hint: 'The Jenkins credentials that hold the InfluxDB token',
+          }),
           mono('iosBuildAgent', 'iOS build agent', 'platform.iosBuildAgent', 6, {
-            hint: 'Jenkins agent label',
+            hint: 'The Jenkins agent label of the machine iOS apps are built on',
           }),
         ],
       },
@@ -123,30 +134,37 @@ export const SETTINGS_PAGE: SettingsSection[] = [
   {
     id: 'deployment',
     label: 'Deployment defaults',
-    note: 'What a service deployed to virtual machines uses unless it sets its own value under `deploy.vm`.',
+    note:
+      'How a service that runs on virtual machines is deployed to the test regions, unless the ' +
+      'service sets its own values. These change only when the test servers or the UrbanCode ' +
+      'setup change.',
     blocks: [
       {
         heading: 'UrbanCode Deploy',
-        note: 'The site and process UrbanCode deployments run with.',
+        note: 'The UrbanCode site and process that deploy a service.',
         fields: [
           mono('urbanCodeSiteName', 'Site name', 'deploy.vm.dod.siteName', 6),
           mono('urbanCodeDeployProcess', 'Deploy process', 'deploy.vm.dod.deployProcess', 6),
         ],
       },
       {
-        heading: 'SSH deployment',
-        note: 'The test region hosts and how the deployment script is run on them.',
+        heading: 'Test servers',
+        note: 'The servers of the two test regions and how the deployment script runs on them over SSH.',
         fields: [
-          mono('rdHost', 'RD host', 'deploy.vm.rd.host', 6, {
-            hint: 'the lower test region',
+          mono('rdHost', 'RD test server', 'deploy.vm.rd.host', 6, {
+            hint: 'The lower test region',
             error: HOST_ERROR,
           }),
-          mono('qcHost', 'QC host', 'deploy.vm.qc.host', 6, {
-            hint: 'the higher test region',
+          mono('qcHost', 'QC test server', 'deploy.vm.qc.host', 6, {
+            hint: 'The higher test region',
             error: HOST_ERROR,
           }),
-          mono('sshUser', 'SSH user', 'deploy.vm.<region>.user', 4, { error: SHELL_SAFE_ERROR }),
+          mono('sshUser', 'SSH user', 'deploy.vm.<region>.user', 4, {
+            hint: 'The account the deployment signs in with',
+            error: SHELL_SAFE_ERROR,
+          }),
           mono('deployScript', 'Deploy script', 'deploy.vm.<region>.deployScript', 8, {
+            hint: 'Installs the new version on the server',
             error: SHELL_SAFE_ERROR,
           }),
           mono('versionFile', 'Version file', 'deploy.vm.<region>.versionFile', 12, {
@@ -158,17 +176,22 @@ export const SETTINGS_PAGE: SettingsSection[] = [
   },
   {
     id: 'limits',
-    label: 'Severity limits',
-    note: 'The most findings of each severity a scan may report before it fails the pipeline. Zero allows none.',
+    label: 'Security limits',
+    note:
+      'How many findings of each severity a security scan may report before it fails the ' +
+      'pipeline. 0 allows none. A higher limit lets more security problems through, so agree ' +
+      'it with the DevSecOps team first.',
   },
   {
     id: 'scans',
     label: 'Scans and coverage',
-    note: 'The required unit test coverage and how long the pipelines wait for each scan.',
+    note:
+      'How much of the code the unit tests must cover, and how long the pipelines wait for each ' +
+      'scan before they give up. The waiting times rarely need to change.',
     blocks: [
       {
         heading: 'Coverage',
-        note: 'The line coverage the unit tests must reach.',
+        note: 'The share of the code lines the unit tests must run.',
         fields: [
           count('coverageMinLine', 'Minimum line coverage (%)', 'coverage.minLine', 4, {
             min: 1,
@@ -178,56 +201,59 @@ export const SETTINGS_PAGE: SettingsSection[] = [
         ],
       },
       {
-        heading: 'SAST',
-        note: 'Preparing the sources and waiting for the AppScan static scan.',
+        heading: 'Static scan (SAST)',
+        note: 'Preparing the source code and waiting for the AppScan scan of it.',
         fields: [
           minutes(
             'sastPrepareTimeoutMinutes',
-            'Prepare timeout (minutes)',
+            'Longest preparation (minutes)',
             'sast.prepareTimeoutMin',
           ),
-          minutes('sastPollTimeoutMinutes', 'Poll timeout (minutes)', 'sast.pollTimeoutMin'),
-          minutes('sastPollIntervalSeconds', 'Poll interval (seconds)', 'sast.pollIntervalSec'),
+          minutes(
+            'sastPollTimeoutMinutes',
+            'Longest wait for the result (minutes)',
+            'sast.pollTimeoutMin',
+          ),
+          minutes(
+            'sastPollIntervalSeconds',
+            'Check for the result every (seconds)',
+            'sast.pollIntervalSec',
+          ),
         ],
       },
       {
-        heading: 'SCA',
-        note: 'The AppScan open source analysis of the dependencies.',
+        heading: 'Dynamic scan (DAST)',
+        note: 'The AppScan scan of the running service in the test region, and its report.',
         fields: [
-          {
-            key: 'scaEnabled',
-            label: 'Run the SCA scan',
-            code: 'sca.enabled',
-            span: 4,
-            kind: 'check',
-          },
-          minutes('scaPollTimeoutMinutes', 'Poll timeout (minutes)', 'sca.pollTimeoutMin'),
-          minutes('scaPollIntervalSeconds', 'Poll interval (seconds)', 'sca.pollIntervalSec'),
-        ],
-      },
-      {
-        heading: 'DAST',
-        note: 'The AppScan dynamic scan of the deployed service and its report.',
-        fields: [
-          minutes('dastPollTimeoutMinutes', 'Poll timeout (minutes)', 'dast.pollTimeoutMin', 3),
-          minutes('dastPollIntervalSeconds', 'Poll interval (seconds)', 'dast.pollIntervalSec', 3),
+          minutes(
+            'dastPollTimeoutMinutes',
+            'Longest wait for the result (minutes)',
+            'dast.pollTimeoutMin',
+            6,
+          ),
+          minutes(
+            'dastPollIntervalSeconds',
+            'Check for the result every (seconds)',
+            'dast.pollIntervalSec',
+            6,
+          ),
           minutes(
             'dastReportTimeoutMinutes',
-            'Report timeout (minutes)',
+            'Longest wait for the report (minutes)',
             'dast.reportTimeoutMin',
-            3,
+            6,
           ),
           count(
             'dastReportIntervalSeconds',
-            'Report interval (seconds)',
+            'Check for the report every (seconds)',
             'dast.reportIntervalSec',
-            3,
+            6,
           ),
         ],
       },
       {
         heading: 'SonarQube quality gate',
-        note: 'Whether the pipelines wait for the SonarQube quality gate and for how long.',
+        note: "Whether the pipelines wait for SonarQube's verdict on the code quality, and for how long.",
         fields: [
           {
             key: 'sonarWaitForQualityGate',
@@ -238,7 +264,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
           },
           count(
             'sonarQualityGateTimeoutMinutes',
-            'Timeout (minutes)',
+            'Longest wait (minutes)',
             'tools.sonar.qualityGate.timeoutMinutes',
             6,
           ),
@@ -250,42 +276,52 @@ export const SETTINGS_PAGE: SettingsSection[] = [
     id: 'releaseGate',
     label: 'Release gate',
     note:
-      'What a run must prove before the pipeline may release: the scans whose limits must hold ' +
-      'and, optionally, the required coverage.',
+      'The last check of a run before its build may be released: the scans whose security ' +
+      'limits must hold and, if ticked, the minimum line coverage. A scan left out here no ' +
+      'longer stops a release.',
   },
   {
     id: 'serviceDefaults',
     label: 'Service defaults',
     note:
-      'A new service starts with these values, and a service that leaves one of them out gets it ' +
-      'from here. Each service may set its own.',
+      'What a new service starts with, and what a service gets for a value it leaves empty. ' +
+      'Each service can set its own in the product editor.',
     fields: [
       choice('buildTool', 'Build tool', GRADLE_MAVEN_FLUTTER, 'buildTool', 3),
-      choice('deployTarget', 'Deployment target', VM_OPENSHIFT, 'deployTarget', 3),
-      mono('sourceDir', 'Source folder', 'sourceDir', 3, { placeholder: '.' }),
-      count('testsMaxParallel', 'Parallel test jobs', 'tests.maxParallel', 3, { min: 1 }),
+      choice('deployTarget', 'Runs on', VM_OPENSHIFT, 'deployTarget', 3),
+      mono('sourceDir', 'Source folder', 'sourceDir', 3, {
+        placeholder: '.',
+        hint: 'Where the code sits in the repository; a dot means the top folder',
+      }),
+      count('testsMaxParallel', 'Test jobs at the same time', 'tests.maxParallel', 3, { min: 1 }),
     ],
   },
   {
     id: 'goldenFix',
     label: 'GoldenFix defaults',
     note:
-      'How GoldenFix raises dependency upgrade pull requests. A service follows this policy ' +
-      'unless it overrides values in its own GoldenFix section.',
+      'GoldenFix opens pull requests that upgrade open source libraries with known ' +
+      'vulnerabilities to safe versions. A service follows these rules unless it sets its own in ' +
+      'its GoldenFix section. To choose several ecosystems, hold Ctrl (Cmd on a Mac) and click.',
   },
 ];
 
 export const LIMIT_FIELDS: Field[] = [
-  count('maxCritical', 'Max critical', '', 0, { min: 0 }),
-  count('maxHigh', 'Max high', '', 0, { min: 0 }),
-  count('maxMedium', 'Max medium', '', 0, { min: 0 }),
+  count('maxCritical', 'Critical', '', 0, { min: 0 }),
+  count('maxHigh', 'High', '', 0, { min: 0 }),
+  count('maxMedium', 'Medium', '', 0, { min: 0 }),
 ];
 
 export const RELEASE_GATE_FIELDS: Field[] = [
-  check('requireCoverage', 'Require the minimum coverage', 'releaseGate.requireCoverage', 6),
-  mono('stateFile', 'State file', 'releaseGate.stateFile', 6, {
-    hint: 'archived with each build',
-    error: 'Use a file name such as release-gate.json',
+  check(
+    'requireCoverage',
+    'Also require the minimum line coverage',
+    'releaseGate.requireCoverage',
+    6,
+  ),
+  mono('stateFile', 'Result file', 'releaseGate.stateFile', 6, {
+    hint: 'Kept with each build as proof of the check; the library reads only this name',
+    readonly: true,
   }),
 ];
 

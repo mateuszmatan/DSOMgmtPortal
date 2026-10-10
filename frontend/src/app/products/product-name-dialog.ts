@@ -28,8 +28,8 @@ export interface NamedProduct {
     <form [formGroup]="form" (ngSubmit)="next()" novalidate>
       <div class="modal-body">
         <p>
-          Start with the product's department and name. The portal makes the product's unique code
-          from the name.
+          Start with the department the product belongs to and its name. The portal makes the
+          product's code from the name; you can change it on the next page.
         </p>
         <dso-form-field class="full-width">
           <dso-label>Department</dso-label>

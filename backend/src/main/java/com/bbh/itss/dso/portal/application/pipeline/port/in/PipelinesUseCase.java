@@ -15,7 +15,7 @@ public interface PipelinesUseCase {
 
     List<PipelineView> createMissing(long productId, List<Long> serviceIds, PipelineType type);
 
-    PipelineView update(long id, PipelineType type, PipelineSettings settings);
+    PipelineView update(long id, Long version, PipelineType type, PipelineSettings settings);
 
     void delete(long id);
 

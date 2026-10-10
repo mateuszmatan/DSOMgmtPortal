@@ -16,8 +16,8 @@ public record PipelineResponse(Long id, Long productId, String productCode, Stri
                                String serviceName, PipelineType type, String entryPoint, List<String> agentLabels,
                                String extendedPipelineJob, String securityPipelineJob, String jenkinsJob,
                                String jenkinsJobUrl, String description, boolean enabled, KeyResponse activeKey,
-                               String influxProjectTag, String influxEnv, Instant createdAt, Instant updatedAt,
-                               List<KeyResponse> keys) {
+                               String influxProjectTag, String influxEnv, long version, Instant createdAt,
+                               Instant updatedAt, List<KeyResponse> keys) {
 
     public static PipelineResponse summary(PipelineView view) {
         return of(view, KeyResponse::from, null);
@@ -40,7 +40,7 @@ public record PipelineResponse(Long id, Long productId, String productCode, Stri
                 view.service().id(), view.service().name(), pipeline.type(), pipeline.type().entryPoint(),
                 settings.agentLabels(), settings.extendedPipelineJob(), settings.securityPipelineJob(),
                 settings.jenkinsJob(), view.jenkinsJobUrl(), settings.description(), pipeline.isEnabled(),
-                pipeline.activeKey().map(activeKey).orElse(null), tag.project(), tag.env(),
+                pipeline.activeKey().map(activeKey).orElse(null), tag.project(), tag.env(), pipeline.version(),
                 pipeline.createdAt(), pipeline.updatedAt(), keys);
     }
 

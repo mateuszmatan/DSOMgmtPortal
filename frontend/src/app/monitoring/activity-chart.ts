@@ -20,7 +20,7 @@ export function dayLabel(date: string): string {
 }
 
 export function dayTitle(day: DailyActivity): string {
-  return `${dayLabel(day.date)}: ${counted(day.runs, 'run')}, ${day.failures} failed, ${counted(day.deployments, 'deployment')}`;
+  return `${dayLabel(day.date)}: ${counted(day.runs, 'run')}, ${counted(day.deployments, 'deployment')}, ${counted(day.failures, 'failed deployment')}`;
 }
 
 export function activitySummary(days: readonly DailyActivity[]): string {
@@ -49,12 +49,12 @@ export function activityOptions(days: readonly DailyActivity[]): Record<string, 
     },
     series: [
       {
-        name: 'Successful runs',
-        className: 'success',
+        name: 'Other runs',
+        className: 'runs',
         data: days.map((day) => Math.max(0, day.runs - day.failures)),
       },
       {
-        name: 'Failed or unstable runs',
+        name: 'Failed deployments',
         className: 'failure',
         data: days.map((day) => day.failures),
       },
@@ -79,8 +79,8 @@ export function activityOptions(days: readonly DailyActivity[]): Record<string, 
   template: `
     <dso-chart [options]="options()" [label]="summary()" />
     <div class="legend">
-      <span><i class="swatch success"></i>Successful runs</span>
-      <span><i class="swatch failure"></i>Failed or unstable runs</span>
+      <span><i class="swatch runs"></i>Other runs</span>
+      <span><i class="swatch failure"></i>Failed deployments</span>
       <span><i class="swatch deployment"></i>Deployed that day</span>
     </div>
   `,

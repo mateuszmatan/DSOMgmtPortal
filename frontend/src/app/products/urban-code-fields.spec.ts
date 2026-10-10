@@ -34,7 +34,7 @@ describe('UrbanCodeFields', () => {
     expect(applications()[0].querySelector('strong')?.textContent).toBe('CERT-GUI');
     expect(page().querySelector('.count')?.textContent).toBe('1');
     expect(applications()[0].querySelectorAll('.component').length).toBe(1);
-    expect(text(page())).toContain('deploy.vm.dod.siteName · left empty:');
+    expect(text(page())).toContain('Left empty: deploy.bbh.com · deploy.vm.dod.siteName');
   });
 
   it('adds and removes applications and components', async () => {
@@ -67,7 +67,7 @@ describe('UrbanCodeFields', () => {
     await click(buttonOf(applications()[1], 'Remove'));
     await click(buttonOf(applications()[0], 'Remove'));
     expect(page().querySelector('.list-empty')?.textContent).toContain('No application');
-    expect(text(page())).toContain('left empty: the global default');
+    expect(text(page())).toContain('Left empty: the global default');
   });
 
   it('lets an application override the settings above and sends its component details', async () => {
@@ -75,7 +75,7 @@ describe('UrbanCodeFields', () => {
     const application = form.controls.urbanCodeApplications.at(0);
     expect(text(fieldOf(applications()[0], 'Deploy with a snapshot'))).toContain('Setting above');
     expect(text(fieldOf(applications()[0], 'Site name'))).toContain(
-      'left empty: the setting above',
+      'Left empty: the setting above',
     );
     expect(fieldOf(applications()[0], 'Charset')).not.toBeNull();
 

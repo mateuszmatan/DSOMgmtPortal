@@ -3,13 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { outputToObservable } from '@angular/core/rxjs-interop';
 import { EMPTY, Observable, catchError, filter, map, of, switchMap, tap } from 'rxjs';
 import { PipelinesApi, SettingsApi } from '../core/api';
-import {
-  Pipeline,
-  PipelineType,
-  pipelineTypeLabel,
-  pipelineTypeName,
-  pipelineTypeSlug,
-} from '../core/models';
+import { Pipeline, pipelineTypeLabel, pipelineTypeSlug } from '../core/models';
 import { Notifier } from '../core/notifier';
 import { jenkinsfile } from '../products/jenkinsfile';
 import { KeyHistoryDialog } from '../products/key-history-dialog';
@@ -17,11 +11,9 @@ import { PipelineDialog, PipelineDialogData } from '../products/pipeline-dialog'
 import { RevokeKeyDialog } from '../products/revoke-key-dialog';
 import { CodeDialog, CodeDialogData } from '../shared/code-dialog';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
+import { JENKINSFILE_HELP, pipelineName, typeName } from './pipeline-texts';
 
-export function typeName(type: PipelineType): string {
-  const label = pipelineTypeLabel(type);
-  return /[A-Z]/.test(label.slice(1)) ? label : label.toLowerCase();
-}
+export { typeName } from './pipeline-texts';
 
 @Injectable({ providedIn: 'root' })
 export class PipelineActions {
@@ -30,17 +22,18 @@ export class PipelineActions {
   private readonly dialog = inject(Dialog);
   private readonly notifier = inject(Notifier);
 
-  copied(): void {
-    this.notifier.success('Key copied to the clipboard');
+  copied(what = 'Key'): void {
+    this.notifier.success(`${what} copied to the clipboard`);
   }
 
   showConfig(pipeline: Pipeline): void {
     this.api.config(pipeline.id).subscribe({
       next: (code) =>
         this.openCode({
-          title: `Configuration of the ${pipeline.serviceName} ${pipelineTypeName(pipeline.type)} pipeline`,
+          title: `Settings sent to Jenkins for ${pipelineName(pipeline)} (config.yaml)`,
           subtitle:
-            "What the DevSecOps library receives for this pipeline's key. Showing it here does not count as a use of the key.",
+            'What the Jenkins job of this pipeline receives when it fetches its settings with its key, in the ' +
+            'config.yaml format of the DevSecOps library. Opening it here does not count as a use of the key.',
           code,
           fileName: `${pipeline.productCode.toLowerCase()}-${pipeline.serviceName}-${pipelineTypeSlug(pipeline.type)}.yaml`,
         }),
@@ -51,16 +44,18 @@ export class PipelineActions {
   showJenkinsfile(pipelines: readonly Pipeline[]): void {
     const together = pipelines.length > 1;
     const subtitle = together
-      ? `One run builds ${pipelines.map((p) => p.serviceName).join(', ')}; the first key is the ` +
-        'primary service. Everything else comes from the portal by the keys.'
-      : 'Once the DevSecOps library reads its configuration from the portal, this is the whole Jenkinsfile of the ' +
-        'service: everything else comes from the portal by the key.';
+      ? `One run builds ${pipelines.map((p) => p.serviceName).join(', ')}; the first key is that of the ` +
+        "primary service. Put the file in the primary service's repository: it holds only the pipeline keys, " +
+        'and Jenkins fetches every other setting from this portal.'
+      : JENKINSFILE_HELP;
     this.settings
       .get()
       .pipe(catchError(() => of(null)))
       .subscribe((settings) =>
         this.openCode({
-          title: together ? 'Jenkinsfile for several services' : 'Jenkinsfile',
+          title: together
+            ? 'Jenkinsfile for several services'
+            : `Jenkinsfile of ${pipelineName(pipelines[0])}`,
           subtitle,
           code: jenkinsfile(pipelines, settings?.platform.jenkinsLibrary),
           fileName: 'Jenkinsfile',
@@ -85,7 +80,7 @@ export class PipelineActions {
         },
         pipeline,
       },
-      () => 'Pipeline settings saved',
+      () => 'Pipeline settings saved. Jenkins uses them the next time the pipeline runs.',
     );
   }
 
@@ -94,21 +89,30 @@ export class PipelineActions {
       .open<Pipeline, Pipeline, RevokeKeyDialog>(RevokeKeyDialog, { data: pipeline })
       .closed.pipe(
         filter((updated): updated is Pipeline => !!updated),
-        tap(() => this.notifier.success('Key invalidated: the pipeline stops at its next start')),
+        tap(() =>
+          this.notifier.success(
+            `Key invalidated. The pipeline ${pipelineName(pipeline)} is refused its settings and stops at its next start.`,
+          ),
+        ),
       );
   }
 
   replaceKey(pipeline: Pipeline): Observable<Pipeline> {
     return this.confirm({
-      title: 'Replace the key?',
+      title: `Replace the key of the pipeline ${pipelineName(pipeline)}?`,
       message:
-        'The current key is invalidated and a new one is issued. Update the Jenkinsfile with the new key, ' +
-        'or the pipeline stops at its next start.',
+        'The key the pipeline uses now stops working at once and a new key is issued. Put the new key in the ' +
+        "service's Jenkinsfile, or the pipeline is refused its settings and stops at its next start. " +
+        'The old key cannot be used again.',
       confirmLabel: 'Replace key',
       danger: true,
     }).pipe(
       switchMap(() => this.issued(this.api.issueKey(pipeline.id))),
-      tap(() => this.notifier.success('New key issued')),
+      tap(() =>
+        this.notifier.success(
+          `New key issued for ${pipelineName(pipeline)}. Put it in the service's Jenkinsfile.`,
+        ),
+      ),
     );
   }
 
@@ -132,10 +136,10 @@ export class PipelineActions {
 
   deletePipeline(pipeline: Pipeline): Observable<Pipeline> {
     return this.confirm({
-      title: 'Delete the pipeline?',
+      title: `Delete the pipeline ${pipelineName(pipeline)}?`,
       message:
-        `The ${pipelineTypeName(pipeline.type)} pipeline of ${pipeline.serviceName} and its key history are deleted. ` +
-        'Jenkins jobs using its key stop working.',
+        `The ${typeName(pipeline.type)} pipeline of ${pipeline.serviceName} and its key history are deleted. ` +
+        'Its Jenkins job is refused its settings from now on and stops at its next start. This cannot be undone.',
       confirmLabel: 'Delete pipeline',
       danger: true,
     }).pipe(
@@ -145,7 +149,7 @@ export class PipelineActions {
           catchError((error) => this.failed(error)),
         ),
       ),
-      tap(() => this.notifier.success('Pipeline deleted')),
+      tap(() => this.notifier.success(`Pipeline ${pipelineName(pipeline)} deleted.`)),
     );
   }
 

@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { buttonOf, inputOf, text, toast } from '../testing/dom';
+import { buttonOf, fieldOf, inputOf, text, toast } from '../testing/dom';
 import { serviceTemplate } from '../testing/fixtures';
 import {
   ServiceTemplatePage,
@@ -92,17 +92,37 @@ describe('ServiceTemplatePage', () => {
   it('shows the sections of the template and what a service gets from it', async () => {
     await load();
 
-    expect(text(page().querySelector('.meta'))).toContain(
-      'What Self-service and the Add service and Add pipeline forms fill in for a new service.',
+    expect(text(page().querySelector('.meta'))).toBe(
+      'What a new service and its pipelines get. Self-service and the Add service and Add pipeline forms fill in these values, and each one can still be changed there. Fields marked * are required.',
     );
-    expect(text(page().querySelector('.meta'))).toContain('Version 2');
+    expect(text(page().querySelector('.save-bar .saved'))).toMatch(/^Last saved .+ \(version 2\)$/);
     expect([...page().querySelectorAll('.section h2')].map(text)).toEqual([
       'Pipelines',
       'Build',
       'Nexus IQ and Bitbucket',
       'OpenShift',
-      'Example',
+      'What a new service gets',
     ]);
+    expect(text(page().querySelector('.example .section-help'))).toBe(
+      'The service backend-api of the product CERT would get these values. They change as you type.',
+    );
+    expect(
+      [...page().querySelectorAll('.placeholders dt')].map((term) => [
+        text(term),
+        text(term.nextElementSibling),
+      ]),
+    ).toEqual([
+      ['{CODE}', 'the product code, as in CERT'],
+      ['{code}', 'the product code in lower case, as in cert'],
+      ['{service}', 'the service name, as in backend-api'],
+      [
+        '{type}',
+        'the pipeline type, in the Jenkins job only: full, security, extended, sast or nexusiq',
+      ],
+    ]);
+    expect(text(fieldOf(page(), 'Jenkins agents')?.querySelector('dso-hint'))).toBe(
+      'The machines the pipeline runs on, as Jenkins agent labels separated by commas',
+    );
     expect(inputOf(page(), 'Jenkins job').value).toBe('DevSecOps/{CODE}/{service}-{type}');
     expect(examples()).toEqual([
       ['Full pipeline job', 'DevSecOps/CERT/backend-api-full'],
@@ -117,7 +137,9 @@ describe('ServiceTemplatePage', () => {
   it('says when the BBH defaults were never saved', async () => {
     await load(serviceTemplate({ version: null, updatedAt: null }));
 
-    expect(text(page().querySelector('.meta'))).toContain('The BBH defaults, not saved yet.');
+    expect(text(page().querySelector('.save-bar .saved'))).toBe(
+      'Not saved yet: these are the BBH defaults',
+    );
   });
 
   it('updates the example as the patterns are typed', async () => {
@@ -135,7 +157,7 @@ describe('ServiceTemplatePage', () => {
   it('saves the template with the version it was read at', async () => {
     await load();
 
-    await type('Jenkins agent labels', 'linux, docker');
+    await type('Jenkins agents', 'linux, docker');
     await submit();
 
     const request = http.expectOne({ method: 'PUT', url: '/api/service-template' });
@@ -143,16 +165,18 @@ describe('ServiceTemplatePage', () => {
     request.flush(serviceTemplate({ version: 3, agentLabels: ['linux', 'docker'] }));
     await fixture.whenStable();
 
-    expect(text(page().querySelector('.meta'))).toContain('Version 3');
+    expect(text(page().querySelector('.save-bar .saved'))).toContain('(version 3)');
     expect(templatePage().hasUnsavedChanges()).toBe(false);
-    expect(text(toast())).toContain('The service template is saved');
+    expect(text(toast())).toContain(
+      'Service template saved. New services and pipelines get these values from now on.',
+    );
   });
 
   it('sends nothing while a pattern is invalid', async () => {
     await load();
 
     await type('Nexus IQ application', '{code}/{service}');
-    await type('Jenkins agent labels', '');
+    await type('Jenkins agents', '');
     await submit();
 
     http.expectNone({ method: 'PUT', url: '/api/service-template' });
@@ -227,7 +251,9 @@ describe('ServiceTemplatePage', () => {
       .flush({ detail: 'Database unavailable' }, { status: 503, statusText: 'Unavailable' });
     await fixture.whenStable();
 
-    expect(text(page().querySelector('.banner'))).toBe('Database unavailable');
+    expect(text(page().querySelector('.banner .banner-text'))).toBe(
+      'The service template could not be loaded: Database unavailable',
+    );
     expect(page().querySelector('form')).toBeNull();
 
     buttonOf(page(), 'Try again').click();

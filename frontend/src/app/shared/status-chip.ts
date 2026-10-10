@@ -2,10 +2,10 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { RunResult } from '../core/models';
 
 export const RUN_LOOK: Record<RunResult, { label: string; tone: string }> = {
-  SUCCESS: { label: 'Success', tone: 'success' },
-  UNSTABLE: { label: 'Unstable', tone: 'warning' },
+  SUCCESS: { label: 'Passed', tone: 'success' },
+  UNSTABLE: { label: 'Passed with warnings', tone: 'warning' },
   FAILURE: { label: 'Failed', tone: 'danger' },
-  ABORTED: { label: 'Aborted', tone: 'neutral' },
+  ABORTED: { label: 'Stopped', tone: 'neutral' },
   NOT_BUILT: { label: 'Not built', tone: 'neutral' },
   NO_DATA: { label: 'No runs yet', tone: 'neutral' },
   DISABLED: { label: 'Key invalidated', tone: 'outline' },

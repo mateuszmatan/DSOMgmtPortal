@@ -17,7 +17,7 @@ class AdminTabsSpec extends GuiSpecification {
         then:
         assertThat(page.locator('h1')).hasText('DevSecOps Admin')
         assertThat(page.locator('.page-header .page-description'))
-                .hasText('Departments, products, services, the template of a new service and the DSOEnhanced library defaults')
+                .hasText('Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.')
         assertThat(tabs()).hasText(TABS.keySet() as String[])
         TABS.every { label, path ->
             assertThat(tab(label)).hasAttribute('href', path)

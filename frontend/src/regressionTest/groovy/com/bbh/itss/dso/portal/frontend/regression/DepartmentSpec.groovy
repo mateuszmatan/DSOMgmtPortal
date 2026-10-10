@@ -9,24 +9,29 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 
 class DepartmentSpec extends GuiSpecification {
 
+    static final String HAS_A_PRODUCT =
+            'Only an empty department can be deleted. Fund Services still has 1 product: move it to another department first.'
+
     def "the departments are listed with their products, services and pipelines, and charted by their pipelines"() {
         when:
         open('/admin/departments')
 
         then:
         assertThat(names()).hasText(DEPARTMENTS as String[])
-        assertThat(gridHeaders()).hasText(['Department', 'Products', 'Services', 'DevSecOps pipelines', ''] as String[])
-        assertThat(page.locator('.toolbar .count')).hasText('5 departments · 2 products · 6 services')
-        assertThat(cells('Fund Services')).hasText(['Fund Services', '1', '4', '6 · 5 active · 1 invalidated'] as String[])
-        assertThat(cells('Corporate Technology')).hasText(['Corporate Technology', '1', '2', '3 · 3 active'] as String[])
+        assertThat(gridHeaders()).hasText(['Department', 'Products', 'Services', 'Pipelines', ''] as String[])
+        assertThat(page.locator('.list-header h2')).hasText('Departments')
+        assertThat(summary()).hasText('5 departments with 2 products and 6 services')
+        assertThat(page.locator('section.departments .section-help')).containsText('Only an empty department can be deleted.')
+        assertThat(cells('Fund Services')).hasText(['Fund Services', '1', '4', '6, 1 key invalidated'] as String[])
+        assertThat(cells('Corporate Technology')).hasText(['Corporate Technology', '1', '2', '3, all active'] as String[])
         assertThat(cells('AI Lab')).hasText(['AI Lab', '0', '0', 'None yet'] as String[])
-        assertThat(page.locator('section.chart h2')).hasText('DevSecOps pipelines by department')
+        assertThat(page.locator('section.chart h2')).hasText('Pipelines per department')
+        assertThat(page.locator('section.chart .legend span')).hasText(['Active', 'Key invalidated'] as String[])
         assertThat(page.locator('section.chart .highcharts-xaxis-labels').nth(1).locator('text')).hasText(
-                ['0 pipelines · 0 products', '0 pipelines · 0 products', '3 pipelines · 1 product',
-                 '0 pipelines · 0 products', '6 pipelines · 1 product'] as String[])
+                ['0 pipelines', '0 pipelines', '3 pipelines', '0 pipelines', '6 pipelines, 1 key invalidated'] as String[])
         assertThat(page.locator('section.chart dso-chart')).hasAttribute('aria-label',
                 'AI Lab: none; Capital Partners: none; Corporate Technology: 3 active; Custody: none; ' +
-                        'Fund Services: 5 active, 1 invalidated')
+                        'Fund Services: 5 active, 1 key invalidated')
         assertThat(page.locator('section.chart .highcharts-series.disabled .highcharts-point')).not().hasCount(0)
         api.requests('GET', '/api/departments').size() == 1
         ownErrors().isEmpty()
@@ -38,16 +43,16 @@ class DepartmentSpec extends GuiSpecification {
 
         when:
         button('Add department', true).click()
-        dialogButton('Save').click()
+        dialogButton('Add department').click()
 
         then:
-        assertThat(dialog().locator('h2')).hasText('Add department')
+        assertThat(dialog().locator('h2')).hasText('Add a department')
         assertThat(errorOf(dialog(), 'Name')).hasText('Required')
         api.requests('POST', '/api/departments').isEmpty()
 
         when:
         input(dialog(), 'Name').fill('  Treasury ')
-        dialogButton('Save').click()
+        dialogButton('Add department').click()
 
         then:
         assertThat(dialog()).hasCount(0)
@@ -55,13 +60,13 @@ class DepartmentSpec extends GuiSpecification {
         awaitRequest('POST', '/api/departments').json() == [name: 'Treasury']
         assertThat(names()).hasText((DEPARTMENTS + 'Treasury') as String[])
         assertThat(cells('Treasury')).hasText(['Treasury', '0', '0', 'None yet'] as String[])
-        assertThat(page.locator('.toolbar .count')).hasText('6 departments · 2 products · 6 services')
+        assertThat(summary()).hasText('6 departments with 2 products and 6 services')
 
         when:
         api.respond('PUT', '/api/departments/6', problem(409, 'Conflict', 'A department named Custody already exists'))
         buttonIn(row('Treasury'), 'Rename Treasury').click()
         input(dialog(), 'Name').fill('custody')
-        dialogButton('Save').click()
+        dialogButton('Rename department').click()
 
         then:
         assertThat(dialog().locator('h2')).hasText('Rename Treasury')
@@ -77,7 +82,7 @@ class DepartmentSpec extends GuiSpecification {
 
         when:
         input(dialog(), 'Name').fill('Capital Partners Group')
-        dialogButton('Save').click()
+        dialogButton('Rename department').click()
 
         then:
         assertThat(dialog()).hasCount(0)
@@ -94,14 +99,15 @@ class DepartmentSpec extends GuiSpecification {
 
         expect:
         assertThat(buttonIn(row('Fund Services'), 'Delete Fund Services')).isDisabled()
-        assertThat(row('Fund Services').locator('.delete'))
-                .hasAttribute('title', 'Fund Services still has 1 product. Move them to another department first.')
+        assertThat(row('Fund Services').locator('.delete')).hasAttribute('title', HAS_A_PRODUCT)
+        assertThat(buttonIn(row('Fund Services'), 'Delete Fund Services')).hasAccessibleDescription(HAS_A_PRODUCT)
 
         when:
         buttonIn(row('Custody'), 'Delete Custody').click()
 
         then:
-        assertThat(dialog().locator('h2')).hasText('Delete Custody?')
+        assertThat(dialog().locator('h2')).hasText('Delete the department Custody?')
+        assertThat(dialog()).containsText('This cannot be undone.')
 
         when:
         dialogButton('Cancel').click()
@@ -138,7 +144,7 @@ class DepartmentSpec extends GuiSpecification {
         when:
         buttonIn(row('Fund Services'), 'Rename Fund Services').click()
         input(dialog(), 'Name').fill('Fund Administration')
-        dialogButton('Save').click()
+        dialogButton('Rename department').click()
 
         then:
         assertThat(row('Fund Administration')).hasCount(1)
@@ -151,6 +157,10 @@ class DepartmentSpec extends GuiSpecification {
         assertThat(page.locator('section.department h2')).hasText(['AI Lab', 'Capital Partners', 'Corporate Technology', 'Custody',
                                                                    'Fund Administration'] as String[])
         ownErrors().isEmpty()
+    }
+
+    Locator summary() {
+        page.locator('.list-header .summary')
     }
 
     Locator names() {

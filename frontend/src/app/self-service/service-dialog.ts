@@ -24,6 +24,7 @@ import {
   WizardService,
   deploys,
   namedDefaults,
+  toolName,
 } from './self-service-model';
 
 export interface ServiceDialogData {
@@ -36,6 +37,7 @@ export interface ServiceDialogData {
 const NAME_HELP = "Use letters, digits, '.', '-' or '_', starting with a letter or digit";
 const APP_SCAN_HELP = 'Paste the ID as it is, for example 109f44ac-cc06-4ca0-884e-d944904f7019';
 const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-payhub";
+const PARTS = ['About the service', 'Build and run'];
 
 @Component({
   selector: 'dso-service-dialog',
@@ -47,10 +49,9 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
     </div>
     <form [formGroup]="form" (ngSubmit)="next()" novalidate>
       <div class="modal-body">
-        <p class="page-count">
-          Part {{ page() }} of 2 · {{ page() === 1 ? 'About the service' : 'Build and run' }}
-        </p>
+        <p class="page-count">Part {{ page() }} of 2 · {{ parts[page() - 1] }}</p>
         @if (page() === 1) {
+          <p class="help">Fields marked * are required.</p>
           <dso-form-field class="full-width">
             <dso-label>Service name</dso-label>
             <input
@@ -60,13 +61,16 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
               autocomplete="off"
               required
             />
-            <dso-hint>A short name, for example gui or backend-api</dso-hint>
+            <dso-hint
+              >A short name without spaces, for example web or backend-api; it becomes part of the
+              Jenkins job name</dso-hint
+            >
             <dso-error>{{ errorText(form.controls.name, nameHelp) }}</dso-error>
           </dso-form-field>
           <dso-form-field class="full-width">
             <dso-label>What it does</dso-label>
             <input dsoInput formControlName="description" placeholder="REST API of the product" />
-            <dso-hint>Optional</dso-hint>
+            <dso-hint>A few plain words for people who do not know the service</dso-hint>
             <dso-error>{{ errorText(form.controls.description) }}</dso-error>
           </dso-form-field>
           <dso-form-field class="full-width">
@@ -79,12 +83,21 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
               autocomplete="off"
               required
             />
-            <dso-hint>The Application Security team gives it to you</dso-hint>
+            <dso-hint
+              >The ID of this service in HCL AppScan, the security scanner. The Application Security
+              team gives it to you.</dso-hint
+            >
             <dso-error>{{ errorText(form.controls.appScanId, appScanHelp) }}</dso-error>
           </dso-form-field>
         } @else {
+          <p class="help">If you are not sure about an answer, ask a developer of the service.</p>
           <h3>What builds the code?</h3>
           <dso-choice-tiles label="Build tool" [options]="tools" [(value)]="tool" />
+          @if (otherTool) {
+            <p class="help">
+              It is built with {{ otherTool }} today. Choose Gradle or Maven only if that changes.
+            </p>
+          }
           @if (checked() && tool() === null) {
             <p class="choice-error">Choose Gradle or Maven</p>
           }
@@ -104,13 +117,20 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
                   placeholder="pay-payhub"
                   autocomplete="off"
                 />
-                <dso-hint>The name of its projects without -rd or -qc at the end</dso-hint>
+                <dso-hint
+                  >Where the service lives on OpenShift: its project name without -rd or -qc at the
+                  end</dso-hint
+                >
                 <dso-error>{{ errorText(form.controls.openShiftProject, projectHelp) }}</dso-error>
               </dso-form-field>
             }
           }
           @if (scans) {
             <h3>Nexus IQ and Bitbucket</h3>
+            <p class="help">
+              Nexus IQ checks the open-source libraries the service uses, and GoldenFix proposes
+              safe versions in its Bitbucket repository.
+            </p>
             <dso-form-field class="full-width">
               <dso-label>Nexus IQ application</dso-label>
               <input
@@ -121,7 +141,7 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
                 autocomplete="off"
                 required
               />
-              <dso-hint>The application ID of the service in Nexus IQ</dso-hint>
+              <dso-hint>The name of the service in Nexus IQ, for example payhub-gateway</dso-hint>
               <dso-error>{{ errorText(form.controls.nexusIqApplication) }}</dso-error>
             </dso-form-field>
             <dso-form-field class="full-width">
@@ -133,7 +153,10 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
                 autocomplete="off"
                 required
               />
-              <dso-hint>GoldenFix opens its pull requests here</dso-hint>
+              <dso-hint
+                >The web address of the service's code in Bitbucket; GoldenFix opens its pull
+                requests there</dso-hint
+              >
               <dso-error>{{ errorText(form.controls.repositoryUrl, urlHelp) }}</dso-error>
             </dso-form-field>
           }
@@ -184,8 +207,9 @@ const PROJECT_HELP = "Use lower case letters, digits and '-', for example pay-pa
       margin-top: 10px;
     }
 
-    .note {
-      margin: 4px 0 0;
+    .note,
+    .help {
+      margin: 0 0 4px;
       color: var(--dso-muted);
       font-size: 12px;
     }
@@ -206,6 +230,10 @@ export class ServiceDialog {
   private readonly onOpenShift =
     this.existing && this.start?.target === 'OPENSHIFT' && !this.start.openShiftProject;
   protected readonly tools = TOOLS;
+  protected readonly otherTool =
+    this.start && !TOOLS.some((option) => option.value === this.start!.tool)
+      ? toolName(this.start.tool)
+      : null;
   protected readonly targets = TARGETS;
   protected readonly nameHelp = NAME_HELP;
   protected readonly appScanHelp = APP_SCAN_HELP;
@@ -227,8 +255,9 @@ export class ServiceDialog {
   protected readonly needsProject = computed(
     () => this.deploys && this.target() === 'OPENSHIFT' && !this.onOpenShift,
   );
+  protected readonly parts = PARTS;
   protected readonly submitLabel = computed(() =>
-    this.page() === 1 ? 'Next' : this.start ? 'Save service' : 'Add service',
+    this.page() === 1 ? `Next: ${PARTS[1]}` : this.start ? 'Save service' : 'Add service',
   );
 
   protected readonly form = new FormGroup({

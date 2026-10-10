@@ -10,7 +10,7 @@ import {
   productMonitoring,
 } from '../testing/fixtures';
 import { ProductMonitoringPage } from './product-monitoring';
-import { buttonOf, gridCell, gridRows, settleGrid } from '../testing/dom';
+import { buttonOf, gridCell, gridRows, settleGrid, text } from '../testing/dom';
 
 describe('ProductMonitoringPage', () => {
   let fixture: ComponentFixture<ProductMonitoringPage>;
@@ -51,7 +51,12 @@ describe('ProductMonitoringPage', () => {
     );
     expect(link.textContent?.trim()).toBe('#42');
     expect(gridCell(rows()[0], 'lastRun').textContent).toContain('develop');
-    expect(rows()[0].querySelector('.stages')?.textContent).toContain('/ 12');
+    expect(text(rows()[0].querySelector('.stages'))).toBe(
+      '10 of 12 passed 1 with warnings, 1 failed',
+    );
+    expect(rows()[0].querySelector('.stage-problems')?.classList).toContain('failing');
+    expect(text(page().querySelector('.summary'))).toBe('1 pipeline: 1 passed');
+    expect(text(gridCell(rows()[0], 'jenkins'))).toBe('Open in Jenkins');
   });
 
   it('opens a pipeline when its row is clicked', async () => {
@@ -79,7 +84,17 @@ describe('ProductMonitoringPage', () => {
       .flush({ detail: 'Product 1 was not found' }, { status: 404, statusText: 'Not Found' });
     await fixture.whenStable();
 
-    expect(page().querySelector('.banner')?.textContent).toBe('Product 1 was not found');
+    expect(text(page().querySelector('.banner span'))).toBe(
+      'The product could not be loaded. Product 1 was not found',
+    );
+
+    buttonOf(page(), 'Try again').click();
+    TestBed.tick();
+    http.expectOne('/api/monitoring/products/1').flush(productMonitoring());
+    await fixture.whenStable();
+
+    expect(page().querySelector('.banner')).toBeNull();
+    expect(page().querySelector('h1')?.textContent).toBe('CertScanner');
   });
 
   it('reads the product again on refresh and shows the progress meanwhile', async () => {

@@ -149,8 +149,8 @@ class PortalPerformanceSpec extends PortalSpecification {
         lastRunsFinishedAt = now - ofHours(3)
         pipelines.each { influx.addRun(project: it.influxProjectTag, env: it.influxEnv, time: lastRunsFinishedAt) }
         def history = pipelines.first()
-        (1..270).each { influx.addRun(project: history.influxProjectTag, env: history.influxEnv,
-                time: now - ofHours(8 * it), result: it % 5 == 0 ? 'FAILURE' : 'SUCCESS') }
+        (1..269).each { influx.addRun(project: history.influxProjectTag, env: history.influxEnv,
+                time: now - ofHours(7 * it), result: it % 5 == 0 ? 'FAILURE' : 'SUCCESS') }
 
         when:
         def overview = measure("Monitoring overview of ${pipelines.size()} pipelines", calls: 50, threads: 4) {

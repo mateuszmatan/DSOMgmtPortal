@@ -28,7 +28,7 @@ class GlobalSettingsValuesSpec extends Specification {
         BBH.deployment() == new DeploymentDefaults('deploy.bbh.com', 'tomcat-app-process', 'rdltaapps1.testbbh.com',
                 'qcltaapps1.testbbh.com', 'taadmin', 'scripts/deployment/zero-downtime-deployment.sh',
                 'scripts/deployment/version.properties')
-        BBH.scans() == new ScanSettings(60, 120, 50, 30, true, 40, 30, 60, 60, 30, 30, true, 5)
+        BBH.scans() == new ScanSettings(60, 120, 50, 30, 60, 60, 30, 30, true, 5)
         BBH.releaseGate() == new ReleaseGateSettings([SAST, SCA, NEXUS_IQ, DAST], true, 'release-gate.json')
         BBH.serviceDefaults() == new ServiceDefaults(GRADLE, VM, '.', 20)
         BBH.goldenFix() == GoldenFixPolicy.builder().enabled(true).onlyDirectDependencies(true).minThreatLevel(2)
@@ -102,6 +102,18 @@ class GlobalSettingsValuesSpec extends Specification {
         null     | [DAST]   | []                                                           || []
     }
 
+    def "the release gate state file can only be release-gate.json, the one file the library hands on: #stateFile"() {
+        given:
+        def values = copy(BBH, releaseGate: new ReleaseGateSettings([SAST], true, stateFile))
+
+        expect:
+        problems(values) == [new FieldProblem('releaseGate.stateFile', 'must be release-gate.json: the security'
+                + ' pipeline archives and the extended pipeline copies only that file')]
+
+        where:
+        stateFile << ['dso-release-gate.json', 'Release-Gate.json', '  ', null]
+    }
+
     static final FieldProblem COVERAGE = new FieldProblem('scans.coverageMinLine',
             'must be at least 1: the library replaces 0 with 60; turn off the coverage requirement of the release gate instead')
     static final FieldProblem GATE = new FieldProblem('releaseGate.scanners',
@@ -122,7 +134,7 @@ class GlobalSettingsValuesSpec extends Specification {
         defaults.tools == [sonar: [qualityGate: [waitForQualityGate: true, timeoutMinutes: 5]], nexusIq: zero]
         (defaults.sast as Map).keySet() as List == ['prepareTimeoutMin', 'pollTimeoutMin', 'pollIntervalSec'] + zero.keySet()
         defaults.sast == [prepareTimeoutMin: 120, pollTimeoutMin: 50, pollIntervalSec: 30] + zero
-        defaults.sca == [enabled: true, pollTimeoutMin: 40, pollIntervalSec: 30] + zero
+        defaults.sca == zero
         defaults.dast == [pollTimeoutMin: 60, pollIntervalSec: 60, reportTimeoutMin: 30, reportIntervalSec: 30] + zero
         defaults.releaseGate == [scanners: ['sast', 'sca', 'niq', 'dast'], requireCoverage: true,
                                  stateFile: 'release-gate.json']
@@ -144,7 +156,7 @@ class GlobalSettingsValuesSpec extends Specification {
         defaults.tools.nexusIq == [maxCritical: 1, maxHigh: 4, maxMedium: 9]
         defaults.dast.subMap(['maxCritical', 'maxHigh', 'maxMedium']) == [maxCritical: 0, maxHigh: 2, maxMedium: 20]
         !defaults.sast.containsKey('maxCritical')
-        !defaults.sca.containsKey('maxCritical')
+        !defaults.containsKey('sca')
     }
 
     private static List<FieldProblem> problems(GlobalSettingsValues values) {

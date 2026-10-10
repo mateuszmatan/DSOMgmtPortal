@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
-import { ReactiveFormsModule } from '@angular/forms';
+import { AbstractControl, ReactiveFormsModule } from '@angular/forms';
 import { SvgIconComponent } from 'angular-svg-icon';
 import { FLUTTER_PLATFORMS, GlobalSettings, REGIONS, Region } from '../core/models';
 import {
@@ -25,11 +25,13 @@ import {
   removeItem,
 } from '../shared/form-controls';
 import { TOGGLES } from '../ui/toggle-group';
+import { AdvancedSettings } from './advanced-settings';
 import { GoldenFixFields } from './golden-fix-fields';
 import { OpenShiftTargetFields } from './openshift-target-fields';
 import {
   ServiceForm,
   ServiceSectionId,
+  ToolCommandForm,
   createNexusIqApplicationForm,
   firstInvalidSection,
   sectionInvalid,
@@ -46,56 +48,55 @@ const REGION_NAMES: Record<Region, string> = {
 };
 
 const NOTES: Record<ServiceSectionId, string> = {
-  general: "The service's entry under `projects:` in config.yaml.",
-  build: 'How the service is built, and where the build stage leaves its artifact.',
-  unitTests: 'The unit tests stage, skipped without a command, and where its coverage report is.',
+  general: 'The name of the service, used in its Jenkins job names and reports, and what it does.',
+  build: 'How Jenkins builds the service, and where the build leaves its result (the artifact).',
+  unitTests:
+    'The unit tests that run after the build, and where their results and coverage report are. Without a test command the step is skipped.',
   testJobs:
-    'The Jenkins jobs the smoke, regression and performance stages start and wait for, written to `tests.smoke`, `tests.regression` and `tests.performance`.',
-  deployment: 'Where the service is deployed.',
+    'The Jenkins jobs that run the smoke, regression and performance tests after a deployment. The pipeline starts them and waits for their results.',
+  deployment: 'Where the service runs: on virtual machines or on OpenShift.',
   urbanCode:
-    'How the full pipeline deploys the service to the lower test region with UrbanCode Deploy (`deploy.vm.dod`).',
-  ssh: 'The virtual machines the service is deployed to over SSH. A blank value takes the global deployment default; a region without values is not written.',
+    'How the Full pipeline deploys the service to the lower test region (RD) with UrbanCode Deploy.',
+  ssh: 'The virtual machines the service is deployed to over SSH, per test region. A blank value takes the library default; a region left empty is skipped.',
   openShift:
-    'The OpenShift projects the service is built and deployed in; a region without values is not written.',
+    'The OpenShift projects the service is built and deployed in, per test region. A region left empty is skipped.',
   appScan:
-    "The HCL AppScan application: SAST of the sources and, when enabled, DAST of the deployed application. The API key is the product's; the service may name its own secret.",
-  sonar: 'The SonarQube project (`tools.sonar`). Without a project key the scan is skipped.',
+    "The security scans of HCL AppScan: a static scan (SAST) of the source code and, when switched on, a dynamic scan (DAST) of the running application. They sign in with the product's AppScan API key.",
+  sonar: 'The code quality checks of SonarQube. Without a project key the check is skipped.',
   nexusIq:
-    'The dependency scan of the built artifacts (`tools.nexusIq`), one entry per Nexus IQ application. Without an application the scan is skipped.',
-  scm: 'The repository GoldenFix raises dependency upgrade pull requests against (`scm.bitbucket`). Without one GoldenFix lists its fixes in the report only.',
+    "The scan of the service's open source dependencies for known vulnerabilities, one entry per Nexus IQ application. Without an application the scan is skipped.",
+  scm: "The Bitbucket repository of the service's code. GoldenFix raises its dependency upgrade pull requests there; without one it lists its fixes in the report only.",
   goldenFix:
-    'Dependency upgrade pull requests for the vulnerable components Nexus IQ finds (`goldenFix`).',
+    'GoldenFix proposes safe versions of the vulnerable dependencies Nexus IQ finds, as pull requests.',
   metrics:
-    'The InfluxDB tags the pipelines write under; monitoring reads them back from the global InfluxDB.',
-  flutter:
-    'What a Flutter build needs besides the common settings; written only for Flutter services.',
+    'Where the pipelines store their results for Pipeline Monitoring and the delivery performance (DORA) figures. The tags are the names the results are stored under.',
+  flutter: 'What a Flutter build needs besides the common settings.',
 };
 
 const GENERAL: Field[] = [
   line('name', 'Service name', '', 5, {
     placeholder: 'backend-api',
-    hint: 'for example gui or backend-api',
+    hint: 'Used in job names and reports, for example gui or backend-api',
     error: "Use letters, digits, '.', '-' or '_'",
   }),
   line('description', 'Description', '', 7, { placeholder: 'REST API and certificate scanner' }),
 ];
 
-const UNIT_TESTS: Field[] = [
+const UNIT_TEST_OPTIONS: Field[] = [
   mono('rootDir', 'Root folder', 'tests.unitTests.rootDir', 3),
   mono('reportOutDir', 'Report folder', 'tests.unitTests.reportOutDir', 3),
   check(
     'allowEmptyResults',
     'Accept a run without test results',
     'tests.unitTests.allowEmptyResults',
+    6,
   ),
-  mono('coverageReportPath', 'Coverage report', 'coverage.reportPath', 6, {
-    placeholder: 'build/reports/jacoco/test/jacocoTestReport.xml',
-  }),
 ];
 
 const APP_SCAN: Field[] = [
   mono('applicationId', 'AppScan application ID', 'appId', 6, {
     placeholder: '109f44ac-cc06-4ca0-884e-d944904f7019',
+    hint: "the service's application in AppScan on Cloud",
     error: 'Must be the application UUID from AppScan on Cloud',
   }),
   line('sastScanName', 'SAST scan name', 'sast.scanName', 6, {
@@ -163,11 +164,24 @@ const NEXUS_IQ_APPLICATION: Field[] = [
 const SCM: Field[] = [
   line('repositoryUrl', 'Repository URL', 'scm.bitbucket.url', 8, {
     placeholder: 'https://bitbucket.bbh.com/projects/TA/repos/cert-scanner',
+    hint: "the address of the service's code in Bitbucket",
     error: HTTP_URL_ERROR,
   }),
   mono('credentialsId', 'Credentials ID', 'scm.bitbucket.credentialsId', 4, {
     placeholder: 'bitbucket-http-credentials',
+    hint: 'the Jenkins credential that signs in to Bitbucket',
   }),
+  mono('targetBranch', 'Target branch', 'scm.bitbucket.targetBranch', 4, {
+    placeholder: 'develop',
+    hint: 'the branch the pull requests go to',
+  }),
+  mono('reviewers', 'Reviewers', 'scm.bitbucket.reviewers', 8, {
+    placeholder: 'jsmith, akowalski',
+    hint: 'user names, separated by commas',
+  }),
+];
+
+const SCM_OPTIONS: Field[] = [
   choice(
     'authType',
     'Sign-in',
@@ -189,17 +203,10 @@ const SCM: Field[] = [
     'scm.bitbucket.type',
     4,
   ),
-  mono('targetBranch', 'Target branch', 'scm.bitbucket.targetBranch', 4, {
-    placeholder: 'develop',
-  }),
-  line('cloneUrl', 'Clone URL', 'scm.bitbucket.cloneUrl', 6, {
+  line('cloneUrl', 'Clone URL', 'scm.bitbucket.cloneUrl', 4, {
     placeholder: 'ssh://git@bitbucket.bbh.com/ta/cert.git',
     hint: 'left empty: the repository URL',
     error: 'Must be an http, https, ssh or git@ URL',
-  }),
-  mono('reviewers', 'Reviewers', 'scm.bitbucket.reviewers', 6, {
-    placeholder: 'jsmith, akowalski',
-    hint: 'user names, separated by commas',
   }),
 ];
 
@@ -276,6 +283,7 @@ const FLUTTER_PLATFORM: Field[] = [
     ReactiveFormsModule,
     SvgIconComponent,
     TOGGLES,
+    AdvancedSettings,
     Fields,
     GoldenFixFields,
     OpenShiftTargetFields,
@@ -307,6 +315,8 @@ export class ServiceFields {
   protected readonly dast = DAST;
   protected readonly nexusIqApplication = NEXUS_IQ_APPLICATION;
   protected readonly scm = SCM;
+  protected readonly scmOptions = SCM_OPTIONS;
+  protected readonly unitTestOptions = UNIT_TEST_OPTIONS;
   protected readonly bitbucketRepository = BITBUCKET_REPOSITORY;
   protected readonly flutterModules = FLUTTER_MODULES;
   protected readonly flutterCredentials = FLUTTER_CREDENTIALS;
@@ -320,6 +330,47 @@ export class ServiceFields {
       ...section,
       problem: sectionInvalid(form, section) && (this.submitted() || sectionTouched(form, section)),
     }));
+  });
+
+  protected readonly advanced = computed(() => {
+    const c = this.form().controls;
+    const options = (command: ToolCommandForm) =>
+      Object.entries(command.controls)
+        .filter(([key]) => key !== 'tasks')
+        .map(([, control]) => control);
+    const of = (group: { controls: Record<string, AbstractControl> }, ...keys: string[]) =>
+      keys.map((key) => group.controls[key]);
+    const scan = c.appScan;
+    const sonar = c.sonar;
+    return {
+      build: [c.build.controls.sourceDir, ...options(c.build.controls.command)],
+      unitTests: [
+        ...of(c.unitTests, 'rootDir', 'reportOutDir', 'allowEmptyResults'),
+        ...options(c.unitTests.controls.command),
+      ],
+      appScan: of(
+        scan,
+        'secretCredentialsId',
+        'includedDirs',
+        'excludedDirs',
+        'clientPath',
+        'compileCommand',
+      ),
+      sonar: [
+        ...of(
+          sonar,
+          'serverUrl',
+          'installationName',
+          'credentialsId',
+          'authTokenCredentialsId',
+          'badgeToken',
+        ),
+        ...options(sonar.controls.command),
+      ],
+      nexusIq: [c.nexusIq],
+      scm: of(c.scm, 'cloneUrl', 'apiUrl', 'workspace', 'projectKey', 'repoSlug'),
+      metrics: of(c.metrics, 'influxUrl', 'influxCredentialsId'),
+    };
   });
 
   protected readonly current = computed<ServiceSectionId>(() => {
@@ -368,17 +419,13 @@ export class ServiceFields {
     const maven = this.tool() === 'MAVEN';
     return [
       choice('tool', 'Build tool', GRADLE_MAVEN_FLUTTER, 'buildTool', 3),
-      mono('sourceDir', 'Source folder', 'sourceDir', 3, {
-        placeholder: '.',
-        hint: 'relative to the repository root',
-      }),
-      mono('javaPath', 'JDK path', 'javaPath', 6, {
+      mono('javaPath', 'JDK path', 'javaPath', 9, {
         placeholder: '/usr/lib/jvm/java-17-openjdk',
         hint: this.flutter()
           ? 'JAVA_HOME of the Flutter build stages'
           : 'JAVA_HOME of the unit tests stage, unless the build tool is set up automatically',
       }),
-      check('autoSetup', 'Set up the build tool automatically', 'buildToolAutoSetup', 6),
+      check('autoSetup', 'Set up the build tool automatically', 'buildToolAutoSetup', 12),
       mono('buildPath', 'Artifact path', 'build.buildPath', 6, {
         placeholder: maven ? 'target/*.jar' : 'build/libs/*.jar',
         hint:
@@ -386,6 +433,15 @@ export class ServiceFields {
             ? 'the artifact the Nexus snapshot delivery uploads'
             : 'what the build produces',
         error: SHELL_SAFE_ERROR,
+      }),
+    ];
+  }
+
+  protected buildOptions(): Field[] {
+    return [
+      mono('sourceDir', 'Source folder', 'sourceDir', 6, {
+        placeholder: '.',
+        hint: 'relative to the repository root',
       }),
     ];
   }
@@ -399,7 +455,9 @@ export class ServiceFields {
             : 'build/test-results/test/*.xml',
         hint: 'JUnit XML files',
       }),
-      ...UNIT_TESTS,
+      mono('coverageReportPath', 'Coverage report', 'coverage.reportPath', 6, {
+        placeholder: 'build/reports/jacoco/test/jacocoTestReport.xml',
+      }),
     ];
   }
 
@@ -449,15 +507,21 @@ export class ServiceFields {
   }
 
   protected sonarFields(): Field[] {
-    const platform = this.defaults()?.platform;
     return [
-      line('serverUrl', 'Server URL', 'tools.sonar.serverUrl', 12, {
-        ...defaulted(platform?.sonarServerUrl),
-        error: HTTP_URL_ERROR,
-      }),
       line('projectName', 'Project name', 'tools.sonar.projectName', 6),
       mono('projectKey', 'Project key', 'tools.sonar.projectKey', 6, {
+        hint: 'the project in SonarQube; left empty, the check is skipped',
         error: "Letters, digits, '-', '_', '.' and ':' with at least one non-digit",
+      }),
+    ];
+  }
+
+  protected sonarOptions(): Field[] {
+    const platform = this.defaults()?.platform;
+    return [
+      line('serverUrl', 'Server URL', 'tools.sonar.serverUrl', 8, {
+        ...defaulted(platform?.sonarServerUrl),
+        error: HTTP_URL_ERROR,
       }),
       line(
         'installationName',
@@ -524,7 +588,6 @@ export class ServiceFields {
 
   protected metricsFields(): Field[] {
     const project = `${this.productCode() || 'CODE'}-${this.form().controls.name.value || 'service'}`;
-    const platform = this.defaults()?.platform;
     return [
       check('enabled', 'Write pipeline metrics to InfluxDB', 'influx.enabled'),
       line('influxProject', 'Project tag', 'influx.project', 8, {
@@ -532,8 +595,15 @@ export class ServiceFields {
         hint: `left empty: ${project}; services may share a tag`,
       }),
       mono('influxEnv', 'Environment tag', 'influx.env', 4, {
+        hint: 'for example test',
         error: "Letters, digits, '.', '-' and '_'",
       }),
+    ];
+  }
+
+  protected metricsOptions(): Field[] {
+    const platform = this.defaults()?.platform;
+    return [
       line('influxUrl', 'InfluxDB write URL', 'influx.url', 8, {
         ...defaulted(platform?.influxWriteUrl),
         error: HTTP_URL_ERROR,

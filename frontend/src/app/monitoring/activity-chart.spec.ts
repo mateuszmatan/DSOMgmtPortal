@@ -27,27 +27,27 @@ describe('ActivityChart', () => {
     deployments,
   });
 
-  it('stacks the failed runs on the successful ones and marks deployments on top', async () => {
+  it('stacks the failed deployments on the other runs and marks deployments on top', async () => {
     await render([day('2026-10-01', 3, 1, 1), day('2026-10-02', 0), day('2026-10-03', 4, 0, 2)]);
 
     expect(chart().getAttribute('aria-label')).toBe('7 runs over 3 days');
     expect(options().chart.type).toBe('column');
     expect(options().plotOptions.column.stacking).toBe('normal');
     expect(options().xAxis.categories).toEqual(['Oct 1', 'Oct 2', 'Oct 3']);
-    expect(series('Successful runs')).toEqual([2, 0, 4]);
-    expect(series('Failed or unstable runs')).toEqual([1, 0, 0]);
+    expect(series('Other runs')).toEqual([2, 0, 4]);
+    expect(series('Failed deployments')).toEqual([1, 0, 0]);
     expect(series('Deployed that day')).toEqual([3, null, 4]);
     expect(options().series.map((entry: { className: string }) => entry.className)).toEqual([
-      'success',
+      'runs',
       'failure',
       'deployment',
     ]);
     expect(
       [0, 1, 2].map((index) => options().tooltip.formatter.call({ point: { index } })),
     ).toEqual([
-      'Oct 1: 3 runs, 1 failed, 1 deployment',
-      'Oct 2: 0 runs, 0 failed, 0 deployments',
-      'Oct 3: 4 runs, 0 failed, 2 deployments',
+      'Oct 1: 3 runs, 1 deployment, 1 failed deployment',
+      'Oct 2: 0 runs, 0 deployments, 0 failed deployments',
+      'Oct 3: 4 runs, 2 deployments, 0 failed deployments',
     ]);
   });
 
@@ -75,6 +75,6 @@ describe('ActivityChart', () => {
       [...(fixture.nativeElement as HTMLElement).querySelectorAll('.legend span')].map(
         (entry) => entry.textContent,
       ),
-    ).toEqual(['Successful runs', 'Failed or unstable runs', 'Deployed that day']);
+    ).toEqual(['Other runs', 'Failed deployments', 'Deployed that day']);
   });
 });

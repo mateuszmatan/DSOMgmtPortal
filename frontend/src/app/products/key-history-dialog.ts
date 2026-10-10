@@ -6,9 +6,10 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { finalize } from 'rxjs';
 import { PipelinesApi } from '../core/api';
 import { errorMessage } from '../core/errors';
-import { Pipeline, PipelineKey, pipelineTypeName } from '../core/models';
+import { Pipeline, PipelineKey } from '../core/models';
 import { Notifier } from '../core/notifier';
-import { RelativeTimePipe, capitalized } from '../shared/formatting';
+import { pipelineName } from '../pipelines/pipeline-texts';
+import { RelativeTimePipe } from '../shared/formatting';
 import { DIALOG } from '../ui/dialog';
 import { GRID, GridColumn } from '../ui/grid';
 import { DsoLoading } from '../ui/loading';
@@ -21,12 +22,13 @@ const status = (key: PipelineKey) => (key.status === 'ACTIVE' ? 'Active' : 'Inva
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-header">
-      <h2 dsoDialogTitle>Key history</h2>
+      <h2 dsoDialogTitle>Key history of the pipeline {{ name }}</h2>
     </div>
     <div class="modal-body">
       <p class="intro">
-        {{ typeName }} pipeline of <strong class="mono">{{ data.serviceName }}</strong> in
-        {{ data.productName }}.
+        Every key the pipeline of <strong class="mono">{{ data.serviceName }}</strong> in
+        {{ data.productName }} has had, by its first and last characters. Only the active key works;
+        an invalidated key cannot be used again.
       </p>
       @if (pipeline.isLoading()) {
         <dso-loading />
@@ -38,7 +40,7 @@ const status = (key: PipelineKey) => (key.status === 'ACTIVE' ? 'Active' : 'Inva
           <div class="key-status row-wrap">
             <span class="chip danger">Key invalidated</span>
             <span class="muted"
-              >The pipeline is refused its configuration until its key is regenerated.</span
+              >The pipeline is refused its settings until its key is regenerated.</span
             >
             <button
               type="button"
@@ -59,8 +61,9 @@ const status = (key: PipelineKey) => (key.status === 'ACTIVE' ? 'Active' : 'Inva
               [cdkCopyToClipboard]="value"
               (cdkCopyToClipboardCopied)="copied()"
             >
-              Copy
+              Copy the key
             </button>
+            <span class="muted">Put it in the service's Jenkinsfile.</span>
           </div>
         }
         @if (regenerateError(); as error) {
@@ -86,7 +89,11 @@ const status = (key: PipelineKey) => (key.status === 'ACTIVE' ? 'Active' : 'Inva
             }}</span>
           </ng-template>
           <ng-template dsoCell="lastUsedAt" let-key>
-            {{ key.lastUsedAt ? (key.lastUsedAt | relative) : '' }}
+            @if (key.lastUsedAt) {
+              {{ key.lastUsedAt | relative }}
+            } @else {
+              <span class="muted">Never</span>
+            }
           </ng-template>
           <ng-template dsoCell="revoked" let-key>
             @if (key.revokedAt) {
@@ -126,7 +133,7 @@ export class KeyHistoryDialog {
   readonly keyIssued = output<Pipeline>();
 
   protected readonly data = inject<Pipeline>(DIALOG_DATA);
-  protected readonly typeName = capitalized(pipelineTypeName(this.data.type));
+  protected readonly name = pipelineName(this.data);
   private readonly api = inject(PipelinesApi);
   private readonly notifier = inject(Notifier);
 
@@ -136,7 +143,12 @@ export class KeyHistoryDialog {
     { key: 'key', header: 'Key', value: (key) => key.hint, width: 150 },
     { key: 'status', header: 'Status', value: status, width: 120 },
     { key: 'issuedAt', header: 'Issued', value: (key) => key.issuedAt, width: 150 },
-    { key: 'lastUsedAt', header: 'Last REST fetch', value: (key) => key.lastUsedAt, width: 140 },
+    {
+      key: 'lastUsedAt',
+      header: 'Last used by Jenkins',
+      value: (key) => key.lastUsedAt,
+      width: 180,
+    },
     {
       key: 'revoked',
       header: 'Invalidated',

@@ -24,7 +24,7 @@ class EditProductSpec extends EditorSpecification {
         body == withoutResponseFields(loaded)
         body.version == loaded.version
         (loaded.services as List<Map>).findAll { (it.build as Map).tool != 'FLUTTER' }*.flutter.every { it == noFlutterSettings() }
-        assertThat(snackBar()).containsText("${loaded.name} saved")
+        assertThat(snackBar()).containsText("${loaded.name} saved. Its pipelines get the new settings the next time they run.")
         ownErrors().isEmpty()
 
         where:
@@ -143,7 +143,7 @@ class EditProductSpec extends EditorSpecification {
 
         when:
         expandService('notifications')
-        buttonIn(openService(), 'Duplicate').click()
+        buttonIn(openService(), 'Duplicate service').click()
 
         then:
         assertThat(serviceNames()).hasText(['ledger', 'gateway', 'notifications', 'notifications-copy', 'mobile-app'] as String[])
@@ -152,16 +152,16 @@ class EditProductSpec extends EditorSpecification {
 
         when:
         expandService('gateway')
-        buttonIn(openService(), 'Remove').click()
+        buttonIn(openService(), 'Remove service').click()
 
         then:
-        assertThat(dialog().locator('h2')).hasText('Remove gateway?')
+        assertThat(dialog().locator('h2')).hasText('Remove the service gateway?')
         assertThat(dialog()).containsText("Saving the product deletes the service's 3 pipelines and keys.")
 
         when:
-        dialogButton('Remove').click()
+        dialogButton('Remove service').click()
         button('Add service', true).click()
-        buttonIn(openService(), 'Remove').click()
+        buttonIn(openService(), 'Remove service').click()
 
         then:
         assertThat(dialog()).hasCount(0)
@@ -202,7 +202,7 @@ class EditProductSpec extends EditorSpecification {
         showSection('AppScan SAST and DAST')
         input(openService(), 'AppScan application ID').fill('5b1e9c2d-7a3f-4d6e-8b0a-1c2d3e4f5a6b')
         expandService('gui')
-        buttonIn(openService(), 'Duplicate').click()
+        buttonIn(openService(), 'Duplicate service').click()
         button('Save changes', true).click()
         page.waitForURL('**/admin/products/1')
 
@@ -218,7 +218,7 @@ class EditProductSpec extends EditorSpecification {
         }
         assertThat(holdingText(page.locator('.key-value'), '7b62170e…299e')).isVisible()
         assertThat(page.locator('.service .tag.new')).hasCount(2)
-        assertThat(page.locator('.stats')).containsText('5Pipelines')
+        assertThat(holding(page.locator('.page-header .facts > div'), "dt:text-is('Pipelines')").locator('dd')).hasText('5, all active')
 
         when:
         buttonIn(page.locator('.generated'), 'Dismiss').click()
@@ -243,6 +243,7 @@ class EditProductSpec extends EditorSpecification {
         open('/admin/products/1/edit')
         expandService('gui')
         showSection('Bitbucket')
+        showAdvancedSettings()
 
         expect:
         hasValues(openService(), ['Repository URL': 'https://bitbucket.bbh.com/projects/TA/repos/cert-scanner',
@@ -250,7 +251,7 @@ class EditProductSpec extends EditorSpecification {
                                   'Workspace'     : '', 'Project key': 'TA', 'Repository slug': 'cert-scanner'])
         assertThat(selected(openService(), 'Sign-in')).hasText('User name and password or token')
         assertThat(selected(openService(), 'Bitbucket')).hasText('Detected from the URL')
-        assertThat(hintOf(openService(), 'Workspace')).hasText('scm.bitbucket.workspace · Bitbucket Cloud')
+        assertThat(hintOf(openService(), 'Workspace')).hasText('Bitbucket Cloud · scm.bitbucket.workspace')
 
         when:
         fillIn(openService(), ['Workspace': 'bbh technology', 'Bitbucket API URL': 'api.bitbucket.org',
@@ -294,6 +295,7 @@ class EditProductSpec extends EditorSpecification {
         link('Edit product', true).click()
         expandService('gui')
         showSection('Bitbucket')
+        showAdvancedSettings()
 
         then:
         hasValues(openService(), ['Repository URL': '', 'Workspace': 'bbh-technology', 'Project key': '',
@@ -313,7 +315,7 @@ class EditProductSpec extends EditorSpecification {
 
         then:
         assertThat(selected(openService(), 'Run GoldenFix')).hasText('Global default')
-        assertThat(hintOf(openService(), 'Run GoldenFix')).hasText('goldenFix.enabled · Global default: on')
+        assertThat(hintOf(openService(), 'Run GoldenFix')).hasText('Global default: on · goldenFix.enabled')
 
         when:
         open('/admin/products/2/edit')
@@ -348,7 +350,7 @@ class EditProductSpec extends EditorSpecification {
         expect:
         assertThat(input(regression, 'Parameters')).hasValue('ENV=rd')
         input(regression, 'Parameters').evaluate('element => element.tagName') == 'TEXTAREA'
-        assertThat(hintOf(regression, 'Parameters')).hasText('parameters · One NAME=value per line')
+        assertThat(hintOf(regression, 'Parameters')).hasText('One NAME=value per line · parameters')
 
         when:
         input(regression, 'Parameters').fill('ENV=rd\nSUITE critical')

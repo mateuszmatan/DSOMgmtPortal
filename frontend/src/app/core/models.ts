@@ -428,6 +428,7 @@ export interface Pipeline {
   influxEnv: string;
   updatedAt: string;
   keys: PipelineKey[] | null;
+  version: number;
 }
 
 export interface PipelineRequest {
@@ -437,6 +438,7 @@ export interface PipelineRequest {
   securityPipelineJob: string | null;
   jenkinsJob: string | null;
   description: string | null;
+  version: number | null;
 }
 
 export interface ServicePipelines {
@@ -490,9 +492,6 @@ export interface ScanSettings {
   sastPrepareTimeoutMinutes: number;
   sastPollTimeoutMinutes: number;
   sastPollIntervalSeconds: number;
-  scaEnabled: boolean;
-  scaPollTimeoutMinutes: number;
-  scaPollIntervalSeconds: number;
   dastPollTimeoutMinutes: number;
   dastPollIntervalSeconds: number;
   dastReportTimeoutMinutes: number;
@@ -794,7 +793,7 @@ export const PIPELINE_TYPES: { value: PipelineType; label: string; description: 
   {
     value: 'FULL',
     label: 'Full',
-    description: 'Build, scans, tests, deployment and release (devSecOpsPipeline)',
+    description: 'Build, scans, tests, deployment and release',
   },
   {
     value: 'SECURITY',
@@ -828,3 +827,4 @@ export function pipelineTypeName(type: PipelineType): string {
 }
 
 export const DEFAULT_JENKINS_LIBRARY = 'DevSecOpsJenkinsLibrary';
+export const RELEASE_GATE_FILE = 'release-gate.json';

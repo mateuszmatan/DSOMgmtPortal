@@ -19,6 +19,7 @@ import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
+import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.Fixtures.KEY
 import static com.bbh.itss.dso.portal.support.Fixtures.activeKey
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
@@ -188,7 +189,7 @@ class PipelineServiceSpec extends Specification {
         given:
         products.findByServiceId(10L) >> Optional.of(certScanner)
         pipelines.existsForService(10L, FULL) >> true
-        pipelines.load(100L) >> Optional.of(pipeline(id: 100))
+        pipelines.load(100L) >> Optional.of(pipeline(id: 100, version: 4))
 
         when:
         action(service)
@@ -199,18 +200,20 @@ class PipelineServiceSpec extends Specification {
         0 * pipelines.save(_)
 
         where:
-        refusal                       | action                                        || message
-        'a second pipeline of a type' | { it.create(10L, FULL, pipelineSettings()) }  || 'Service gui already has a full pipeline'
-        'a change of the type'        | { it.update(100L, SAST, pipelineSettings()) } || 'The type of a pipeline cannot change; add a new pipeline instead'
+        refusal                       | action                                              || message
+        'a second pipeline of a type' | { it.create(10L, FULL, pipelineSettings()) }        || 'Service gui already has a full pipeline'
+        'a change of the type'        | { it.update(100L, 4L, SAST, pipelineSettings()) }   || 'The type of a pipeline cannot change; add a new pipeline instead'
+        'a change read at version 3'  | { it.update(100L, 3L, FULL, pipelineSettings()) }   || STALE_VERSION
+        'a change read at version 5'  | { it.update(100L, 5L, FULL, pipelineSettings()) }   || STALE_VERSION
     }
 
-    def "a pipeline's settings can change"() {
+    def "a pipeline's settings can change, at the version they were read at or without one"() {
         given:
-        pipelines.load(100L) >> Optional.of(pipeline(id: 100))
+        pipelines.load(100L) >> Optional.of(pipeline(id: 100, version: 4))
         products.load(1L) >> Optional.of(certScanner)
 
         when:
-        def view = service.update(100L, FULL, pipelineSettings(
+        def view = service.update(100L, version, FULL, pipelineSettings(
                 agentLabels: ['windows', 'linux'], extendedPipelineJob: 'CERT/x', securityPipelineJob: 'CERT/y',
                 description: 'Nightly'))
 
@@ -219,6 +222,9 @@ class PipelineServiceSpec extends Specification {
         view.pipeline().settings().description() == 'Nightly'
         view.pipeline().settings().extendedPipelineJob() == null
         view.pipeline().settings().securityPipelineJob() == null
+
+        where:
+        version << [4L, null]
     }
 
     def "a key is revoked on the pipeline loaded under a row lock"() {

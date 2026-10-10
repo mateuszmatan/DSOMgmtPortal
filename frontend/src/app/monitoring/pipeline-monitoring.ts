@@ -14,7 +14,13 @@ import { MonitoringApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { PipelineMonitoring, PipelineRun, pipelineTypeLabel } from '../core/models';
 import { BuildLink } from '../shared/build-link';
-import { CountedPipe, DurationPipe, RelativeTimePipe, formatDuration } from '../shared/formatting';
+import {
+  CountedPipe,
+  DurationPipe,
+  RelativeTimePipe,
+  TIME_ZONE_NOTE,
+  formatDuration,
+} from '../shared/formatting';
 import { RUN_LOOK, StatusChip } from '../shared/status-chip';
 import { GRID, GridColumn } from '../ui/grid';
 import { DsoLoading } from '../ui/loading';
@@ -22,8 +28,12 @@ import { TOGGLES } from '../ui/toggle-group';
 import { ActivityChart } from './activity-chart';
 import { DoraTiles } from './dora-tiles';
 import { MetricsBanner } from './metrics-banner';
+import { stageSummary } from './stages';
 
-const RANGES = ['7d', '30d', '90d', '180d'];
+const RANGES = ['7d', '30d', '90d', '180d'].map((value) => ({
+  value,
+  label: `${value.slice(0, -1)} days`,
+}));
 
 @Component({
   selector: 'dso-pipeline-monitoring',
@@ -56,10 +66,9 @@ export class PipelineMonitoringPage {
   private readonly sanitizer = inject(DomSanitizer);
 
   protected readonly ranges = RANGES;
-  protected readonly selectedRange = computed(() => {
-    const range = this.range();
-    return range && RANGES.includes(range) ? range : '30d';
-  });
+  protected readonly selectedRange = computed(
+    () => RANGES.find((range) => range.value === this.range())?.value ?? '30d',
+  );
 
   protected readonly resource = rxResource({
     params: () => ({ id: Number(this.id()), range: this.selectedRange() }),
@@ -85,7 +94,14 @@ export class PipelineMonitoringPage {
     { key: 'time', header: 'Finished', value: (run) => run.time, width: 130 },
     { key: 'result', header: 'Result', value: (run) => RUN_LOOK[run.result]?.label, width: 140 },
     { key: 'build', header: 'Build', value: (run) => run.build, width: 90 },
-    { key: 'branch', header: 'Branch', value: (run) => run.branch ?? '–', cellClass: 'mono' },
+    {
+      key: 'branch',
+      header: 'Branch',
+      value: (run) => run.branch ?? '–',
+      cellClass: 'mono',
+      wrap: true,
+      minWidth: 140,
+    },
     {
       key: 'commit',
       header: 'Commit',
@@ -103,13 +119,15 @@ export class PipelineMonitoringPage {
     {
       key: 'stages',
       header: 'Stages passed',
-      value: (run) => (run.stagesTotal ? `${run.passed ?? 0} / ${run.stagesTotal}` : '–'),
+      value: (run) => (run.stagesTotal ? `${run.passed ?? 0} of ${run.stagesTotal}` : '–'),
       width: 140,
     },
   ];
   protected readonly errorMessage = errorMessage;
 
   protected readonly typeLabel = pipelineTypeLabel;
+  protected readonly stageSummary = stageSummary;
+  protected readonly timeZoneNote = TIME_ZONE_NOTE;
 
   protected selectRange(range: string): void {
     this.router.navigate([], { relativeTo: this.route, queryParams: { range }, replaceUrl: true });

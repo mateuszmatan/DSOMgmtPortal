@@ -11,6 +11,8 @@ import java.util.List;
 
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.JOB_PATH;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.JOB_PATH_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.DESCRIPTION_MAX;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.JENKINS_JOB_MAX;
 
 public record PipelineRequest(
         @NotNull PipelineType type,
@@ -20,11 +22,12 @@ public record PipelineRequest(
                 String> agentLabels,
         @Size(max = 500) @Pattern(regexp = JOB_PATH, message = JOB_PATH_MESSAGE) String extendedPipelineJob,
         @Size(max = 500) @Pattern(regexp = JOB_PATH, message = JOB_PATH_MESSAGE) String securityPipelineJob,
-        @Size(max = 1000)
+        @Size(max = JENKINS_JOB_MAX)
         @Pattern(regexp = "^(https?://\\S+|[^\\s:?#][^:?#]*)?$",
                 message = "must be a job path such as DevSecOps/CertScanner-gui or the job's http or https URL")
         String jenkinsJob,
-        @Size(max = 1000) String description) {
+        @Size(max = DESCRIPTION_MAX) String description,
+        Long version) {
 
     PipelineSettings toSettings() {
         return new PipelineSettings(agentLabels, extendedPipelineJob, securityPipelineJob, jenkinsJob, description);

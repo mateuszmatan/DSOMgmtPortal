@@ -6,6 +6,22 @@ export const STATUS_ORDER = (
   ['FAILURE', 'UNSTABLE', 'ABORTED', 'NOT_BUILT', 'SUCCESS', 'NO_DATA', 'DISABLED'] as RunResult[]
 ).map((status) => ({ status, label: RUN_LOOK[status].label }));
 
+type StatusCounts = Partial<Record<RunResult, number>>;
+
+function statusSegments(counts: StatusCounts) {
+  return STATUS_ORDER.map((entry) => ({ ...entry, count: counts[entry.status] ?? 0 })).filter(
+    (entry) => entry.count > 0,
+  );
+}
+
+export function statusSummary(counts: StatusCounts): string {
+  return (
+    statusSegments(counts)
+      .map((segment) => `${segment.count} ${segment.label.toLowerCase()}`)
+      .join(', ') || 'No pipelines'
+  );
+}
+
 @Component({
   selector: 'dso-status-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -38,17 +54,8 @@ export const STATUS_ORDER = (
   `,
 })
 export class StatusBar {
-  readonly counts = input.required<Partial<Record<RunResult, number>>>();
+  readonly counts = input.required<StatusCounts>();
 
-  protected readonly segments = computed(() =>
-    STATUS_ORDER.map((entry) => ({ ...entry, count: this.counts()[entry.status] ?? 0 })).filter(
-      (entry) => entry.count > 0,
-    ),
-  );
-  protected readonly summary = computed(
-    () =>
-      this.segments()
-        .map((segment) => `${segment.count} ${segment.label.toLowerCase()}`)
-        .join(', ') || 'No pipelines',
-  );
+  protected readonly segments = computed(() => statusSegments(this.counts()));
+  protected readonly summary = computed(() => statusSummary(this.counts()));
 }

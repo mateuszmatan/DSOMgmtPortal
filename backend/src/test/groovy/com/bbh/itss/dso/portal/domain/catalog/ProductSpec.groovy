@@ -217,6 +217,42 @@ class ProductSpec extends Specification {
         added.problems()*.field == ['appScan.keyId']
     }
 
+    def "texts that fit their column in characters but not in UTF-8 bytes are refused on their fields"() {
+        when:
+        Product.create(details(name: 'Ł' * 101, description: 'ą' * 2001, ownerTeam: 'ś' * 101), account(),
+                [draft(description: 'ż' * 1001)], nobody)
+
+        then:
+        def e = thrown(InvalidRequestException)
+        e.problems()*.field == ['name', 'description', 'ownerTeam']
+        e.problems()*.message == ['is too long: it may take at most 200 bytes',
+                                  'is too long: it may take at most 4000 bytes',
+                                  'is too long: it may take at most 200 bytes']
+
+        when:
+        Product.create(details(), account(), [draft(name: 'gui'), draft(name: 'api', description: '–' * 667)], nobody)
+
+        then:
+        def service = thrown(InvalidRequestException)
+        service.problems()*.field == ['services[1].description']
+        service.problems()*.message == ['is too long: it may take at most 2000 bytes']
+
+        when:
+        product().changeDetails(null, details(name: 'Ł' * 101), nobody)
+
+        then:
+        def renamed = thrown(InvalidRequestException)
+        renamed.problems()*.field == ['name']
+
+        when:
+        def fitting = Product.create(details(name: 'Ł' * 100, description: 'ą' * 2000, ownerTeam: 'ś' * 100),
+                account(), [draft(description: '–' * 666)], nobody)
+
+        then:
+        fitting.description().length() == 2000
+        fitting.services()[0].description().length() == 666
+    }
+
     def "a product without services needs no AppScan key: #account"() {
         when:
         def product = Product.create(details(), account, [], nobody)

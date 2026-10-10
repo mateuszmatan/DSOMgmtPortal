@@ -164,13 +164,13 @@ describe('ServiceFields', () => {
     it('names the artifact the Nexus delivery uploads for Maven on virtual machines', async () => {
       await render();
       await open('Build');
-      expect(field('Artifact path').textContent).toContain('what the build produces');
+      expect(field('Artifact path').textContent).toContain('What the build produces');
 
       form.controls.build.controls.tool.setValue('MAVEN');
       await fixture.whenStable();
 
       expect(field('Artifact path').textContent).toContain(
-        'the artifact the Nexus snapshot delivery uploads',
+        'The artifact the Nexus snapshot delivery uploads',
       );
     });
   });
@@ -203,8 +203,8 @@ describe('ServiceFields', () => {
     it('marks the delivery coordinates required on virtual machines only', async () => {
       await render(service({ build: { ...service().build, tool: 'FLUTTER' } }));
       await open('Flutter');
-      expect(hints()).toContain('delivery.group · required on virtual machines');
-      expect(hints()).toContain('tools.flutter.flutterModules · one per line, at least one');
+      expect(hints()).toContain('Required on virtual machines · delivery.group');
+      expect(hints()).toContain('One per line, at least one · tools.flutter.flutterModules');
 
       form.controls.deployment.controls.target.setValue('OPENSHIFT');
       await fixture.whenStable();
@@ -219,8 +219,8 @@ describe('ServiceFields', () => {
     it('lists the applications, adds and removes them and names the global server', async () => {
       await render();
       await open('Nexus IQ');
-      expect(hints()).toContain('tools.nexusIq.serverUrl · left empty: https://tools.bbh.com/IQ');
-      expect(hints()).toContain('tools.nexusIq.credentialsId · left empty: nexusiqP');
+      expect(hints()).toContain('Left empty: https://tools.bbh.com/IQ · tools.nexusIq.serverUrl');
+      expect(hints()).toContain('Left empty: nexusiqP · tools.nexusIq.credentialsId');
       expect(items().map((item) => item.querySelector('strong')?.textContent)).toEqual([
         'cert-gui',
       ]);
@@ -243,12 +243,12 @@ describe('ServiceFields', () => {
     it('name the global value a blank field falls back to', async () => {
       await render();
       await open('SonarQube');
-      expect(hints()).toContain('tools.sonar.serverUrl · left empty: https://tools.bbh.com/sonar');
-      await open('DORA metrics');
-      expect(hints()).toContain('influx.credentialsId · left empty: influxdb-token');
+      expect(hints()).toContain('Left empty: https://tools.bbh.com/sonar · tools.sonar.serverUrl');
+      await open('Monitoring');
+      expect(hints()).toContain('Left empty: influxdb-token · influx.credentialsId');
       await open('AppScan SAST and DAST');
       expect(text(fieldOf(pane(), 'Secret text credentials ID'))).toContain(
-        "left empty: the product's",
+        "The AppScan API key secret; left empty: the product's",
       );
     });
   });
@@ -260,7 +260,7 @@ describe('ServiceFields', () => {
 
       const select = selectOf(pane(), 'Run GoldenFix');
       expect(text(select.selectedOptions[0])).toBe('Global default');
-      expect(hints()).toContain('goldenFix.enabled · Global default: on');
+      expect(hints()).toContain('Global default: on · goldenFix.enabled');
       expect(optionsOf(select)).toEqual(['Global default', 'On', 'Off']);
 
       choose(select, 'Off');
@@ -277,7 +277,7 @@ describe('ServiceFields', () => {
       });
       await open('GoldenFix');
 
-      expect(hints()).toContain('goldenFix.enabled · Global default: off');
+      expect(hints()).toContain('Global default: off · goldenFix.enabled');
       choose(selectOf(pane(), 'Run GoldenFix'), 'On');
       await fixture.whenStable();
 
