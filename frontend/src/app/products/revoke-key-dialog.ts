@@ -4,7 +4,8 @@ import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { PipelinesApi } from '../core/api';
 import { errorMessage } from '../core/errors';
-import { Pipeline, pipelineTypeName } from '../core/models';
+import { Pipeline } from '../core/models';
+import { pipelineName, typeName } from '../pipelines/pipeline-texts';
 import { filled, max, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { DIALOG } from '../ui/dialog';
@@ -17,7 +18,7 @@ import { DsoSpinner } from '../ui/loading';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-header">
-      <h2 dsoDialogTitle>Invalidate the pipeline key?</h2>
+      <h2 dsoDialogTitle>Invalidate the key of the pipeline {{ name }}?</h2>
     </div>
     <form [formGroup]="form" (ngSubmit)="revoke()" novalidate>
       <div class="modal-body">
@@ -25,8 +26,8 @@ import { DsoSpinner } from '../ui/loading';
           <span>
             The {{ typeName }} pipeline of
             <strong class="mono">{{ pipeline.serviceName }}</strong>
-            stops working: the portal refuses its configuration from now on. You can issue a new key
-            later.
+            is refused its settings from now on and stops at its next start. This key cannot be used
+            again; to let the pipeline run later, regenerate its key.
           </span>
         </div>
         <dso-form-field class="full-width">
@@ -38,7 +39,10 @@ import { DsoSpinner } from '../ui/loading';
             rows="3"
             placeholder="Service retired, key leaked in a build log, ..."
           ></textarea>
-          <dso-hint>Kept in the key history and shown to the pipeline when it is refused</dso-hint>
+          <dso-hint
+            >Kept in the key history and sent to Jenkins when the pipeline is refused its
+            settings</dso-hint
+          >
           <dso-error>{{ errorText(reason) }}</dso-error>
         </dso-form-field>
         @if (error(); as message) {
@@ -64,7 +68,8 @@ import { DsoSpinner } from '../ui/loading';
 })
 export class RevokeKeyDialog {
   protected readonly pipeline = inject<Pipeline>(DIALOG_DATA);
-  protected readonly typeName = pipelineTypeName(this.pipeline.type);
+  protected readonly name = pipelineName(this.pipeline);
+  protected readonly typeName = typeName(this.pipeline.type);
   private readonly dialogRef = inject<DialogRef<Pipeline, RevokeKeyDialog>>(DialogRef);
   private readonly api = inject(PipelinesApi);
 

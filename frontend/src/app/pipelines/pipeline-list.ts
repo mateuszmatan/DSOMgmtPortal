@@ -23,6 +23,7 @@ import { FORM_FIELD } from '../ui/form-field';
 import { GRID, GridColumn } from '../ui/grid';
 import { DsoLoading } from '../ui/loading';
 import { PipelineActions } from './pipeline-actions';
+import { KEY_MEANING } from './pipeline-texts';
 
 export type KeyFilter = 'ALL' | 'ACTIVE' | 'INVALIDATED';
 
@@ -91,42 +92,67 @@ export function matches(row: PipelineHealth, filters: PipelineFilters): boolean 
           <p class="page-description">{{ section.description }}</p>
         </div>
         <div class="actions">
-          <a class="btn btn-primary" [routerLink]="selfService.path">New pipeline</a>
+          <a class="btn btn-primary" [routerLink]="selfService.path"
+            >Set up pipelines in Self-service</a
+          >
         </div>
       </header>
       <section class="card toolbar">
         <dso-form-field class="department">
           <dso-label>Your department</dso-label>
           <select dsoInput [formControl]="department">
+            <option [ngValue]="null" disabled>Choose your department</option>
             @for (department of departmentList(); track department.id) {
               <option [ngValue]="department.id">{{ department.name }}</option>
             }
           </select>
+          <dso-hint
+            >Only the pipelines of this department are listed. This browser remembers your
+            choice.</dso-hint
+          >
         </dso-form-field>
-        <span class="spacer"></span>
-        @if (all().length) {
-          <span class="muted shown">{{ shown() }}</span>
-        }
       </section>
       @if (departments.error(); as error) {
-        <div class="banner">The departments could not be loaded: {{ errorMessage(error) }}</div>
+        <div class="banner" role="alert">
+          <span class="banner-text"
+            >The departments could not be loaded. {{ errorMessage(error) }}</span
+          >
+          <button type="button" class="btn btn-outline-primary" (click)="departments.reload()">
+            Try again
+          </button>
+        </div>
       }
       @if (departmentId() === null) {
         <section class="card empty-state">
-          <h3>Choose your department to see its pipelines.</h3>
-          <p>The portal remembers your department in this browser.</p>
+          <h3>Choose your department to see its pipelines</h3>
+          <p>Pick it under Your department above.</p>
         </section>
       } @else {
         @if (pipelines.isLoading()) {
           <dso-loading />
         }
         @if (pipelines.error(); as error) {
-          <div class="banner">{{ errorMessage(error) }}</div>
+          <div class="banner" role="alert">
+            <span class="banner-text"
+              >The pipelines could not be loaded. {{ errorMessage(error) }}</span
+            >
+            <button type="button" class="btn btn-outline-primary" (click)="pipelines.reload()">
+              Try again
+            </button>
+          </div>
         }
         @if (pipelines.hasValue()) {
           <dso-metrics-banner [metricsError]="pipelines.value().metricsError" />
           @if (all().length) {
-            <section class="card">
+            <section class="card list">
+              <header class="card-header">
+                <h2>Pipelines of {{ departmentName() }}</h2>
+                <span class="muted shown">{{ shown() }}</span>
+              </header>
+              <p class="section-help">
+                Pipeline key: {{ keyMeaning }}. Only its first and last characters are shown here;
+                Invalidated means the pipeline is refused its settings until a new key is issued.
+              </p>
               <dso-grid
                 label="Pipelines"
                 empty="No pipeline matches the filters."
@@ -159,7 +185,7 @@ export function matches(row: PipelineHealth, filters: PipelineFilters): boolean 
                   <button
                     type="button"
                     class="btn btn-link"
-                    [attr.aria-label]="'Edit ' + label(row.pipeline)"
+                    [attr.aria-label]="'Edit the settings of ' + label(row.pipeline)"
                     (click)="edit(row.pipeline)"
                   >
                     Edit
@@ -169,12 +195,14 @@ export function matches(row: PipelineHealth, filters: PipelineFilters): boolean 
             </section>
           } @else {
             <div class="card empty-state">
-              <h3>No DevSecOps pipeline in {{ departmentName() }} yet</h3>
+              <h3>No pipelines in {{ departmentName() }} yet</h3>
               <p>
-                Choose the pipeline, the product and its services. The portal gives each service its
-                pipeline, its key and its Jenkinsfile.
+                Self-service sets up the pipelines of a product in a few guided steps and gives each
+                service its pipeline key and its Jenkinsfile.
               </p>
-              <a class="btn btn-primary" [routerLink]="selfService.path">New pipeline</a>
+              <a class="btn btn-primary" [routerLink]="selfService.path"
+                >Set up pipelines in Self-service</a
+              >
             </div>
           }
         }
@@ -183,17 +211,21 @@ export function matches(row: PipelineHealth, filters: PipelineFilters): boolean 
   `,
   styles: `
     .toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 8px 16px;
       margin-bottom: 12px;
       padding: 10px 12px;
     }
 
-    .department {
+    .department select {
       width: 280px;
       max-width: 100%;
+    }
+
+    .banner-text {
+      flex: 1;
+    }
+
+    .list {
+      padding: 10px 14px 0;
     }
 
     .shown {
@@ -212,6 +244,7 @@ export class PipelineList {
   protected readonly selfService = SELF_SERVICE;
   protected readonly pipelineLink = pipelinePage;
   protected readonly errorMessage = errorMessage;
+  protected readonly keyMeaning = KEY_MEANING;
 
   protected readonly departmentId = this.myDepartment.departmentId;
   protected readonly department = new FormControl(this.departmentId());
@@ -252,6 +285,7 @@ export class PipelineList {
       header: 'Service',
       value: (row) => row.pipeline.serviceName,
       filter: { control: this.filters.controls.service, label: 'service' },
+      minWidth: 140,
     },
     {
       key: 'product',
@@ -259,6 +293,7 @@ export class PipelineList {
       value: (row) => row.pipeline.productName,
       filter: { control: this.filters.controls.product, label: 'product' },
       flex: 1.5,
+      minWidth: 190,
     },
     {
       key: 'type',
@@ -266,6 +301,7 @@ export class PipelineList {
       value: (row) => pipelineTypeLabel(row.pipeline.type),
       sortValue: (row) => PIPELINE_TYPES.findIndex((type) => type.value === row.pipeline.type),
       filter: { control: this.filters.controls.type, label: 'type', options: TYPE_FILTERS },
+      minWidth: 140,
     },
     {
       key: 'job',
@@ -280,10 +316,11 @@ export class PipelineList {
     },
     {
       key: 'key',
-      header: 'Key',
+      header: 'Pipeline key',
       value: (row) => row.pipeline.activeKey?.hint ?? 'Invalidated',
       sortValue: (row) => (row.pipeline.activeKey ? 0 : 1),
-      filter: { control: this.filters.controls.key, label: 'key', options: KEY_FILTERS },
+      filter: { control: this.filters.controls.key, label: 'pipeline key', options: KEY_FILTERS },
+      minWidth: 130,
     },
     {
       key: 'status',
@@ -291,13 +328,14 @@ export class PipelineList {
       value: (row) => RUN_LOOK[row.status].label,
       sortValue: (row) => Object.keys(RUN_LOOK).indexOf(row.status),
       filter: { control: this.filters.controls.status, label: 'last run', options: STATUS_FILTERS },
+      minWidth: 170,
     },
     {
       key: 'lastRun',
-      header: 'Ran',
+      header: 'Finished',
       value: (row) => (row.lastRun ? formatRelative(row.lastRun.time) : ''),
       sortValue: (row) => Date.parse(row.lastRun?.time ?? '') || 0,
-      width: 110,
+      width: 120,
     },
     { key: 'actions', header: '', width: 80 },
   ];
@@ -308,9 +346,10 @@ export class PipelineList {
   protected readonly rows = computed(() =>
     this.all().filter((row) => matches(row, this.filterValue())),
   );
-  protected readonly shown = computed(
-    () => `${this.rows().length} of ${counted(this.all().length, 'pipeline')}`,
-  );
+  protected readonly shown = computed(() => {
+    const all = counted(this.all().length, 'pipeline');
+    return this.rows().length === this.all().length ? all : `${this.rows().length} of ${all} shown`;
+  });
 
   constructor() {
     this.department.valueChanges

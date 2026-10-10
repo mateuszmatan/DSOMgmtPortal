@@ -352,6 +352,7 @@ export function pipeline(overrides: Partial<Pipeline> = {}): Pipeline {
     influxEnv: 'test',
     updatedAt: '2026-10-04T08:00:00Z',
     keys: null,
+    version: 3,
     ...overrides,
   };
 }
