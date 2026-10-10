@@ -61,11 +61,19 @@ describe('PipelineEvidenceCard', () => {
       Commit: '9f2c1e7b4d3a',
       'Artifact version': '2.4.0-42',
       Duration: '22m 5s',
-      'Config rendered': '2026-10-04 07:55 UTC',
-      'Config sha256': '3b7e1f0a9c2d4e5f',
+      'Settings sent': '2026-10-04 07:55 UTC',
+      'Settings fingerprint': '3b7e1f0a9c2d4e5f',
     });
+    expect(text('.actions a')).toBe('Open in Jenkins');
+    expect(text('.stages-head h5')).toBe('Stages of the latest build');
+    expect(text('.stage-counts')).toBe('2 passed, 1 failed, 1 blocked');
+    expect([...card().querySelectorAll('.grid h5')].map((h) => h.textContent)).toEqual([
+      'Release gate',
+      'Unit test coverage',
+      'Jenkins build',
+    ]);
     expect(text('.coverage .value')).toBe('84.25%');
-    expect(text('.detail')).toBe('Required 60% · 1685 of 2000 lines');
+    expect(text('p.detail')).toBe('Required 60% · 1685 of 2000 lines');
     expect(card().querySelector<HTMLElement>('.meter .fill')?.style.width).toBe('84.25%');
     expect(card().querySelector<HTMLElement>('.meter .required')?.style.left).toBe('60%');
     expect(cells('Unit')).toEqual(['Passed', '412', '410', '0', '2', '0', '4m']);
@@ -78,7 +86,7 @@ describe('PipelineEvidenceCard', () => {
   it('says what GoldenFix did and links its pull request', async () => {
     await render(withRun({ goldenFix: goldenFixEvidence() }));
 
-    expect(text('.golden-fix h5')).toBe('GoldenFix');
+    expect(text('.golden-fix h5')).toBe('Golden pull request (GoldenFix)');
     expect(text('.golden-fix p')).toBe(
       'Pull request raised · 2 of 3 upgrades applied, 1 unresolved · GoldenFix-202610040815',
     );
@@ -170,8 +178,8 @@ describe('PipelineEvidenceCard', () => {
       Commit: 'Not recorded',
       'Artifact version': 'Not recorded',
       Duration: 'Not recorded',
-      'Config rendered': 'Not recorded',
-      'Config sha256': 'Not recorded',
+      'Settings sent': 'Not recorded',
+      'Settings fingerprint': 'Not recorded',
     });
     expect([...card().querySelectorAll('.links span')].map((link) => link.textContent)).toEqual([
       'Build: not recorded',
@@ -219,6 +227,8 @@ describe('PipelineEvidenceCard', () => {
     card().querySelector<HTMLButtonElement>('.actions button')!.click();
     await fixture.whenStable();
 
-    expect(toast()?.textContent).toContain('Evidence copied for ServiceNow');
+    expect(toast()?.textContent).toContain(
+      'Evidence of gui · Full pipeline copied. Paste it into the ProTech change.',
+    );
   });
 });

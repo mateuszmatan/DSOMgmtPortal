@@ -8,7 +8,8 @@ import {
   MonitoringStatus,
   PortfolioActivity,
 } from '../core/models';
-import { text } from '../testing/dom';
+import { UNREACHABLE } from '../core/errors';
+import { buttonOf, text } from '../testing/dom';
 import { chartOptions } from '../testing/highcharts';
 import {
   department,
@@ -38,7 +39,7 @@ describe('MonitoringOverview', () => {
   const page = () => fixture.nativeElement as HTMLElement;
   const cards = () => [...page().querySelectorAll<HTMLAnchorElement>('a.product')];
   const tiles = () => [...page().querySelectorAll('.stat')].map((tile) => tile.textContent?.trim());
-  const headings = () => [...page().querySelectorAll('.department-title h2')].map(text);
+  const headings = () => [...page().querySelectorAll('.department-title h3')].map(text);
   const fundServices = department({ id: 5, name: 'Fund Services', productCount: 1 });
 
   async function load(
@@ -86,8 +87,8 @@ describe('MonitoringOverview', () => {
     expect(page().querySelector('h1')?.textContent).toBe('DevSecOps Pipeline Monitoring');
     expect(tiles()).toEqual([
       '5Pipelines',
-      '2Succeeded',
-      '2Failing or unstable',
+      '2Passed',
+      '2Failed or passed with warnings',
       '1Keys invalidated',
     ]);
     expect(cards().map((card) => card.getAttribute('href'))).toEqual([
@@ -113,15 +114,19 @@ describe('MonitoringOverview', () => {
   it('charts the DORA metrics and daily runs of all pipelines over 30 days', async () => {
     await load();
 
+    expect(text(page().querySelector('dso-dora-tiles h2'))).toBe('Delivery performance (DORA)');
+    expect(text(page().querySelector('dso-dora-tiles .section-help'))).toBe(
+      'Four industry measures of how often and how safely changes reach production. Each is rated Elite, High, Medium or Low; Elite is best.',
+    );
     expect([...page().querySelectorAll('dso-dora-tiles .tile-title')].map(text)).toEqual([
       'Deployment frequency',
       'Lead time for changes',
       'Change failure rate',
       'Time to restore',
     ]);
-    expect(text(page().querySelector('.portfolio h2'))).toBe('Activity of all pipelines');
+    expect(text(page().querySelector('dso-dora-tiles .portfolio h3'))).toBe('Runs per day');
     expect(text(page().querySelector('.portfolio .card-header .muted'))).toBe(
-      '40 runs in the last 30 days',
+      '40 runs of all pipelines in the last 30 days',
     );
     expect(page().querySelector('.portfolio dso-activity-chart dso-chart')?.classList).toContain(
       'drawn',
@@ -167,10 +172,76 @@ describe('MonitoringOverview', () => {
     fixture.detectChanges();
     http.expectOne('/api/monitoring/status').flush(monitoringStatus());
     http.expectOne('/api/monitoring/products').flush(monitoringOverview());
+    http.expectOne('/api/departments').flush([department()]);
     http.expectOne('/api/monitoring/activity?range=30d').flush(portfolioActivity());
     await fixture.whenStable();
 
     expect(cards().length).toBe(1);
+  });
+
+  it('loads the departments again on refresh, so their error clears and new ones are known', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/monitoring/status').flush(monitoringStatus());
+    http
+      .expectOne('/api/monitoring/products')
+      .flush(monitoringOverview({ products: [productHealth({ departmentId: 5 })] }));
+    http.expectOne('/api/departments').error(new ProgressEvent('error'), { status: 0 });
+    http.expectOne('/api/monitoring/activity?range=30d').flush(portfolioActivity());
+    await fixture.whenStable();
+
+    expect(text(page().querySelector('.products .banner span'))).toBe(
+      `The products could not be loaded. ${UNREACHABLE}`,
+    );
+
+    buttonOf(page().querySelector('.actions')!, 'Refresh').click();
+    fixture.detectChanges();
+    http.expectOne('/api/monitoring/status').flush(monitoringStatus());
+    http
+      .expectOne('/api/monitoring/products')
+      .flush(monitoringOverview({ products: [productHealth({ departmentId: 5 })] }));
+    http.expectOne('/api/departments').flush([department(), fundServices]);
+    http.expectOne('/api/monitoring/activity?range=30d').flush(portfolioActivity());
+    await fixture.whenStable();
+
+    expect(page().querySelector('.products .banner')).toBeNull();
+    expect(headings()).toEqual(['Fund Services']);
+  });
+
+  it('says why the delivery performance is missing when it could not be read', async () => {
+    await load(
+      monitoringOverview(),
+      monitoringStatus(),
+      portfolioActivity({
+        dora: doraSummary({ runs: 0 }),
+        metricsError: 'InfluxDB could not be read: timeout',
+      }),
+    );
+
+    const notice = () => page().querySelector('.dora-unavailable');
+    expect(page().querySelector('dso-dora-tiles')).toBeNull();
+    expect(text(notice()!.querySelector('h2'))).toBe('Delivery performance (DORA)');
+    expect(text(notice()!.querySelector('.banner span'))).toBe(
+      'Delivery performance and runs per day could not be loaded. The run results could not be read (InfluxDB could not be read: timeout). Try again in a moment; if it keeps failing, tell the portal administrator.',
+    );
+
+    buttonOf(notice()!, 'Try again').click();
+    fixture.detectChanges();
+    http
+      .expectOne('/api/monitoring/activity?range=30d')
+      .flush({ detail: 'The range must be 7d, 30d, 90d or 180d' }, { status: 400, statusText: '' });
+    await fixture.whenStable();
+
+    expect(text(notice()!.querySelector('.banner span'))).toBe(
+      'Delivery performance and runs per day could not be loaded. The range must be 7d, 30d, 90d or 180d',
+    );
+
+    buttonOf(notice()!, 'Try again').click();
+    fixture.detectChanges();
+    http.expectOne('/api/monitoring/activity?range=30d').flush(portfolioActivity());
+    await fixture.whenStable();
+
+    expect(notice()).toBeNull();
+    expect(page().querySelector('dso-dora-tiles')).not.toBeNull();
   });
 
   it('explains missing or unreachable metrics', async () => {
@@ -179,9 +250,31 @@ describe('MonitoringOverview', () => {
       monitoringStatus({ influxReachable: false, influxError: 'connection refused' }),
     );
 
-    const banners = [...page().querySelectorAll('.banner')].map((banner) => banner.textContent);
-    expect(banners[0]).toContain('InfluxDB cannot be reached: connection refused');
-    expect(banners[1]).toContain('InfluxDB timed out');
+    const banners = [...page().querySelectorAll('.banner')].map(text);
+    expect(banners).toEqual([
+      'Run results could not be loaded: InfluxDB, where the pipelines report their runs, does not answer (connection refused). Try again in a moment; if it keeps failing, tell the portal administrator.',
+      'Run results could not be loaded, so the statuses below may be incomplete (InfluxDB timed out). Try again in a moment; if it keeps failing, tell the portal administrator.',
+    ]);
+  });
+
+  it('says what is not shown while InfluxDB is not configured and tells the administrator what to set', async () => {
+    await load(
+      monitoringOverview(),
+      monitoringStatus({ influxConfigured: false }),
+      portfolioActivity({
+        dora: doraSummary({ runs: 0 }),
+        metricsError: 'InfluxDB is not configured for the portal',
+      }),
+    );
+
+    const banner = page().querySelector('dso-metrics-banner .banner.info')!;
+    expect(text(banner)).toContain(
+      "Run results are not shown: the portal is not connected to InfluxDB, where the pipelines report their runs, so it only knows whether each pipeline's key is valid.",
+    );
+    expect(text(banner.querySelector('.admin'))).toBe(
+      'For the administrator: set INFLUX_URL and INFLUX_TOKEN.',
+    );
+    expect(page().querySelector('.dora-unavailable')).toBeNull();
   });
 
   it('shows why the overview could not be read', async () => {
@@ -194,6 +287,19 @@ describe('MonitoringOverview', () => {
     http.expectOne('/api/monitoring/activity?range=30d').flush(portfolioActivity());
     await fixture.whenStable();
 
-    expect(page().querySelector('.banner')?.textContent).toBe('Database unavailable');
+    expect(text(page().querySelector('.banner span'))).toBe(
+      'The products could not be loaded. Database unavailable',
+    );
+
+    buttonOf(page(), 'Try again').click();
+    fixture.detectChanges();
+    http.expectOne('/api/monitoring/status').flush(monitoringStatus());
+    http.expectOne('/api/monitoring/products').flush(monitoringOverview());
+    http.expectOne('/api/monitoring/activity?range=30d').flush(portfolioActivity());
+    http.expectOne('/api/departments').flush([department()]);
+    await fixture.whenStable();
+
+    expect(page().querySelector('.banner')).toBeNull();
+    expect(cards().length).toBe(1);
   });
 });

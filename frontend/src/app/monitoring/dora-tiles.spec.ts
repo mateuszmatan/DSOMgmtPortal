@@ -11,9 +11,16 @@ describe('doraTiles', () => {
       ['Change failure rate', '12.5%', 'HIGH'],
       ['Time to restore', '2h', 'HIGH'],
     ]);
+    expect(tiles.map((tile) => tile.meaning)).toEqual([
+      'How often a change reaches production',
+      'How long a change takes from commit to production',
+      'Share of deployments that failed',
+      'How long it takes to recover after a failed deployment',
+    ]);
     expect(tiles[0].detail).toBe('12 deployments in 30 days');
-    expect(tiles[2].detail).toBe('Of 12 deployments in the range');
-    expect(tiles[3].detail).toBe('Mean of 3 recoveries from a failed deployment');
+    expect(tiles[1].detail).toBe('Typical value (median) in the period');
+    expect(tiles[2].detail).toBe('Of 12 deployments in the period');
+    expect(tiles[3].detail).toBe('Average of 3 recoveries');
     expect(tiles[3].alert).toBeUndefined();
   });
 
@@ -38,8 +45,10 @@ describe('doraTiles', () => {
 
     expect(tiles.map((tile) => tile.value)).toEqual(['–', '–', '–', '–']);
     expect(tiles[0].detail).toBe('1 deployment in 30 days');
-    expect(tiles[2].detail).toBe('Of 1 deployment in the range');
-    expect(tiles[3].detail).toBe('Mean of 1 recovery from a failed deployment');
-    expect(tiles[3].alert).toMatch(/^Failing since 4 Oct, \d\d:00$/);
+    expect(tiles[2].detail).toBe('Of 1 deployment in the period');
+    expect(tiles[3].detail).toBe('Average of 1 recovery');
+    expect(tiles[3].alert).toMatch(
+      /^Not recovered yet: a deployment failed on 4 Oct, \d\d:00 \S+ and its pipeline has not deployed successfully since$/,
+    );
   });
 });

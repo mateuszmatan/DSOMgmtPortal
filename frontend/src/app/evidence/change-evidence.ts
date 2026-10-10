@@ -1,17 +1,66 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, map } from 'rxjs';
 import { EvidenceApi, ProductsApi } from '../core/api';
-import { errorMessage } from '../core/errors';
-import { ProductEvidence, ServiceEvidence } from '../core/models';
+import { RETRY, errorMessage } from '../core/errors';
+import { ProductEvidence, ProductSummary, ServiceEvidence } from '../core/models';
 import { EVIDENCE } from '../core/sections';
+import { NOT_IN_A_DEPARTMENT } from '../products/departments';
 import { CountedPipe } from '../shared/formatting';
 import { FORM_FIELD } from '../ui/form-field';
 import { DsoLoading } from '../ui/loading';
 import { PANEL } from '../ui/panel';
 import { PipelineEvidenceCard } from './pipeline-evidence-card';
+
+const CHECKS = [
+  {
+    name: 'Unit tests',
+    meaning:
+      'Automated tests of the code itself, run on every build. Coverage is the share of code lines they run.',
+  },
+  {
+    name: 'Smoke, regression and performance tests',
+    meaning:
+      'Run on the service deployed in a test region: it starts, existing features still work, it is fast enough.',
+  },
+  {
+    name: 'SAST',
+    meaning: 'Static security testing: HCL AppScan reads the source code for security flaws.',
+  },
+  {
+    name: 'DAST',
+    meaning:
+      'Dynamic security testing: HCL AppScan probes the running service in a test region for weaknesses.',
+  },
+  {
+    name: 'SonarQube',
+    meaning: 'Checks the code quality (bugs, risky code, coverage) against the BBH quality gate.',
+  },
+  {
+    name: 'Nexus IQ',
+    meaning:
+      'Checks the open-source libraries the service uses for known vulnerabilities and licence problems.',
+  },
+  {
+    name: 'Golden pull request',
+    meaning:
+      "GoldenFix proposes safe versions of vulnerable libraries as a pull request in the service's repository.",
+  },
+  {
+    name: 'Release gate',
+    meaning:
+      "The pipeline's final decision: the build may be released only when the checked scans stay within the BBH limits.",
+  },
+];
 
 type EvidenceState =
   | { status: 'loading' }
@@ -54,8 +103,14 @@ export class ChangeEvidencePage {
     stream: ({ params }) => this.products.list(params),
   });
 
+  protected readonly groups = computed(() =>
+    this.list.hasValue() ? byDepartmentName(this.list.value()) : [],
+  );
+
+  protected readonly checks = CHECKS;
   protected readonly evidence = signal<ReadonlyMap<number, EvidenceState>>(new Map());
   protected readonly errorMessage = errorMessage;
+  protected readonly retry = RETRY;
   protected readonly loading: EvidenceState = { status: 'loading' };
 
   protected identifiers(service: ServiceEvidence): { label: string; value: string | null }[] {
@@ -69,7 +124,11 @@ export class ChangeEvidencePage {
 
   protected opened(productId: number): void {
     const state = this.evidence().get(productId);
-    if (!state || state.status === 'error') {
+    if (
+      !state ||
+      state.status === 'error' ||
+      (state.status === 'loaded' && state.evidence.metricsError)
+    ) {
       this.load(productId);
     }
   }
@@ -88,4 +147,21 @@ export class ChangeEvidencePage {
   private set(productId: number, state: EvidenceState): void {
     this.evidence.update((states) => new Map(states).set(productId, state));
   }
+}
+
+function byDepartmentName(
+  products: readonly ProductSummary[],
+): { name: string; products: ProductSummary[] }[] {
+  const groups = new Map<string, ProductSummary[]>();
+  for (const product of [...products].sort((a, b) => a.name.localeCompare(b.name))) {
+    const name = product.departmentName ?? NOT_IN_A_DEPARTMENT;
+    groups.set(name, [...(groups.get(name) ?? []), product]);
+  }
+  return [...groups]
+    .map(([name, members]) => ({ name, products: members }))
+    .sort(
+      (a, b) =>
+        Number(a.name === NOT_IN_A_DEPARTMENT) - Number(b.name === NOT_IN_A_DEPARTMENT) ||
+        a.name.localeCompare(b.name),
+    );
 }

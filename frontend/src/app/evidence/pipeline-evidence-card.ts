@@ -8,7 +8,7 @@ import {
   pipelineTypeLabel,
 } from '../core/models';
 import { Notifier } from '../core/notifier';
-import { CheckChip } from '../shared/check-chip';
+import { CHECK_LOOK, CheckChip } from '../shared/check-chip';
 import { CountedPipe, DurationPipe, durationOrNull } from '../shared/formatting';
 import { StatusChip } from '../shared/status-chip';
 import {
@@ -62,14 +62,27 @@ export class PipelineEvidenceCard {
             title: '',
           },
           {
-            label: 'Config rendered',
+            label: 'Settings sent',
             value: formatUtc(build.configRenderedAt),
             mono: false,
-            title: 'When the portal rendered the configuration this build read',
+            title: 'When the portal sent this build its settings (config.yaml)',
           },
-          { label: 'Config sha256', value: build.configSha256, mono: true, title: '' },
+          {
+            label: 'Settings fingerprint',
+            value: build.configSha256,
+            mono: true,
+            title: 'The sha256 of the settings (config.yaml) this build read',
+          },
         ]
       : [];
+  });
+  protected readonly stageCounts = computed(() => {
+    const counts = new Map<string, number>();
+    for (const stage of this.pipeline().run?.stages ?? []) {
+      const label = (CHECK_LOOK[stage.status] ?? CHECK_LOOK.NO_DATA).label.toLowerCase();
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    }
+    return [...counts].map(([label, count]) => `${count} ${label}`).join(', ');
   });
   protected readonly suites = computed(() => {
     const run = this.pipeline().run;
@@ -96,7 +109,9 @@ export class PipelineEvidenceCard {
 
   protected copied(success: boolean): void {
     if (success) {
-      this.notifier.success('Evidence copied for ServiceNow');
+      this.notifier.success(
+        `Evidence of ${this.service().name} · ${this.typeLabel()} pipeline copied. Paste it into the ProTech change.`,
+      );
     } else {
       this.notifier.error(new Error('The evidence could not be copied to the clipboard.'));
     }

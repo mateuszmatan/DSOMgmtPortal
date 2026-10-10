@@ -6,7 +6,11 @@
   </nav>
 
   @if (product.error(); as error) {
-    <div class="banner">{{ errorMessage(error) }}</div>
+    <div class="banner">
+      <span>The product could not be loaded. {{ errorMessage(error) }}</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-link" (click)="product.reload()">Try again</button>
+    </div>
     <a class="btn btn-outline-primary" routerLink="/monitoring">Back to monitoring</a>
   } @else {
     @if (product.hasValue()) {
@@ -38,8 +42,18 @@
       <dso-metrics-banner [metricsError]="p.metricsError" />
 
       <section class="card">
+        <header class="card-header">
+          <h2>Pipelines</h2>
+        </header>
+        <p class="section-help">
+          The latest run of each pipeline: the automated build, test and security checks Jenkins
+          runs for a service. Open a pipeline to see its runs over time.
+        </p>
         <div class="summary">
-          <strong>{{ p.pipelines.length | counted: 'pipeline' }}</strong>
+          <span
+            ><strong>{{ p.pipelines.length | counted: 'pipeline' }}</strong
+            >{{ p.pipelines.length ? ': ' + summary() : '' }}</span
+          >
           <dso-status-bar [counts]="counts()" />
         </div>
 
@@ -50,7 +64,7 @@
         @if (p.pipelines.length === 0) {
           <div class="empty-state">
             <h3>No pipelines yet</h3>
-            <p>Add pipelines to the services of {{ p.name }} to see their status here.</p>
+            <p>Add pipelines to the services of {{ p.name }} to see their results here.</p>
             <a class="btn btn-primary" [routerLink]="['/admin/products', p.productId]"
               >Add pipelines</a
             >
@@ -99,16 +113,17 @@
             </ng-template>
             <ng-template dsoCell="stages" let-health>
               @if (health.lastRun?.stagesTotal; as total) {
-                <span class="stages">
-                  <span class="passed" title="Passed">{{ health.lastRun.passed ?? 0 }}</span>
-                  @if (health.lastRun.warned) {
-                    <span class="warned" title="Warned">{{ health.lastRun.warned }}</span>
+                <div class="stages">
+                  <div>{{ health.lastRun.passed ?? 0 }} of {{ total }} passed</div>
+                  @if (stageProblems(health.lastRun); as problems) {
+                    <div
+                      class="stage-problems small"
+                      [class.failing]="health.lastRun.failed || health.lastRun.blocked"
+                    >
+                      {{ problems }}
+                    </div>
                   }
-                  @if (health.lastRun.failed) {
-                    <span class="failed" title="Failed">{{ health.lastRun.failed }}</span>
-                  }
-                  <span class="muted">/ {{ total }}</span>
-                </span>
+                </div>
               } @else {
                 <span class="muted">–</span>
               }
@@ -122,7 +137,7 @@
                   rel="noopener"
                   [attr.title]="health.pipeline.jenkinsJob"
                   [attr.aria-label]="'Open the Jenkins job of ' + health.pipeline.serviceName"
-                  >Job</a
+                  >Open in Jenkins</a
                 >
               } @else {
                 <span class="muted" title="No Jenkins job set for this pipeline">–</span>
