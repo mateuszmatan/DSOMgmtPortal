@@ -258,6 +258,21 @@ class PipelineMonitoringServiceSpec extends Specification {
         details.dashboards() == []
     }
 
+    def "when the last run before the range cannot be read the pipeline says why instead of reporting no runs"() {
+        given:
+        pipelines.load(100L) >> Optional.of(guiFull)
+        runs.recentRuns(*_) >> []
+        runs.doraPoints(*_) >> [:]
+        runs.latestRuns(*_) >> { throw new UncheckedIOException('InfluxDB could not be read: timeout', new IOException()) }
+
+        when:
+        def details = monitoring.pipeline(100L, '7d')
+
+        then:
+        details.lastRun() == null
+        details.metricsError() == 'InfluxDB could not be read: timeout'
+    }
+
     def "when the runs cannot be read the DORA query is skipped and the Grafana dashboard is still shown"() {
         given:
         pipelines.load(101L) >> Optional.of(guiSast)
