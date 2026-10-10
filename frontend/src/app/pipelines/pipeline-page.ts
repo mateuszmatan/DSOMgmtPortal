@@ -442,6 +442,7 @@ export class PipelinePage {
       header: 'Branch',
       value: (run) => run.branch ?? '–',
       cellClass: 'mono',
+      wrap: true,
       minWidth: 120,
     },
     {
@@ -449,6 +450,7 @@ export class PipelinePage {
       header: 'Duration',
       value: (run) => formatDuration(run.durationSeconds),
       sortValue: (run) => run.durationSeconds ?? 0,
+      minWidth: 100,
     },
   ];
 
