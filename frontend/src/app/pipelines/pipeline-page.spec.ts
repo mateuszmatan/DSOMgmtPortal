@@ -68,11 +68,21 @@ describe('PipelinePage', () => {
     await fixture.whenStable();
   }
 
+  const settle = () => new Promise((resolve) => setTimeout(resolve));
+
   async function menu(label: string) {
     await openMore();
     buttonOf(document, label).click();
+    await settle();
+  }
+
+  async function reloadedMonitoring(monitoring: PipelineMonitoring = pipelineMonitoring()) {
+    await settle();
+    http.expectOne('/api/monitoring/pipelines/100?range=30d').flush(monitoring);
     await fixture.whenStable();
   }
+
+  const chip = () => text(page().querySelector('.title dso-status-chip'));
 
   const fact = (label: string) =>
     [...page().querySelectorAll('.rows > div')]
@@ -186,6 +196,34 @@ describe('PipelinePage', () => {
     expect(text(page().querySelector('dso-metrics-banner'))).toContain('InfluxDB timed out');
   });
 
+  it('shows the runs as loading, says why they could not be loaded and tries again', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/settings').flush(globalSettings());
+    http.expectOne('/api/pipelines/100').flush(pipeline());
+    await settle();
+    fixture.detectChanges();
+
+    expect(page().querySelector('.runs dso-loading')).not.toBeNull();
+    expect(page().querySelector('.runs .small-empty')).toBeNull();
+
+    http
+      .expectOne('/api/monitoring/pipelines/100?range=30d')
+      .flush(null, { status: 502, statusText: 'Bad Gateway' });
+    await fixture.whenStable();
+
+    expect(text(page().querySelector('.runs .banner .banner-text'))).toBe(
+      'The latest runs could not be loaded. The portal could not complete the request (error 502 Bad Gateway). Try again in a moment; if it keeps failing, tell the portal administrator.',
+    );
+    expect(page().querySelector('.runs .small-empty')).toBeNull();
+    expect(page().querySelector('.runs dso-loading')).toBeNull();
+
+    buttonOf(page().querySelector('.runs')!, 'Try again').click();
+    await reloadedMonitoring();
+
+    expect(page().querySelector('.runs .banner')).toBeNull();
+    expect(gridColumn(page(), 'build')).toEqual(['#42', '#41']);
+  });
+
   it('offers to regenerate an invalidated key and reveals the new one', async () => {
     await load(pipeline({ activeKey: null }), pipelineMonitoring({ status: 'DISABLED' }));
 
@@ -204,10 +242,11 @@ describe('PipelinePage', () => {
     buttonOf(page(), 'Regenerate key').click();
     await fixture.whenStable();
     http.expectOne({ method: 'POST', url: '/api/pipelines/100/keys' }).flush(pipeline());
-    await fixture.whenStable();
+    await reloadedMonitoring();
 
     expect(page().querySelector('.banner.danger')).toBeNull();
     expect(text(page().querySelector('.key-value'))).toBe('6f1c2d3e-0000-4abc-9def-123456789abc');
+    expect(chip()).toBe('Passed');
   });
 
   it('counts the earlier keys and opens their history, which can issue a new key', async () => {
@@ -223,7 +262,7 @@ describe('PipelinePage', () => {
 
     const replaced = pipeline();
     issued.emit({ ...replaced, activeKey: { ...replaced.activeKey!, value: 'c'.repeat(36) } });
-    await fixture.whenStable();
+    await reloadedMonitoring();
     expect(text(page().querySelector('.key-value'))).toBe('c'.repeat(36));
   });
 
@@ -244,10 +283,11 @@ describe('PipelinePage', () => {
     open.mockReturnValueOnce(closed(pipeline({ agentLabels: ['docker'] })));
 
     buttonOf(page(), 'Edit settings').click();
-    await fixture.whenStable();
+    await reloadedMonitoring(pipelineMonitoring({ recentRuns: [] }));
 
     expect(opened().component).toBe(PipelineDialog);
     expect(text(fact('Jenkins agents')?.querySelector('.mono'))).toBe('docker');
+    expect(text(page().querySelector('.small-empty h3'))).toBe('No runs in the past 30 days');
   });
 
   it('shows the configuration and replaces the key once confirmed', async () => {
@@ -268,7 +308,7 @@ describe('PipelinePage', () => {
       ...replaced,
       activeKey: { ...replaced.activeKey!, value: 'b'.repeat(64), hint: 'bbbbbbbb…bbbb' },
     });
-    await fixture.whenStable();
+    await reloadedMonitoring();
 
     expect(text(page().querySelector('.key-value'))).toBe('b'.repeat(64));
   });
@@ -277,10 +317,14 @@ describe('PipelinePage', () => {
     await load();
     open.mockReturnValueOnce(closed(pipeline({ activeKey: null })));
 
+    expect(chip()).toBe('Passed');
+
     await menu('Invalidate key');
+    await reloadedMonitoring(pipelineMonitoring({ status: 'DISABLED' }));
 
     expect(opened().component).toBe(RevokeKeyDialog);
     expect(page().querySelector('.banner.danger')).not.toBeNull();
+    expect(chip()).toBe('Key invalidated');
   });
 
   it('deletes the pipeline once confirmed and returns to the pipelines', async () => {

@@ -126,7 +126,8 @@ class PipelineKeysSpec extends ProductPageSpecification {
         api.lastRequest('POST', '/api/services/1/pipelines').json() == [
                 type               : 'SECURITY', agentLabels: ['linux-agent', 'docker'],
                 extendedPipelineJob: 'DevSecOps/CERTSCANNER/gui-extended', securityPipelineJob: null,
-                jenkinsJob         : 'DevSecOps/CERTSCANNER/gui-security-scan', description: 'Nightly security scan']
+                jenkinsJob         : 'DevSecOps/CERTSCANNER/gui-security-scan', description: 'Nightly security scan',
+                version            : null]
         assertThat(pipelineTypes('gui')).hasText(['Full pipeline', 'Security pipeline', 'SAST scanning pipeline'] as String[])
         assertThat(keyOf('gui', 'Security')).hasText(hint(keyValue(30)))
         assertThat(snackBar()).containsText('Security pipeline added to gui')
@@ -304,7 +305,8 @@ class PipelineKeysSpec extends ProductPageSpecification {
         assertThat(dialog()).hasCount(0)
         awaitRequest('PUT', '/api/pipelines/1').json() == [type      : 'FULL', agentLabels: ['linux-agent', 'docker'],
                                                                extendedPipelineJob: null, securityPipelineJob: null,
-                                                               jenkinsJob: 'DevSecOps/CERTSCANNER/gui-full', description: 'Main branch delivery']
+                                                               jenkinsJob: 'DevSecOps/CERTSCANNER/gui-full', description: 'Main branch delivery',
+                                                               version   : 0]
         assertThat(pipelineRow('gui', 'Full').locator('.pipeline-meta')).containsText('linux-agent, docker')
         assertThat(pipelineRow('gui', 'Full').locator('.pipeline-meta')).containsText('Main branch delivery')
         assertThat(snackBar()).containsText('Pipeline settings saved')

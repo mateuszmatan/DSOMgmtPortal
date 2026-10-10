@@ -308,24 +308,35 @@ const RECENT_RUNS = 5;
             Up to {{ recentRuns }} of the latest runs Jenkins reported in the past 30 days.
             {{ timeZoneNote }}
           </p>
-          @if (monitoring.hasValue()) {
-            <dso-metrics-banner [metricsError]="monitoring.value().metricsError" />
-          }
-          @if (runs().length === 0) {
-            <div class="empty-state small-empty">
-              <h3>No runs in the past 30 days</h3>
-              <p>Runs show here once Jenkins runs this pipeline with its Jenkinsfile.</p>
+          @if (monitoring.error(); as error) {
+            <div class="banner" role="alert">
+              <span class="banner-text"
+                >The latest runs could not be loaded. {{ errorMessage(error) }}</span
+              >
+              <button type="button" class="btn btn-outline-primary" (click)="monitoring.reload()">
+                Try again
+              </button>
             </div>
+          } @else if (!monitoring.hasValue()) {
+            <dso-loading />
           } @else {
-            <dso-grid label="Latest runs" [rows]="runs()" [columns]="runColumns" [rowId]="runId">
-              <ng-template dsoCell="time" let-run>
-                {{ run.time | date: 'd MMM, HH:mm' }}
-              </ng-template>
-              <ng-template dsoCell="result" let-run>
-                <dso-status-chip [status]="run.result" />
-              </ng-template>
-              <ng-template dsoCell="build" let-run><dso-build-link [run]="run" /></ng-template>
-            </dso-grid>
+            <dso-metrics-banner [metricsError]="monitoring.value().metricsError" />
+            @if (runs().length === 0) {
+              <div class="empty-state small-empty">
+                <h3>No runs in the past 30 days</h3>
+                <p>Runs show here once Jenkins runs this pipeline with its Jenkinsfile.</p>
+              </div>
+            } @else {
+              <dso-grid label="Latest runs" [rows]="runs()" [columns]="runColumns" [rowId]="runId">
+                <ng-template dsoCell="time" let-run>
+                  {{ run.time | date: 'd MMM, HH:mm' }}
+                </ng-template>
+                <ng-template dsoCell="result" let-run>
+                  <dso-status-chip [status]="run.result" />
+                </ng-template>
+                <ng-template dsoCell="build" let-run><dso-build-link [run]="run" /></ng-template>
+              </dso-grid>
+            }
           }
         </section>
       }
@@ -492,7 +503,7 @@ export class PipelinePage {
   }
 
   protected edit(pipeline: Pipeline): void {
-    this.actions.edit(pipeline).subscribe((updated) => this.pipeline.set(updated));
+    this.actions.edit(pipeline).subscribe((updated) => this.changed(updated));
   }
 
   protected keyHistory(pipeline: Pipeline): void {
@@ -504,7 +515,7 @@ export class PipelinePage {
   }
 
   protected revokeKey(pipeline: Pipeline): void {
-    this.actions.revokeKey(pipeline).subscribe((updated) => this.pipeline.set(updated));
+    this.actions.revokeKey(pipeline).subscribe((updated) => this.changed(updated));
   }
 
   protected regenerateKey(pipeline: Pipeline): void {
@@ -520,7 +531,12 @@ export class PipelinePage {
   }
 
   private keyIssued(pipeline: Pipeline): void {
-    this.pipeline.set(pipeline);
+    this.changed(pipeline);
     this.revealed.set(true);
+  }
+
+  private changed(pipeline: Pipeline): void {
+    this.pipeline.set(pipeline);
+    this.monitoring.reload();
   }
 }

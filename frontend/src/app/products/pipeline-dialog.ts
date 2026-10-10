@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { catchError, finalize, of } from 'rxjs';
+import { EMPTY, Observable, catchError, finalize, ignoreElements, of, tap, throwError } from 'rxjs';
 import { PipelinesApi, ServiceTemplateApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
 import {
@@ -41,6 +42,19 @@ export const JENKINS_JOB = /^(https?:\/\/\S+|[^\s:?#][^:?#]*)$/;
 export const JOB_PATH = /^(?!.*\.\.)[A-Za-z0-9._ /-]+$/;
 const JOB_PATH_ERROR = "A job path such as DevSecOps/CERT/backend-api-extended, without '..'";
 const MAX_LABELS = 20;
+const STALE =
+  'Not saved: someone else changed the settings of this pipeline after you opened them. ' +
+  'The form now shows their settings: make your change again, then save.';
+
+function settingsOf(pipeline: Pipeline | undefined) {
+  return {
+    agentLabels: joinWords(pipeline?.agentLabels ?? ['linux-agent'], ', '),
+    jenkinsJob: pipeline?.jenkinsJob ?? '',
+    extendedPipelineJob: pipeline?.extendedPipelineJob ?? '',
+    securityPipelineJob: pipeline?.securityPipelineJob ?? '',
+    description: pipeline?.description ?? '',
+  };
+}
 
 @Component({
   selector: 'dso-pipeline-dialog',
@@ -65,31 +79,34 @@ export class PipelineDialog {
       !this.data.service.pipelines.some((p) => p.type === type.value),
   );
 
+  private readonly stored = settingsOf(this.data.pipeline);
+  private version = this.data.pipeline?.version ?? null;
+
   protected readonly form = new FormGroup({
     type: new FormControl<PipelineType>(
       { value: this.data.pipeline?.type ?? this.types[0]?.value ?? 'FULL', disabled: this.editing },
       { nonNullable: true },
     ),
     agentLabels: text(
-      joinWords(this.data.pipeline?.agentLabels ?? ['linux-agent'], ', '),
+      this.stored.agentLabels,
       filled,
       (control) =>
         commaItems(control.value).length > MAX_LABELS ? { maxItems: { max: MAX_LABELS } } : null,
       eachItem(commaItems, AGENT_LABEL, 'At most 100 characters per label'),
       fitsColumn(commaItems, ',', 1000),
     ),
-    jenkinsJob: text(this.data.pipeline?.jenkinsJob, Validators.pattern(JENKINS_JOB), max(1000)),
+    jenkinsJob: text(this.stored.jenkinsJob, Validators.pattern(JENKINS_JOB), max(1000)),
     extendedPipelineJob: text(
-      this.data.pipeline?.extendedPipelineJob,
+      this.stored.extendedPipelineJob,
       Validators.pattern(JOB_PATH),
       max(500),
     ),
     securityPipelineJob: text(
-      this.data.pipeline?.securityPipelineJob,
+      this.stored.securityPipelineJob,
       Validators.pattern(JOB_PATH),
       max(500),
     ),
-    description: text(this.data.pipeline?.description, max(1000)),
+    description: text(this.stored.description, max(1000)),
   });
 
   private readonly type = toSignal(this.form.controls.type.valueChanges, {
@@ -215,6 +232,7 @@ export class PipelineDialog {
         value.type === 'EXTENDED' ? value.securityPipelineJob.trim() || null : null,
       jenkinsJob: value.jenkinsJob.trim() || null,
       description: value.description.trim() || null,
+      version: this.version,
     };
     const pipeline = this.data.pipeline;
     this.saving.set(true);
@@ -223,7 +241,14 @@ export class PipelineDialog {
       ? this.api.update(pipeline.id, request)
       : this.api.create(this.data.service.serviceId, request)
     )
-      .pipe(finalize(() => this.saving.set(false)))
+      .pipe(
+        catchError((error) =>
+          pipeline && error instanceof HttpErrorResponse && error.status === 409
+            ? this.reload(pipeline.id)
+            : throwError(() => error),
+        ),
+        finalize(() => this.saving.set(false)),
+      )
       .subscribe({
         next: (saved) => this.dialogRef.close(saved),
         error: (error) => {
@@ -236,5 +261,23 @@ export class PipelineDialog {
           );
         },
       });
+  }
+
+  private reload(id: number): Observable<never> {
+    return this.api.get(id).pipe(
+      tap((current) => {
+        this.version = current.version;
+        this.form.reset(settingsOf(current));
+        this.error.set(STALE);
+      }),
+      catchError((error) => {
+        this.error.set(
+          'Not saved: someone else changed the settings of this pipeline after you opened them, ' +
+            `and the current settings could not be loaded. ${errorMessage(error)}`,
+        );
+        return EMPTY;
+      }),
+      ignoreElements(),
+    );
   }
 }

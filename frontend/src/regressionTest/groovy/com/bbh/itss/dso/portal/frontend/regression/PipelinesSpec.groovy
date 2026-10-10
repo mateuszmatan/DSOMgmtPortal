@@ -1,10 +1,12 @@
 package com.bbh.itss.dso.portal.frontend.regression
 
 import com.bbh.itss.dso.portal.frontend.support.GuiSpecification
+import com.bbh.itss.dso.portal.frontend.support.RecordedRequest
 import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 
 import static com.bbh.itss.dso.portal.frontend.support.StubApi.fixture
+import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.MENUITEM
 
@@ -181,6 +183,7 @@ class PipelinesSpec extends GuiSpecification {
             agentLabels == ['linux-agent', 'docker']
             description == 'Release build'
             type == 'FULL'
+            version == 0
         }
 
         when:
@@ -197,15 +200,77 @@ class PipelinesSpec extends GuiSpecification {
         ownErrors().isEmpty()
     }
 
+    def "a pipeline someone else changed meanwhile is reloaded in its dialog and saved on top"() {
+        given:
+        def current = (fixture('pipeline-1.json') as Map) + [version: 1, jenkinsJob: 'DevSecOps/CERTSCANNER/gui-full-v2']
+        api.get('/api/pipelines/1') { api.requests('PUT', '/api/pipelines/1') ? current : fixture('pipeline-1.json') }
+        api.on('PUT', '/api/pipelines/1') { RecordedRequest request ->
+            request.json().version == current.version ? current + [description: request.json().description]
+                    : problem(409, 'Conflict', 'The record was changed by someone else in the meantime. Reload it and apply your change again.')
+        }
+
+        when:
+        open('/pipelines/1')
+        button('Edit settings', true).click()
+        input(dialog(), 'Description').fill('Release build')
+        dialogButton('Save settings').click()
+
+        then:
+        assertThat(dialog().locator('[role=alert]')).hasText('Not saved: someone else changed the settings of this pipeline after you opened them. ' +
+                'The form now shows their settings: make your change again, then save.')
+        assertThat(input(dialog(), 'Jenkins job')).hasValue('DevSecOps/CERTSCANNER/gui-full-v2')
+        assertThat(input(dialog(), 'Description')).hasValue('')
+
+        when:
+        input(dialog(), 'Description').fill('Release build')
+        dialogButton('Save settings').click()
+
+        then:
+        assertThat(dialog()).hasCount(0)
+        assertThat(fact('Jenkins job')).hasText('DevSecOps/CERTSCANNER/gui-full-v2')
+        assertThat(fact('Description')).hasText('Release build')
+        api.requests('PUT', '/api/pipelines/1')*.json()*.version == [0, 1]
+        ownErrors().findAll { !it.contains('409') }.isEmpty()
+    }
+
+    def "the latest runs say why they could not be loaded and load on a second try"() {
+        given:
+        def failing = true
+        api.get('/api/monitoring/pipelines/1') {
+            failing ? problem(500, 'Internal Server Error', 'The run history is not available') : fixture('monitoring-pipeline-1.json')
+        }
+
+        when:
+        open('/pipelines/1')
+
+        then:
+        assertThat(page.locator('.runs .banner')).containsText('The latest runs could not be loaded. The run history is not available')
+        assertThat(page.locator('.runs .small-empty')).hasCount(0)
+
+        when:
+        failing = false
+        buttonIn(page.locator('.runs'), 'Try again').click()
+
+        then:
+        assertThat(gridRows()).hasCount(5)
+        assertThat(page.locator('.runs .banner')).hasCount(0)
+        ownErrors().findAll { !it.contains('500') }.isEmpty()
+    }
+
     def "an invalidated key is regenerated on the page of its pipeline"() {
         given:
         api.respond('POST', '/api/pipelines/9/keys', fixture('pipeline-9-regenerated.json'))
+        api.get('/api/monitoring/pipelines/9') {
+            def monitoring = fixture('monitoring-pipeline-9.json') as Map
+            api.requests('POST', '/api/pipelines/9/keys') ? monitoring + [status: 'SUCCESS'] : monitoring
+        }
 
         when:
         open('/pipelines/9')
 
         then:
         assertThat(page.locator('.banner.danger')).containsText('The pipeline key is invalidated. Jenkins is refused the settings of this pipeline')
+        assertThat(page.locator('.title .last-run .chip')).hasText('Key invalidated')
         assertThat(page.locator('pre.code-block')).containsText('<issue a new key first>')
 
         when:
@@ -215,6 +280,7 @@ class PipelinesSpec extends GuiSpecification {
         assertThat(page.locator('.key-value')).hasText(REGENERATED_KEY)
         assertThat(page.locator('.banner.danger')).hasCount(0)
         assertThat(page.locator('pre.code-block')).containsText(REGENERATED_KEY)
+        assertThat(page.locator('.title .last-run .chip')).hasText('Passed')
         assertThat(snackBar()).containsText('SAST scanning pipeline of mobile-app has a new key')
         api.requests('POST', '/api/pipelines/9/keys').size() == 1
         ownErrors().isEmpty()

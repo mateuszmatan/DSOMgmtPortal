@@ -141,6 +141,7 @@ describe('PipelineDialog', () => {
       securityPipelineJob: null,
       jenkinsJob: null,
       description: 'Release build',
+      version: 3,
     });
     expect(page().querySelector('dso-spinner')).not.toBeNull();
     await submit();
@@ -148,6 +149,61 @@ describe('PipelineDialog', () => {
 
     request.flush(pipeline({ agentLabels: ['linux-agent', 'docker'] }));
     expect(close).toHaveBeenCalledWith(pipeline({ agentLabels: ['linux-agent', 'docker'] }));
+  });
+
+  it('reloads the settings someone else saved meanwhile and saves the next change on top', async () => {
+    const stored = pipeline();
+    await render({ service: servicePipelines({ pipelines: [stored] }), pipeline: stored });
+
+    await type('Description', 'Release build');
+    await submit();
+    http
+      .expectOne({ method: 'PUT', url: '/api/pipelines/100' })
+      .flush(
+        { detail: 'The record was changed by someone else in the meantime.' },
+        { status: 409, statusText: 'Conflict' },
+      );
+    const current = pipeline({ version: 4, jenkinsJob: 'DevSecOps/CERT/gui-full-v2' });
+    http.expectOne({ method: 'GET', url: '/api/pipelines/100' }).flush(current);
+    await fixture.whenStable();
+
+    expect(page().querySelector('[role=alert]')?.textContent).toBe(
+      'Not saved: someone else changed the settings of this pipeline after you opened them. The form now shows their settings: make your change again, then save.',
+    );
+    expect(inputOf(page(), 'Jenkins job').value).toBe('DevSecOps/CERT/gui-full-v2');
+    expect(inputOf(page(), 'Description').value).toBe('');
+    expect(page().querySelector('dso-spinner')).toBeNull();
+    expect(close).not.toHaveBeenCalled();
+
+    await type('Description', 'Release build');
+    await submit();
+    const request = http.expectOne({ method: 'PUT', url: '/api/pipelines/100' });
+    expect(request.request.body).toMatchObject({
+      jenkinsJob: 'DevSecOps/CERT/gui-full-v2',
+      description: 'Release build',
+      version: 4,
+    });
+    request.flush(current);
+    expect(close).toHaveBeenCalledWith(current);
+  });
+
+  it('says when the settings someone else saved meanwhile could not be loaded', async () => {
+    const stored = pipeline();
+    await render({ service: servicePipelines({ pipelines: [stored] }), pipeline: stored });
+
+    await submit();
+    http
+      .expectOne({ method: 'PUT', url: '/api/pipelines/100' })
+      .flush(null, { status: 409, statusText: 'Conflict' });
+    http
+      .expectOne({ method: 'GET', url: '/api/pipelines/100' })
+      .flush(null, { status: 0, statusText: 'Unknown Error' });
+    await fixture.whenStable();
+
+    expect(page().querySelector('[role=alert]')?.textContent).toBe(
+      'Not saved: someone else changed the settings of this pipeline after you opened them, and the current settings could not be loaded. The portal cannot be reached. Check your network connection and try again.',
+    );
+    expect(close).not.toHaveBeenCalled();
   });
 
   it('adds a Nexus IQ GoldenFix pipeline without a job of another pipeline', async () => {
@@ -176,6 +232,7 @@ describe('PipelineDialog', () => {
       securityPipelineJob: null,
       jenkinsJob: 'DevSecOps/CERT/gui-nexusiq',
       description: null,
+      version: null,
     });
     const created = pipeline({ id: 104, type: 'NEXUS_IQ' });
     request.flush(created);

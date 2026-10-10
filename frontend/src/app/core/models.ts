@@ -428,6 +428,7 @@ export interface Pipeline {
   influxEnv: string;
   updatedAt: string;
   keys: PipelineKey[] | null;
+  version: number;
 }
 
 export interface PipelineRequest {
@@ -437,6 +438,7 @@ export interface PipelineRequest {
   securityPipelineJob: string | null;
   jenkinsJob: string | null;
   description: string | null;
+  version: number | null;
 }
 
 export interface ServicePipelines {
