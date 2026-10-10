@@ -453,7 +453,8 @@ public class DemoDataLoader implements ApplicationRunner {
                 .orElseThrow();
         PipelineSettings configured = new PipelineSettings(agentLabels, extendedJob, securityJob, jenkinsJob, null);
         return started(product, service, type)
-                .map(started -> pipelines.update(started.pipeline().id(), type, configured))
+                .map(started -> pipelines.update(started.pipeline().id(), started.pipeline().version(), type,
+                        configured))
                 .orElseGet(() -> pipelines.create(service.id(), type, configured));
     }
 

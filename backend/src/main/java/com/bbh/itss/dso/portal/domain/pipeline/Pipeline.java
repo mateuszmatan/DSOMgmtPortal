@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineKey.REVOKE_REASON_MAX;
+import static com.bbh.itss.dso.portal.domain.shared.Versions.requireCurrent;
 import static java.util.Objects.requireNonNull;
 
 @Getter
@@ -52,7 +54,8 @@ public final class Pipeline {
         return new Pipeline(id, service, type, settings, keys, version, createdAt, updatedAt);
     }
 
-    public void reconfigure(PipelineType requestedType, PipelineSettings requestedSettings) {
+    public void reconfigure(Long expectedVersion, PipelineType requestedType, PipelineSettings requestedSettings) {
+        requireCurrent(expectedVersion, version);
         if (requestedType != type) {
             throw new IllegalStateException("The type of a pipeline cannot change; add a new pipeline instead");
         }
@@ -78,6 +81,7 @@ public final class Pipeline {
     }
 
     public PipelineKey revokeActiveKey(String reason, Instant now) {
+        new ValidationProblems().fits("reason", reason, REVOKE_REASON_MAX).throwIfAny();
         PipelineKey active = activeKey()
                 .orElseThrow(() -> new IllegalStateException("The pipeline has no active key to invalidate"));
         PipelineKey revoked = active.revoke(reason, now);
