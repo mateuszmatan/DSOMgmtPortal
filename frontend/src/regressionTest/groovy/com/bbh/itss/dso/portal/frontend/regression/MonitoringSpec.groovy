@@ -22,7 +22,7 @@ class MonitoringSpec extends GuiSpecification {
         assertThat(stat('Passed')).hasText('6')
         assertThat(stat('Failed or passed with warnings')).hasText('2')
         assertThat(stat('Keys invalidated')).hasText('1')
-        assertThat(page.locator('section.department h3')).hasText(['Corporate Technology', 'Fund Services'] as String[])
+        assertThat(page.locator('.department-title h3')).hasText(['Corporate Technology', 'Fund Services'] as String[])
         assertThat(productCards()).hasText(['CertScanner', 'Payments Hub'] as String[])
 
         when:

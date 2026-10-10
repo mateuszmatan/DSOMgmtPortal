@@ -15,12 +15,12 @@ Service
 
 Pipeline
 - Type: Full (FULL)
-- Status: Success
+- Status: Passed
 - Jenkins job: https://jenkins.bbh.com/job/DevSecOps/job/CERTSCANNER/job/gui-full/
 
 Jenkins build
 - Build: #62
-- Result: Success
+- Result: Passed
 - Finished: 2026-10-03 07:36 UTC
 - Branch: develop
 - Commit: a28ef0054e42

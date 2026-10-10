@@ -15,7 +15,7 @@ class ChangeEvidenceSpec extends GuiSpecification {
         open('/evidence')
 
         expect:
-        assertThat(page.locator('section.department h3')).hasText(['Corporate Technology', 'Fund Services'] as String[])
+        assertThat(page.locator('.department-title h3')).hasText(['Corporate Technology', 'Fund Services'] as String[])
         assertThat(panel('CertScanner').locator('.panel-toggle')).hasText('Show evidence')
         assertThat(panel('CertScanner').locator('.counts')).hasText('2 services · 3 pipelines')
         assertThat(panel('Payments Hub').locator('.counts')).hasText('4 services · 6 pipelines')
