@@ -137,6 +137,13 @@ export const routes: Routes = [
     loadComponent: () => import('./changes/change-edit').then((m) => m.ChangeEdit),
   },
   {
+    path: 'beadle/changes/:id/secure-coding',
+    title: 'Secure coding ticket',
+    canDeactivate: [unsavedChangesGuard],
+    loadComponent: () =>
+      import('./changes/change-secure-coding').then((m) => m.ChangeSecureCoding),
+  },
+  {
     path: 'beadle/admin/products/:id',
     title: `Product · ${BEADLE_ADMIN.heading}`,
     canDeactivate: [unsavedChangesGuard],

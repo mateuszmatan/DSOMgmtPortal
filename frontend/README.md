@@ -92,9 +92,10 @@ every feature land in `build/reports/frontend/screenshots`.
   change page with where the change is, an update published to ProTech from PENDING to APPLIED with a lookup, a
   downtime window and a risk answer, a NOT_APPLIED update, a stale update, a closed change and the change of another
   department; the new change walked step by step from the product through the lookups, the FixVersion, the approvers,
-  the schedule with its downtime window, the planning, the privileged accounts, the risk lists and the secure coding
-  ticket to the review, the raised change and its change tasks, a product without a template, ProTech's field errors
-  marked on the steps and on the change tasks, and change tasks left for later; change evidence and the text Copy for
+  the schedule with its downtime window, the planning, the privileged accounts and the risk lists to the review, the
+  created change, its change tasks, its secure coding ticket and the summary, a product without a template, ProTech's
+  field errors marked on the steps and on the change tasks, and change tasks and the ticket left for later and
+  created on the change page; change evidence and the text Copy for
   ProTech copies, with its warning when the run results cannot be read, and the golden pull request of a Nexus IQ
   GoldenFix run; monitoring ranges, Jenkins and build links, InfluxDB missing or unreachable, and a failed read of the
   delivery performance; and failing API calls.
@@ -195,32 +196,43 @@ make your change again, then save." When those settings cannot be loaded either,
 
 The New Change wizard follows the sections of a ProTech change, listed once in `SECTIONS` of
 `changes/change-sections.ts`: Request data (Request details), Jira, Approval (Approval and notification), Schedule,
-Planning, Privileged access, Risk assessment and Secure coding, then Review, Change tasks and Raised: eleven steps. The
-step bar names each step, the line under it says where you are ("Step 3 of 11"), and the main button names the next
-step (**Next: Schedule**), **Raise the change in ProTech** on Review and **Create the change tasks in ProTech** on
-Change tasks, next to **Add change tasks later**. Request data starts with the department and product pickers and the
+Planning, Privileged access and Risk assessment, then Review: eight steps until the change exists. The step bar names
+each step, the line under it says where you are ("Step 3 of 8"), and the main button names the next step (**Next:
+Schedule**). On Review it reads **Create and add CTASKs and SecureCoding ticket**: it creates the change, and Add
+CTASKs and Secure coding join the bar ("Step 9 of 10"), because both need the change number. Add CTASKs offers
+**Create the CTASKs in ProTech** next to **Add CTASKs later**, Secure coding **Create the secure coding ticket in
+CyberTrack** next to **Create the ticket later**, and Summary ends the wizard. Request data starts with the department and product pickers and the
 read-only facts (Change number, Approval, Opened by, State), then the request fields in two columns. Requested for,
 Requested by and Assigned to default to the signed-in user of `/api/me` and the Department to the department of the
 product. Jira shows the Jira project of the template and asks for the FixVersion and its epics and stories; once an
 epic is chosen it shows the "Text sent to ProTech" written from them. Schedule asks for the start of the installation,
 the post-install validation and the first use as date and time, with hours for the installation and the validation,
 and a Yes/No downtime with its own start and hours; the end of each window is shown under its hours. Privileged access
-asks how many accounts (none to seven) and then the person and the account of each. Risk assessment offers the nine
+asks how many accounts (none to seven) and then, one line each, the person on the left and the privileged access on
+the right. Risk assessment offers the nine
 lists of `/api/changes/options` with Not assessed first; the Risk field of Request data is read-only ("Worked out from
 the risk assessment") and follows the answers (High when an answer is the last of its list, Moderate when one is past
 the first, else Low). Review shows "Every value of the change" and the "Text sent to ProTech" (the short description
-and description), which can be changed there before the change is raised. Change tasks then fills in the product's
-default change tasks and adds them to the raised change, and Raised sums it up with **Open the change** and **Raise
-another change**.
+and description), which can be changed there before the change is raised. Add CTASKs then fills in the product's
+default change tasks in `dso-change-tasks-form` (`changes/change-tasks-form.ts`) and adds them to the created change.
+Secure coding (`dso-secure-coding-form`, `changes/secure-coding-form.ts`) fills in the APO number and the three links
+from the template and the implementation date (MMDDYYYY) from the installation start, all required, and shows the
+ticket name `APO-ID_APP-NAME-IMPLEMENTATION-DATE` as you type. Summary shows the change number and the secure coding
+ticket number read-only, with **Open the change** and **Create another change**.
 
 The Category, Type and risk lists come only from `/api/changes/options`. The Beadle Admin product page shows the same
-sections without the facts, with the Jira project and the schedule defaults (start time and hours), and notes under
+sections without the facts, with the Jira project, the schedule defaults (start time and hours) and the secure coding
+defaults (APO number and the three links), and notes under
 Requested for, Requested by and Assigned to "If left empty: the user who opens the change" and under Department "If
 left empty: the department of the product". The edit page of a change shows "ProTech fields" (the facts and the same
 sections without Jira, with the schedule of the change), "Change tasks" and "Text sent to ProTech", whose counters
 count bytes against 160 and 4000, and publishes with **Publish the update to ProTech**. The change page shows "Where
 the change is", "The change at a glance" (When it installs, What it delivers, Who approves) and the change tasks in
-words, with "All ProTech fields" (every field by section) and "Text sent to ProTech" in collapsed panels.
+the same task form, read-only and without magnifiers, with "All ProTech fields" (every field by section) and "Text
+sent to ProTech" in collapsed panels. While an open change of your department has no secure coding ticket, a note
+links to its secure coding page (`/beadle/changes/{id}/secure-coding`, `changes/change-secure-coding.ts`), which
+creates the ticket and returns to the change. One task form serves the template, the wizard, the edit page and the
+change page: two columns filled left then right, the text areas one under another across the width.
 
 ## Self-service wizard
 

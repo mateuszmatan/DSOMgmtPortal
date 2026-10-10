@@ -52,9 +52,16 @@ overlay per environment: `rd`, `qc` and `prod`, each starting the Spring profile
    oc create secret generic dso-portal-influx --from-literal=INFLUX_TOKEN='<token>'
    ```
 
+   The CyberTrack token is optional too, in its own secret:
+
+   ```bash
+   oc create secret generic dso-portal-cybertrack --from-literal=CYBERTRACK_TOKEN='<token>'
+   ```
+
 3. Set `INFLUX_URL` and the Grafana dashboard links in the overlay's `configMapGenerator` (add them next to
    `SPRING_PROFILES_ACTIVE`), with the `GRAFANA_2_*` links when a second Grafana instance holds dashboards too. The
-   links must be reachable from the users' browsers, because the monitoring pages embed the dashboards.
+   links must be reachable from the users' browsers, because the monitoring pages embed the dashboards. Set
+   `CYBERTRACK_URL` to the Jira that holds the project SCP to create real secure coding tickets; empty keeps the demo.
 
 4. Apply the overlay:
 
@@ -81,3 +88,6 @@ terminates TLS at the edge and redirects plain HTTP. Memory is limited to 1 GiB 
 | `GRAFANA_SECURITY_DASHBOARD_URL` | ConfigMap (optional) | Link to the DSOEnhanced security dashboard, used for SECURITY, SAST and NEXUS_IQ pipelines |
 | `GRAFANA_NAME` | ConfigMap (optional) | Name of that Grafana instance on the pipeline page, `Grafana` by default |
 | `GRAFANA_2_DASHBOARD_URL`, `GRAFANA_2_SECURITY_DASHBOARD_URL`, `GRAFANA_2_NAME` | ConfigMap (optional) | The same links and name (`Grafana 2` by default) for a second Grafana instance; the pipeline page shows both |
+| `CYBERTRACK_URL` | ConfigMap (optional) | Base URL of the Jira that holds CyberTrack; empty creates demo secure coding tickets |
+| `CYBERTRACK_PROJECT_KEY`, `CYBERTRACK_ISSUE_TYPE` | ConfigMap (optional) | The Jira project and issue type of a secure coding ticket, `SCP` and `Task` by default |
+| `CYBERTRACK_TOKEN` | Secret `dso-portal-cybertrack` (optional) | Personal access token of a Jira user allowed to create issues in that project |

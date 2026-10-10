@@ -16,9 +16,6 @@ abstract class EditorSpecification extends GuiSpecification {
                                                    'Affected CI', 'Approval', 'Installation start', 'Installation end',
                                                    'Short description', 'Description', 'Additional comments']
 
-    static final List<String> CHANGE_ONLY_FIELDS = ['Number', 'Change number', 'Approval', 'Installation start',
-                                                    'Installation end', 'Task start']
-
     void startProduct(String name, String department = 'Corporate Technology') {
         open('/admin/products/new')
         choose(dialog(), 'Department', department)
@@ -102,10 +99,6 @@ abstract class EditorSpecification extends GuiSpecification {
 
     Locator taskRows() {
         page.locator('dso-change-tasks-form .task-row')
-    }
-
-    Locator account(Locator scope, int index) {
-        scope.locator('fieldset.account').nth(index)
     }
 
     Locator found() {
