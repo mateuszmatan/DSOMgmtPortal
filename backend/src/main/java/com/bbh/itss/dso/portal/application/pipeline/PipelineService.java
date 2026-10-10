@@ -96,9 +96,9 @@ public class PipelineService implements PipelinesUseCase {
     }
 
     @Override
-    public PipelineView update(long id, PipelineType type, PipelineSettings settings) {
+    public PipelineView update(long id, Long version, PipelineType type, PipelineSettings settings) {
         Pipeline pipeline = find(id);
-        pipeline.reconfigure(type, settings);
+        pipeline.reconfigure(version, type, settings);
         return view(pipelines.save(pipeline));
     }
 

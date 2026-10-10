@@ -173,7 +173,7 @@ class DemoDataLoaderSpec extends Specification {
             Product product = stored.find { it.id() == productId }
             product.services().collect { new ServicePipelinesView(it, [view(product, it.id() + 100, it.id(), FULL)]) }
         }
-        pipelines.update(_, _, _) >> { long id, PipelineType type, PipelineSettings configured ->
+        pipelines.update(_, _, _, _) >> { long id, Long version, PipelineType type, PipelineSettings configured ->
             request('update', id - 100, type, configured, id)
         }
         pipelines.create(_, _, _) >> { long serviceId, PipelineType type, PipelineSettings configured ->

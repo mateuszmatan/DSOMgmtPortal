@@ -127,17 +127,21 @@ class DoraCalculatorSpec extends Specification {
         summarizeAll([], 7, NOW).runs() == 0
     }
 
-    def "runs before the range count only in the totals, a range without days has no rate, and an odd count has the middle median"() {
+    def "runs before the first day of the chart count in no total, a range without days has no rate, and an odd count has the middle median"() {
         given:
-        def old = summarize([point('2026-08-01T10:00:00Z', true, false, 60, 60)], 7, NOW)
+        def old = summarize([point('2026-08-01T10:00:00Z', true, false, 60, 60),
+                             point('2026-09-27T13:00:00Z', true, true, 60, 60),
+                             point('2026-09-28T00:00:00Z', true, false, 120, 60)], 7, NOW)
         def none = summarize([point('2026-10-04T10:00:00Z', true, false, 60, 60)], 0, NOW)
         def odd = summarize([point('2026-10-01T10:00:00Z', true, false, 100, 1),
                              point('2026-10-02T10:00:00Z', true, false, 900, 1),
                              point('2026-10-03T10:00:00Z', true, false, 300, 1)], 30, NOW)
 
         expect:
-        old.runs() == 1
-        old.daily().sum { it.runs() } == 0
+        old.with { [runs(), deployments(), restores(), changeFailureRatePercent(), leadTimeMedianSeconds()] } ==
+                [1, 1, 0, 0.0d, 120L]
+        old.daily().sum { it.runs() } == 1
+        day(old, '2026-09-28') == [1, 0, 1]
         none.with { [deploymentsPerWeek(), deploymentFrequencyLevel(), daily()] } == [null, null, []]
         odd.leadTimeMedianSeconds() == 300
     }

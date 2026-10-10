@@ -94,7 +94,8 @@ class PipelinePersistenceAdapterSpec extends Specification {
         def pipeline = adapter.load(stored.id()).get()
 
         when:
-        pipeline.reconfigure(SECURITY, pipelineSettings(agentLabels: ['windows'], extendedPipelineJob: 'CERT/extended'))
+        pipeline.reconfigure(stored.version(), SECURITY, pipelineSettings(agentLabels: ['windows'],
+                extendedPipelineJob: 'CERT/extended'))
         def saved = adapter.save(pipeline)
         entities.clear()
 

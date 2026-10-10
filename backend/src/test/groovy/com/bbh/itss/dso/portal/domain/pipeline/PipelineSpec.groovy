@@ -13,6 +13,7 @@ import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
+import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.Fixtures.activeKey
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.pipelineSettings
@@ -116,7 +117,8 @@ class PipelineSpec extends Specification {
         'revoking without an active key' | { pipeline(keys: [revokedKey()]).revokeActiveKey('again', LATER) } || IllegalStateException         | 'The pipeline has no active key to invalidate'
         'a second active key'           | { pipeline(keys: [activeKey(), activeKey(id: 101, value: 'x')]) }  || IllegalArgumentException      | 'a pipeline has at most one active key'
         'changing the key history'      | { pipeline().keys().clear() }                                      || UnsupportedOperationException | null
-        'changing the type'             | { pipeline().reconfigure(SAST, pipelineSettings()) }               || IllegalStateException         | 'The type of a pipeline cannot change; add a new pipeline instead'
+        'changing the type'             | { pipeline().reconfigure(null, SAST, pipelineSettings()) }         || IllegalStateException         | 'The type of a pipeline cannot change; add a new pipeline instead'
+        'a reason over 500 bytes'       | { pipeline().revokeActiveKey('ł' * 251, LATER) }                   || InvalidRequestException       | 'is too long: it may take at most 500 bytes'
     }
 
     def "only the security pipeline keeps the extended pipeline job and only the extended one the security job"() {
@@ -144,7 +146,7 @@ class PipelineSpec extends Specification {
         def keys = pipeline.keys()
 
         when:
-        pipeline.reconfigure(SECURITY, new PipelineSettings(['windows'], ' CERT/ext ', 'CERT/sec', ' CERT/gui ',
+        pipeline.reconfigure(0L, SECURITY, new PipelineSettings(['windows'], ' CERT/ext ', 'CERT/sec', ' CERT/gui ',
                 ' nightly '))
 
         then:
@@ -166,12 +168,51 @@ class PipelineSpec extends Specification {
         created.problems()*.field() == ['agentLabels']
 
         when:
-        existing.reconfigure(existing.type(), tooMany)
+        existing.reconfigure(null, existing.type(), tooMany)
 
         then:
         def reconfigured = thrown(InvalidRequestException)
         reconfigured.problems()*.message() == ['is too long: all entries together may take at most 1000 bytes']
         existing.settings() != tooMany
+    }
+
+    def "settings read at an older version are refused before anything changes, settings without a version are not checked"() {
+        given:
+        def pipeline = pipeline(version: 3)
+        def settings = pipeline.settings()
+
+        when:
+        pipeline.reconfigure(2L, FULL, pipelineSettings(jenkinsJob: 'CERT/gui-full'))
+
+        then:
+        def e = thrown(IllegalStateException)
+        e.message == STALE_VERSION
+        pipeline.settings() == settings
+
+        when:
+        pipeline.reconfigure(null, FULL, pipelineSettings(jenkinsJob: 'CERT/gui-full'))
+        pipeline.reconfigure(3L, FULL, pipelineSettings(jenkinsJob: 'CERT/gui'))
+
+        then:
+        pipeline.settings().jenkinsJob() == 'CERT/gui'
+    }
+
+    def "a Jenkins job and a description that fit their column in characters but not in UTF-8 bytes are refused"() {
+        when:
+        Pipeline.create(GUI, FULL, pipelineSettings(jenkinsJob: 'Zespół/' * 125, description: 'ś' * 501),
+                generator, NOW)
+
+        then:
+        def e = thrown(InvalidRequestException)
+        e.problems()*.field() == ['jenkinsJob', 'description']
+        e.problems()*.message().unique() == ['is too long: it may take at most 1000 bytes']
+
+        when:
+        def fitting = Pipeline.create(GUI, FULL, pipelineSettings(jenkinsJob: 'Zespół/' * 111, description: 'ś' * 500),
+                generator, NOW)
+
+        then:
+        fitting.settings().description().length() == 500
     }
 
     def "the #type pipeline reads its metrics from project tag #tag"() {

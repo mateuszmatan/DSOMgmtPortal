@@ -77,6 +77,8 @@ class ServiceTemplateSpec extends Specification {
                 { it.repositoryUrl('https://bitbucket/{CODE}/' + 'x' * 840 + '/{service}') },
                 { it.openShiftProject('{code}-{service}-' + 'x' * 42) },
                 { it.openShiftProject('{code}-{service}-' + 'x' * 43) },
+                { it.jenkinsJob('{service}' * 9 + '{CODE}' + '{type}' * 6) },
+                { it.jenkinsJob('{service}' * 9 + '{CODE}' + '{type}' * 7) },
                 { it.jenkinsJob(null).nexusIqApplication(null).repositoryUrl(null).openShiftProject(null) }]
         problem << [
                 [['agentLabels', 'add at least one Jenkins agent label']],
@@ -86,6 +88,8 @@ class ServiceTemplateSpec extends Specification {
                 [['repositoryUrl', 'is too long once the longest product code and service name are filled in: it may take at most 1000 bytes']],
                 [],
                 [['openShiftProject', 'is too long once the longest product code and service name are filled in: it may take at most 194 bytes']],
+                [],
+                [['jenkinsJob', 'is too long once the longest product code and service name are filled in: it may take at most 1000 bytes']],
                 []]
     }
 

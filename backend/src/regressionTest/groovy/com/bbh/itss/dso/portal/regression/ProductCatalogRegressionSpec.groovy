@@ -295,6 +295,23 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         api.get("/api/products?search=$code").json == []
     }
 
+    def "texts that fit their column in characters but not in UTF-8 bytes are refused against their fields"() {
+        given:
+        def code = uniqueCode()
+
+        when:
+        def described = api.post('/api/products', product(code: code, name: "Product $code",
+                description: 'Zażółć gęślą jaźń – ' * 160, services: [service(name: 'gui')]))
+        def serviced = api.post('/api/products', product(code: code, name: "Product $code",
+                services: [service(name: 'gui', description: '„Usługa” – ' * 150)]))
+
+        then:
+        [described, serviced]*.status == [400, 400]
+        described.json.errors == [[field: 'description', message: 'is too long: it may take at most 4000 bytes']]
+        serviced.json.errors == [[field: 'services[0].description', message: 'is too long: it may take at most 2000 bytes']]
+        api.get("/api/products?search=$code").json == []
+    }
+
     def "a service the library could not build or deploy is refused field by field (#rule)"() {
         given:
         def code = uniqueCode()
@@ -429,6 +446,9 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                 .json.errors*.field.sort() == ['contactEmail', 'name']
         api.put("/api/products/$created.id/details", [name: 'Renamed', departmentId: 99]).json.errors ==
                 [[field: 'departmentId', message: 'department 99 does not exist']]
+        api.put("/api/products/$created.id/details", [name: 'Renamed', departmentId: created.departmentId,
+                                                       ownerTeam: 'Księgowość ' * 15]).json.errors ==
+                [[field: 'ownerTeam', message: 'is too long: it may take at most 200 bytes']]
         api.put('/api/products/999999/details', [name: 'Renamed', departmentId: created.departmentId]).status == 404
     }
 

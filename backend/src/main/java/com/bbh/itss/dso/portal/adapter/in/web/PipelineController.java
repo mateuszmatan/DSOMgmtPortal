@@ -60,7 +60,7 @@ public class PipelineController {
 
     @PutMapping("/pipelines/{id}")
     public PipelineResponse update(@PathVariable long id, @Valid @RequestBody PipelineRequest request) {
-        return withKeys(pipelines.update(id, request.type(), request.toSettings()));
+        return withKeys(pipelines.update(id, request.version(), request.type(), request.toSettings()));
     }
 
     @DeleteMapping("/pipelines/{id}")

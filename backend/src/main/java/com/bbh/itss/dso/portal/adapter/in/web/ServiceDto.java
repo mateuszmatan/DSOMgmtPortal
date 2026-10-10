@@ -67,7 +67,7 @@ public record ServiceDto(
         @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$",
                 message = "use letters, digits, '.', '-' or '_', starting with a letter or digit")
         String name,
-        @Size(max = 2000) String description,
+        @Size(max = ServiceDraft.DESCRIPTION_MAX) String description,
         @NotNull @Valid BuildSettingsDto build,
         @Valid UnitTestSettingsDto unitTests,
         @Valid TestSettingsDto tests,

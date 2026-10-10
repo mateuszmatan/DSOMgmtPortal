@@ -41,11 +41,10 @@ class SettingsSectionsSpec extends Specification {
         ZERO == new SeverityLimits(0, 0, 0)
         written { new ServiceDefaults(MAVEN, OPENSHIFT, 'src', 4).writeTo(it) } ==
                 [buildTool: 'maven', deployTarget: 'openshift', sourceDir: 'src', tests: [maxParallel: 4]]
-        written { new ScanSettings(80, 10, 20, 15, false, 25, 35, 45, 55, 65, 75, false, 9).writeTo(it) } ==
+        written { new ScanSettings(80, 10, 20, 15, 45, 55, 65, 75, false, 9).writeTo(it) } ==
                 [coverage: [minLine: 80],
                  tools   : [sonar: [qualityGate: [waitForQualityGate: false, timeoutMinutes: 9]]],
                  sast    : [prepareTimeoutMin: 10, pollTimeoutMin: 20, pollIntervalSec: 15],
-                 sca     : [enabled: false, pollTimeoutMin: 25, pollIntervalSec: 35],
                  dast    : [pollTimeoutMin: 45, pollIntervalSec: 55, reportTimeoutMin: 65, reportIntervalSec: 75]]
     }
 

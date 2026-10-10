@@ -12,6 +12,8 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public record ReleaseGateSettings(List<Scanner> scanners, Boolean requireCoverage, String stateFile) {
 
+    public static final String STATE_FILE = "release-gate.json";
+
     public ReleaseGateSettings {
         scanners = normalize(scanners);
         stateFile = trimToNull(stateFile);
@@ -24,6 +26,10 @@ public record ReleaseGateSettings(List<Scanner> scanners, Boolean requireCoverag
     public void validate(ValidationProblems problems) {
         problems.require("scanners", scanners,
                 "select at least one scanner: without any the library gates on all four");
+        if (!STATE_FILE.equals(stateFile)) {
+            problems.add("stateFile", "must be " + STATE_FILE
+                    + ": the security pipeline archives and the extended pipeline copies only that file");
+        }
     }
 
     public void writeTo(ConfigTree defaults) {

@@ -160,6 +160,46 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
         api.get("/api/products/$certScanner.id/pipelines").json[0].pipelines*.type == ['FULL']
     }
 
+    def "a pipeline is changed at the version it was read at, and a change read before another one is refused"() {
+        given:
+        def read = pipelineFor(gui)
+
+        when:
+        def first = api.put("/api/pipelines/$read.id", pipeline(jenkinsJob: "DevSecOps/$code/gui-full", version: read.version))
+        def stale = api.put("/api/pipelines/$read.id", pipeline(agentLabels: ['windows'], version: read.version))
+        def unversioned = api.put("/api/pipelines/$read.id", pipeline(description: 'Nightly'))
+
+        then:
+        first.status == 200
+        first.json.version == read.version + 1
+        stale.status == 409
+        stale.json.detail == 'The record was changed by someone else in the meantime. Reload it and apply your change again.'
+        unversioned.status == 200
+        unversioned.json.version == first.json.version + 1
+        unversioned.json.agentLabels == ['linux-agent']
+        api.get("/api/pipelines/$read.id").json.version == unversioned.json.version
+        api.get("/api/products/$certScanner.id/pipelines").json[0].pipelines[0].version == unversioned.json.version
+    }
+
+    def "texts that fit their column in characters but not in UTF-8 bytes are refused against their fields"() {
+        given:
+        def created = pipelineFor(gui)
+
+        when:
+        def settings = api.put("/api/pipelines/$created.id", pipeline(jenkinsJob: 'Zespół/' * 125,
+                description: 'Opis zadań – ' * 70))
+        def revoked = api.post("/api/pipelines/$created.id/keys/revoke", [reason: 'Klucz wyciekł – ' * 30])
+
+        then:
+        settings.status == 400
+        settings.json.errors == [[field: 'jenkinsJob', message: 'is too long: it may take at most 1000 bytes'],
+                                 [field: 'description', message: 'is too long: it may take at most 1000 bytes']]
+        revoked.status == 400
+        revoked.json.errors == [[field: 'reason', message: 'is too long: it may take at most 500 bytes']]
+        api.get("/api/pipelines/$created.id").json.with { [jenkinsJob, description, enabled] } ==
+                [created.jenkinsJob, created.description, true]
+    }
+
     def "a service has one pipeline of each type and a pipeline keeps its type"() {
         given:
         def full = pipelineFor(gui)

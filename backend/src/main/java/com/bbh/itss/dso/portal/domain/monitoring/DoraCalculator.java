@@ -15,6 +15,7 @@ import static com.bbh.itss.dso.portal.domain.monitoring.DoraLevel.ELITE;
 import static com.bbh.itss.dso.portal.domain.monitoring.DoraLevel.HIGH;
 import static com.bbh.itss.dso.portal.domain.monitoring.DoraLevel.LOW;
 import static com.bbh.itss.dso.portal.domain.monitoring.DoraLevel.MEDIUM;
+import static java.lang.Math.max;
 import static java.lang.Math.round;
 import static java.time.ZoneOffset.UTC;
 import static java.util.Comparator.comparing;
@@ -35,7 +36,10 @@ public final class DoraCalculator {
     }
 
     public static DoraSummary summarizeAll(Collection<List<DoraPoint>> series, int rangeDays, Instant now) {
-        List<DoraPoint> points = series.stream().flatMap(List::stream).sorted(comparing(DoraPoint::time)).toList();
+        Instant firstDay = LocalDate.ofInstant(now, UTC).minusDays(max(rangeDays - 1, 0)).atStartOfDay(UTC).toInstant();
+        List<List<DoraPoint>> inRange = series.stream()
+                .map(one -> one.stream().filter(point -> !point.time().isBefore(firstDay)).toList()).toList();
+        List<DoraPoint> points = inRange.stream().flatMap(List::stream).sorted(comparing(DoraPoint::time)).toList();
         int runs = points.size();
         int deployments = (int) points.stream().filter(DoraPoint::deployment).count();
         Double perWeek = rangeDays > 0 ? deployments * 7.0 / rangeDays : null;
@@ -49,7 +53,7 @@ public final class DoraCalculator {
 
         List<Long> restoreTimes = new ArrayList<>();
         Instant failingSince = null;
-        for (List<DoraPoint> one : series) {
+        for (List<DoraPoint> one : inRange) {
             failingSince = min(failingSince, restores(one, restoreTimes));
         }
         Long mttr = restoreTimes.isEmpty() ? null
