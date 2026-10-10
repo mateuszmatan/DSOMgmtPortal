@@ -354,7 +354,7 @@ describe('ProductDetail', () => {
         'The Nexus IQ GoldenFix pipeline of gui and its key history are deleted.',
       );
       expect(opened(1).data).toMatchObject({
-        title: 'Configuration of the gui Nexus IQ GoldenFix pipeline',
+        title: 'Settings sent to Jenkins for gui · Nexus IQ GoldenFix (config.yaml)',
         fileName: 'cert-gui-nexusiq.yaml',
       });
     });
@@ -418,7 +418,7 @@ describe('ProductDetail', () => {
       await menu('Replace key');
       expect(opened()).toMatchObject({
         component: ConfirmDialog,
-        data: { title: 'Replace the key?', danger: true },
+        data: { title: 'Replace the key of the pipeline gui · Full?', danger: true },
       });
       const replaced = pipeline();
       http.expectOne({ method: 'POST', url: '/api/pipelines/100/keys' }).flush({
