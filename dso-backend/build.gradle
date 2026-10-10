@@ -1,0 +1,5 @@
+description = 'DevSecOps Management portal service: products, pipelines, keys, monitoring and the configuration DSOEnhanced reads'
+
+dependencies {
+    implementation 'org.yaml:snakeyaml'
+}
