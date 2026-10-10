@@ -125,13 +125,13 @@ of the portal you run.
 
 `screenshots/v1` to `screenshots/v18` hold screenshots of the GUIs, one folder per version, taken while Beadle and
 the DevSecOps Management Portal were still one portal with two menus; the pages look the same in the two applications
-of today, each under its own header. `screenshots/v1` to `screenshots/v13`: v7 shows the
+of today, each under its own header. The screenshots of the Change Evidence page are gone from every version, as the
+page itself is. `screenshots/v1` to `screenshots/v13`: v7 shows the
 departments, v8 the ten demo integrations with the charts of Product Management and Pipeline Monitoring, v9 the
 ServiceNow production change raised from Beadle, v10 the Self-service wizard and the Admin tabs of DevSecOps
 Management, Beadle Admin with the ServiceNow defaults of a product, and the production change by FixVersion, v11
 the Nexus IQ GoldenFix pipeline: the Self-service wizard choosing it, the product and pipeline pages of DevSecOps Admin
-and Pipeline Monitoring, Change Evidence with the golden pull request, and two pages of the DSOEnhanced report of the
-new pipeline, v12 Beadle synchronised with ProTech: the Changes tab filtered and sorted in its headers, the
+and Pipeline Monitoring, and two pages of the DSOEnhanced report of the new pipeline, v12 Beadle synchronised with ProTech: the Changes tab filtered and sorted in its headers, the
 ProTech workflow progress of a change, an update edited by its department, published to ProTech and applied, the New
 Change wizard and Beadle Admin with departments, products and the change template of a product, and v13 the
 guided New Change wizard step by step (generic request data with the magnifier lookups, Jira, approval and
@@ -149,8 +149,8 @@ pages in a narrow window.
 
 `screenshots/v15` shows DevSecOps Management: the Pipelines tab of your department filtered and sorted in its
 headers, the page of a pipeline with its key, settings, Jenkinsfile and recent runs, a pipeline with an invalidated
-key, the Self-service wizard with the defaults of the library and the service template, Pipeline Monitoring, Change
-Evidence, and the Admin tabs with the pipeline form filled from the template and the Service template page itself.
+key, the Self-service wizard with the defaults of the library and the service template, Pipeline Monitoring, and the
+Admin tabs with the pipeline form filled from the template and the Service template page itself.
 
 `screenshots/v16` shows step 2 of the Self-service wizard with the pipelines in their new order and names: SAST
 (Static Application Security Tests) - HCL AppScan, OSA (Open Source Analysis) (NexusIQ with Golden Fix and Golden Pull
