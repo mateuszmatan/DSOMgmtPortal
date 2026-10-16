@@ -136,8 +136,8 @@ dashboards, or one can hold the pipeline dashboard and the other the security on
 dashboard shows its pipeline dashboard for security pipelines too, and an instance without the pipeline dashboard
 shows nothing for the other pipelines.
 
-A database written by the single portal of earlier versions (`./data` next to the jar) is not reused: the portal
-starts its own database at its new location (see [Data model](#data-model)).
+A database that earlier versions wrote to `./data` next to the jar is not reused: the portal starts its own database
+at its new location (see [Data model](#data-model)).
 
 For GUI work, the Angular development server rebuilds on every change and proxies `/api` to the service: `npm start`
 serves `dso-gui` on http://localhost:4200 against port 8080, and `npm run start:public` does the same without the BBH
