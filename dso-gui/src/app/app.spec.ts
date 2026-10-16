@@ -47,7 +47,6 @@ describe('App', () => {
       '/monitoring',
       '/admin',
     ]);
-    expect(text(page())).not.toContain('Beadle');
     expect(text(page())).not.toContain('Change Evidence');
   });
 

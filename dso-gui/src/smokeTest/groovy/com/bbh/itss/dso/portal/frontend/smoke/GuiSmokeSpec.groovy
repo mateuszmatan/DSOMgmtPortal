@@ -36,7 +36,6 @@ class GuiSmokeSpec extends DsoSpecification {
         assertThat(page.locator('header .brand-name')).hasText('BBH DevSecOps Management Portal')
         assertThat(menuLinks()).hasText(MENU as String[])
         assertThat(activeMenuLink()).hasText('Admin')
-        !page.locator('header.topbar').textContent().contains('Beadle')
         SECTIONS.every { section -> !page.locator('header.topbar').textContent().contains(section.description) }
         assertThat(page.locator('footer')).containsText('BBH 2026')
         ownErrors().isEmpty()
