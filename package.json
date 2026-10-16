@@ -4,11 +4,9 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve dso-gui",
-    "start:beadle": "ng serve beadle-gui",
     "start:public": "ng serve dso-gui --configuration=public",
-    "start:beadle:public": "ng serve beadle-gui --configuration=public",
-    "build": "ng build dso-gui && ng build beadle-gui",
-    "test": "ng test common-gui && ng test beadle-gui && ng test dso-gui"
+    "build": "ng build dso-gui",
+    "test": "ng test common-gui && ng test dso-gui"
   },
   "private": true,
   "packageManager": "npm@10.8.2",

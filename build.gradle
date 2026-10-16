@@ -19,10 +19,7 @@ def skipGui = providers.gradleProperty('skipGui').map { it != 'false' }.getOrEls
 def performanceFactor = providers.systemProperty('performance.factor')
   .orElse(providers.gradleProperty('performance.factor'))
   .getOrElse('2.0')
-def applications = [beadle: [backend: 'beadle-backend', gui: 'beadle-gui', jar: 'beadle'],
-
-
-                    dso   : [backend: 'dso-backend', gui: 'dso-gui', jar: 'dso-portal']]
+def applications = [dso: [backend: 'dso-backend', gui: 'dso-gui', jar: 'dso-portal']]
 
 allprojects {
     group = 'com.bbh.itss.dso'

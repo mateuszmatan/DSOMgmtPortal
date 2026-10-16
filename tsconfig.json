@@ -33,12 +33,6 @@
       "path": "./common-gui/tsconfig.spec.json"
     },
     {
-      "path": "./beadle-gui/tsconfig.app.json"
-    },
-    {
-      "path": "./beadle-gui/tsconfig.spec.json"
-    },
-    {
       "path": "./dso-gui/tsconfig.app.json"
     },
     {
