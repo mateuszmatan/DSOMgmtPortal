@@ -649,7 +649,7 @@ class SelfServiceSpec extends EditorSpecification {
 
     def "a remembered department that is no longer listed has to be chosen again"() {
         given:
-        page.addInitScript("localStorage.setItem('dso.beadle.department', '99')")
+        page.addInitScript("localStorage.setItem('dso.department', '99')")
 
         when:
         open('/self-service')

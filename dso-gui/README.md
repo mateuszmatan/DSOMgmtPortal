@@ -1,8 +1,8 @@
 # DevSecOps Management Portal GUI
 
-The Angular app of the BBH DevSecOps Management Portal, one of the three projects of the Angular workspace in the
-repository root (`angular.json`), next to [common-gui](../common-gui/README.md), the code it shares with Beadle, and
-[beadle-gui](../beadle-gui/README.md). See the [main README](../README.md) for the whole portal.
+The Angular app of the BBH DevSecOps Management Portal, one of the two projects of the Angular workspace in the
+repository root (`angular.json`), next to [common-gui](../common-gui/README.md), the code it builds on. See the
+[main README](../README.md) for the whole portal.
 
 ```bash
 ./gradlew installNpmCIDeps            # npm ci from package-lock.json, for every GUI project
@@ -38,7 +38,7 @@ itself, as "Inside and outside the BBH network" in the main README describes.
 The shell, the UI kit, the form field definitions, the departments and the Admin page come from `common-gui`,
 imported as `@common/...` (see its README). `main.ts` is `appConfig('DevSecOps Management Portal', routes)`: the
 header reads "BBH DevSecOps Management Portal", the menu lists Pipelines, Self-service, Pipeline Monitoring and
-Admin, and nothing of Beadle appears anywhere.
+Admin.
 
 ## Forms from field definitions
 
@@ -73,7 +73,7 @@ the production build. `GuiServer` (in `common-gui/src/testFixtures`) serves `dis
 and the exact JSON the GUI sends. Every specification extends `DsoSpecification`, which knows the portal's menu.
 Screenshots of the last state of every feature land in `build/reports/frontend/screenshots`.
 
-- Smoke (`src/smokeTest`): the title, the four menu entries and the footer without any trace of Beadle; every
+- Smoke (`src/smokeTest`): the title, the four menu entries and the footer; every
   section and every Admin tab from the menu and from a direct link; the pages that read the API; the pages without
   icons but the service editor's menu; every page in an 800 and a 600 pixel window without sideways scrolling.
 - Regression (`src/regressionTest`): the tabs of DevSecOps Admin; the departments with their pipeline tallies and

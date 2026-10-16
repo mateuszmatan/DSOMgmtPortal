@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 
-export const MY_DEPARTMENT_KEY = 'dso.beadle.department';
+export const MY_DEPARTMENT_KEY = 'dso.department';
 
 function stored(): number | null {
   try {

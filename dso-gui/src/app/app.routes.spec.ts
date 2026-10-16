@@ -85,7 +85,7 @@ describe('routes', () => {
     ['/products/5/edit', '/admin/products/5/edit'],
     ['/settings', '/admin/settings'],
     ['/evidence', '/monitoring'],
-    ['/beadle/changes', '/monitoring'],
+    ['/nowhere', '/monitoring'],
   ])('sends %s to %s', async (from, to) => {
     TestBed.configureTestingModule({ providers: [provideRouter(stubbed(routes))] });
     const router = TestBed.inject(Router);

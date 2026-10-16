@@ -132,11 +132,6 @@ class PortalSmokeSpec extends Specification {
         activity.json.dora.daily.size() == 30
     }
 
-    def "Beadle's change management is not part of this application"() {
-        expect:
-        ['/api/changes', '/api/change-profiles', '/api/evidence/products/1'].every { api.get(it).status == 404 }
-    }
-
     @Requires({ PortalSmokeSpec.uiExpected() })
     def "the web UI is served, also for links into the app"() {
         expect:

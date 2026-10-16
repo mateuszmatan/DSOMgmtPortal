@@ -106,7 +106,7 @@ class PipelinesSpec extends DsoSpecification {
 
     def "a row opens the page of its pipeline with its key, settings, Jenkinsfile and recent runs"() {
         given:
-        page.addInitScript("localStorage.setItem('dso.beadle.department', '3')")
+        page.addInitScript("localStorage.setItem('dso.department', '3')")
         recordClipboard()
 
         when:
@@ -186,7 +186,7 @@ class PipelinesSpec extends DsoSpecification {
         }
 
         when:
-        page.addInitScript("localStorage.setItem('dso.beadle.department', '3')")
+        page.addInitScript("localStorage.setItem('dso.department', '3')")
         open('/pipelines')
         buttonIn(page.locator('dso-grid'), 'Edit the settings of the Full pipeline of gui').click()
         input(dialog(), 'Description').fill('Release build')

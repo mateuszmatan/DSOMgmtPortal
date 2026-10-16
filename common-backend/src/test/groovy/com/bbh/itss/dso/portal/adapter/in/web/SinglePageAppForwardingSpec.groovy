@@ -29,12 +29,12 @@ class SinglePageAppForwardingSpec extends Specification {
         path << ['/pipelines', '/pipelines/7', '/admin', '/admin/products/12/edit']
     }
 
-    def "#path is left to the API, the static resources and the pages of the other application"() {
+    def "#path is left to the API, the static resources and unknown addresses"() {
         expect:
         mvc.perform(get(path)).andReturn().response.status == 404
 
         where:
-        path << ['/api/unknown', '/favicon.ico', '/index.htm', '/changes', '/new-change/product']
+        path << ['/api/unknown', '/favicon.ico', '/index.htm', '/nowhere', '/nowhere/else']
     }
 
     private static MockMvc mvcWithPages(String pages) {
