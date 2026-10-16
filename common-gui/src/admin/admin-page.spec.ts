@@ -22,17 +22,16 @@ const DEVSECOPS_ADMIN: AdminArea = {
   ],
 };
 
-const BEADLE_ADMINISTRATION: AdminArea = {
+const INVENTORY_ADMIN: AdminArea = {
   section: {
-    path: '/beadle/admin',
+    path: '/inventory/admin',
     label: 'Admin',
-    heading: 'Beadle Admin',
-    description:
-      "Departments, products and each product's change template: the answers every new change of the product starts with.",
+    heading: 'Inventory Admin',
+    description: 'Departments and the products each one keeps in the inventory.',
   },
   tabs: [
-    { path: '/beadle/admin/departments', label: 'Departments' },
-    { path: '/beadle/admin/products', label: 'Products' },
+    { path: '/inventory/admin/departments', label: 'Departments' },
+    { path: '/inventory/admin/products', label: 'Products' },
   ],
 };
 
@@ -64,7 +63,7 @@ describe('AdminPage', () => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter(
-          [adminRoute(DEVSECOPS_ADMIN), adminRoute(BEADLE_ADMINISTRATION)],
+          [adminRoute(DEVSECOPS_ADMIN), adminRoute(INVENTORY_ADMIN)],
           withComponentInputBinding(),
         ),
       ],
@@ -142,17 +141,17 @@ describe('AdminPage', () => {
   });
 
   it('shows another admin area under its own path', async () => {
-    await harness.navigateByUrl('/beadle/admin');
+    await harness.navigateByUrl('/inventory/admin');
 
-    expect(TestBed.inject(Router).url).toBe('/beadle/admin/products');
-    expect(text(page().querySelector('h1'))).toBe('Beadle Admin');
+    expect(TestBed.inject(Router).url).toBe('/inventory/admin/products');
+    expect(text(page().querySelector('h1'))).toBe('Inventory Admin');
     expect(text(page().querySelector('.page-description'))).toBe(
-      "Departments, products and each product's change template: the answers every new change of the product starts with.",
+      'Departments and the products each one keeps in the inventory.',
     );
     expect(tabs().map(text)).toEqual(['Departments', 'Products']);
     expect(tabs().map((link) => link.getAttribute('href'))).toEqual([
-      '/beadle/admin/departments',
-      '/beadle/admin/products',
+      '/inventory/admin/departments',
+      '/inventory/admin/products',
     ]);
     expect(active()).toEqual(['Products']);
   });

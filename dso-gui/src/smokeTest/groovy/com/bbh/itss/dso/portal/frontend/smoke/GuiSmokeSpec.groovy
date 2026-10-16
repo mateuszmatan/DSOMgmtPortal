@@ -26,7 +26,7 @@ class GuiSmokeSpec extends DsoSpecification {
 
     static final String GENERATED_KEY = '9c4e1a7b-2d3f-4e5a-8b6c-7d8e9f0a1b2c'
 
-    static final String CORPORATE_TECHNOLOGY = "localStorage.setItem('dso.beadle.department', '3')"
+    static final String CORPORATE_TECHNOLOGY = "localStorage.setItem('dso.department', '3')"
 
     def "the portal shows its title, only the DevSecOps sections in its menu and the footer"() {
         when:

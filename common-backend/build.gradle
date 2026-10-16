@@ -1,4 +1,4 @@
-description = 'Code both backends share: departments, error handling, use case transactions and the single page app forwarding'
+description = 'Code the portal service builds on: departments, error handling, use case transactions and the single page app forwarding'
 
 apply plugin: 'java-library'
 
